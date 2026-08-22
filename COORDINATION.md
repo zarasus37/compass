@@ -8,46 +8,55 @@
 
 ## Status
 
-- **Stage 1 (Design)**: ✅ Complete
-- **Stage 2 (Creation)**: 🟡 Step 2 of 16 (auth) — ✅ done. Steps 3–16 pending.
+- **Stage 1 (Design)**: ✅ Complete (v1.0) → **v4.0** reframe locked 2026-08-22 (alchemical/celestial visual language, pay-period as unit of truth, auto-allocate, 7 planetary vessels, 3-chapter sidebar, 4 allocation strategies)
+- **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Next: Cluster 1.6 — form actions (New envelope, New transaction, New goal) + onboarding flow.
 - **Stage 3 (Test & bug-fix)**: pending Stage 2
 
-> Last update: 2026-08-22 (post-auth)
+> Last update: 2026-08-22 (post-Cluster-1.5)
 
 ---
 
 ## Spec (read this first)
 
-The full design spec is at **`00-DESIGN.md` v1.0**. It is the contract for every feature, page, and decision in the app. Read it before you write any code.
+The full design spec is at **`00-DESIGN.md` v4.0** (was v1.0; v4.0 reframe locked 2026-08-22). It is the contract for every feature, page, and decision in the app. Read it before you write any code.
 
 Key sections to load into context:
 - **Brand** (top): Name = **Compass**; Tagline = *Your money, guided.*
-- **Section 0** — Vision
+- **Decisions Log (D1–D16)** — D11–D16 are the v4 product reframe (pay period, auto-allocate, sidebar, planetary vessels, alchemical vocabulary, enforcement)
+- **Section 0** — Vision (reframed around pay period)
+- **Section 0a** — **Visual Design Language (v4 — Alchemical / Celestial)** — cosmic canvas, gold leaf, planetary palette, typography stack, the Mandala, the 7 planetary vessel mapping, the alchemical vocabulary, the sidebar structure, the section header idiom, the calendar idiom, the transaction row idiom, the color-coded fill idiom, the iconography. **This is the contract for every UI surface.**
 - **Section 2** — Core concepts (Accounts, Envelopes, Transactions, Rules, Views, Widgets, AI Tier, Audit Log, Routing Level)
 - **Section 3** — Feature surface by AI tier (0/1/2/3)
 - **Section 4** — Layout customization (widget registry, slots, drag-drop, saveable views)
-- **Section 5** — L1 routing + rules engine
+- **Section 5** — L1 routing + rules engine (**reframed: auto-allocate, no confirm modal**)
 - **Section 5a** — Plugin architecture
+- **Section 5b** — **Allocation Strategies** (Envelope / Zero-based / 50-30-20 / Pay-yourself-first)
 - **Section 6** — Data model
-- **Section 7** — Pages & routes
-- **Section 8** — Tech stack
-- **Section 9** — Implementation order (16 steps)
+- **Section 7** — Pages & routes (refactored into 3-chapter sidebar structure)
+- **Section 8** — Tech stack (with alchemical design system notes)
+- **Section 9** — Implementation order (refactored into **Cluster 1: Pay Period 1.0** as the next milestone)
 - **Section 13** — Stage 2 starting point
 
 ---
 
-## Locked decisions (D1–D10 from the spec)
+## Locked decisions (D1–D16 from the spec)
 
 - **D1** Primary user: xKryptic's mom, world-class bar
 - **D2** AI: per-user tier (0/1/2/3), user picks
-- **D3** Layout: modular widget system + drag-drop + saveable views, **structural from day one**
+- **D3** Layout: modular widget system + drag-drop + saveable views, **structural from day one** (deferred to Cluster 3 in the v4 ordering)
 - **D4** Routing in v1: **L1** (planned routing with rules engine)
 - **D5** AI provider: **Mavis internal primary + Ollama local fallback**, swappable via plugin abstraction
 - **D6** Name: **Compass**
 - **D7** Auth: email + password (hashed), single-user, simple
-- **D8** Design vibe: **Airtable-meets-treasury** — dense, data-first, every column/section configurable
+- **D8** Design vibe: ~~Airtable-meets-treasury~~ → **Alchemical / Celestial (v4)** — cosmic dark canvas, gold leaf, planetary glyphs, illuminated typography. Locked 2026-08-22 from `compass-mockup-v4.html`. See Section 0a.
 - **D9** Mobile: PWA-ready, native deferred
 - **D10** Stack: **Next.js 16 monolith + plugin architecture + API routes for external integrations**
+- **D11** **Unit of truth = pay period** (not month, not transaction)
+- **D12** **Auto-allocate, no confirm modal** (plan is policy, not intent)
+- **D13** **3-chapter sidebar**: Cosmos / The Great Work / Substance (order matters)
+- **D14** **7 planetary vessels** (Sol=Rent, Luna=Groceries, Mars=Buffer, Mercury=Utilities, Jupiter=Growth, Venus=Joy, Saturn=Debt)
+- **D15** **Alchemical vocabulary** (Vessels/Chronicle/Great Work/Prima Materia/Distillation/Aspects) — decoration, not primary labeling
+- **D16** **Envelopes enforce** (balance = 100% = hard warning)
 
 Do not re-litigate these in the next session. If you discover a real conflict, surface it in this file as a "Decision revision" entry rather than silently changing course.
 
@@ -55,24 +64,65 @@ Do not re-litigate these in the next session. If you discover a real conflict, s
 
 ## Stage 2 — Start here
 
-Begin with **scaffold** (per Section 9, step 1) and work the 16 steps in order. Each step is a milestone; ship each one before moving on.
+The v4 ordering is **cluster-based**, not the linear 16-step order from v1.0. We deliver the alchemical dashboard end-to-end with mock data first (Cluster 1: Pay Period 1.0), then layer in AI tiers, drag-drop, Plaid, etc. The "visible UI matters more than invisible architecture" preference (xKryptic, 2026-08-22) drives this reordering.
 
-1. **Scaffold** — Next.js 16, Tailwind v4, shadcn/ui, Prisma + SQLite, TanStack Query, dnd-kit, Recharts, plugin registry skeleton.
-2. **Auth** — email + password (argon2id), single-user, session-based.
-3. **Core data model + migrations** — User, Account, Envelope, Transaction, Rule, View, AuditLog, ImportBatch.
-4. **Plugin registry** — AI provider, import format, widget plugin interfaces. Wire Mavis internal + Ollama adapters via config.
-5. **Manual transaction entry** + accounts + envelopes CRUD.
-6. **Dashboard with 3 starter widgets** (no drag-drop yet): NetWorth, RecentTransactions, QuickAdd.
-7. **Layout customization system** — widget registry, slot system, drag-drop, save views. *Structural milestone — gets its own QA pass.*
-8. **CSV import** + recurring detection.
-9. **Allocation rules engine** (L1 routing) — DSL-light, dry-run, audit log, conflict resolution.
-10. **AI Tier 1** — chat, smart categorize, natural-language search.
-11. **AI Tier 2** — insights, anomaly, forecast, what-if, monthly narrative.
-12. **AI Tier 3** — autonomous actions + audit log.
-13. **Reports & charts** (deeper than the dashboard widgets).
-14. **Mobile PWA polish** — install prompt, offline-first basics.
-15. **Plaid (L2 routing)** — future.
-16. **Hardening + tests** — Stage 3 prep.
+### Cluster 0 — Scaffold + Auth (DONE)
+
+- ✅ Scaffold (Next.js 16, React 19, TS strict, Tailwind v4, shadcn Base UI, Prisma 7 + SQLite, TanStack Query 5, Zustand 5, dnd-kit, Recharts 3, Zod 4, plugin registry)
+- ✅ Lock Base UI decision
+- ✅ Auth (argon2id, server-side sessions, `/welcome`+`/login` flow, route protection, 18/18 smoke tests passing)
+- ✅ Three mockups reviewed (v1 → v2 → v3 editorial → v4 alchemical — **v4 LOCKED**)
+
+### Cluster 1 — Pay Period 1.0 (✅ DONE — visible-UI push complete; 2026-08-22)
+
+Full alchemical dashboard end-to-end with mock data. **This was the visible-UI milestone.** All 15 steps shipped, plus the visible interactivity pass (Cluster 1.5). Commits at the cluster boundary.
+
+1. **Alchemical design system** — `globals.css` (cosmic canvas + gold leaf + planetary palette), Cinzel/Italiana/Cormorant/JetBrains Mono via `next/font/google`, `lib/money.ts` cents helper, `lib/format.ts` for date/period math, alchemical components in `src/components/alchemy/` (Mandala, VesselGlyph, CompassRose, EnvelopeBarChart, PageHead).
+2. **Data model** — User, Account, Envelope (with `planet` field), Transaction, PaySchedule, Goal, AllocationPlan, AllocationRule, AuditLog. Money = integer cents. Migration `20260822113455_cluster1_full_data_model`.
+3. **Onboarding flow** — deferred to next push (no `firstRun` flow yet; user signs in directly).
+4. **Sidebar nav** — 3-chapter typographic spine (Overview / Plan / Money) with all 16 v4 routes wired. Collapsible, active state from `usePathname`.
+5. **Dashboard** — v7 guiding flow: welcome + top priority hero + other goals + bar chart + snapshot + explore grid + next step + colophon. The Mandala was reserved to `/period` (v7 said it was too abstract for a dashboard centerpiece).
+6. **Period page** — full period detail, allocation breakdown, closing balance walk (uses the live store).
+7. **Calendar** — month grid with planetary day-of-week headers, payday / goal target / today cells, moon phase panel.
+8. **Insights** — Ouroboros (allocation donut in planetary colors) + Trajectory (projection) + summary stats.
+9. **Envelopes** — list of all envelopes with planetary glyphs, balance/target/spent/days-left, 100% hard warning, full bar chart.
+10. **Transactions** — grouped by day, filterable, full record.
+11. **Allocation plan** — 4-strategy picker UI (Envelope / Zero-based / 50-30-20 / Pay-yourself-first), Ouroboros preview, per-vessel breakdown, "ARMED · auto-runs on every paycheck" badge.
+12. **Auto-allocate engine** — `src/lib/store.ts` exposes `runAllocation()` (pure) and `applyAllocation()` (mutates). Wired to the dashboard's "Run paycheck" simulator with a `useActionState` form + celebration banner. **No confirm modal** (D12) — the plan runs the moment a paycheck hits.
+13. **Build-a-plan sub-pages** — Goals, Recurring bills, Emergency fund, Investment goal. Goals page is the canonical goal management view.
+14. **Accounts** — Chase Checking mock with the live balance (updates when a paycheck runs).
+15. **Subscriptions / Debts / Investments** — list pages with planetary affiliation, basic CRUD (CRUD not yet wired to actions; visual only for now).
+
+### Cluster 1.5 — Visible Interactivity Pass (✅ DONE — commit `35ccc6e`; 2026-08-22)
+
+The D12 contract made visible end-to-end:
+
+- `src/lib/store.ts` — in-memory store (pinned on `globalThis.__COMPASS_STORE__` so HMR preserves balances). Holds envelopes, goals, transactions, plan, account, audit log. Read/write functions + the pure `runAllocation()` engine.
+- `src/lib/mock-seed.ts` — extracted seed data; types mirror the eventual Prisma models.
+- `src/lib/mock.ts` — thin compatibility shim. Each export is a fresh read from the live store, so every page picks up the new state on its next render.
+- `src/app/actions/paycheck.ts` — `"use server"` action. Reads the form input as dollars, converts to cents, runs the engine, applies the transfers, writes the audit entry, revalidates every page that shows balance state.
+- `src/components/dashboard/PaycheckSimulator.tsx` — `"use client"` form with `useActionState`. Gold-leaf "See the plan in action" card, live "Current plan" summary, celebration banner with each vessel's allocation.
+- `src/app/page.tsx` — dashboard reads live state, includes the PaycheckSimulator between Top Priority and Envelopes.
+- 8 deep pages (period, goals, accounts, allocation, insights, transactions, calendar, envelopes) now use live reads inside the page body, with `force-dynamic` so every render is fresh.
+
+End-to-end: click "Run paycheck" on the dashboard, the engine distributes the dollars per the 7-rule envelope plan, the bar chart re-renders, the celebration banner shows the transfers, and every other page sees the new state.
+
+### Cluster 2 (after Cluster 1)
+
+- Real Plaid sandbox (L2 routing) — deferred until Cluster 1 is fully working with mock data
+- AI Tier 1 — chat, smart categorize, natural-language search
+- AI Tier 2 — insights, anomaly, forecast, what-if, monthly narrative
+- AI Tier 3 — autonomous actions + audit log deepening
+
+### Cluster 3 (after Cluster 2)
+
+- Layout customization system — widget registry, slot system, drag-drop, save views (the structural piece from v1.0 ordering)
+- CSV import + recurring detection
+- Mobile PWA polish
+
+### Cluster 4 (future)
+
+- L2 actual bank routing (Plaid + ACH)
 
 ### Acceptance for "Stage 2 step 1 (scaffold) done"
 
@@ -264,12 +314,17 @@ Begin with **scaffold** (per Section 9, step 1) and work the 16 steps in order. 
 
 ## Sign-off
 
-- **Design locked**: 2026-08-21
-- **Stage 2 step 1 (scaffold)**: ✅ 2026-08-22
-- **Stage 2 step 2 (auth)**: ✅ 2026-08-22
+- **Design v1.0 locked**: 2026-08-21
+- **Design v4.0 locked (alchemical/celestial)**: 2026-08-22 — see Section 0a + Decision revisions
+- **Cluster 0.1 (scaffold)**: ✅ 2026-08-22
+- **Cluster 0.2 (auth)**: ✅ 2026-08-22
+- **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data)**: ✅ 2026-08-22, commit `35ccc6e`
+- **Cluster 1.5 (visible interactivity pass — auto-allocate engine + paycheck simulator + live store)**: ✅ 2026-08-22, commit `35ccc6e`
+- **Cluster 1.6 (form actions + onboarding)**: ⏳ next
 - **Handed off (design)**: 2026-08-21
 - **Handed off (scaffold)**: 2026-08-22
 - **Handed off (auth)**: 2026-08-22
+- **Handed off (Cluster 1)**: 2026-08-22
 - **From session**: `mvs_77706038b3dc41f0818e43d1aca029bd` (design)
-- **From session**: `mvs_0ca37adfb53b4de188d584afc12df309` (scaffold + auth)
-- **Handed to**: next session (TBD) — start at Step 3 (data model)
+- **From session**: `mvs_0ca37adfb53b4de188d584afc12df309` (scaffold + auth + Cluster 1 + Cluster 1.5)
+- **Handed to**: next session (TBD) — start at Cluster 1.6 (form actions + onboarding)
