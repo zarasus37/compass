@@ -34,5 +34,32 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  sessions Session[]
+
   @@index([email])
+}
+
+/// Server-side session row. Cookie holds the session id; we look this up
+/// to resolve the current user. Sessions are revocable (logout = delete
+/// row) and can carry last-seen / last-ip metadata for security review.
+model Session {
+  id         String   @id @default(cuid())
+  userId     String
+  /// Hashed cookie token. We never store the raw token, so a DB leak
+  /// doesn't allow session hijack.
+  tokenHash  String   @unique
+  userAgent  String?
+  ip         String?
+  /// Last-seen timestamp — refreshes on every authenticated request.
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  /// Absolute expiry. Sliding sessions (extend on activity) are a future
+  /// enhancement; v1 uses a fixed window so "log out everywhere" is a
+  /// single `deleteMany` per user.
+  expiresAt  DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }

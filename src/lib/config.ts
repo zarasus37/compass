@@ -21,6 +21,12 @@ function optionalEnv(name: string, fallback: string): string {
 export const config = {
   nodeEnv: optionalEnv("NODE_ENV", "development"),
   database: {
+    /** Prisma-format URL. The CLI parses it as schema-relative; the app
+     * uses `dbFilePath` below (which we compute from cwd) because the
+     * driver adapter's path resolution is cwd-relative, not schema-
+     * relative. Keeping `url` for the CLI + a separate `dbFilePath`
+     * for the app avoids the two-context path drift that bit us on
+     * the first integration test. */
     url: requireEnv("DATABASE_URL"),
   },
   ai: {

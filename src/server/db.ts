@@ -1,6 +1,6 @@
+import path from "node:path";
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import { config } from "@/lib/config";
 
 /**
  * Prisma client singleton.
@@ -14,6 +14,12 @@ import { config } from "@/lib/config";
  * setting in prisma/schema.prisma) so pnpm + TypeScript can resolve it
  * through our `@/*` path alias.
  *
+ * **Path resolution gotcha**: Prisma's CLI resolves `file:./dev.db` in
+ * DATABASE_URL *relative to the prisma.config.ts location* (the project
+ * root) — NOT relative to the schema file. The better-sqlite3 driver
+ * adapter treats paths as cwd-relative too. As long as both run from
+ * the project root, they agree. We just use `dev.db` directly.
+ *
  * Next.js dev mode hot-reloads modules, which can create many PrismaClient
  * instances. Stash one on globalThis in dev so the connection pool stays sane.
  * In production we create a fresh client per process.
@@ -22,11 +28,12 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
+function dbFilePath(): string {
+  return path.resolve(process.cwd(), "dev.db");
+}
+
 function buildClient(): PrismaClient {
-  const url = config.database.url;
-  // Strip the `file:` prefix that Prisma's URL convention uses.
-  const filename = url.startsWith("file:") ? url.slice("file:".length) : url;
-  const adapter = new PrismaBetterSqlite3({ url: filename });
+  const adapter = new PrismaBetterSqlite3({ url: dbFilePath() });
   return new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],

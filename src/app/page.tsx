@@ -3,12 +3,18 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { Separator } from "@/components/ui/separator";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { requireUser } from "@/server/auth/user";
+import { logoutAction } from "@/app/(auth)/actions";
 
 /**
- * Compass landing — Stage 2 scaffold.
- * A clean, on-brand placeholder. Real dashboard lands in Step 6.
+ * Compass home — signed-in landing.
+ * The middleware and `requireUser` together ensure only authenticated
+ * users see this. The real dashboard arrives in Step 6; for now this
+ * is a "you're in" confirmation with the path forward.
  */
-export default function Home() {
+export default async function Home() {
+  const user = await requireUser();
+
   return (
     <main className="flex flex-1 flex-col items-center justify-center px-6 py-16">
       <div className="w-full max-w-3xl space-y-10">
@@ -17,11 +23,11 @@ export default function Home() {
             Compass
           </p>
           <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight">
-            Your money, guided.
+            Welcome, {user.name}.
           </h1>
           <p className="text-lg text-muted-foreground max-w-xl">
-            A modular, AI-aware personal finance app. Stage 2 (creation) is in
-            progress. The shell is up; the features come next.
+            Signed in as <span className="font-medium text-foreground">{user.email}</span>.
+            The dashboard lands in Step 6 — for now, this confirms auth works.
           </p>
         </header>
 
@@ -30,31 +36,28 @@ export default function Home() {
         <section className="grid gap-4 sm:grid-cols-3">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Scaffold ready</CardTitle>
+              <CardTitle className="text-base">Auth wired</CardTitle>
               <CardDescription>
-                Next.js 16, Tailwind v4, shadcn/ui, Prisma + SQLite, TanStack
-                Query, dnd-kit, Recharts.
+                argon2id hashing, server-side sessions, httpOnly cookies.
+                Middleware protects every route.
               </CardDescription>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Plugin layer in place</CardTitle>
+              <CardTitle className="text-base">Up next: data model</CardTitle>
               <CardDescription>
-                AI providers, import formats, and widgets all go through
-                <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">
-                  src/plugins
-                </code>
-                .
+                Step 3 — accounts, envelopes, transactions, rules, views, audit log.
+                Money in integer cents.
               </CardDescription>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Next: auth + data model</CardTitle>
+              <CardTitle className="text-base">Then: dashboard</CardTitle>
               <CardDescription>
-                Step 2 (email + password) and Step 3 (full schema) ship next,
-                per COORDINATION.md.
+                Step 6 — three starter widgets (NetWorth, RecentTransactions, QuickAdd).
+                Drag-and-drop comes in Step 7.
               </CardDescription>
             </CardHeader>
           </Card>
@@ -62,23 +65,23 @@ export default function Home() {
 
         <footer className="flex flex-wrap items-center justify-center gap-3 sm:justify-start">
           <Link
-            href="https://github.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(buttonVariants({ variant: "default" }))}
-          >
-            View the spec
-          </Link>
-          <Link
             href="/api/health"
             className={cn(buttonVariants({ variant: "outline" }))}
           >
             Check API health
           </Link>
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              className={cn(buttonVariants({ variant: "ghost" }))}
+            >
+              Sign out
+            </button>
+          </form>
         </footer>
 
         <p className="text-xs text-muted-foreground text-center sm:text-left">
-          Stage 1 (design) complete. Stage 2 in progress. See{" "}
+          Stage 1 (design) complete. Stage 2 step 2 (auth) complete. See{" "}
           <code className="rounded bg-muted px-1 py-0.5">COORDINATION.md</code>{" "}
           for the build order.
         </p>
