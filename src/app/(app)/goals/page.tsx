@@ -1,7 +1,8 @@
 import * as React from "react";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { VesselGlyph, type PlanetId } from "@/components/alchemy/VesselGlyph";
-import { liveGoals } from "@/lib/mock";
+import { GoalTrajectory, type GoalTrajectoryInput } from "@/components/viz/GoalTrajectory";
+import { liveGoals, TODAY } from "@/lib/mock";
 import { formatMoney } from "@/lib/money";
 import { formatShortDate } from "@/lib/format";
 
@@ -9,6 +10,16 @@ export const dynamic = "force-dynamic";
 
 export default function GoalsPage() {
   const GOALS = liveGoals();
+  const goalTrajectories: GoalTrajectoryInput[] = GOALS.map((g) => ({
+    id: g.id,
+    name: g.name,
+    planet: g.planet,
+    currentCents: g.currentCents,
+    targetCents: g.targetCents,
+    perPaycheckCents: g.perPaycheckCents,
+    targetDate: g.targetDate.toISOString(),
+    anchorDate: TODAY,
+  }));
   return (
     <div>
       <PageHead
@@ -219,6 +230,46 @@ export default function GoalsPage() {
             );
           })}
         </div>
+      </section>
+
+      {/* Trajectory — Cluster 1.7 */}
+      <section style={{ marginTop: 56 }}>
+        <div
+          style={{
+            fontFamily: "var(--font-cinzel), serif",
+            fontSize: 10.5,
+            color: "var(--jupiter)",
+            letterSpacing: "0.28em",
+            textTransform: "uppercase",
+            marginBottom: 8,
+          }}
+        >
+          The Trajectory
+        </div>
+        <h3
+          style={{
+            fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+            fontSize: 28,
+            fontWeight: 400,
+            margin: "0 0 12px",
+            color: "var(--ink)",
+          }}
+        >
+          Each goal, climbing <em style={{ fontFamily: "var(--font-cormorant), serif", fontStyle: "italic", color: "var(--ink-3)" }}>at this pace.</em>
+        </h3>
+        <p
+          style={{
+            fontFamily: "var(--font-cormorant), serif",
+            fontSize: 15,
+            lineHeight: 1.55,
+            color: "var(--ink-2)",
+            margin: "0 0 24px",
+            maxWidth: 720,
+          }}
+        >
+          The lines below show your goals projected forward at the rate your current paychecks are contributing. The dashed line is each goal's target. A flat line means the plan isn't moving it.
+        </p>
+        <GoalTrajectory goals={goalTrajectories} />
       </section>
     </div>
   );

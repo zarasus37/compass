@@ -1,6 +1,7 @@
 import * as React from "react";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { VesselGlyph, type PlanetId } from "@/components/alchemy/VesselGlyph";
+import { SankeyFlow, type SankeyLink, type SankeyNode } from "@/components/viz/SankeyFlow";
 import { liveEnvelopes, liveSnapshot } from "@/lib/mock";
 import { formatMoney, formatMoneyCompact } from "@/lib/money";
 
@@ -253,6 +254,34 @@ export default function AllocationPage() {
             );
           })}
         </div>
+      </section>
+
+      {/* The Automation Map — same flow the simulator animates after
+          a real paycheck, but here it's a static reference of the
+          active plan at the next paycheck size. */}
+      <section style={{ marginBottom: 56 }}>
+        <SectionHeader
+          title="The Automation Map"
+          em="a paycheck, fanning out to its vessels."
+          meta={`Plan preview · ${formatMoneyCompact(SNAPSHOT.nextPaycheckCents)} paycheck`}
+        />
+        <SankeyFlow
+          nodes={ENVELOPES.map(
+            (e): SankeyNode => ({ id: e.id, label: e.name }),
+          )}
+          links={ENVELOPES.map((e): SankeyLink => {
+            const pct = total > 0 ? (e.target / total) * 100 : 0;
+            const cents = Math.round((SNAPSHOT.nextPaycheckCents * pct) / 100);
+            return {
+              source: e.id,
+              target: e.id,
+              value: cents,
+            };
+          })}
+          totalCents={SNAPSHOT.nextPaycheckCents}
+          sourceLabel={`Paycheck · ${formatMoney(SNAPSHOT.nextPaycheckCents)}`}
+          height={380}
+        />
       </section>
 
       {/* Auto-allocate explainer */}

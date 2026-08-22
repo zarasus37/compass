@@ -2,9 +2,9 @@ import * as React from "react";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { EnvelopeBarChart } from "@/components/alchemy/EnvelopeBarChart";
 import { VesselGlyph, type PlanetId } from "@/components/alchemy/VesselGlyph";
-import { liveEnvelopes, liveTransactions, TODAY } from "@/lib/mock";
+import { liveEnvelopes, liveTransactions, TODAY, PERIOD_START, PERIOD_END } from "@/lib/mock";
 import { formatMoney, formatMoneySigned } from "@/lib/money";
-import { formatShortDate, addDays, daysBetween } from "@/lib/format";
+import { formatShortDate, addDays, daysBetween, dayOfPeriod, periodLength } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -104,7 +104,10 @@ export default function EnvelopesPage() {
           em="at a glance."
           meta="Each bar fills to the target. Red hatched = over limit."
         />
-        <EnvelopeBarChart envelopes={ENVELOPES} />
+        <EnvelopeBarChart
+          envelopes={ENVELOPES}
+          pacing={{ day: dayOfPeriod(TODAY, PERIOD_START, PERIOD_END), total: periodLength(PERIOD_START, PERIOD_END) }}
+        />
       </section>
 
       {/* Needs attention — over limit envelopes in full detail */}

@@ -372,7 +372,7 @@ export default async function Dashboard() {
               </>
             }
           />
-          <EnvelopeBarChart envelopes={ENVELOPES} />
+          <EnvelopeBarChart envelopes={ENVELOPES} pacing={{ day, total: totalDays }} />
         </section>
 
         {/* ============== SNAPSHOT ============== */}

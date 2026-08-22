@@ -21,6 +21,7 @@ import * as React from "react";
 import { useActionState, useEffect, useRef } from "react";
 import { simulatePaycheck, type SimulatePaycheckResult } from "@/app/actions/paycheck";
 import { VesselGlyph, type PlanetId } from "@/components/alchemy/VesselGlyph";
+import { SankeyFlow, type SankeyLink, type SankeyNode } from "@/components/viz/SankeyFlow";
 import { formatMoney } from "@/lib/money";
 
 const INITIAL: SimulatePaycheckResult = { ok: true, planArmed: true };
@@ -401,6 +402,36 @@ export function PaycheckSimulator() {
                 into {state.run.transfers.length} envelopes
               </span>
             </div>
+          </div>
+          {/* Sankey — the Automation Map. Paycheck on the left fans out
+              to the 7 vessels on the right. Link widths = share of
+              paycheck. Hover any link for the rule behind the flow. */}
+          <div style={{ marginBottom: 24 }}>
+            <SankeyFlow
+              nodes={state.run.transfers.map(
+                (t): SankeyNode => ({
+                  id: t.envelopeId,
+                  label: t.envelopeName,
+                }),
+              )}
+              links={state.run.transfers.map(
+                (t): SankeyLink => ({
+                  source: t.envelopeId,
+                  target: t.envelopeId,
+                  value: t.allocatedCents,
+                }),
+              )}
+              totalCents={state.run.paycheckCents}
+              sourceLabel={`Paycheck · ${formatMoney(state.run.paycheckCents)}`}
+              height={340}
+              linkSubtitle={(l) => {
+                const t = state.run!.transfers.find(
+                  (x) => x.envelopeId === l.target,
+                );
+                if (!t) return "";
+                return `Rule: ${t.mode} · ${t.pctOfPaycheck.toFixed(1)}% of paycheck`;
+              }}
+            />
           </div>
           <div
             style={{
