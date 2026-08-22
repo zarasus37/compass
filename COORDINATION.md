@@ -9,10 +9,10 @@
 ## Status
 
 - **Stage 1 (Design)**: ✅ Complete (v1.0) → **v4.0** reframe locked 2026-08-22 (alchemical/celestial visual language, pay-period as unit of truth, auto-allocate, 7 planetary vessels, 3-chapter sidebar, 4 allocation strategies)
-- **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Next: Cluster 1.6 — form actions (New envelope, New transaction, New goal) + onboarding flow.
+- **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory) — ✅ done, commit `cda8972`. Next: Cluster 1.6 — form actions (New envelope, New transaction, New goal) + onboarding flow.
 - **Stage 3 (Test & bug-fix)**: pending Stage 2
 
-> Last update: 2026-08-22 (post-Cluster-1.5)
+> Last update: 2026-08-22 (post-Cluster-1.7)
 
 ---
 
@@ -106,6 +106,23 @@ The D12 contract made visible end-to-end:
 - 8 deep pages (period, goals, accounts, allocation, insights, transactions, calendar, envelopes) now use live reads inside the page body, with `force-dynamic` so every render is fresh.
 
 End-to-end: click "Run paycheck" on the dashboard, the engine distributes the dollars per the 7-rule envelope plan, the bar chart re-renders, the celebration banner shows the transfers, and every other page sees the new state.
+
+### Cluster 1.7 — Four Data Visualizations (✅ DONE — commit `cda8972`; 2026-08-22)
+
+The four "must-have" charts for a pay-period-centered finance app, each in the right place in the design system:
+
+1. **Sankey (the Automation Map)** — `@nivo/sankey`. Paycheck on the left fans out to the 7 planetary envelopes on the right. Link widths are the share of paycheck. Hover any link to see the rule behind the flow. Wired into:
+   - `PaycheckSimulator` celebration banner (the D12 contract made visible — click "Run paycheck" and watch the Sankey render the seven transfers in real time)
+   - `/allocation` "Automation Map" section (a static reference of the active plan at the next paycheck size)
+2. **Pacing line in the bar chart** — gold tick inside each row of the `EnvelopeBarChart`, positioned at "where you should be on day X of Y" of the pay period. Footer label "Pacing · day 9 of 14" with a hint that the gold tick = where you should be. Wired into:
+   - `src/app/page.tsx` (dashboard)
+   - `src/app/(app)/envelopes/page.tsx`
+3. **Budget vs Actual (clustered bars)** — Recharts `BarChart`. For each envelope, two side-by-side bars: gold "Plan" (per-paycheck allocation target) + planetary "Actual" (cumulative spend this period). On `/insights`, the comparison view for the monthly review state.
+4. **Cumulative line graph (Goal Trajectory)** — Recharts `LineChart`. One line per goal, climbing at the per-paycheck rate toward the target. A reference dashed line marks each goal's target. If a line is flat, the plan isn't moving it. Wired into:
+   - `/insights` (alongside the Budget vs Actual)
+   - `/goals` (the visual companion to the goal list cards)
+
+All three new viz components are in `src/components/viz/`, themed to the alchemical visual system (cosmic canvas, gold leaf, planetary metals, Cinzel labels, Italiana numerics, Cormorant body). `tsc --noEmit` is clean; the dev server still returns 200 on every page.
 
 ### Cluster 2 (after Cluster 1)
 
@@ -263,6 +280,27 @@ End-to-end: click "Run paycheck" on the dashboard, the engine distributes the do
 - **First-run setup**: when the next session wants to test from scratch, the smoke test (`node tests/smoke-auth.mjs`) resets the DB to empty and re-creates the mom user (`mom@compass.local` / `correct-horse-battery-staple`). That's the canonical "first user" for now. The first time a real human sets up the app, they go to `/welcome` and create the real account.
 - **Don't reinstall `@prisma/client` from npm directly.** The generated client lives at `src/generated/prisma`; you import from there. Re-generating (after schema changes) is `npx prisma generate`. The `prisma` CLI handles the rest.
 
+### Next session: visual audit + display fixes (Cluster 1.7 cleanup)
+
+The new session's first push should be a **visual audit pass on the four Cluster 1.7 charts and the dashboard deep-page flow**. Specific known issues from the current build:
+
+1. **Sankey source label clipped** — the "Paycheck · $2,400" label on the left source node is cut off because the chart's left margin isn't wide enough. Either increase the left margin, switch the source node to `labelPosition="inside"`, or render the source label as a separate header above the chart.
+2. **GoalTrajectory flat lines invisible** — Y-axis is scaled to the highest goal target ($20k for Emergency Fund), so the flat lines for Debt Free ($2,021) and Visit Family ($180) get compressed against the X-axis and are barely distinguishable from zero. The "this plan isn't moving it" insight is hard to see. Options: (a) split into 3 small-multiples (one chart per goal), (b) use a percent-of-target Y-axis (0-100%), (c) add zoom/pan. (b) is the most honest and easiest.
+3. **BudgetVsActual legend dot color mismatch** — the legend at the bottom hardcodes "ACTUAL" to `var(--jupiter)` (purple), but each bar uses its own planet color. Either (a) use a neutral color, (b) show all 7 planet colors in the legend, or (c) drop the "ACTUAL" dot and label each bar pair with the envelope name.
+4. **Pacing line too subtle** — 2px gold tick on an 8px bar is hard to see. Make it 3-4px wide with stronger glow, or add a small diamond marker.
+5. **GoalTrajectory dashed reference label** — "Emergency Fund target · $20k" label positioned "right" sometimes gets cut off or overlaps the legend.
+6. **Dashboard "Next Step" hard-coded text** — the section reads "Groceries is at $622 of $400, Buffer is at $96 of $96" but those are the seed values, not the live state. Should pull from `liveEnvelopes()` and find the actual over-limit envelopes.
+7. **Color contrast in iron-red Next Step banner** — text on `var(--neg)` background could be more readable. Consider using ink-on-light-coral for the body text.
+
+After the visual audit, evaluate which of the 16 deep pages to consolidate or rework — the user explicitly said "change certain displays." Candidates for review:
+- The "All envelopes" section on `/envelopes` (the 7-card grid is dense and overlaps with the bar chart above it)
+- The "Explore Compass" 6-card grid on the dashboard (some cards may be redundant with the top priority hero)
+- The `/period` page Mandala usage (currently shows a 540px mandala that may be too abstract per the v7 design decision — same reasoning that pulled the mandala off the dashboard)
+
+Then move to **Cluster 1.6 (form actions + onboarding)** as planned.
+
+**Dev-server lifecycle note for the new session**: the bash tool has a 30-minute max runtime cap on background processes, which reaps the wrapping shell around `pnpm dev` even when Next itself is healthy. The session will need to restart the dev server roughly every 30 minutes via `pnpm dev` in a background task. The fresh session can avoid this by starting the dev server in a separate background task and only checking it as needed; or by running the build smoke (`pnpm build`) instead of `pnpm dev` for static verification.
+
 ---
 
 ## File index (current)
@@ -320,11 +358,12 @@ End-to-end: click "Run paycheck" on the dashboard, the engine distributes the do
 - **Cluster 0.2 (auth)**: ✅ 2026-08-22
 - **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data)**: ✅ 2026-08-22, commit `35ccc6e`
 - **Cluster 1.5 (visible interactivity pass — auto-allocate engine + paycheck simulator + live store)**: ✅ 2026-08-22, commit `35ccc6e`
+- **Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory)**: ✅ 2026-08-22, commit `cda8972`
 - **Cluster 1.6 (form actions + onboarding)**: ⏳ next
 - **Handed off (design)**: 2026-08-21
 - **Handed off (scaffold)**: 2026-08-22
 - **Handed off (auth)**: 2026-08-22
 - **Handed off (Cluster 1)**: 2026-08-22
 - **From session**: `mvs_77706038b3dc41f0818e43d1aca029bd` (design)
-- **From session**: `mvs_0ca37adfb53b4de188d584afc12df309` (scaffold + auth + Cluster 1 + Cluster 1.5)
-- **Handed to**: next session (TBD) — start at Cluster 1.6 (form actions + onboarding)
+- **From session**: `mvs_0ca37adfb53b4de188d584afc12df309` (scaffold + auth + Cluster 1 + Cluster 1.5 + Cluster 1.7 + visual audit notes)
+- **Handed to**: next session (TBD) — start with the visual audit + display fixes noted in "Next session" above, then Cluster 1.6 (form actions + onboarding)
