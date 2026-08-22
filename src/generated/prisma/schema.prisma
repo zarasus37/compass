@@ -1,0 +1,38 @@
+// Compass — Prisma schema
+// Stage 2 scaffold: User model only. Full data model lands in Step 3 (per COORDINATION.md).
+// Money math: every monetary field uses integer cents (per spec — never floats).
+
+generator client {
+  provider = "prisma-client-js"
+  // Pin the client to src/generated/prisma so pnpm can resolve it
+  // through our tsconfig path mapping. Without this, Prisma 7's default
+  // output lives inside pnpm's virtual store and our imports break.
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+/// The single user. Single-user assumption for v1 (D7); schema is multi-user ready.
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  passwordHash  String
+  /// AI capability tier (D2): 0=off, 1=assistive, 2=co-pilot, 3=autonomous.
+  aiTier        Int      @default(1)
+  /// Routing level (D4): 0=tracking, 1=planned (L1 in v1), 2=actual (L2 future).
+  routingLevel  Int      @default(1)
+  /// Default saved dashboard view for this user.
+  defaultViewId String?
+  /// Free-form settings (theme, currency, locale, etc.) — JSON-encoded string.
+  /// String instead of Json because Prisma 7's Json type uses JSONB, which SQLite
+  /// doesn't support. We serialize/parse in app code (lib/json.ts) — the contract
+  /// stays the same and Postgres migration in the future is trivial.
+  settings      String   @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([email])
+}

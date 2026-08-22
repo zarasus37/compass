@@ -9,8 +9,10 @@
 ## Status
 
 - **Stage 1 (Design)**: ✅ Complete
-- **Stage 2 (Creation)**: 🟢 Unblocked — start here
+- **Stage 2 (Creation)**: 🟡 Step 1 of 16 (scaffold) — ✅ done. Steps 2–16 pending.
 - **Stage 3 (Test & bug-fix)**: pending Stage 2
+
+> Last update: 2026-08-22 (post-scaffold)
 
 ---
 
@@ -74,19 +76,72 @@ Begin with **scaffold** (per Section 9, step 1) and work the 16 steps in order. 
 
 ### Acceptance for "Stage 2 step 1 (scaffold) done"
 
-- [ ] `create-next-app` runs with the right flags (TS, App Router, Tailwind, src/).
-- [ ] `package.json` name is `compass`.
-- [ ] Tailwind v4 configured (no v3 leftovers).
-- [ ] shadcn/ui initialized; base theme applied.
-- [ ] Prisma + SQLite initialized; `prisma migrate dev` runs.
-- [ ] TanStack Query provider wired at the root.
-- [ ] dnd-kit installed (not yet used in UI).
-- [ ] Recharts installed (not yet used in UI).
-- [ ] Plugin registry directory + base interface files exist (`src/plugins/ai/types.ts`, etc.).
-- [ ] `pnpm dev` (or `npm run dev`) starts on localhost; default route renders a clean "Compass" landing placeholder.
-- [ ] `pnpm build` succeeds with no TypeScript errors.
-- [ ] Lint passes.
-- [ ] Git initialized; initial commit with the design + coordination files committed first.
+- [x] `create-next-app` runs with the right flags (TS, App Router, Tailwind, src/).
+- [x] `package.json` name is `compass`.
+- [x] Tailwind v4 configured (no v3 leftovers).
+- [x] shadcn/ui initialized; base theme applied.
+- [x] Prisma + SQLite initialized; `prisma migrate dev` runs.
+- [x] TanStack Query provider wired at the root.
+- [x] dnd-kit installed (not yet used in UI).
+- [x] Recharts installed (not yet used in UI).
+- [x] Plugin registry directory + base interface files exist (`src/plugins/ai/types.ts`, etc.).
+- [x] `pnpm dev` (or `npm run dev`) starts on localhost; default route renders a clean "Compass" landing placeholder.
+- [x] `pnpm build` succeeds with no TypeScript errors.
+- [x] Lint passes.
+- [x] Git initialized; initial commit with the design + coordination files committed first.
+
+> All scaffold acceptance items green as of 2026-08-22.
+
+---
+
+## Decision revisions (cumulative)
+
+### 2026-08-22 — shadcn/ui: Base UI primitives instead of Radix UI
+
+- **Spec said**: "Tailwind v4 + shadcn/ui + **Radix UI primitives**" (D8 / Section 8).
+- **What we shipped**: shadcn's *new* preset (`base-nova`), which uses **Base UI** (the new Radix successor from the same team) instead of classic Radix UI primitives.
+- **Why**: shadcn (the project) has migrated to Base UI as of 2025–2026. The new shadcn ships with a Base UI–based Button, Card, etc. The component API, theming, and accessibility behavior are equivalent; Base UI is the actively-maintained successor. The visual output is the same shadcn/ui.
+- **Risk**: if you wanted *classic* shadcn/ui (the older Radix variant), the components use a different import (`@radix-ui/react-slot` → `asChild`) and a different state-management layer. Switching now would mean re-running `shadcn add` for every component we add, on a `--base radix` registry.
+- **Action requested**: confirm we keep Base UI shadcn for v1, or say "switch to classic" and I'll reinit on Radix before adding more components.
+
+### 2026-08-22 — Prisma 7 driver adapter + generated client at `src/generated/prisma`
+
+- **Why the spec didn't mention this**: the spec was written against Prisma 5/6 patterns. Prisma 7 made two structural changes:
+  1. `new PrismaClient({ datasourceUrl })` no longer works — a **driver adapter** is now required.
+  2. The generated client must be emitted to an explicit path in your project tree (default lives in pnpm's virtual store, which TypeScript can't resolve through `@/...`).
+- **What we shipped**:
+  - Driver adapter: `@prisma/adapter-better-sqlite3` (file-based, fast, native Node module).
+  - Schema: `generator client { output = "../src/generated/prisma" }`. Client imported as `import { PrismaClient } from "@/generated/prisma/client"`.
+  - The `tsconfig.json` adds `"@/generated/*": ["./src/generated/*"]` to the path map.
+- **Postgres migration later**: swap to `@prisma/adapter-pg`. That's the only change to the wiring.
+- **JSON fields**: Prisma 7's `Json` type emits `JSONB` SQL, which SQLite rejects. We use `String` columns with a JSON-stringify/parse layer (`src/lib/json.ts`). The contract is identical for app code; a Postgres migration is `String` → `Json` and remove the parse helper. Flagged here so the next session doesn't waste time debugging a phantom `Json` issue.
+
+### 2026-08-22 — Stricter tsconfig than create-next-app default
+
+- Added: `noUncheckedIndexedAccess`, `noImplicitOverride`, `noFallthroughCasesInSwitch`, `forceConsistentCasingInFileNames`, target bumped `ES2017` → `ES2022`.
+- **Why**: spec calls for "Type safety end-to-end." The default `strict: true` is the floor, not the ceiling.
+- **Impact**: any code indexing into an array gets `T | undefined`. Step 2 (auth) and onward will need to be aware of this; the scaffold already compiles clean.
+
+---
+
+## Scaffold state — what's on disk
+
+- **Next.js 16.3.2** + **React 19.2.8** + **TypeScript 5.9.3** (strict + the four extra checks above).
+- **Tailwind v4.3.3** via `@tailwindcss/postcss` (no `tailwind.config.ts`; v4 uses `@theme` in CSS).
+- **shadcn (Base UI preset)**: Button, Card, Separator installed at `src/components/ui/`. `components.json` is the registry config.
+- **Prisma 7.9.1** with `@prisma/adapter-better-sqlite3` + `better-sqlite3`. Schema at `prisma/schema.prisma`, config at `prisma.config.ts`. Generated client at `src/generated/prisma`. First migration `20260822044950_scaffold_initial_user` applied — `User` table only (Step 3 expands the data model).
+- **TanStack Query 5.101** provider at `src/app/providers.tsx`, wired in the root layout.
+- **Zustand 5.0** installed (not yet used; will be for client-only state like draft transactions and active view).
+- **Zod 4.4** installed (used in `lib/json.ts`, plugin contracts; will be at every API boundary going forward).
+- **dnd-kit** (`@dnd-kit/core` 6.3, `@dnd-kit/sortable` 10, `@dnd-kit/utilities` 3.2) installed. Not yet used in UI; lands with Step 7 (layout system).
+- **Recharts 3.10** installed. Not yet used; first chart lands with the dashboard widgets (Step 6).
+- **Plugin layer** under `src/plugins/`:
+  - `ai/` — `types.ts` (contract), `registry.ts` (config-driven loader), `providers/mavis-internal.ts`, `providers/ollama.ts`, `index.ts` (public surface). Concrete providers are fully implemented; AI Tier 1 features consume `getAiProvider()`.
+  - `import/` — `types.ts` (contract), `registry.ts` (empty; CSV lands in Step 8), `index.ts` (public surface).
+  - `widget/` — `types.ts` (full widget contract: id, slot, page, component, defaultConfig, configSchema, minSize), `registry.ts` (empty; widgets land with their features), `index.ts` (public surface).
+- **Landing page** at `src/app/page.tsx` — on-brand Compass placeholder. Uses the shadcn theme. A "Check API health" button points to `/api/health`.
+- **Health endpoint** at `src/app/api/health/route.ts` — pings DB + AI provider, returns 200/503. Right now returns 503 with `db.ok=true, ai.ok=false` because the Mavis internal endpoint isn't running locally; that's the expected shape. Once Mavis is reachable (or you switch to Ollama), the endpoint goes green.
+- **`.env`** holds the contract values (placeholder Mavis key, Ollama on 11434, SQLite path). **`.env.example`** is the safe-to-commit version.
 
 ---
 
@@ -112,12 +167,15 @@ Begin with **scaffold** (per Section 9, step 1) and work the 16 steps in order. 
 
 ## Notes for the next session
 
-- **Workspace is in OneDrive** (`C:\Users\crisc\OneDrive - Southern Careers Institute\My Drive\Budget planner app`). Path separators, file watchers, and dev tooling should account for that.
+- **Workspace is in OneDrive** (`C:\Users\crisc\OneDrive - Southern Careers Institute\My Drive\Budget planner app`). Path separators, file watchers, and dev tooling should account for that. **Cold dev-server start takes ~15s on OneDrive** (Turbopack's first scan is slow on network filesystems). Subsequent HMR is fine.
 - **Host is Windows.** All build artifacts must be Windows-native. If using Codex (Linux sandbox) for any code, recreate artifacts on Windows after — Codex's Linux paths and binary names won't run natively on the Windows host.
-- **Mavis internal endpoint for AI** — same pattern as Ice Depot. Add an adapter in the plugin registry; do not hardcode HTTP calls in features.
+- **Mavis internal endpoint for AI** — same pattern as Ice Depot. The adapter is already wired at `src/plugins/ai/providers/mavis-internal.ts`. Do not hardcode HTTP calls in features — go through `getAiProvider()`.
 - **Single-user assumption** for now. Auth, data isolation, and account scoping can assume one user. Schema should support multi-user later without rewrite (the `user_id` foreign keys are already in the data model).
 - **Mom is the test audience.** If you can't explain a feature in one sentence a non-technical person would understand, redesign the feature.
 - **Fresh-session discipline** per xKryptic's preference: this handoff is the contract. Update this file with any state change, versioned, so the next handoff is clean.
+- **Step 2 (auth) starting point**: the `User` model exists in `prisma/schema.prisma` and the migration is applied. Auth = add argon2id hashing, a `POST /api/auth/signup` + `POST /api/auth/login` route, a session cookie, and a `/login` page. The first user (mom) is the seed. Keep it single-user.
+- **Step 3 (data model) starting point**: extend `prisma/schema.prisma` with the full spec — Account, Envelope, Transaction, Rule, View, AuditLog, ImportBatch. Money fields = `Int` (cents). Then `prisma migrate dev --name full_data_model`. The AI provider registry shouldn't need changes.
+- **Don't reinstall `@prisma/client` from npm directly.** The generated client lives at `src/generated/prisma`; you import from there. Re-generating (after schema changes) is `npx prisma generate`. The `prisma` CLI handles the rest.
 
 ---
 
@@ -125,19 +183,48 @@ Begin with **scaffold** (per Section 9, step 1) and work the 16 steps in order. 
 
 - `00-DESIGN.md` — design spec v1.0 (the contract)
 - `COORDINATION.md` — this file (state + handoff)
-- *(more files added as Stage 2 progresses; track them here)*
+- `package.json` / `pnpm-lock.yaml` — Node deps (Next 16, React 19, Prisma 7, TanStack Query, Zustand, dnd-kit, Recharts, Zod, shadcn, base-ui, better-sqlite3, etc.)
+- `tsconfig.json` — strict TS, path aliases (`@/*`, `@/generated/*`)
+- `next.config.ts` — Next config (placeholder; Turbopack default)
+- `postcss.config.mjs` — Tailwind v4 PostCSS plugin
+- `eslint.config.mjs` — flat config, ignores `src/generated/**` and `.next/**`
+- `components.json` — shadcn registry config (Base UI preset, neutral base color)
+- `prisma/schema.prisma` — User model only; full data model lands in Step 3
+- `prisma.config.ts` — Prisma 7 config (schema path, migrations path, datasource URL)
+- `prisma/migrations/20260822044950_scaffold_initial_user/` — first migration
+- `prisma/dev.db` — SQLite file (gitignored)
+- `.env` / `.env.example` — env contract (DATABASE_URL, COMPASS_AI_*)
+- `src/app/layout.tsx` — root layout (font, metadata, viewport, providers)
+- `src/app/page.tsx` — Compass landing placeholder
+- `src/app/providers.tsx` — TanStack Query client provider
+- `src/app/globals.css` — Tailwind v4 base + shadcn theme tokens (oklch)
+- `src/app/api/health/route.ts` — health endpoint (DB + AI probe)
+- `src/components/ui/button.tsx`, `card.tsx`, `separator.tsx` — shadcn components
+- `src/lib/utils.ts` — `cn()` helper (clsx + tailwind-merge)
+- `src/lib/config.ts` — typed env config (fail-fast on missing required vars)
+- `src/lib/json.ts` — safe JSON parse/stringify for SQLite TEXT-as-JSON
+- `src/server/db.ts` — Prisma client singleton (better-sqlite3 adapter)
+- `src/plugins/ai/{types,registry,index}.ts` — AI plugin contract, config-driven registry, public surface
+- `src/plugins/ai/providers/{mavis-internal,ollama}.ts` — AI adapter implementations
+- `src/plugins/import/{types,registry,index}.ts` — import format plugin layer (empty registry; CSV lands in Step 8)
+- `src/plugins/widget/{types,registry,index}.ts` — widget plugin layer (empty registry; widgets land in Step 7)
+- `src/plugins/index.ts` — plugin barrel
+- `src/generated/prisma/` — generated Prisma client (gitignored? — currently committed; revisit if it bloats the repo)
 
 ---
 
 ## How to start (suggested prompt for the new session)
 
-> Read `00-DESIGN.md` and `COORDINATION.md` in `C:\Users\crisc\OneDrive - Southern Careers Institute\My Drive\Budget planner app\`. Those are the locked contract for **Compass**, a personal-finance app. Stage 1 (design) is done. Start Stage 2 (creation) at the scaffold step per `COORDINATION.md`. Load skills: `app-builder`, `ckm:ui-styling`, `fullstack-dev`. Quality bar is world-class, no shortcuts.
+> Read `00-DESIGN.md` and `COORDINATION.md` in `C:\Users\crisc\OneDrive - Southern Careers Institute\My Drive\Budget planner app\`. Those are the locked contract for **Compass**, a personal-finance app. Stage 1 (design) is done; Stage 2 step 1 (scaffold) is done. Start at Stage 2 step 2 (auth) per `COORDINATION.md`. Load skills: `app-builder`, `ckm:ui-styling`, `fullstack-dev`. Quality bar is world-class, no shortcuts.
 
 ---
 
 ## Sign-off
 
 - **Design locked**: 2026-08-21
-- **Handed off**: 2026-08-21
-- **From session**: `mvs_77706038b3dc41f0818e43d1aca029bd`
-- **Handed to**: next session (TBD)
+- **Stage 2 step 1 (scaffold)**: ✅ 2026-08-22
+- **Handed off (design)**: 2026-08-21
+- **Handed off (scaffold)**: 2026-08-22
+- **From session**: `mvs_77706038b3dc41f0818e43d1aca029bd` (design)
+- **From session**: `mvs_0ca37adfb53b4de188d584afc12df309` (scaffold)
+- **Handed to**: next session (TBD) — start at Step 2 (auth)
