@@ -25,7 +25,7 @@ export default function InsightsPage() {
         accent="gold"
         explanation={
           <>
-            The charts on this page summarize your money across envelopes, goals, and time. Use them to spot where the rhythm is holding — and where it isn't. Every chart links back to the underlying data, so you can dig into anything that catches your eye.
+            The patterns in your money, at a glance. The Ouroboros shows where each paycheck goes by vessel; the Trajectory shows the next 12 months of net worth projected at this pace. For per-envelope and per-goal detail, see the corresponding pages — those charts now live next to the data they visualize.
           </>
         }
       />
