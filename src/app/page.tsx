@@ -105,58 +105,81 @@ export default async function Dashboard() {
     dailySpendCents.reduce((s, v) => s + v, 0) / 7,
   );
 
-  // --- CRITICAL TIMELINE ---
+  // --- CRITICAL TIMELINE (month calendar + scheduled bills list) ---
+  // The calendar shows the current month (Aug 2026). Every recurring
+  // bill with a `dueDay` lands on that day each month; goal target
+  // dates are matched by exact date; transactions on a day add a
+  // small gold dot. Hover any day with a bill to see name + amount.
+  const monthStart = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+  const monthEnd = new Date(TODAY.getFullYear(), TODAY.getMonth() + 1, 1);
+
+  // Bills for the calendar (every recurring bill is shown every month).
+  const calendarBills = BILLS.map((b) => ({
+    id: b.id,
+    name: b.name,
+    amountCents: b.amountCents,
+    dueDay: b.dueDay,
+    autopay: b.autopay,
+  }));
+
+  // Goals whose targetDate falls within the current month.
+  const calendarGoals = GOALS.filter(
+    (g) =>
+      g.targetDate.getTime() >= monthStart.getTime() &&
+      g.targetDate.getTime() < monthEnd.getTime(),
+  ).map((g) => ({
+    id: g.id,
+    name: g.name,
+    targetDate: g.targetDate,
+    planet: g.planet,
+  }));
+
+  // Days (start-of-day timestamps) with any transaction in the current month.
+  const transactionDays = new Set<number>();
+  for (const t of TRANSACTIONS) {
+    const ts = t.date.getTime();
+    if (ts >= monthStart.getTime() && ts < monthEnd.getTime()) {
+      const d = new Date(t.date);
+      d.setHours(0, 0, 0, 0);
+      transactionDays.add(d.getTime());
+    }
+  }
+
+  // Scheduled bills list — every bill due this month with its actual
+  // day-of-month. We re-derive the actual due date for the current
+  // month (the recurring `dueDay` is a day-of-month, not a date).
+  // The `isPaid` flag checks the live store for whether this bill
+  // was marked paid in the current pay period.
   const due = billsDueInPeriod(BILLS, PERIOD_START, PERIOD_END);
-  const unpaid = due.filter((d) => !d.paidThisPeriod);
-  // For the list: 3 most-imminent unpaid bills.
-  const allUpcomingUnpaid = unpaid
-    .map((d) => {
-      const env = d.bill.envelopeId
-        ? ENVELOPES.find((e) => e.id === d.bill.envelopeId)
-        : null;
-      return {
-        id: d.bill.id,
-        name: d.bill.name,
-        amountCents: d.bill.amountCents,
-        dueDate: d.dueDate,
-        isPaid: d.paidThisPeriod,
-        autopay: d.bill.autopay,
-        envelopeName: env?.name ?? null,
-        planet: env?.planet ?? null,
-      };
-    })
-    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
-    .slice(0, 3);
-  // For the strip: every bill due in the period (paid + unpaid),
-  // with the day-of-period index so the strip can place dots.
-  const allDueThisPeriod = due
-    .map((d) => {
-      const env = d.bill.envelopeId
-        ? ENVELOPES.find((e) => e.id === d.bill.envelopeId)
-        : null;
-      const dayIndex = Math.max(
-        0,
-        Math.min(
-          13,
-          Math.floor(
-            (d.dueDate.getTime() - PERIOD_START.getTime()) /
-              (1000 * 60 * 60 * 24),
-          ),
-        ),
-      );
-      return {
-        id: d.bill.id,
-        name: d.bill.name,
-        amountCents: d.bill.amountCents,
-        dueDate: d.dueDate,
-        isPaid: d.paidThisPeriod,
-        autopay: d.bill.autopay,
-        envelopeName: env?.name ?? null,
-        planet: env?.planet ?? "mercury",
-        dayIndex,
-      };
-    })
-    .sort((a, b) => a.dayIndex - b.dayIndex);
+  const lastDayOfMonth = new Date(TODAY.getFullYear(), TODAY.getMonth() + 1, 0).getDate();
+  const monthListRows = BILLS.map((b) => {
+    const env = b.envelopeId
+      ? ENVELOPES.find((e) => e.id === b.envelopeId)
+      : null;
+    const dayOfMonth = b.dueDay;
+    const actualDate = new Date(
+      TODAY.getFullYear(),
+      TODAY.getMonth(),
+      Math.min(dayOfMonth, lastDayOfMonth),
+    );
+    const inPeriod =
+      actualDate.getTime() >= PERIOD_START.getTime() &&
+      actualDate.getTime() < PERIOD_END.getTime();
+    const isPaid = inPeriod
+      ? Boolean(due.find((d) => d.bill.id === b.id)?.paidThisPeriod)
+      : false;
+    return {
+      id: b.id,
+      name: b.name,
+      amountCents: b.amountCents,
+      dayOfMonth,
+      dueDate: actualDate,
+      isPaid,
+      autopay: b.autopay,
+      envelopeName: env?.name ?? null,
+      planet: env?.planet ?? null,
+    };
+  }).sort((a, b) => a.dayOfMonth - b.dayOfMonth);
 
   // --- ENVELOPE STATUS ---
   type EnvelopeStatusKind = "over" | "watch" | "calm";
@@ -270,10 +293,10 @@ export default async function Dashboard() {
       >
         <CriticalTimelineCard
           data={{
-            listRows: allUpcomingUnpaid,
-            stripRows: allDueThisPeriod,
-            periodStart: PERIOD_START,
-            periodEnd: PERIOD_END,
+            listRows: monthListRows,
+            calendarBills,
+            calendarGoals,
+            transactionDays,
             today: TODAY,
           }}
         />
