@@ -9,10 +9,10 @@
 ## Status
 
 - **Stage 1 (Design)**: ✅ Complete (v1.0) → **v4.0** reframe locked 2026-08-22 (alchemical/celestial visual language, pay-period as unit of truth, auto-allocate, 7 planetary vessels, 3-chapter sidebar, 4 allocation strategies)
-- **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory) — ✅ done, commit `cda8972`. Cluster 1.7 visual audit — ✅ done, commit `3da5716`. **Cluster 1.8 (Bill organizer + Plan My Next Check + calendar warnings) — ✅ done, commit `999ff37`.** Biweekly period locked as the canonical pay schedule (D17); period-close renamed to match (D18). Next: Cluster 1.6 (form actions + onboarding), then Cluster 1.9 (debt payoff + celebrations + variable income).
+- **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory) — ✅ done, commit `cda8972`. Cluster 1.7 visual audit — ✅ done, commit `3da5716`. **Cluster 1.8 (Bill organizer + Plan My Next Check + calendar warnings) — ✅ done, commit `999ff37`. Cluster 1.9 (Debt payoff simulator + Saturn vessel + 3-up card + paid-off celebration) — ✅ done, commits `feb50e3` + `801525c` (math-bug fix) + `0ffb439` (per-debt sparkline).** Biweekly period locked as the canonical pay schedule (D17); period-close renamed to match (D18). **Chart-next-to-data principle applied across /goals, /envelopes, /recurring, /debts, /insights — commit `843375c`.** Next: Cluster 1.6 (form actions + onboarding), then 2.x (bill reminders, variable income, period close).
 - **Stage 3 (Test & bug-fix)**: pending Stage 2
 
-> Last update: 2026-08-22 (post-Cluster-1.7-visual-audit)
+> Last update: 2026-08-23 (post-Cluster-1.9 + chart-next-to-data)
 
 ---
 
@@ -158,6 +158,31 @@ The 7 known issues from the handoff doc are resolved. The `/envelopes` page also
 - `/period` Mandala (420px) → **kept** (anchors the period page; the v7 reasoning was about the dashboard centerpiece, not here).
 
 `tsc --noEmit` clean. `pnpm build` clean (12 static pages). Visual check confirmed all 7 issues resolved + the display cleanup landed without regressions.
+
+### Cluster 1.9 — Debt payoff + Saturn vessel (✅ DONE — commits `feb50e3` + `801525c` + `0ffb439`; 2026-08-23)
+
+The Saturn vessel, made tangible. The user can see at a glance how fast each debt will pay off, apply an extra payment, and celebrate when a debt hits zero.
+
+- **Live store** got `Debt` type, `readDebts()`, `applyExtraDebtPayment()` mutator (with audit entry), `payoffProjection()` iterative engine, `orderDebtsByMethod()` for snowball/avalanche.
+- **`/debts` page** rewritten with live data — debt list with balance / APR / min payment / paid-% / progress bar, then the **DebtPayoffSimulator** (3-up card: current / with-extra / saved; Snowball vs Avalanche toggle; $0–$500 "What if?" slider; Apply extra button; PaidOffCelebration celestial overlay).
+- **Dashboard** integrates the simulator between Plan My Next Check and Envelopes (conditional on having debts).
+- **Per-debt payoff sparkline** in each debt row — pure-SVG inline chart, planet-colored, falls from current balance toward $0 over a 24-month horizon at the debt's min payment. Iron-red when min < interest; ok-green end dot when the debt hits $0. Closed-form "~Nmo at min" caption.
+- **Math fix** (commit `801525c`): the engine had two bugs — APR was being treated as monthly rate (12× too much interest), and the cascade was double-counting the other active debts' minimums. After fix: realistic numbers (e.g. SNOWBALL $244/mo → 28mo, $2,660 interest; AVALANCHE $244/mo → 26mo, $1,706 interest, saves $954).
+- **`tests/test-debt-math.mjs`** — regression test for the math.
+
+### Chart-next-to-data principle (✅ DONE — commit `843375c`; 2026-08-23)
+
+User directive: "patterns and other graphs should directly be next to the information it is pulling its self from should all be associated." A chart that visualizes data on page A should sit on page A, not on a separate /insights page.
+
+- **/goals**: master GoalTrajectory moved to the TOP of the page (right after the page header), so the chart sits next to the goal cards below it (the data it visualizes). Each goal card also got a per-card **GoalSparkline** (pure SVG, 140×42) showing the goal's own projection to 100% target, plus a months-to-100% caption. Flat lines for goals with `perPaycheckCents=0` show "Not moving" in iron red.
+- **/envelopes**: **BudgetVsActual** (gold-plan vs planetary-actual) moved here from /insights, now sits between the period summary and the per-envelope data. Plan = envelope target; actual = currentCents. "Every envelope" row got a per-envelope **EnvelopeMiniBar** (pure SVG, 140×8) in a new column directly next to the current/target numbers. Removed the redundant big EnvelopeBarChart at the top.
+- **/recurring**: new **BillsTimeline** strip (31-day strip with one dot per bill, sized by amount, gold tick = today) sits between the page header and the period summary.
+- **/debts**: per-debt **DebtSparkline** (commit `0ffb439`) — see Cluster 1.9.
+- **/insights**: removed BudgetVsActual and GoalTrajectory (moved to /envelopes and /goals respectively). Page now focuses on Ouroboros (allocation donut), Trajectory (net worth projection), and 4-cell summary stats.
+
+New components: `GoalSparkline.tsx`, `EnvelopeMiniBar.tsx`, `DebtSparkline.tsx` (all pure SVG, cheap, 7+ can render on a single page without perf concerns).
+
+`tsc --noEmit` clean. `pnpm build` clean (10 static pages, 18 routes). All 4 changed pages visually verified.
 
 ### Cluster 2 (after Cluster 1)
 
@@ -362,20 +387,7 @@ The visual audit is **done** (commit `3da5716`). **Cluster 1.8 is also done** (c
 
 This is the **roadmap of remaining work** derived from mom's feature list (2026-08-22). The "change certain displays" push surfaced the items below; the visible-UI priority is what mom touches every payday.
 
-### Cluster 1.9 — Debt payoff + projections (visible-UI push, NOT yet started)
-
-The `/debts` page exists with mock data only. This cluster makes it real and adds the payoff simulator the user explicitly asked for.
-
-1. **Add `Debt` to the live store** (mirror the Bill model):
-   - `Debt` type: id, name, balanceCents, aprBps (basis points to avoid float), minPaymentCents, dueDay, accountId, sortOrder, isArchived
-   - `DEBTS_SEED`: 1-2 real-looking debts (Discover card, maybe a small medical)
-   - `addDebt()`, `updateDebt()`, `deleteDebt()` mutators
-   - `readDebts()`, `liveDebts()` (mirror the Bill API)
-2. **Wire `/debts` to live data** — list view with balance, APR, min payment, next-due, payoff estimate.
-3. **Snowball vs Avalanche toggle** — re-rank the list. Snowball = smallest balance first. Avalanche = highest APR first. Toggle on the page, no need to persist (per-session).
-4. **Extra-payment payoff simulator** — the "You have $175 available. Add it to Credit Card #1?" prompt + a 3-up payoff card (current / with-extra / saved months + interest). Reuses the GoalTrajectory 0–100% Y-axis pattern.
-5. **"What if?" slider** — `+$X/mo toward debt`; live updates the payoff card.
-6. **Progress celebrations** — when a debt hits balance $0, fire a one-time celestially-themed overlay (compass needle completes, mandala rotates, etc.) + write a journal entry to the audit log.
+### Cluster 1.9 — Debt payoff + projections (✅ DONE — see "Cluster 1.9 — Debt payoff + Saturn vessel" section above; commits `feb50e3` + `801525c` + `0ffb439`)
 
 ### Cluster 2.x — Smart bills + variable income (AI tier, NOT yet started)
 
