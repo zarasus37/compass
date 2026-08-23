@@ -11,6 +11,7 @@ import {
 } from "@/lib/mock";
 import { billsDueInPeriod, paycheckBreakdown } from "@/lib/store";
 import { DebtPayoffSimulator } from "@/components/debts/DebtPayoffSimulator";
+import { DebtSparkline } from "@/components/viz/DebtSparkline";
 import { liveBills, liveSnapshot } from "@/lib/mock";
 
 export const dynamic = "force-dynamic";
@@ -109,10 +110,10 @@ export default function DebtsPage() {
                   background: "var(--surface)",
                   border: "1px solid var(--line)",
                   borderRadius: 4,
-                  padding: "24px 28px",
+                  padding: "20px 24px",
                   display: "grid",
-                  gridTemplateColumns: "1fr 140px 120px 120px 200px",
-                  gap: 24,
+                  gridTemplateColumns: "minmax(0, 1.4fr) 100px 90px 240px",
+                  gap: 18,
                   alignItems: "center",
                 }}
               >
@@ -186,6 +187,8 @@ export default function DebtsPage() {
                   </div>
                 </div>
                 <div>
+                  {/* The progress bar — paid vs original (the data the
+                      bar visualizes) */}
                   <div
                     style={{
                       fontFamily: "var(--font-cinzel), serif",
@@ -194,32 +197,24 @@ export default function DebtsPage() {
                       letterSpacing: "0.22em",
                       textTransform: "uppercase",
                       marginBottom: 4,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "baseline",
                     }}
                   >
-                    Paid
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                      fontSize: 16,
-                      color: "var(--ok)",
-                    }}
-                  >
-                    {formatMoney(d.originalBalanceCents - d.balanceCents)}
+                    <span>Progress</span>
                     <span
                       style={{
-                        fontFamily: "var(--font-cormorant), serif",
-                        fontStyle: "italic",
-                        fontSize: 12,
-                        color: "var(--ink-3)",
-                        marginLeft: 6,
+                        fontFamily: "var(--font-jetbrains), monospace",
+                        fontSize: 10.5,
+                        color: "var(--ok)",
+                        textTransform: "none",
+                        letterSpacing: "0.01em",
                       }}
                     >
-                      of {formatMoney(d.originalBalanceCents)}
+                      {formatMoney(d.originalBalanceCents - d.balanceCents)} of {formatMoney(d.originalBalanceCents)}
                     </span>
                   </div>
-                </div>
-                <div>
                   <div
                     style={{
                       position: "relative",
@@ -241,16 +236,79 @@ export default function DebtsPage() {
                       }}
                     />
                   </div>
+                  {/* The payoff sparkline — the trajectory chart sits
+                      directly below the progress bar so both visuals
+                      are right next to the debt's data. */}
                   <div
                     style={{
-                      fontFamily: "var(--font-jetbrains), monospace",
-                      fontSize: 10.5,
-                      color: "var(--ink-3)",
-                      textAlign: "right",
-                      marginTop: 4,
+                      marginTop: 10,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
                     }}
                   >
-                    {Math.round(pct)}% paid
+                    <span
+                      style={{
+                        fontFamily: "var(--font-cinzel), serif",
+                        fontSize: 9,
+                        color: "var(--ink-3)",
+                        letterSpacing: "0.22em",
+                        textTransform: "uppercase",
+                        flexShrink: 0,
+                      }}
+                    >
+                      Payoff
+                    </span>
+                    {isPaidOff ? (
+                      <span
+                        style={{
+                          fontFamily: "var(--font-cormorant), serif",
+                          fontStyle: "italic",
+                          fontSize: 13,
+                          color: "var(--ok)",
+                        }}
+                      >
+                        Paid off ✦
+                      </span>
+                    ) : (
+                      <>
+                        <DebtSparkline
+                          planet="saturn"
+                          balanceCents={d.balanceCents}
+                          originalBalanceCents={d.originalBalanceCents}
+                          aprBps={d.aprBps}
+                          minPaymentCents={d.minPaymentCents}
+                          anchor={TODAY}
+                          width={120}
+                          height={26}
+                        />
+                        <span
+                          style={{
+                            fontFamily: "var(--font-jetbrains), monospace",
+                            fontSize: 9.5,
+                            color: "var(--ink-3)",
+                            marginLeft: "auto",
+                            fontFeatureSettings: '"tnum" 1',
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {(() => {
+                            // Closed-form: months to payoff at min only
+                            const r = d.aprBps / 120000;
+                            if (r === 0) {
+                              if (d.minPaymentCents <= 0) return "No min";
+                              const mo = Math.ceil(d.balanceCents / d.minPaymentCents);
+                              return `~${mo}mo at min`;
+                            }
+                            const monthlyInterest = d.balanceCents * r;
+                            if (d.minPaymentCents <= monthlyInterest) return "Min < interest";
+                            const N =
+                              -Math.log(1 - monthlyInterest / d.minPaymentCents) / Math.log(1 + r);
+                            return `~${Math.ceil(N)}mo at min`;
+                          })()}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
