@@ -385,6 +385,120 @@ export function addGoal(input: {
 }
 
 /**
+ * Update an existing goal's name, description, target, per-paycheck,
+ * target date, planet, vessel link, and primary flag. Used by the
+ * Edit Goal form at /goals/[id]/edit (Cluster 1.10).
+ *
+ * currentCents is preserved (modifying the target doesn't reset
+ * progress; the user is just changing the destination, not the
+ * journey so far). If `isPrimary` is set, demote any other primary.
+ */
+export function updateGoal(
+  goalId: string,
+  input: {
+    name: string;
+    description: string;
+    planet: PlanetId;
+    targetCents: number;
+    targetDate: Date;
+    envelopeId: string | null;
+    perPaycheckCents: number;
+    isPrimary: boolean;
+  },
+): { ok: boolean; reason?: string; goal?: Goal } {
+  if (!input.name || input.name.trim().length === 0) {
+    return { ok: false, reason: "Name is required." };
+  }
+  if (!Number.isFinite(input.targetCents) || input.targetCents <= 0) {
+    return { ok: false, reason: "Target must be greater than $0." };
+  }
+  if (!Number.isFinite(input.perPaycheckCents) || input.perPaycheckCents < 0) {
+    return { ok: false, reason: "Per-paycheck amount must be $0 or more." };
+  }
+  const s = getState();
+  const goal = s.goals.find((g) => g.id === goalId);
+  if (!goal) return { ok: false, reason: "Goal not found." };
+
+  // If making this one primary, demote others first
+  if (input.isPrimary && !goal.isPrimary) {
+    for (const g of s.goals) {
+      if (g.id !== goalId) g.isPrimary = false;
+    }
+  }
+
+  const before = {
+    targetCents: goal.targetCents,
+    perPaycheckCents: goal.perPaycheckCents,
+    targetDate: goal.targetDate,
+    name: goal.name,
+  };
+  goal.name = input.name.trim();
+  goal.description = input.description.trim();
+  goal.planet = input.planet;
+  goal.targetCents = Math.round(input.targetCents);
+  goal.targetDate = input.targetDate;
+  goal.envelopeId = input.envelopeId;
+  goal.perPaycheckCents = Math.max(0, Math.round(input.perPaycheckCents));
+  goal.isPrimary = input.isPrimary;
+
+  s.audit.unshift({
+    id: nextId("aud-goal"),
+    at: new Date(),
+    kind: "manual-adjust",
+    summary: `Updated goal "${goal.name}".`,
+    meta: {
+      goalId,
+      before,
+      after: {
+        targetCents: goal.targetCents,
+        perPaycheckCents: goal.perPaycheckCents,
+        targetDate: goal.targetDate,
+        name: goal.name,
+      },
+    },
+  });
+
+  return { ok: true, goal: { ...goal } };
+}
+
+/**
+ * Update an existing envelope's name and target. Used by the Edit
+ * Envelope form at /envelopes/[id]/edit and the focused Edit Target
+ * form at /envelopes/[id]/edit-target (Cluster 1.10).
+ *
+ * currentCents is preserved — the user is changing the destination,
+ * not resetting what's already in the vessel.
+ */
+export function updateEnvelope(
+  envelopeId: string,
+  input: { name: string; targetCents: number },
+): { ok: boolean; reason?: string; envelope?: Envelope } {
+  if (!input.name || input.name.trim().length === 0) {
+    return { ok: false, reason: "Name is required." };
+  }
+  if (!Number.isFinite(input.targetCents) || input.targetCents < 0) {
+    return { ok: false, reason: "Target must be $0 or more." };
+  }
+  const s = getState();
+  const env = s.envelopes.find((e) => e.id === envelopeId);
+  if (!env) return { ok: false, reason: "Envelope not found." };
+
+  const before = { name: env.name, targetCents: env.targetCents };
+  env.name = input.name.trim();
+  env.targetCents = Math.round(input.targetCents);
+
+  s.audit.unshift({
+    id: nextId("aud-env"),
+    at: new Date(),
+    kind: "manual-adjust",
+    summary: `Updated envelope "${env.name}" (target $${(env.targetCents / 100).toFixed(2)}).`,
+    meta: { envelopeId, before, after: { name: env.name, targetCents: env.targetCents } },
+  });
+
+  return { ok: true, envelope: { ...env } };
+}
+
+/**
  * Add a new transaction to the live store and, if the transaction
  * reduces an envelope's balance, decrement that envelope's current
  * cents accordingly. Used by the "+ Log a transaction" form on

@@ -432,8 +432,8 @@ export default function EnvelopeDetailPage({
             >
               + Log a transaction
             </Link>
-            <button
-              type="button"
+            <Link
+              href={`/envelopes/${e.id}/edit`}
               style={{
                 fontFamily: "var(--font-cinzel), serif",
                 background: "transparent",
@@ -445,11 +445,29 @@ export default function EnvelopeDetailPage({
                 fontWeight: 500,
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
-                cursor: "pointer",
+                textDecoration: "none",
+              }}
+            >
+              Edit
+            </Link>
+            <Link
+              href={`/envelopes/${e.id}/edit-target`}
+              style={{
+                fontFamily: "var(--font-cinzel), serif",
+                background: "transparent",
+                color: "var(--ink-2)",
+                border: "1px solid var(--line)",
+                borderRadius: 2,
+                padding: "10px 18px",
+                fontSize: 10,
+                fontWeight: 500,
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                textDecoration: "none",
               }}
             >
               Edit target
-            </button>
+            </Link>
           </div>
         </div>
       </section>

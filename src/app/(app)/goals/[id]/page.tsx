@@ -318,8 +318,8 @@ export default function GoalDetailPage({
                 Set as top
               </button>
             )}
-            <button
-              type="button"
+            <Link
+              href={`/goals/${goal.id}/edit`}
               style={{
                 fontFamily: "var(--font-cinzel), serif",
                 background: "var(--gold)",
@@ -331,11 +331,11 @@ export default function GoalDetailPage({
                 fontWeight: 600,
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
-                cursor: "pointer",
+                textDecoration: "none",
               }}
             >
-              Edit goal
-            </button>
+              Edit goal →
+            </Link>
           </div>
         </div>
       </section>
