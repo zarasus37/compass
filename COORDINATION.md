@@ -9,10 +9,10 @@
 ## Status
 
 - **Stage 1 (Design)**: ✅ Complete (v1.0) → **v4.0** reframe locked 2026-08-22 (alchemical/celestial visual language, pay-period as unit of truth, auto-allocate, 7 planetary vessels, 3-chapter sidebar, 4 allocation strategies)
-- **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory) — ✅ done, commit `cda8972`. Cluster 1.7 visual audit — ✅ done, commit `3da5716`. **Cluster 1.8 (Bill organizer + Plan My Next Check + calendar warnings) — ✅ done, commit `999ff37`. Cluster 1.9 (Debt payoff simulator + Saturn vessel + 3-up card + paid-off celebration) — ✅ done, commits `feb50e3` + `801525c` (math-bug fix) + `0ffb439` (per-debt sparkline).** Biweekly period locked as the canonical pay schedule (D17); period-close renamed to match (D18). **Chart-next-to-data principle applied across /goals, /envelopes, /recurring, /debts, /insights — commit `843375c`.** Next: Cluster 1.6 (form actions + onboarding), then 2.x (bill reminders, variable income, period close).
+- **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory) — ✅ done, commit `cda8972`. Cluster 1.7 visual audit — ✅ done, commit `3da5716`. **Cluster 1.8 (Bill organizer + Plan My Next Check + calendar warnings) — ✅ done, commit `999ff37`. Cluster 1.9 (Debt payoff simulator + Saturn vessel + 3-up card + paid-off celebration) — ✅ done, commits `feb50e3` + `801525c` (math-bug fix) + `0ffb439` (per-debt sparkline).** Biweekly period locked as the canonical pay schedule (D17); period-close renamed to match (D18). **Chart-next-to-data principle applied across /goals, /envelopes, /recurring, /debts, /insights — commit `843375c`. Cluster 1.10 (drill-downs + new transaction / goal / envelope / bill / debt forms + edit forms) — ✅ done, commits `03f308f` + `006bca0` + `3dc679f` + `649d76e`. **Cluster 2.0 (customizable, scrollable, card-based dashboard with @dnd-kit drag-and-drop + localStorage persistence) — ✅ done, commit `e648ef5`.** Next: Cluster 2.x (form actions deep-dive, bill reminders, variable income, period close), then 3.x (real Plaid, AI tiers).
 - **Stage 3 (Test & bug-fix)**: pending Stage 2
 
-> Last update: 2026-08-23 (post-Cluster-1.9 + chart-next-to-data)
+> Last update: 2026-08-23 (post-Cluster-2.0 — customizable card dashboard)
 
 ---
 
@@ -184,7 +184,53 @@ New components: `GoalSparkline.tsx`, `EnvelopeMiniBar.tsx`, `DebtSparkline.tsx` 
 
 `tsc --noEmit` clean. `pnpm build` clean (10 static pages, 18 routes). All 4 changed pages visually verified.
 
-### Cluster 2 (after Cluster 1)
+### Cluster 2.0 — Customizable, scrollable, card-based dashboard (✅ DONE — commit `e648ef5`; 2026-08-23)
+
+The dashboard is now a 2-col card grid on desktop (1-col on mobile), mixing full-width and half-width cards. Each card is a single tap-through target routing to a deep-dive tab where the full data set lives. The user can add, remove, and reorder cards; the layout persists to localStorage.
+
+**Default cards on a fresh dashboard (4 on by default):**
+- **Daily Tracking** (full) — safe-to-spend + today's pace + 7-day weekly health, all in one strip
+- **Critical Timeline** (half) — next 2-3 unpaid bills with color-coded time-remaining badges (Overdue iron-red, Today gold, Tomorrow warn, "In N days" neutral, "Next period" ink-3)
+- **Envelope Status** (half) — top 3 envelopes ranked by attention (over-limit first, then highest utilization)
+- **Next Step** (full) — the over-limit attention rail with calm jade fallback
+
+**Catalog (2 more, opt-in via the Add card sheet):**
+- **Top Priority** (full) — the primary goal hero with the Jupiter/Venus progress bar
+- **Snapshot** (full) — 3-cell net worth / next paycheck / period strip
+
+**Customization (persisted to `localStorage` as `compass-dashboard-layout-v1`):**
+- Pencil toggle in the bottom-right enters edit mode
+- `@dnd-kit/sortable` drag handle (whole card becomes draggable) OR up/down arrow buttons
+- X removes a card from the dashboard
+- "+ Add card" sheet shows the catalog with descriptions + "+ Add" buttons
+- "Reset to default" button restores the default 4-card layout
+- Order + visibility sync across tabs via `storage` events
+
+**Visual continuity:**
+- `view-transition-name` on each card so a future destination page can hand off the card into the new view (e.g. `/recurring` sets `view-transition-name: card-critical-timeline` and the browser morphs it into the page header)
+- Subtle stretch + fade CSS animation on card → page transitions
+- Hover lift (translateY -1px + soft box-shadow) on cards in view mode
+- Tactile :active scale (0.992) on click for feedback
+- All interactive states respect `prefers-reduced-motion`
+
+**Architecture (3-tier split):**
+- `page.tsx` (server) — reads live data, computes every card's payload, builds a `cardNodes` map keyed by `CardId`
+- `DashboardCard.tsx` (client) — the card primitive; reads editing state from `DashboardEditingContext` (so the pre-rendered card can flip into edit mode without remounting)
+- `DashboardGrid.tsx` (client) — owns layout state, dnd-kit context, customize mode, add/remove/reset, AddCardSheet
+- `cards/*.tsx` (server) — pure render of data per card type, 6 files (`daily-tracking`, `critical-timeline`, `envelope-status`, `top-priority`, `next-step`, `snapshot`)
+- `catalog.ts` (shared, no "use client") — card metadata, default order, `loadLayout` / `saveLayout` helpers
+
+**Routing:**
+- Daily Tracking → `/transactions` (where the full record lives)
+- Critical Timeline → `/recurring` (bills page with the timeline strip + paid toggles)
+- Envelope Status → `/envelopes` (per-envelope detail + bar chart)
+- Next Step → `/envelopes` (same target — the over-limit attention rail IS the gateway)
+- Top Priority → `/goals` (the goal management page)
+- Snapshot → `/period` (the period page with the full walk)
+
+`tsc --noEmit` clean. `pnpm build` clean (10 static pages, 25 routes — same as before, just refactored `page.tsx`). Visual check: customize toggle works, add-card sheet opens, drag handle visible in edit mode, tap-through routes correctly, layout persists across reloads.
+
+### Cluster 2 (after Cluster 2.0)
 
 - Real Plaid sandbox (L2 routing) — deferred until Cluster 1 is fully working with mock data
 - AI Tier 1 — chat, smart categorize, natural-language search
