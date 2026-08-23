@@ -4,6 +4,7 @@ import { AppSidebar } from "@/components/sidebar/AppSidebar";
 import { EnvelopeBarChart } from "@/components/alchemy/EnvelopeBarChart";
 import { VesselGlyph } from "@/components/alchemy/VesselGlyph";
 import { PaycheckSimulator } from "@/components/dashboard/PaycheckSimulator";
+import { PlanMyNextCheck } from "@/components/dashboard/PlanMyNextCheck";
 
 // Force-dynamic so the dashboard re-reads the live store after every
 // paycheck simulation. Static rendering would freeze the initial seed.
@@ -12,6 +13,8 @@ import {
   liveEnvelopes,
   liveGoals,
   liveSnapshot,
+  liveBills,
+  livePlan,
   TODAY,
   PERIOD_START,
   PERIOD_END,
@@ -42,6 +45,9 @@ export default async function Dashboard() {
   const ENVELOPES = liveEnvelopes();
   const GOALS = liveGoals();
   const SNAPSHOT = liveSnapshot();
+  const BILLS = liveBills();
+  const PLAN = livePlan();
+  const NEXT_PAYCHECK_CENTS = SNAPSHOT.nextPaycheckCents;
 
   const topGoal = GOALS.find((g) => g.isPrimary) ?? GOALS[0];
   if (!topGoal) {
@@ -360,6 +366,17 @@ export default async function Dashboard() {
 
         {/* ============== PAYCHECK SIMULATOR ============== */}
         <PaycheckSimulator />
+
+        {/* ============== PLAN MY NEXT CHECK (Cluster 1.8) ============== */}
+        <PlanMyNextCheck
+          bills={BILLS}
+          plan={PLAN}
+          envelopes={ENVELOPES.map((e) => ({ id: e.id, planet: e.planet }))}
+          paycheckCents={NEXT_PAYCHECK_CENTS}
+          periodStart={PERIOD_START}
+          periodEnd={PERIOD_END}
+          nextPayDate={NEXT_PAY_DATE}
+        />
 
         {/* ============== ENVELOPES ============== */}
         <section style={{ marginBottom: 72 }}>

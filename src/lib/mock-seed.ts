@@ -134,6 +134,39 @@ export const ACCOUNT_SEED: AccountSeed = {
 };
 
 // ---------------------------------------------------------------------------
+// Bills — recurring monthly charges (Cluster 1.8). Each bill has a
+// dueDay (1-31), an amount, and an autopay flag. The engine bins them
+// into the current pay period based on `dueDay` relative to the
+// biweekly schedule. `paidAt` is the ISO timestamp of the most recent
+// payment (cleared on each pay-period close).
+// ---------------------------------------------------------------------------
+
+export interface BillSeed {
+  id: string;
+  name: string;
+  amountCents: number;
+  /** Day of month the bill is due (1-31). */
+  dueDay: number;
+  autopay: boolean;
+  /** ISO string. null if not yet paid for the current period. */
+  paidAt: string | null;
+  /** Optional destination envelope. */
+  envelopeId: string | null;
+  /** Optional account the bill auto-pays from. */
+  accountId: string | null;
+  sortOrder: number;
+}
+
+export const BILLS_SEED: BillSeed[] = [
+  { id: "bill-rent",      name: "Rent",                amountCents: 80_000,  dueDay: 1,   autopay: false, paidAt: null, envelopeId: "env-rent",      accountId: "acct-chase", sortOrder: 1 },
+  { id: "bill-spectrum",  name: "Spectrum Internet",   amountCents: 7_500,   dueDay: 27,  autopay: true,  paidAt: null, envelopeId: "env-utilities", accountId: "acct-chase", sortOrder: 2 },
+  { id: "bill-discover",  name: "Discover Auto-pay",   amountCents: 9_600,   dueDay: 27,  autopay: true,  paidAt: null, envelopeId: "env-debt",     accountId: "acct-chase", sortOrder: 3 },
+  { id: "bill-spotify",   name: "Spotify",             amountCents: 1_099,   dueDay: 5,   autopay: true,  paidAt: null, envelopeId: "env-dining",   accountId: "acct-chase", sortOrder: 4 },
+  { id: "bill-chatgpt",   name: "ChatGPT Plus",        amountCents: 2_000,   dueDay: 12,  autopay: true,  paidAt: null, envelopeId: "env-dining",   accountId: "acct-chase", sortOrder: 5 },
+  { id: "bill-electric",  name: "Magic Valley Electric", amountCents: 11_200, dueDay: 18, autopay: false, paidAt: null, envelopeId: "env-utilities", accountId: "acct-chase", sortOrder: 6 },
+];
+
+// ---------------------------------------------------------------------------
 // Allocation plan — the seven default rules (Envelope strategy).
 // Each rule tells the engine what to do with a paycheck when it arrives.
 // Order matters: percent + fixed rules run in `priority` order, then any

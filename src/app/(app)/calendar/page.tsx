@@ -1,7 +1,18 @@
 import * as React from "react";
 import { PageHead } from "@/components/alchemy/PageHead";
-import { liveGoals, liveTransactions, NEXT_PAY_DATE, TODAY } from "@/lib/mock";
-import { formatShortDate } from "@/lib/format";
+import {
+  liveGoals,
+  liveTransactions,
+  liveBills,
+  liveSnapshot,
+  NEXT_PAY_DATE,
+  TODAY,
+  PERIOD_START,
+  PERIOD_END,
+} from "@/lib/mock";
+import { billsDueInPeriod } from "@/lib/store";
+import { formatShortDate, formatPeriodRange } from "@/lib/format";
+import { formatMoney } from "@/lib/money";
 import { VesselGlyph, type PlanetId } from "@/components/alchemy/VesselGlyph";
 
 export const dynamic = "force-dynamic";
@@ -11,10 +22,17 @@ export const dynamic = "force-dynamic";
  * The almanac. Month view with paydays, goal targets, and a moon
  * phase panel. The day-of-week header carries a planetary glyph
  * (subtle visual reference — never labeled in copy).
+ *
+ * Cluster 1.8: the top of the page now has a "Bills due before next
+ * paycheck" warning that surfaces the live bill list binned into the
+ * current pay period. Red iron if the bills exceed the next paycheck;
+ * amber if they're covered but tight; calm gold if comfortably under.
  */
 export default function CalendarPage() {
   const GOALS = liveGoals();
   const TRANSACTIONS = liveTransactions();
+  const BILLS = liveBills();
+  const SNAPSHOT = liveSnapshot();
   // Mock: showing September 2025 with current period dates
   const month = "September";
   const year = 2025;
@@ -27,6 +45,14 @@ export default function CalendarPage() {
   const goalTarget = 26;
   // Today marker
   const today = 22;
+
+  // Cluster 1.8 — bills-due-before-next-paycheck warning
+  const billsDue = billsDueInPeriod(BILLS, PERIOD_START, PERIOD_END);
+  const unpaidBills = billsDue.filter((d) => !d.paidThisPeriod);
+  const paidBills = billsDue.filter((d) => d.paidThisPeriod);
+  const totalBillsCents = billsDue.reduce((s, d) => s + d.bill.amountCents, 0);
+  const nextPaycheckCents = SNAPSHOT.nextPaycheckCents;
+  const billsExceed = totalBillsCents > nextPaycheckCents;
 
   return (
     <div>
@@ -41,6 +67,104 @@ export default function CalendarPage() {
           </>
         }
       />
+
+      {/* Bills-due-before-next-paycheck warning (Cluster 1.8) */}
+      {billsDue.length > 0 && (
+        <section
+          style={{
+            background: billsExceed
+              ? "radial-gradient(ellipse at 0% 50%, rgba(196, 90, 58, 0.18) 0%, transparent 60%), var(--surface)"
+              : "radial-gradient(ellipse at 0% 50%, rgba(212, 175, 82, 0.10) 0%, transparent 60%), var(--surface)",
+            border: "1px solid var(--line)",
+            borderLeft: `3px solid ${billsExceed ? "var(--neg)" : "var(--gold)"}`,
+            borderRadius: 4,
+            padding: "20px 28px",
+            marginBottom: 40,
+            display: "flex",
+            alignItems: "center",
+            gap: 20,
+          }}
+        >
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: "50%",
+              display: "grid",
+              placeItems: "center",
+              background: billsExceed ? "rgba(196, 90, 58, 0.14)" : "rgba(212, 175, 82, 0.12)",
+              color: billsExceed ? "var(--neg)" : "var(--gold)",
+              border: `1px solid ${billsExceed ? "var(--neg)" : "var(--gold)"}`,
+              fontSize: 22,
+              flexShrink: 0,
+              lineHeight: 1,
+            }}
+            aria-hidden
+          >
+            {billsExceed ? "!" : "$"}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                fontFamily: "var(--font-cinzel), serif",
+                fontSize: 9.5,
+                color: billsExceed ? "var(--neg)" : "var(--gold)",
+                letterSpacing: "0.25em",
+                textTransform: "uppercase",
+                marginBottom: 6,
+              }}
+            >
+              {billsExceed
+                ? "Bills exceed this paycheck"
+                : `Bills due before your next paycheck`}
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+                fontSize: 24,
+                color: "var(--ink)",
+                lineHeight: 1.15,
+              }}
+            >
+              {formatMoney(totalBillsCents)}{" "}
+              <span
+                style={{
+                  fontFamily: "var(--font-cormorant), serif",
+                  fontStyle: "italic",
+                  color: "var(--ink-3)",
+                  fontSize: 16,
+                }}
+              >
+                across {billsDue.length} bill{billsDue.length === 1 ? "" : "s"} · {formatPeriodRange(PERIOD_START, PERIOD_END)}
+              </span>
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-cormorant), serif",
+                fontSize: 14,
+                color: "var(--ink-2)",
+                marginTop: 8,
+              }}
+            >
+              {billsExceed ? (
+                <>
+                  That&apos;s more than your next paycheck of {formatMoney(nextPaycheckCents)}. Pull from Buffer or extend the timeline.
+                </>
+              ) : (
+                <>
+                  Next paycheck: {formatMoney(nextPaycheckCents)}. {unpaidBills.length} unpaid · {paidBills.length} already cleared for this period.{" "}
+                  <a
+                    href="/recurring"
+                    style={{ color: "var(--gold)", textDecoration: "none", fontWeight: 600 }}
+                  >
+                    Open Recurring →
+                  </a>
+                </>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section
         style={{

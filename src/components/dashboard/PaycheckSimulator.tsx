@@ -1,20 +1,30 @@
 "use client";
 
 /**
- * PaycheckSimulator — the live demo of the auto-allocate engine.
+ * PaycheckSimulator — "Plan My Next Check" (Cluster 1.8).
  *
- * This is the visible centerpiece of Cluster 1's interactivity pass.
- * A button on the dashboard. Click it. The server action runs the
- * allocation engine. The envelope balances update. The bar chart
- * re-renders. A celebration banner shows what happened.
+ * The visible centerpiece of the dashboard. Per the user's request:
  *
- * Per 00-DESIGN.md D12: the plan is armed, no confirm, no modal — the
- * system runs the plan on every paycheck, and the user sees the
- * summary afterward.
+ *   "I get paid Friday. What needs to come out of this check, and how
+ *    much can I safely spend?"
  *
- * In Cluster 2 this exact same surface will be triggered by a real
- * bank webhook (Plaid). The action contract is identical; only the
- * trigger source changes.
+ * Form: paycheck amount + source. The action runs the Plan My Next
+ * Check engine which returns a 5-way breakdown:
+ *
+ *   Paycheck $2,000
+ *     Bills     $1,050   ← from live /recurring list, binned to this period
+ *     Spending  $  500   ← discretionary envelope allocations
+ *     Debt      $  250   ← debt envelope (Saturn)
+ *     Savings   $  100   ← savings envelope (Jupiter)
+ *     Unallocated $100   ← safe-to-spend
+ *
+ * The Sankey (from Cluster 1.7) shows the 7-way distribution across
+ * vessels. The new breakdown card shows the 5-way category view.
+ * Stacked bar visualizes the % split. Warnings fire when bills exceed
+ * the paycheck, or when safe-to-spend is below a threshold.
+ *
+ * D12: the plan is armed, no confirm, no modal — the system runs the
+ * plan on every paycheck, and the user sees the summary afterward.
  */
 
 import * as React from "react";
@@ -88,7 +98,7 @@ export function PaycheckSimulator() {
           }}
         >
           <span style={{ fontSize: 18, lineHeight: 1 }}>⚹</span>
-          See the plan in action
+          Plan my next check
         </div>
         <span
           style={{
@@ -98,7 +108,7 @@ export function PaycheckSimulator() {
             color: "var(--ink-3)",
           }}
         >
-          Arm a plan. Money arrives. The system runs it.
+          What needs to come out, and what&apos;s left to spend.
         </span>
       </div>
 
@@ -127,7 +137,7 @@ export function PaycheckSimulator() {
               maxWidth: 540,
             }}
           >
-            The plan is armed. Compass will distribute every dollar across the seven envelopes the moment a paycheck lands. No confirm. No friction. Just the system doing its job.
+            The plan is armed. Compass pulls in every bill due before your next payday, subtracts spending and savings goals, and tells you exactly what&apos;s left.
           </p>
           <form
             ref={formRef}
@@ -217,7 +227,7 @@ export function PaycheckSimulator() {
                 whiteSpace: "nowrap",
               }}
             >
-              {isPending ? "Allocating..." : "Run paycheck →"}
+              {isPending ? "Planning..." : "Plan my check →"}
             </button>
           </form>
           {state.ok === false && (
@@ -347,7 +357,7 @@ export function PaycheckSimulator() {
       </div>
 
       {/* Celebration banner — appears after each successful run */}
-      {state.ok && state.run && (
+      {state.ok && state.run && state.run.transfers && (
         <div
           ref={bannerRef}
           style={{
@@ -403,9 +413,7 @@ export function PaycheckSimulator() {
               </span>
             </div>
           </div>
-          {/* Sankey — the Automation Map. Paycheck on the left fans out
-              to the 7 vessels on the right. Link widths = share of
-              paycheck. Hover any link for the rule behind the flow. */}
+          {/* Sankey — the Automation Map */}
           <div style={{ marginBottom: 24 }}>
             <SankeyFlow
               nodes={state.run.transfers.map(

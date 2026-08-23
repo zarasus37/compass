@@ -15,12 +15,14 @@ import {
   TRANSACTIONS_SEED,
   ALLOCATION_PLAN_SEED,
   ACCOUNT_SEED,
+  BILLS_SEED,
   type EnvelopeSeed,
   type GoalSeed,
   type TransactionSeed,
   type AllocationPlanSeed,
   type AllocationRuleSeed,
   type AccountSeed,
+  type BillSeed,
 } from "./mock-seed";
 
 export type PlanetId =
@@ -97,6 +99,23 @@ export interface AuditLogEntry {
   meta?: Record<string, unknown>;
 }
 
+/// A recurring bill (Cluster 1.8). Mirrors the Prisma `Bill` model
+/// (added in a future migration — the in-memory store is the source
+/// of truth for v1, the Prisma row is the durable mirror).
+export interface Bill {
+  id: string;
+  name: string;
+  amountCents: number;
+  /** Day of month the bill is due (1-31). */
+  dueDay: number;
+  autopay: boolean;
+  /** ISO string. null if not yet paid for the current period. */
+  paidAt: string | null;
+  envelopeId: string | null;
+  accountId: string | null;
+  sortOrder: number;
+}
+
 // ---------------------------------------------------------------------------
 // State shape
 // ---------------------------------------------------------------------------
@@ -107,6 +126,7 @@ interface StoreState {
   transactions: Transaction[];
   plan: AllocationPlan;
   account: Account;
+  bills: Bill[];
   audit: AuditLogEntry[];
   paycheckCount: number; // how many sims have been run this session
 }
@@ -163,6 +183,7 @@ function seedState(): StoreState {
       type: ACCOUNT_SEED.type,
       balanceCents: ACCOUNT_SEED.balanceCents,
     },
+    bills: BILLS_SEED.map((b: BillSeed) => ({ ...b })),
     audit: [],
     paycheckCount: 0,
   };
@@ -232,6 +253,13 @@ export function readSnapshot() {
   };
 }
 
+export function readBills(): Bill[] {
+  return getState()
+    .bills.slice()
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((b) => ({ ...b }));
+}
+
 // ---------------------------------------------------------------------------
 // Write API — called only from server actions
 // ---------------------------------------------------------------------------
@@ -289,6 +317,199 @@ export function applyAllocation(result: AllocationRunResult): void {
 
 export function resetStore(): void {
   globalThis.__COMPASS_STORE__ = seedState();
+}
+
+// ---------------------------------------------------------------------------
+// Bill mutators (Cluster 1.8)
+// ---------------------------------------------------------------------------
+
+/**
+ * Toggle a bill between paid and unpaid. When `paid === true`, sets
+ * `paidAt` to now. When `paid === false`, clears `paidAt`. Returns the
+ * updated bill (or null if not found).
+ */
+export function setBillPaid(billId: string, paid: boolean): Bill | null {
+  const s = getState();
+  const bill = s.bills.find((b) => b.id === billId);
+  if (!bill) return null;
+  bill.paidAt = paid ? new Date().toISOString() : null;
+  s.audit.unshift({
+    id: nextId("aud-bill"),
+    at: new Date(),
+    kind: "manual-adjust",
+    summary: paid
+      ? `Marked ${bill.name} as paid (${formatCentsInline(bill.amountCents)}).`
+      : `Reset ${bill.name} to unpaid.`,
+    meta: { billId, paid },
+  });
+  return { ...bill };
+}
+
+// ---------------------------------------------------------------------------
+// Bill engine (Cluster 1.8) — "Plan My Next Check" + calendar warnings
+// ---------------------------------------------------------------------------
+
+/**
+ * For a bill, compute the next due date on or after `fromDate`, on or
+ * before `toDate`. The bill is "due this period" if that date lands
+ * inside the range. If `paidAt` is set and falls inside the same
+ * range, the bill is already paid for this period.
+ *
+ * Period semantics (D11, D17): biweekly, [paycheck, nextPaycheck).
+ * A monthly bill with dueDay=1 is due on the 1st of each month. If
+ * the period covers the 1st, it's due; if `paidAt` is set in the
+ * same period, it's already paid.
+ */
+export function billsDueInPeriod(
+  bills: Bill[],
+  periodStart: Date,
+  periodEnd: Date,
+): Array<{ bill: Bill; dueDate: Date; paidThisPeriod: boolean }> {
+  const out: Array<{ bill: Bill; dueDate: Date; paidThisPeriod: boolean }> = [];
+  // The period is 14 days (D17 biweekly). A monthly bill can land on
+  // at most one date in any 14-day window, but the window can cross
+  // a month boundary (Aug 22 → Sep 5 includes both Aug 27 and Sep 1).
+  // We check the candidate in the period's starting month and the
+  // period's ending month; whichever (if either) is in range wins.
+  for (const b of bills) {
+    const candidates: Date[] = [];
+    const startYear = periodStart.getFullYear();
+    const startMonth = periodStart.getMonth();
+    const endYear = periodEnd.getFullYear();
+    const endMonth = periodEnd.getMonth();
+    const monthsToCheck: Array<[number, number]> = [];
+    for (let y = startYear; y <= endYear; y += 1) {
+      const mStart = y === startYear ? startMonth : 0;
+      const mEnd = y === endYear ? endMonth : 11;
+      for (let m = mStart; m <= mEnd; m += 1) {
+        monthsToCheck.push([y, m]);
+      }
+    }
+    for (const [y, m] of monthsToCheck) {
+      const candidate = new Date(y, m, Math.min(b.dueDay, daysInMonth(y, m)));
+      if (candidate >= periodStart && candidate <= periodEnd) {
+        candidates.push(candidate);
+      }
+    }
+    if (candidates.length > 0) {
+      // Use the earliest candidate in the period.
+      const dueDate = candidates.sort((a, b) => a.getTime() - b.getTime())[0]!;
+      const paidThisPeriod =
+        b.paidAt !== null &&
+        new Date(b.paidAt) >= periodStart &&
+        new Date(b.paidAt) <= periodEnd;
+      out.push({ bill: b, dueDate, paidThisPeriod });
+    }
+  }
+  return out;
+}
+
+function daysInMonth(year: number, monthIdx: number): number {
+  return new Date(year, monthIdx + 1, 0).getDate();
+}
+
+function formatCentsInline(c: number): string {
+  return `$${(c / 100).toFixed(2)}`;
+}
+
+/**
+ * The 5-way "Plan My Next Check" breakdown.
+ *
+ *   Paycheck  =  total incoming
+ *   Bills     =  sum of recurring bills due in the period (paid or not —
+ *                you still need to set the money aside)
+ *   Spending  =  discretionary envelope allocations (Groceries, Dining, Buffer)
+ *   Debt      =  allocation to the debt envelope (Saturn)
+ *   Savings   =  allocation to the savings envelope (Jupiter)
+ *   Unallocated = paycheck - everything else
+ *
+ * Bill-shaped envelopes (Rent, Utilities / Sol, Mercury) are funded
+ * by their bills, so the breakdown doesn't double-count their
+ * envelope allocations. They show up in "Bills" via the recurring
+ * bill list, which is the source of truth.
+ */
+export interface PaycheckBreakdown {
+  paycheckCents: number;
+  billsCents: number;
+  spendingCents: number;
+  debtCents: number;
+  savingsCents: number;
+  unallocatedCents: number;
+  /** Bills that are still unpaid at the time of the run. */
+  unpaidBillCount: number;
+  /** True when bills > paycheck — a red flag. */
+  billsExceedPaycheck: boolean;
+}
+
+export function paycheckBreakdown(
+  paycheckCents: number,
+  bills: Bill[],
+  plan: AllocationPlan,
+  envelopes: ReadonlyArray<{ id: string; planet: PlanetId }>,
+  periodStart: Date,
+  periodEnd: Date,
+): PaycheckBreakdown {
+  // Bills: sum of bills due in the period, regardless of paid status.
+  // Unpaid bills still need to come out of this paycheck.
+  const due = billsDueInPeriod(bills, periodStart, periodEnd);
+  const billsCents = due.reduce((s, d) => s + d.bill.amountCents, 0);
+  const unpaidBillCount = due.filter((d) => !d.paidThisPeriod).length;
+
+  // Map envelope id → planet for the spending/debt/savings classification.
+  const planetByEnvelope = new Map(envelopes.map((e) => [e.id, e.planet]));
+
+  // Allocation rules → cents for this paycheck.
+  let spendingCents = 0;
+  let debtCents = 0;
+  let savingsCents = 0;
+  for (const rule of plan.rules) {
+    if (rule.mode === "remainder") continue; // unallocated bucket, computed last
+    const cents =
+      rule.mode === "percent"
+        ? Math.floor((paycheckCents * rule.value) / 100)
+        : rule.mode === "fixed"
+        ? rule.value
+        : 0;
+    const planet = planetByEnvelope.get(rule.envelopeId);
+    if (planet === "saturn") debtCents += cents;
+    else if (planet === "jupiter") savingsCents += cents;
+    else if (planet === "sol" || planet === "mercury") {
+      // Bill-shaped envelope — already counted in "Bills" via the bill list.
+      // Skip to avoid double-counting.
+      continue;
+    } else {
+      // luna, mars, venus → discretionary
+      spendingCents += cents;
+    }
+  }
+
+  const allocated =
+    billsCents + spendingCents + debtCents + savingsCents;
+  const unallocatedCents = Math.max(0, paycheckCents - allocated);
+
+  return {
+    paycheckCents,
+    billsCents,
+    spendingCents,
+    debtCents,
+    savingsCents,
+    unallocatedCents,
+    unpaidBillCount,
+    billsExceedPaycheck: billsCents > paycheckCents,
+  };
+}
+
+/**
+ * "Safe to spend" — the number she can actually spend on discretionary
+ * things this period. Pulled from the breakdown as:
+ *
+ *   safeToSpend = unallocatedCents
+ *
+ * Surfaced as a single number on the dashboard and as a 5-way breakdown
+ * on the Plan My Next Check action.
+ */
+export function safeToSpend(breakdown: PaycheckBreakdown): number {
+  return breakdown.unallocatedCents;
 }
 
 // ---------------------------------------------------------------------------

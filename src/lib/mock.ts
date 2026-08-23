@@ -21,10 +21,13 @@ import {
   readGoals,
   readTransactions,
   readAccount,
+  readBills,
   readSnapshot,
+  readPlan,
   type Envelope,
   type Goal,
   type Transaction,
+  type Bill,
   type PlanetId,
 } from "./store";
 import {
@@ -101,6 +104,20 @@ function toDisplayAccount(a: ReturnType<typeof readAccount>) {
   };
 }
 
+function toDisplayBill(b: Bill) {
+  return {
+    id: b.id,
+    name: b.name,
+    amountCents: b.amountCents,
+    dueDay: b.dueDay,
+    autopay: b.autopay,
+    paidAt: b.paidAt,
+    envelopeId: b.envelopeId,
+    accountId: b.accountId,
+    sortOrder: b.sortOrder,
+  };
+}
+
 /**
  * Live reads from the store. These are plain function calls, so they
  * are re-evaluated on every server-component render. The result of the
@@ -110,6 +127,7 @@ export const ENVELOPES = readEnvelopes().map(toDisplayEnvelope);
 export const GOALS = readGoals().map(toDisplayGoal);
 export const TRANSACTIONS = readTransactions().map(toDisplayTransaction);
 export const ACCOUNT = toDisplayAccount(readAccount());
+export const BILLS = readBills().map(toDisplayBill);
 
 // ---------------------------------------------------------------------------
 // Live re-readers — call these inside a server component if you want to
@@ -130,4 +148,10 @@ export function liveSnapshot() {
 }
 export function liveAccount() {
   return toDisplayAccount(readAccount());
+}
+export function liveBills() {
+  return readBills().map(toDisplayBill);
+}
+export function livePlan() {
+  return readPlan();
 }
