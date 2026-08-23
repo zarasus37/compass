@@ -1,4 +1,5 @@
 import * as React from "react";
+import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { VesselGlyph, type PlanetId } from "@/components/alchemy/VesselGlyph";
 import { liveEnvelopes, liveTransactions, TODAY } from "@/lib/mock";
@@ -33,6 +34,27 @@ export default function TransactionsPage() {
         title="The Record"
         em="every dollar in, every dollar out."
         accent="gold"
+        actions={
+          <Link
+            href="/transactions/new"
+            style={{
+              fontFamily: "var(--font-cinzel), serif",
+              background: "var(--gold)",
+              color: "var(--void)",
+              border: 0,
+              borderRadius: 2,
+              padding: "12px 22px",
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              textDecoration: "none",
+              boxShadow: "0 0 18px rgba(212, 175, 82, 0.35)",
+            }}
+          >
+            + Log a transaction
+          </Link>
+        }
         explanation={
           <>
             Every transaction Compass has tracked, organized by day. Each row is tagged with the vessel it came from or went to. Search by payee, filter by envelope, or click any day to see what happened. The full record is yours — it never gets deleted.

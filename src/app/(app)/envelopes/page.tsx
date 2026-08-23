@@ -1,4 +1,5 @@
 import * as React from "react";
+import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { EnvelopeBarChart } from "@/components/alchemy/EnvelopeBarChart";
 import { VesselGlyph, type PlanetId } from "@/components/alchemy/VesselGlyph";
@@ -187,15 +188,17 @@ export default function EnvelopesPage() {
                 <span style={{ fontSize: 18, lineHeight: 1, color: e.planet ? `var(--${e.planet})` : "var(--ink-2)" }}>
                   <VesselGlyph planet={e.planet} size={18} />
                 </span>
-                <span
+                <Link
+                  href={`/envelopes/${e.id}`}
                   style={{
                     fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
                     fontSize: 17,
                     color: "var(--ink)",
+                    textDecoration: "none",
                   }}
                 >
-                  {e.name}
-                </span>
+                  {e.name} →
+                </Link>
                 <span
                   style={{
                     fontFamily: "var(--font-jetbrains), monospace",

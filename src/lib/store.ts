@@ -324,9 +324,74 @@ export function applyExtraDebtPayment(
   return { ok: true, debt: { ...debt } };
 }
 
-// ---------------------------------------------------------------------------
-// Write API — called only from server actions
-// ---------------------------------------------------------------------------
+/**
+ * Add a new transaction to the live store and, if the transaction
+ * reduces an envelope's balance, decrement that envelope's current
+ * cents accordingly. Used by the "+ Log a transaction" form on
+ * /transactions/new (Cluster 1.10).
+ *
+ * Form input is dollars (human-readable); the server boundary
+ * converts to cents. Same pattern as the paycheck and bills actions.
+ */
+export function addTransaction(input: {
+  payee: string;
+  amountCents: number;
+  envelopeId: string | null;
+  date?: Date;
+  isIncome?: boolean;
+  source?: "user" | "allocation" | "system";
+}): { ok: boolean; reason?: string; transaction?: Transaction } {
+  if (!input.payee || input.payee.trim().length === 0) {
+    return { ok: false, reason: "Payee is required." };
+  }
+  if (!Number.isFinite(input.amountCents) || input.amountCents === 0) {
+    return { ok: false, reason: "Enter an amount other than $0." };
+  }
+  const s = getState();
+  const env = input.envelopeId
+    ? s.envelopes.find((e) => e.id === input.envelopeId)
+    : null;
+  if (input.envelopeId && !env) {
+    return { ok: false, reason: "Envelope not found." };
+  }
+
+  const tx: Transaction = {
+    id: nextId("tx"),
+    date: input.date ?? new Date(),
+    payee: input.payee.trim(),
+    amountCents: input.amountCents,
+    envelopeId: input.envelopeId,
+    isIncome: input.isIncome ?? input.amountCents > 0,
+    source: input.source ?? "user",
+  };
+  s.transactions.unshift(tx);
+
+  // Reflect the spend on the envelope's current cents. Positive
+  // amounts (income/refund/transfer-in) ADD to the envelope; negative
+  // amounts (spends) SUBTRACT. This keeps the bar chart in sync.
+  if (env) {
+    env.currentCents = Math.max(0, env.currentCents + input.amountCents);
+  }
+
+  s.audit.unshift({
+    id: nextId("aud-tx"),
+    at: new Date(),
+    kind: "manual-adjust",
+    summary:
+      input.amountCents >= 0
+        ? `Logged ${formatCentsInline(input.amountCents)} ${input.isIncome ? "income" : "in"} to ${env?.name ?? "envelope"}: ${tx.payee}.`
+        : `Logged ${formatCentsInline(Math.abs(input.amountCents))} spend from ${env?.name ?? "envelope"}: ${tx.payee}.`,
+    meta: {
+      txId: tx.id,
+      envelopeId: tx.envelopeId,
+      amountCents: tx.amountCents,
+    },
+  });
+
+  return { ok: true, transaction: tx };
+}
+
+
 
 export function applyAllocation(result: AllocationRunResult): void {
   const s = getState();

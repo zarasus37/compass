@@ -1,4 +1,5 @@
 import * as React from "react";
+import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { VesselGlyph, type PlanetId } from "@/components/alchemy/VesselGlyph";
 import { GoalTrajectory, type GoalTrajectoryInput } from "@/components/viz/GoalTrajectory";
@@ -144,16 +145,20 @@ export default function GoalsPage() {
                       ● Top priority
                     </div>
                   )}
-                  <div
+                  <Link
+                    href={`/goals/${g.id}`}
                     style={{
                       fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
                       fontSize: 24,
                       color: "var(--ink)",
                       marginBottom: 4,
+                      textDecoration: "none",
+                      display: "inline-block",
                     }}
+                    className="goal-name-link"
                   >
-                    {g.name}
-                  </div>
+                    {g.name} →
+                  </Link>
                   <div
                     style={{
                       fontFamily: "var(--font-cormorant), serif",
