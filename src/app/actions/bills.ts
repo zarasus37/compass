@@ -14,7 +14,7 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { setBillPaid, type Bill } from "@/lib/store";
+import { addBill, setBillPaid, type Bill } from "@/lib/store";
 import { requireUser } from "@/server/auth/user";
 
 export interface ToggleBillResult {
@@ -48,4 +48,55 @@ export async function toggleBillPaid(
   revalidatePath("/");
 
   return { ok: true, bill: updated };
+}
+
+/**
+ * Add a new bill. Used by the "+ Add bill" form on /recurring/new
+ * (Cluster 1.10). Form sends dollars; server converts to cents.
+ */
+export interface AddBillResult {
+  ok: boolean;
+  reason?: string;
+}
+
+export async function logBill(
+  _prev: AddBillResult | null,
+  formData: FormData,
+): Promise<AddBillResult> {
+  await requireUser();
+
+  const name = String(formData.get("name") ?? "").trim();
+  const amountDollars = Number.parseFloat(String(formData.get("amount") ?? ""));
+  const dueDay = Number.parseInt(String(formData.get("dueDay") ?? ""), 10);
+  const autopay = formData.get("autopay") === "on";
+  const envelopeId = String(formData.get("envelopeId") ?? "") || null;
+
+  if (name.length === 0) {
+    return { ok: false, reason: "Give the bill a name." };
+  }
+  if (!Number.isFinite(amountDollars) || amountDollars < 0) {
+    return { ok: false, reason: "Amount must be $0 or more." };
+  }
+  if (!Number.isFinite(dueDay) || dueDay < 1 || dueDay > 31) {
+    return { ok: false, reason: "Due day must be between 1 and 31." };
+  }
+
+  const result = addBill({
+    name,
+    amountCents: Math.round(amountDollars * 100),
+    dueDay,
+    autopay,
+    envelopeId,
+  });
+
+  if (!result.ok) {
+    return { ok: false, reason: result.reason ?? "Could not save the bill." };
+  }
+
+  revalidatePath("/recurring");
+  revalidatePath("/");
+  revalidatePath("/calendar");
+  revalidatePath("/insights");
+
+  return { ok: true };
 }

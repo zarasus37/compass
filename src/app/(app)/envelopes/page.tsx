@@ -40,8 +40,8 @@ export default function EnvelopesPage() {
         em="each with a purpose."
         accent="gold"
         actions={
-          <button
-            type="button"
+          <Link
+            href="/envelopes/new"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -57,11 +57,12 @@ export default function EnvelopesPage() {
               cursor: "pointer",
               letterSpacing: "0.18em",
               textTransform: "uppercase",
+              textDecoration: "none",
               boxShadow: "0 0 16px rgba(212, 175, 82, 0.3)",
             }}
           >
             + New envelope
-          </button>
+          </Link>
         }
         explanation={
           <>

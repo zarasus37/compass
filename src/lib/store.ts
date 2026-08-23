@@ -499,6 +499,149 @@ export function updateEnvelope(
 }
 
 /**
+ * Add a new envelope (vessel) to the live store. Used by the
+ * "+ New envelope" form on /envelopes/new (Cluster 1.10).
+ * currentCents starts at 0 — the new vessel begins empty.
+ */
+export function addEnvelope(input: {
+  name: string;
+  planet: PlanetId;
+  targetCents: number;
+}): { ok: boolean; reason?: string; envelope?: Envelope } {
+  if (!input.name || input.name.trim().length === 0) {
+    return { ok: false, reason: "Give the vessel a name." };
+  }
+  if (!Number.isFinite(input.targetCents) || input.targetCents < 0) {
+    return { ok: false, reason: "Target must be $0 or more." };
+  }
+  const s = getState();
+
+  const env: Envelope = {
+    id: nextId("env"),
+    name: input.name.trim(),
+    planet: input.planet,
+    currentCents: 0,
+    targetCents: Math.round(input.targetCents),
+  };
+  s.envelopes.push(env);
+
+  s.audit.unshift({
+    id: nextId("aud-env"),
+    at: new Date(),
+    kind: "manual-adjust",
+    summary: `Added envelope "${env.name}" (target $${(env.targetCents / 100).toFixed(2)}).`,
+    meta: { envelopeId: env.id, targetCents: env.targetCents },
+  });
+
+  return { ok: true, envelope: { ...env } };
+}
+
+/**
+ * Add a new bill to the live store. Used by the "+ Add bill"
+ * button on /recurring (Cluster 1.10).
+ */
+export function addBill(input: {
+  name: string;
+  amountCents: number;
+  dueDay: number;
+  autopay: boolean;
+  envelopeId: string | null;
+}): { ok: boolean; reason?: string; bill?: Bill } {
+  if (!input.name || input.name.trim().length === 0) {
+    return { ok: false, reason: "Give the bill a name." };
+  }
+  if (!Number.isFinite(input.amountCents) || input.amountCents < 0) {
+    return { ok: false, reason: "Amount must be $0 or more." };
+  }
+  if (!Number.isFinite(input.dueDay) || input.dueDay < 1 || input.dueDay > 31) {
+    return { ok: false, reason: "Due day must be between 1 and 31." };
+  }
+  const s = getState();
+  if (input.envelopeId && !s.envelopes.find((e) => e.id === input.envelopeId)) {
+    return { ok: false, reason: "Vessel not found." };
+  }
+  const maxSort = s.bills.reduce((m, b) => Math.max(m, b.sortOrder), 0);
+
+  const bill: Bill = {
+    id: nextId("bill"),
+    name: input.name.trim(),
+    amountCents: Math.round(input.amountCents),
+    dueDay: Math.floor(input.dueDay),
+    autopay: input.autopay,
+    paidAt: null,
+    envelopeId: input.envelopeId,
+    accountId: null,
+    sortOrder: maxSort + 1,
+  };
+  s.bills.push(bill);
+
+  s.audit.unshift({
+    id: nextId("aud-bill"),
+    at: new Date(),
+    kind: "manual-adjust",
+    summary: `Added bill "${bill.name}" ($${(bill.amountCents / 100).toFixed(2)} due day ${bill.dueDay}).`,
+    meta: { billId: bill.id, amountCents: bill.amountCents, dueDay: bill.dueDay },
+  });
+
+  return { ok: true, bill: { ...bill } };
+}
+
+/**
+ * Add a new debt to the live store. Used by the "+ Add debt"
+ * button on /debts (Cluster 1.10).
+ */
+export function addDebt(input: {
+  name: string;
+  balanceCents: number;
+  aprBps: number;
+  minPaymentCents: number;
+  dueDay: number;
+}): { ok: boolean; reason?: string; debt?: Debt } {
+  if (!input.name || input.name.trim().length === 0) {
+    return { ok: false, reason: "Give the debt a name." };
+  }
+  if (!Number.isFinite(input.balanceCents) || input.balanceCents <= 0) {
+    return { ok: false, reason: "Balance must be greater than $0." };
+  }
+  if (!Number.isFinite(input.aprBps) || input.aprBps < 0 || input.aprBps > 10000) {
+    // 0% to 100% APR (in bps: 0 to 10000)
+    return { ok: false, reason: "APR must be between 0% and 100%." };
+  }
+  if (!Number.isFinite(input.minPaymentCents) || input.minPaymentCents < 0) {
+    return { ok: false, reason: "Min payment must be $0 or more." };
+  }
+  if (!Number.isFinite(input.dueDay) || input.dueDay < 1 || input.dueDay > 31) {
+    return { ok: false, reason: "Due day must be between 1 and 31." };
+  }
+  const s = getState();
+  const maxSort = s.debts.reduce((m, d) => Math.max(m, d.sortOrder), 0);
+
+  const debt: Debt = {
+    id: nextId("debt"),
+    name: input.name.trim(),
+    balanceCents: Math.round(input.balanceCents),
+    originalBalanceCents: Math.round(input.balanceCents),
+    aprBps: Math.round(input.aprBps),
+    minPaymentCents: Math.round(input.minPaymentCents),
+    dueDay: Math.floor(input.dueDay),
+    accountId: null,
+    sortOrder: maxSort + 1,
+    isArchived: false,
+  };
+  s.debts.push(debt);
+
+  s.audit.unshift({
+    id: nextId("aud-debt"),
+    at: new Date(),
+    kind: "manual-adjust",
+    summary: `Added debt "${debt.name}" ($${(debt.balanceCents / 100).toFixed(2)} @ ${(debt.aprBps / 100).toFixed(2)}% APR).`,
+    meta: { debtId: debt.id, balanceCents: debt.balanceCents, aprBps: debt.aprBps },
+  });
+
+  return { ok: true, debt: { ...debt } };
+}
+
+/**
  * Add a new transaction to the live store and, if the transaction
  * reduces an envelope's balance, decrement that envelope's current
  * cents accordingly. Used by the "+ Log a transaction" form on

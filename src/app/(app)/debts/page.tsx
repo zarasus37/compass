@@ -1,4 +1,5 @@
 import * as React from "react";
+import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { formatMoney } from "@/lib/money";
 import {
@@ -58,8 +59,8 @@ export default function DebtsPage() {
         em="one line per debt."
         accent="saturn"
         actions={
-          <button
-            type="button"
+          <Link
+            href="/debts/new"
             style={{
               fontFamily: "var(--font-cinzel), serif",
               background: "var(--gold)",
@@ -71,11 +72,11 @@ export default function DebtsPage() {
               fontWeight: 600,
               letterSpacing: "0.18em",
               textTransform: "uppercase",
-              cursor: "pointer",
+              textDecoration: "none",
             }}
           >
             + Add debt
-          </button>
+          </Link>
         }
         explanation={
           <>

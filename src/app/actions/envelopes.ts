@@ -13,7 +13,7 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { updateEnvelope } from "@/lib/store";
+import { addEnvelope, updateEnvelope } from "@/lib/store";
 import { requireUser } from "@/server/auth/user";
 
 export interface UpdateEnvelopeResult {
@@ -91,6 +91,46 @@ export async function updateEnvelopeTarget(
   revalidatePath("/");
   revalidatePath("/envelopes");
   revalidatePath(`/envelopes/${envelopeId}`);
+
+  return { ok: true };
+}
+
+/**
+ * Add a new envelope (vessel). Used by the "+ New envelope"
+ * form on /envelopes/new (Cluster 1.10). Dollars in, cents out.
+ */
+export async function logEnvelope(
+  _prev: UpdateEnvelopeResult | null,
+  formData: FormData,
+): Promise<UpdateEnvelopeResult> {
+  await requireUser();
+
+  const name = String(formData.get("name") ?? "").trim();
+  const planet = String(formData.get("planet") ?? "jupiter") as
+    | "sol" | "luna" | "mars" | "mercury" | "jupiter" | "venus" | "saturn";
+  const targetDollars = Number.parseFloat(String(formData.get("target") ?? ""));
+
+  if (name.length === 0) {
+    return { ok: false, reason: "Give the vessel a name." };
+  }
+  if (!Number.isFinite(targetDollars) || targetDollars < 0) {
+    return { ok: false, reason: "Target must be $0 or more." };
+  }
+
+  const result = addEnvelope({
+    name,
+    planet,
+    targetCents: Math.round(targetDollars * 100),
+  });
+
+  if (!result.ok) {
+    return { ok: false, reason: result.reason ?? "Could not save the vessel." };
+  }
+
+  revalidatePath("/envelopes");
+  revalidatePath("/");
+  revalidatePath("/insights");
+  if (result.envelope) revalidatePath(`/envelopes/${result.envelope.id}`);
 
   return { ok: true };
 }

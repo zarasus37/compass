@@ -1,4 +1,5 @@
 import * as React from "react";
+import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { formatMoney } from "@/lib/money";
 import {
@@ -55,8 +56,8 @@ export default function RecurringPage() {
         em="the charges that show up every month."
         accent="mercury"
         actions={
-          <button
-            type="button"
+          <Link
+            href="/recurring/new"
             style={{
               fontFamily: "var(--font-cinzel), serif",
               background: "var(--gold)",
@@ -68,11 +69,11 @@ export default function RecurringPage() {
               fontWeight: 600,
               letterSpacing: "0.18em",
               textTransform: "uppercase",
-              cursor: "pointer",
+              textDecoration: "none",
             }}
           >
             + Add bill
-          </button>
+          </Link>
         }
         explanation={
           <>
