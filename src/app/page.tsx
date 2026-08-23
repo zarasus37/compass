@@ -3,12 +3,16 @@ import { requireUser } from "@/server/auth/user";
 import { AppSidebar } from "@/components/sidebar/AppSidebar";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { DashboardGrid } from "@/components/dashboard/DashboardGrid";
+import { MustHaveToolsStrip } from "@/components/dashboard/MustHaveToolsStrip";
 import { DailyTrackingCard } from "@/components/dashboard/cards/daily-tracking";
 import { CriticalTimelineCard } from "@/components/dashboard/cards/critical-timeline";
 import { EnvelopeStatusCard } from "@/components/dashboard/cards/envelope-status";
 import { TopPriorityCard } from "@/components/dashboard/cards/top-priority";
 import { NextStepCard } from "@/components/dashboard/cards/next-step";
 import { SnapshotCard } from "@/components/dashboard/cards/snapshot";
+import { SpendRingCard } from "@/components/dashboard/cards/spend-ring";
+import { NetTrajectoryCard } from "@/components/dashboard/cards/net-trajectory";
+import { PayDistributionCard } from "@/components/dashboard/cards/pay-distribution";
 import { CARD_META, type CardId } from "@/components/dashboard/catalog";
 import {
   liveEnvelopes,
@@ -247,6 +251,54 @@ export default async function Dashboard() {
   }));
 
   // -------------------------------------------------------------------------
+  // VIZ CARDS — must-have visualizations (Cluster 2.x)
+  // -------------------------------------------------------------------------
+
+  // --- SPEND RING ---
+  // The sum of all envelope targets is the "monthly funds" baseline. The
+  // current spend (cumulative outflows this period) fills the ring. The
+  // remaining cents are the headline number in the center.
+  const totalTargetCents = ENVELOPES.reduce((s, e) => s + e.target, 0);
+  // The current `e.current` IS the spend against the target for the
+  // pay period — every cent above the target is over-limit, every cent
+  // of the target was spent. To make the math more honest: use
+  // min(current, target) for under-target envelopes, plus full
+  // current for over-target envelopes (the overage counts).
+  const burnSpent = ENVELOPES.reduce((s, e) => {
+    if (e.target <= 0) return s;
+    return s + e.current;
+  }, 0);
+
+  // --- NET TRAJECTORY ---
+  // 12-month projection at the current period-delta pace. Period is
+  // biweekly (D17), so monthly = period * 2.
+  const monthlyDeltaCents = Math.max(0, SNAPSHOT.periodDeltaCents) * 2;
+  const emergencyGoal = GOALS.find((g) => /emergency/i.test(g.name)) ?? GOALS[0];
+  const emergencyTargetCents = emergencyGoal?.targetCents ?? 2_000_000;
+  const monthLabels: string[] = [];
+  {
+    const d = new Date(TODAY);
+    for (let i = 0; i < 12; i += 1) {
+      monthLabels.push(d.toLocaleString("en-US", { month: "short" }).toUpperCase());
+      d.setMonth(d.getMonth() + 1);
+    }
+  }
+
+  // --- PAY DISTRIBUTION ---
+  // The paycheck fans out by per-envelope target as % of total target.
+  // Same algorithm the /allocation page uses for its Sankey preview.
+  const payAllocations = ENVELOPES.map((e) => {
+    const pct = totalTargetCents > 0 ? (e.target / totalTargetCents) : 0;
+    const cents = Math.round((NEXT_PAYCHECK_CENTS * pct) / 100);
+    return {
+      envelopeId: e.id,
+      name: e.name,
+      planet: e.planet,
+      cents,
+    };
+  }).filter((a) => a.cents > 0);
+
+  // -------------------------------------------------------------------------
   // Build the cardNodes map. Each entry is a pre-rendered <DashboardCard>
   // ready for the grid to slot in.
   // -------------------------------------------------------------------------
@@ -388,6 +440,66 @@ export default async function Dashboard() {
         />
       </DashboardCard>
     ),
+    "spend-ring": (
+      <DashboardCard
+        cardId="spend-ring"
+        href={CARD_META["spend-ring"].href}
+        eyebrow={CARD_META["spend-ring"].eyebrow}
+        title={CARD_META["spend-ring"].title}
+        em={CARD_META["spend-ring"].em}
+        accent={CARD_META["spend-ring"].accent}
+      >
+        <SpendRingCard
+          data={{
+            perEnvelope: ENVELOPES.map((e) => ({
+              id: e.id,
+              name: e.name,
+              planet: e.planet,
+              currentCents: e.current,
+              targetCents: e.target,
+            })),
+            totalSpentCents: burnSpent,
+            totalTargetCents,
+          }}
+        />
+      </DashboardCard>
+    ),
+    "net-trajectory": (
+      <DashboardCard
+        cardId="net-trajectory"
+        href={CARD_META["net-trajectory"].href}
+        eyebrow={CARD_META["net-trajectory"].eyebrow}
+        title={CARD_META["net-trajectory"].title}
+        em={CARD_META["net-trajectory"].em}
+        accent={CARD_META["net-trajectory"].accent}
+      >
+        <NetTrajectoryCard
+          data={{
+            currentCents: SNAPSHOT.netWorthCents,
+            monthlyDeltaCents,
+            emergencyTargetCents,
+            monthLabels,
+          }}
+        />
+      </DashboardCard>
+    ),
+    "pay-distribution": (
+      <DashboardCard
+        cardId="pay-distribution"
+        href={CARD_META["pay-distribution"].href}
+        eyebrow={CARD_META["pay-distribution"].eyebrow}
+        title={CARD_META["pay-distribution"].title}
+        em={CARD_META["pay-distribution"].em}
+        accent={CARD_META["pay-distribution"].accent}
+      >
+        <PayDistributionCard
+          data={{
+            paycheckCents: NEXT_PAYCHECK_CENTS,
+            allocations: payAllocations,
+          }}
+        />
+      </DashboardCard>
+    ),
   };
 
   return (
@@ -475,6 +587,9 @@ export default async function Dashboard() {
             </span>
           </div>
         </header>
+
+        {/* ============== MUST-HAVE TOOLS INDEX ============== */}
+        <MustHaveToolsStrip />
 
         {/* ============== CARD GRID ============== */}
         <DashboardGrid cardNodes={cardNodes} />

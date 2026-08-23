@@ -53,3 +53,8 @@ Thumbs.db
 # Logs
 logs
 *.log
+
+# Local dev trash (diagnostic scripts, response dumps)
+_trash_*
+_*.mjs
+_*.html

@@ -9,10 +9,10 @@
 ## Status
 
 - **Stage 1 (Design)**: ✅ Complete (v1.0) → **v4.0** reframe locked 2026-08-22 (alchemical/celestial visual language) → **v5.0 reframe locked 2026-08-23** (Component Oracle Terminal: cool teal/cyan on near-black, Sora + JetBrains Mono, oracle voice with `[OK]/[WARN]` markers). The 7 planetary vessels are preserved as a semantic mapping.
-- **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory) — ✅ done, commit `cda8972`. Cluster 1.7 visual audit — ✅ done, commit `3da5716`. **Cluster 1.8 (Bill organizer + Plan My Next Check + calendar warnings) — ✅ done, commit `999ff37`. Cluster 1.9 (Debt payoff simulator + Saturn vessel + 3-up card + paid-off celebration) — ✅ done, commits `feb50e3` + `801525c` (math-bug fix) + `0ffb439` (per-debt sparkline).** Biweekly period locked as the canonical pay schedule (D17); period-close renamed to match (D18). **Chart-next-to-data principle applied across /goals, /envelopes, /recurring, /debts, /insights — commit `843375c`. Cluster 1.10 (drill-downs + new transaction / goal / envelope / bill / debt forms + edit forms) — ✅ done, commits `03f308f` + `006bca0` + `3dc679f` + `649d76e`. **Cluster 2.0 (customizable, scrollable, card-based dashboard with @dnd-kit drag-and-drop + localStorage persistence) — ✅ done, commit `e648ef5`. Cluster 2.0.1 (visual-first treatment: 7-day WeekSparkline, BurnSparkline, embedded GoalSparkline) — ✅ done, commit `af0b8d3`. Cluster 2.0.2 (full-month calendar with planetary headers + scheduled bills list) — ✅ done, commit `34f3928`. **Cluster 2.0.3 (Component Oracle Terminal re-skin of the dashboard) — ✅ done, commit `884fe70`.** Next: apply terminal re-skin to deep pages (recurring, envelopes, goals, etc.) in subsequent visible-UI pushes, then 2.x (form actions deep-dive, bill reminders, variable income, period close), then 3.x (real Plaid, AI tiers).
+- **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory) — ✅ done, commit `cda8972`. Cluster 1.7 visual audit — ✅ done, commit `3da5716`. **Cluster 1.8 (Bill organizer + Plan My Next Check + calendar warnings) — ✅ done, commit `999ff37`. Cluster 1.9 (Debt payoff simulator + Saturn vessel + 3-up card + paid-off celebration) — ✅ done, commits `feb50e3` + `801525c` (math-bug fix) + `0ffb439` (per-debt sparkline).** Biweekly period locked as the canonical pay schedule (D17); period-close renamed to match (D18). **Chart-next-to-data principle applied across /goals, /envelopes, /recurring, /debts, /insights — commit `843375c`. Cluster 1.10 (drill-downs + new transaction / goal / envelope / bill / debt forms + edit forms) — ✅ done, commits `03f308f` + `006bca0` + `3dc679f` + `649d76e`. **Cluster 2.0 (customizable, scrollable, card-based dashboard with @dnd-kit drag-and-drop + localStorage persistence) — ✅ done, commit `e648ef5`. Cluster 2.0.1 (visual-first treatment: 7-day WeekSparkline, BurnSparkline, embedded GoalSparkline) — ✅ done, commit `af0b8d3`. Cluster 2.0.2 (full-month calendar with planetary headers + scheduled bills list) — ✅ done, commit `34f3928`. **Cluster 2.0.3 (Component Oracle Terminal re-skin of the dashboard) — ✅ done, commit `884fe70`.** **Cluster 2.1 (must-have viz + utility integration push: 3 new dashboard cards (Spend Ring, Net Trajectory, Pay Distribution) + Must-Have Tools index strip on dashboard + /settings hub + Plaid sandbox + AI categorize rules + Receipt scan + Habit quiz + Household stub + /subscriptions wired to live data) — ✅ done, single working session.** Next: tidy up — fine-tune placement, polish tooltips, add hover states where missing, decide which cards to default-on, integrate the tools into the sidebar nav as a 4th chapter if the Settings entry feels too hidden, then 2.x (form actions deep-dive, bill reminders, variable income, period close), then 3.x (real Plaid, AI tiers).
 - **Stage 3 (Test & bug-fix)**: pending Stage 2
 
-> Last update: 2026-08-23 (post-Cluster-2.0.3e — Component Oracle Terminal re-skin of the full app, zero alchemical refs remaining)
+> Last update: 2026-08-23 (post-Cluster-2.1 — must-have viz + utility integration push, all 13 list items wired)
 
 ---
 
@@ -382,6 +382,68 @@ Per xKryptic's "push all deep pages now" directive, the entire app — not just 
 
 `tsc --noEmit` clean across all 39 source files. Dev server returns 200 on every page. **The full Compass app is now in Component Oracle Terminal voice.**
 
+### Cluster 2.1 — Must-have viz + utility integration push (✅ DONE — single working session; 2026-08-23)
+
+Per xKryptic directive: "go through this list and integrate everything into the build. after thats done we can fine tune where to place things more strickly. until then just place them where they would go best for now." Targeted two product lists:
+
+**Must-have visualizations (5 of 5 wired to a visible surface):**
+- **#1 Allocation Progress Bar** — `EnvelopeBarChart` + per-row `BurnSparkline` + per-envelope `EnvelopeMiniBar` (chart-next-to-data). Green/yellow/red states from `EnvelopeBarChart.tsx` (`var(--ok)` / `var(--warn)` / `var(--neg)`).
+- **#2 Total Spend Progress Ring** — new `spend-ring.tsx` card. Concentric ring with center headline "REMAINING $X" + per-vessel % list (5 most-used shown). Ring color shifts cyan → warn → neg as fill crosses 50% / 90%. Wired into the catalog as `spend-ring` (defaultOff).
+- **#3 Pay Period Horizon Line** — `Critical Timeline` card on the dashboard, with the full-month calendar (Cluster 2.0.2). Payday highlighted gold, bills as planet dots, today as gold ring.
+- **#4 Growth Trend Curve** — new `net-trajectory.tsx` card. 12-month line projection of net worth at current period-delta pace, shaded area beneath the curve, gold dashed reference line at the emergency-fund target. Cyan dot at "now", jupiter dot at "12mo". Wired into the catalog as `net-trajectory` (defaultOff).
+- **#5 Cash Flow Funnel (Sankey)** — new `pay-distribution.tsx` card (compact ribbon view at small size, since real Sankey doesn't read well below ~280px height). Shows the 7-vessel split as a horizontal stacked bar (gold source → planet destinations → free / unallocated). Full interactive Sankey stays on `/allocation`. Wired into the catalog as `pay-distribution` (defaultOff).
+
+**Must-have tools index strip on the dashboard** — new `MustHaveToolsStrip.tsx`. Always-visible row above the card grid. Two rows: `// visualisations` (5 chips for the viz above) and `// utilities` (6 chips for the core features). Each chip is glyph + name + caption + `›` chevron; hover lifts the border. The 6 utilities:
+- **Multi-Bank** → `/settings/plaid` (Plaid sandbox)
+- **Smart Categorize** → `/settings/categorize` (rules engine)
+- **Receipt Scan** → `/settings/receipt-scan` (paste-text OCR fallback)
+- **Subscriptions** → `/subscriptions` (live detection)
+- **Habit Quiz** → `/settings/habit-quiz` (5-question profile)
+- **Household** → `/settings/household` (multi-user stub)
+
+**Core features (8 of 8 wired):**
+- **Multi-Bank Syncing (Plaid)** — `/settings/plaid` page with 6 mock institutions in a 3-col grid (Chase, Amex, Fidelity, Ally, Capital One, Venmo). Per-row Connect button. Sandbox warn banner. "What Plaid gives you" callout at the bottom. Schema ready; real Plaid env wires in a later cluster.
+- **AI Auto-Categorization** — `/settings/categorize` with 12 seed rules (H-E-B → Groceries, Amazon → Joy, Spotify → Joy, etc.). Stats strip: rules / hits / coverage / uncategorized. v2 LLM-fallback roadmap card. Rules-based engine runs in the browser today.
+- **Smart Receipt Scanning (OCR)** — `/settings/receipt-scan` with a paste-text form (`ReceiptScanForm.tsx`). Pre-filled with a sample H-E-B receipt. Parses merchant (first line), total (largest $ on a "total" line), date (any MM/DD/YYYY pattern). User picks vessel → "Save" creates the draft transaction.
+- **Subscription & Bill Detection** — `/subscriptions` rewritten to derive rows from real data. New `src/lib/detect-subscriptions.ts` engine groups live transactions by payee (14/30/31-day cycle match, 2+ hits), unions with the BILLS list (recurring-by-construction). Each row gets active/review status from `lastUsedDays`. UI now shows: detected / active / review / recoverable stats + the list with "DETECTED" badge per row.
+- **Modular Strategy Settings** — verified: 4 strategies on `/allocation` (Envelope / Zero-based / 50-30-20 / Pay-yourself-first) with Ouroboros preview, per-vessel breakdown, ARMED badge.
+- **Dynamic Goal Calculators** — verified: `/goals` with `targetCents`, `currentCents`, `perPaycheckCents`, `targetDate` per goal; per-card `GoalSparkline` shows the projection. Master `GoalTrajectory` chart at the top of the page.
+- **Behavioral Habit Quiz** — `/settings/habit-quiz` with 5 questions, 3-4 options each (A/B/C/D). Result maps to one of 4 profiles (Saver / Steady / Builder / Dreamer) based on weighted scores. Stored in localStorage; retakeable. The profile is the baseline for AI tier 1 insights.
+- **Shared Multi-User Access** — `/settings/household` with member count / invites / shared stats, an email + role invite form (disabled), and a "schema is multi-user ready" callout. UI lands in Cluster 4.
+
+**Settings hub** — new `/settings` index page lists all 6 utility surfaces in a 2-col grid (numbered `01–06`, mono caps titles, [OK]/[WARN] status badges, hover-lift).
+
+**Sidebar** — added `Settings` as the 5th item in the `// Overview` chapter.
+
+**New files:**
+- `src/components/dashboard/MustHaveToolsStrip.tsx`
+- `src/components/dashboard/cards/spend-ring.tsx`
+- `src/components/dashboard/cards/net-trajectory.tsx`
+- `src/components/dashboard/cards/pay-distribution.tsx`
+- `src/lib/detect-subscriptions.ts`
+- `src/app/(app)/settings/page.tsx`
+- `src/app/(app)/settings/plaid/page.tsx`
+- `src/app/(app)/settings/categorize/page.tsx`
+- `src/app/(app)/settings/receipt-scan/page.tsx` (+ `ReceiptScanForm.tsx`)
+- `src/app/(app)/settings/habit-quiz/page.tsx` (+ `HabitQuiz.tsx`)
+- `src/app/(app)/settings/household/page.tsx`
+
+**Modified files:**
+- `src/app/page.tsx` — added 3 new card entries + `MustHaveToolsStrip` between hero and grid
+- `src/components/dashboard/catalog.ts` — 3 new `CardId` + 3 new `CARD_CATALOG` entries
+- `src/components/sidebar/AppSidebar.tsx` — Settings nav entry
+- `src/app/(app)/subscriptions/page.tsx` — wired to live data via `detectSubscriptions`
+- `src/app/globals.css` — `.settings-row-link` + `.plaid-institution` hover/active rules (server-component-safe; no onMouseEnter)
+
+**Verification:** `tsc --noEmit` clean across all 47 source files. Dev server returns 200 on every page (18 routes tested, all with correct content markers). Dashboard renders with: hero, Must-Have Tools strip, 4 defaultOn cards (Daily Tracking, Critical Timeline, Envelope Status, Next Step), and opt-in cards (Top Priority, Snapshot, Spend Ring, Net Trajectory, Pay Distribution) available via the + Add card sheet.
+
+**Tidy-up pass still owed (per xKryptic's "fine tune where to place things more strickly"):**
+- Decide which of the 3 new viz cards should be `defaultOn: true` (right now all 3 are opt-in)
+- Decide if Settings belongs in the Overview chapter or its own `// Settings` chapter
+- Add hover/active polish to the new viz cards (the static SVGs lack the click affordance the existing cards have)
+- Add the MustHaveToolsStrip to the (app) layout below the hero on deep pages too (currently dashboard-only)
+- Tighten the "Change certain displays" — the `/settings` index is 6 rows in a 2-col grid which may be too dense; consider a 3-col grid
+
 ### Cluster 2 (after Cluster 2.0)
 
 - Real Plaid sandbox (L2 routing) — deferred until Cluster 1 is fully working with mock data
@@ -660,11 +722,13 @@ These touch the auto-allocate engine + the AI provider layer. Schedule for after
 - **Cluster 2.0.2 (full-month calendar)**: ✅ 2026-08-23, commit `34f3928`
 - **Cluster 2.0.3 (Component Oracle Terminal re-skin — full app)**: ✅ 2026-08-23, commits `884fe70` + `29dcd02` + `396e7e9` + `76e1284` + `72f2cec`
 - **Cluster 2.x (Smart bills + variable income)**: ⏳ scoped, not started (see "Handoff menu" above)
+- **Cluster 2.1 (Must-have viz + utility integration push)**: ✅ 2026-08-23, single working session — 5 viz wired (3 new dashboard cards + 2 already-shipped) + 6 utility surfaces under /settings + Must-Have Tools index strip on the dashboard + /subscriptions wired to live detection.
 - **Handed off (design)**: 2026-08-21
 - **Handed off (scaffold)**: 2026-08-22
 - **Handed off (auth)**: 2026-08-22
 - **Handed off (Cluster 1)**: 2026-08-22
 - **Handed off (Cluster 1.8 + 1.9 + 2.0 + 2.0.1 + 2.0.2 + 2.0.3)**: 2026-08-23
+- **Handed off (Cluster 2.1 — must-have integration)**: 2026-08-23
 - **From session**: `mvs_77706038b3dc41f0818e43d1aca029bd` (design)
 - **From session**: `mvs_0ca37adfb53b4de188d584afc12df309` (scaffold + auth + Cluster 1 + Cluster 1.5 + Cluster 1.7)
 - **From session**: `mvs_4d1dd62520784d9c9f0c7511fdeaee6d` (1.7 visual audit → 1.8 bill organizer → 1.9 debt payoff → 2.0 customizable dashboard → 2.0.1 visual-first → 2.0.2 full-month calendar → 2.0.3 Component Oracle Terminal re-skin of the full app)

@@ -14,7 +14,10 @@ export type CardId =
   | "envelope-status"
   | "top-priority"
   | "next-step"
-  | "snapshot";
+  | "snapshot"
+  | "spend-ring"
+  | "net-trajectory"
+  | "pay-distribution";
 
 export type CardSpan = "full" | "half";
 
@@ -118,6 +121,45 @@ export const CARD_CATALOG: CardMeta[] = [
     defaultOn: false,
     description:
       "The 3-cell summary — net worth, next paycheck, this period. Quick orientation at the bottom of the dashboard.",
+  },
+  {
+    id: "spend-ring",
+    eyebrow: "// total spend",
+    title: "Spend Ring",
+    em: "where this period stands.",
+    glyph: "◍",
+    accent: "cyan",
+    href: "/insights",
+    span: "full",
+    defaultOn: false,
+    description:
+      "Single concentric ring showing total remaining budget for the period. The big number in the center is the cash you actually have left. Tap to see the full Ouroboros + Trajectory on /insights.",
+  },
+  {
+    id: "net-trajectory",
+    eyebrow: "// growth",
+    title: "Net Trajectory",
+    em: "12 months forward.",
+    glyph: "📈",
+    accent: "jupiter",
+    href: "/insights",
+    span: "full",
+    defaultOn: false,
+    description:
+      "Line graph of net worth projected at the current pace. Shaded area beneath the curve shows the compounding. Gold dashed reference line marks the emergency fund target.",
+  },
+  {
+    id: "pay-distribution",
+    eyebrow: "// cash flow",
+    title: "Pay Distribution",
+    em: "where the paycheck goes.",
+    glyph: "⇉",
+    accent: "gold",
+    href: "/allocation",
+    span: "full",
+    defaultOn: false,
+    description:
+      "The paycheck fans out into the seven vessels, weighted by the plan. Each segment is a planet. Tap to see the full Sankey (the Automation Map) on /allocation.",
   },
 ];
 

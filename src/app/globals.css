@@ -231,6 +231,22 @@
   transform: scale(0.992) translateY(0);
   transition-duration: 80ms;
 }
+
+/* Settings row — minimal hover. */
+.settings-row-link:hover {
+  background: var(--cosmos-2);
+}
+.settings-row-link:active {
+  background: var(--cosmos);
+}
+
+/* Plaid institution card — terminal hover. */
+.plaid-institution:hover {
+  background: var(--cosmos-2);
+}
+.plaid-institution:active {
+  background: var(--cosmos);
+}
 .dashboard-card-link:hover .dashboard-card-chevron {
   color: var(--terminal-cyan);
   transform: translateX(3px);

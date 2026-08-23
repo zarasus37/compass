@@ -39,6 +39,7 @@ const NAV: NavChapter[] = [
       { href: "/period",   label: "Period",    badge: { text: "5D", tone: "count" } },
       { href: "/calendar", label: "Calendar" },
       { href: "/insights", label: "Insights" },
+      { href: "/settings", label: "Settings" },
     ],
   },
   {
