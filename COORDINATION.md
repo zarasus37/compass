@@ -8,11 +8,11 @@
 
 ## Status
 
-- **Stage 1 (Design)**: ✅ Complete (v1.0) → **v4.0** reframe locked 2026-08-22 (alchemical/celestial visual language, pay-period as unit of truth, auto-allocate, 7 planetary vessels, 3-chapter sidebar, 4 allocation strategies)
-- **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory) — ✅ done, commit `cda8972`. Cluster 1.7 visual audit — ✅ done, commit `3da5716`. **Cluster 1.8 (Bill organizer + Plan My Next Check + calendar warnings) — ✅ done, commit `999ff37`. Cluster 1.9 (Debt payoff simulator + Saturn vessel + 3-up card + paid-off celebration) — ✅ done, commits `feb50e3` + `801525c` (math-bug fix) + `0ffb439` (per-debt sparkline).** Biweekly period locked as the canonical pay schedule (D17); period-close renamed to match (D18). **Chart-next-to-data principle applied across /goals, /envelopes, /recurring, /debts, /insights — commit `843375c`. Cluster 1.10 (drill-downs + new transaction / goal / envelope / bill / debt forms + edit forms) — ✅ done, commits `03f308f` + `006bca0` + `3dc679f` + `649d76e`. **Cluster 2.0 (customizable, scrollable, card-based dashboard with @dnd-kit drag-and-drop + localStorage persistence) — ✅ done, commit `e648ef5`.** Next: Cluster 2.x (form actions deep-dive, bill reminders, variable income, period close), then 3.x (real Plaid, AI tiers).
+- **Stage 1 (Design)**: ✅ Complete (v1.0) → **v4.0** reframe locked 2026-08-22 (alchemical/celestial visual language) → **v5.0 reframe locked 2026-08-23** (Component Oracle Terminal: cool teal/cyan on near-black, Sora + JetBrains Mono, oracle voice with `[OK]/[WARN]` markers). The 7 planetary vessels are preserved as a semantic mapping.
+- **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory) — ✅ done, commit `cda8972`. Cluster 1.7 visual audit — ✅ done, commit `3da5716`. **Cluster 1.8 (Bill organizer + Plan My Next Check + calendar warnings) — ✅ done, commit `999ff37`. Cluster 1.9 (Debt payoff simulator + Saturn vessel + 3-up card + paid-off celebration) — ✅ done, commits `feb50e3` + `801525c` (math-bug fix) + `0ffb439` (per-debt sparkline).** Biweekly period locked as the canonical pay schedule (D17); period-close renamed to match (D18). **Chart-next-to-data principle applied across /goals, /envelopes, /recurring, /debts, /insights — commit `843375c`. Cluster 1.10 (drill-downs + new transaction / goal / envelope / bill / debt forms + edit forms) — ✅ done, commits `03f308f` + `006bca0` + `3dc679f` + `649d76e`. **Cluster 2.0 (customizable, scrollable, card-based dashboard with @dnd-kit drag-and-drop + localStorage persistence) — ✅ done, commit `e648ef5`. Cluster 2.0.1 (visual-first treatment: 7-day WeekSparkline, BurnSparkline, embedded GoalSparkline) — ✅ done, commit `af0b8d3`. Cluster 2.0.2 (full-month calendar with planetary headers + scheduled bills list) — ✅ done, commit `34f3928`. **Cluster 2.0.3 (Component Oracle Terminal re-skin of the dashboard) — ✅ done, commit `884fe70`.** Next: apply terminal re-skin to deep pages (recurring, envelopes, goals, etc.) in subsequent visible-UI pushes, then 2.x (form actions deep-dive, bill reminders, variable income, period close), then 3.x (real Plaid, AI tiers).
 - **Stage 3 (Test & bug-fix)**: pending Stage 2
 
-> Last update: 2026-08-23 (post-Cluster-2.0.2 — full-month calendar)
+> Last update: 2026-08-23 (post-Cluster-2.0.3 — Component Oracle Terminal re-skin of dashboard)
 
 ---
 
@@ -48,14 +48,14 @@ Key sections to load into context:
 - **D5** AI provider: **Mavis internal primary + Ollama local fallback**, swappable via plugin abstraction
 - **D6** Name: **Compass**
 - **D7** Auth: email + password (hashed), single-user, simple
-- **D8** Design vibe: ~~Airtable-meets-treasury~~ → **Alchemical / Celestial (v4)** — cosmic dark canvas, gold leaf, planetary glyphs, illuminated typography. Locked 2026-08-22 from `compass-mockup-v4.html`. See Section 0a.
+- **D8** Design vibe: ~~Airtable-meets-treasury~~ → ~~Alchemical / Celestial (v4)~~ → **Component Oracle Terminal (v5)** — locked 2026-08-23. Cool terminal canvas (`#060A12` base, teal `#2DD4BF` signal, antique gold `#C9A45C` accent, system green `#4ADE80`). Sora for headings, JetBrains Mono for data/labels. Square 4px corners, thin teal-gray borders. Oracle / protocol voice with terminal-log markers (`[OK]`, `[WARN]`, `[SIGIL]`, `[INDEXED]`). The 7 planetary vessels (D14) are preserved as a semantic mapping (calendar day-of-week headers) but the visual treatment is terminal — no decorative occult overload. Replaces v4 alchemical / celestial warm-gold language. See Cluster 2.0.3.
 - **D9** Mobile: PWA-ready, native deferred
 - **D10** Stack: **Next.js 16 monolith + plugin architecture + API routes for external integrations**
 - **D11** **Unit of truth = pay period** (not month, not transaction)
 - **D12** **Auto-allocate, no confirm modal** (plan is policy, not intent)
-- **D13** **3-chapter sidebar**: Cosmos / The Great Work / Substance (order matters)
-- **D14** **7 planetary vessels** (Sol=Rent, Luna=Groceries, Mars=Buffer, Mercury=Utilities, Jupiter=Growth, Venus=Joy, Saturn=Debt)
-- **D15** **Alchemical vocabulary** (Vessels/Chronicle/Great Work/Prima Materia/Distillation/Aspects) — decoration, not primary labeling
+- **D13** **3-chapter sidebar**: ~~Cosmos / The Great Work / Substance~~ → **Overview / Plan / Money** (terminal voice; order matters)
+- **D14** **7 planetary vessels** (Sol=Rent, Luna=Groceries, Mars=Buffer, Mercury=Utilities, Jupiter=Growth, Venus=Joy, Saturn=Debt) — preserved as semantic mapping
+- **D15** ~~Alchemical vocabulary~~ (Vessels/Chronicle/Great Work/Prima Materia/Distillation/Aspects) — **demoted to decoration only**, primary labeling is now terminal voice
 - **D16** **Envelopes enforce** (balance = 100% = hard warning)
 
 Do not re-litigate these in the next session. If you discover a real conflict, surface it in this file as a "Decision revision" entry rather than silently changing course.
@@ -290,6 +290,67 @@ New component: `src/components/dashboard/cards/month-calendar.tsx` (pure TSX, no
 Removed: the 14-day `CalendarStrip` and the 3-bill list (both superseded by the month view + scheduled bills list).
 
 **Apply going forward** (per the principle saved to User Memory 2026-08-23): every data-display surface in any xKryptic project. Build the chart first; add a list only if exact values can't live in the chart.
+
+### Cluster 2.0.3 — Component Oracle Terminal re-skin (dashboard) (✅ DONE — commit `884fe70`; 2026-08-23)
+
+The dashboard has been re-skinned from the alchemical/celestial warm-gold language to a cool **Component Oracle Terminal** look. Per xKryptic directive 2026-08-23: the planet system (7 vessels) is preserved as a semantic mapping, but the visual treatment is now terminal — no decorative occult. The deep pages (recurring, envelopes, goals, etc.) are still in the alchemical voice and are tracked in a follow-up push.
+
+**Locked design language (per xKryptic 2026-08-23):**
+
+- **Base canvas**: `#060A12` (near-black terminal)
+- **Primary signal**: `#2DD4BF` (teal) — active states, connections, CTA, primary numeric accent
+- **Arcane accent**: `#C9A45C` (antique gold) — today, payday, goal badges, symbolic insight only (sparingly)
+- **System green**: `#4ADE80` — `[OK]` markers, healthy/confirmed states
+- **Status**: `#F59E0B` warn / `#EF4444` neg — only for warnings/errors
+- **Borders**: `#28404C` (teal-gray) — thin, dense; `#1F2D38` (line-soft) for secondary dividers
+- **Surface**: dark navy (`#0B1118` → `#182030`), 4 px square corners throughout
+- **Typography**: **Sora** (300-700) for headings + body, **JetBrains Mono** for data, labels, logs, controls
+- **Voice**: oracle / protocol, terminal-log markers `[OK]`, `[WARN]`, `[SIGIL]`, `[INDEXED]`
+- **Charts**: cyan / teal on faint terminal grid, planet color only as accent, gold for symbolic markers
+- **Mystical elements**: subtle gold seals, geometric rings, symbolic markers — but never decorative occult overload
+
+**The 7-vessel planet system is unchanged** (Sol=Rent, Luna=Groceries, Mars=Buffer, Mercury=Utilities, Jupiter=Growth, Venus=Joy, Saturn=Debt). The planetary glyphs ☉ ☽ ♂ ☿ ♃ ♀ ♄ are still used in the calendar's day-of-week headers as a semantic mapping.
+
+**Font migration strategy** — to avoid touching every JSX `fontFamily` reference:
+- `--font-cinzel`, `--font-italiana`, `--font-cormorant` are aliased to `--font-sora` in `globals.css`
+- New explicit `var(--font-sora)` and `var(--font-jetbrains)` references used in the re-skin
+- Result: any leftover `var(--font-cinzel)` etc. now renders as Sora, with no broken look
+
+**Files re-skinned (14 source files, +908 / -623):**
+
+- `src/app/globals.css` — palette rewrite, font aliasing, `.num` / `.num-big` / `.display` utility classes, teal/cyan everywhere, 4 px corner scale
+- `src/app/layout.tsx` — removed Cinzel/Italiana/Cormorant, added Sora (300-700); title "Compass — Component Oracle", description "An oracle for your money. Personal-finance terminal, indexed by the user, for the user.", theme-color `#060A12`
+- `src/app/page.tsx` — hero is now `● SESSION · [long date]` in teal, "Welcome back, **Mom.**" with Mom. in teal, mono subhead with `CUSTOMIZE` reference, `☉ PERIOD · AUG 22 – SEP 5 · 14D` mono pill; colophon `● COMPASS_ORACLE` / `A ORACLE FOR YOUR MONEY.` / `v0.1 · 2026 · Q3`
+- `src/components/sidebar/AppSidebar.tsx` — removed `CompassRose`, new `BrandMark` = `[C]` in teal-cyan box; chapter labels `// Overview` / `// Plan` / `// Money`; nav items in JetBrains Mono; active state with teal left rail + `›` terminal prompt; AUTO badge teal-bordered; user card with cyan border + mono email + green status dot
+- `src/components/dashboard/DashboardCard.tsx` — default accent `cyan` (not gold), mono JetBrains Mono eyebrow, Sora headings, terminal `›` chevron, teal hover border + glow, 4 px corners, `[OK] DONE · N CARDS` button when in edit mode
+- `src/components/dashboard/DashboardGrid.tsx` — customize toggle in teal/cyan, `+ Add card` button mono, AddCardSheet header `// configure` in cyan, sheet border-top teal, `+ Add` pill in mono cyan, `[OK] All available cards are already on your dashboard.` empty state
+- `src/components/dashboard/catalog.ts` — terminal voice (`// daily`, `// schedule`, `// watchlist`, `// recommended`, `// priority`, `// snapshot`); titles "Daily Telemetry" (renamed from "Daily Tracking"), "Critical Timeline", "Envelope Status", "Next Step", "Top Priority", "Snapshot"; accents cyan / warn / neg / neg / gold / cyan
+
+**Card content components re-skinned (6 files):**
+
+- `daily-tracking.tsx` — eyebrows `// SAFE TO SPEND` / `// TODAY` / `// WEEKLY HEALTH`; big numbers in JetBrains Mono (safe in cyan or neg, today in ink, weekly in ink); pace labels prefixed with `[OK]` / `[WARN]` markers; `7-DAY SHAPE` sub label mono; sparkline line color changed from ink-2 to terminal-cyan
+- `critical-timeline.tsx` — MonthCalendar unchanged structure; ScheduledBillsList section header `// SCHEDULED BILLS · THIS MONTH · N` mono cyan; planet dots, `AP` badge in cyan mono, `DAY 01` badge in gold mono, amounts in JetBrains Mono with `font-feature-settings: tnum, zero`
+- `envelope-status.tsx` — status badge renamed to OVER / WATCH / CALM in mono caps with the accent color border; calm empty state now `[OK] All envelopes within target.` with `[OK]` chip instead of `✓`; bar color matches the per-envelope status
+- `next-step.tsx` — main status chip now `[OK]` or `[WARN]` in JetBrains Mono (was `✓` / `!`); copy "Nice pace — the next paycheck will top up the ones that need it." (Sora body)
+- `top-priority.tsx` — current/target/pct in JetBrains Mono, pct badge in mono gold bordered pill, bar gradient cyan→gold, target date in mono bordered pill, `+ check` amount in mono cyan bordered pill; sub-card "18-month projection" with mono caps header `// 18-month projection` in cyan
+- `snapshot.tsx` — eyebrows `// net worth` / `// next paycheck` / `// this period` with mono caps; big numbers in JetBrains Mono colored per accent (cyan / gold / green); sub text in mono
+
+`tsc --noEmit` clean. Dev server returns 200 on `/` and dashboard renders the new terminal voice end-to-end (verified via in-app browser screenshot — calendar with planetary glyphs, scheduled bills list with `DAY NN` badges, `[OK]/[WARN]` status markers throughout).
+
+**Apply going forward** (saved to User Memory 2026-08-23):
+
+- This design system applies on Compass and any other xKryptian work that wants the terminal / oracle flavor.
+- "Component Oracle Terminal" = base #060A12 + teal #2DD4BF signal + gold #C9A45C accent + Sora / JetBrains Mono + oracle voice with terminal-log markers. No decorative occult.
+- "Visible UI matters more than invisible architecture" preference still wins — the deep pages get re-skinned in subsequent visible-UI pushes, not as a single mega-PR.
+
+**Still in the alchemical voice (deferred to follow-up pushes):**
+
+- All deep pages: `/recurring`, `/envelopes`, `/envelopes/[id]`, `/goals`, `/goals/[id]`, `/debts`, `/transactions`, `/calendar`, `/period`, `/insights`, `/allocation`, `/accounts`, `/investments`, `/emergency`, `/subscriptions`, `/invest`
+- The form pages (`/envelopes/new`, `/goals/new`, `/debts/new`, etc.) — these may stay alchemical for now since they're set-and-forget
+- The alchemical vocabulary ("vessel", "great work", "prima materia") — decide per-call whether to translate to terminal voice or keep as decorative
+- Some catalog em strings still have alchemical flavor ("vessels needing attention.", "the one thing to fix.") — candidates for terminal voice in a follow-up
+
+**Open question for xKryptic**: how aggressively to translate the alchemical vocabulary (Vessel/Sigil/Great Work) to terminal voice, or whether to keep it as a decorative layer on top of the terminal language. Recommendation: keep "vessel" as the term-of-art (it's already in the data model), but lean terminal in microcopy ("the one thing to look at." not "the one thing to fix.").
 
 ### Cluster 2 (after Cluster 2.0)
 
