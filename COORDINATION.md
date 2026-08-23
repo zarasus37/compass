@@ -12,7 +12,7 @@
 - **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory) — ✅ done, commit `cda8972`. Cluster 1.7 visual audit — ✅ done, commit `3da5716`. **Cluster 1.8 (Bill organizer + Plan My Next Check + calendar warnings) — ✅ done, commit `999ff37`. Cluster 1.9 (Debt payoff simulator + Saturn vessel + 3-up card + paid-off celebration) — ✅ done, commits `feb50e3` + `801525c` (math-bug fix) + `0ffb439` (per-debt sparkline).** Biweekly period locked as the canonical pay schedule (D17); period-close renamed to match (D18). **Chart-next-to-data principle applied across /goals, /envelopes, /recurring, /debts, /insights — commit `843375c`. Cluster 1.10 (drill-downs + new transaction / goal / envelope / bill / debt forms + edit forms) — ✅ done, commits `03f308f` + `006bca0` + `3dc679f` + `649d76e`. **Cluster 2.0 (customizable, scrollable, card-based dashboard with @dnd-kit drag-and-drop + localStorage persistence) — ✅ done, commit `e648ef5`.** Next: Cluster 2.x (form actions deep-dive, bill reminders, variable income, period close), then 3.x (real Plaid, AI tiers).
 - **Stage 3 (Test & bug-fix)**: pending Stage 2
 
-> Last update: 2026-08-23 (post-Cluster-2.0.1 — visual-first treatment)
+> Last update: 2026-08-23 (post-Cluster-2.0.2 — full-month calendar)
 
 ---
 
@@ -273,6 +273,21 @@ Per xKryptic directive 2026-08-23: a budget planner should let the user budget w
 - `last7Days`: array of 7 Date objects for x-axis labels (sparklines)
 
 `tsc --noEmit` clean. `pnpm build` clean. All 4 cards now visually communicate at a glance — the user doesn't have to read every number to spot the pattern.
+
+### Cluster 2.0.2 — Full-month calendar (✅ DONE — commit `34f3928`; 2026-08-23)
+
+Critical Timeline refactored from a 14-day strip into a full month calendar (per xKryptic reference mockup):
+- 7 columns × 6 rows, current month centered, prev/next month spillover at 30% opacity
+- Planetary day-of-week headers (Sun ☉, Mon ☽, Tue ♂, Wed ☿, Thu ♃, Fri ♀, Sat ♄) — the alchemical planet-day mapping
+- Each day cell shows: day number, `PAY` badge (gold border) if a bill is due, `GOAL` badge (jupiter border) for goal target dates, small gold dot for days with transactions
+- Today highlighted with gold border + soft fill
+- Past days dimmed to 55%
+- Hover any day with a bill → native browser tooltip with bill name(s) + amount(s) + autopay flag
+- List below the calendar (replaces the previous 3-bill list): every bill due this month, sorted by day, with planet dot + name + `AP` marker + `DAY N` badge + amount
+
+New component: `src/components/dashboard/cards/month-calendar.tsx` (pure TSX, no SVG — uses CSS grid for cells).
+
+Removed: the 14-day `CalendarStrip` and the 3-bill list (both superseded by the month view + scheduled bills list).
 
 **Apply going forward** (per the principle saved to User Memory 2026-08-23): every data-display surface in any xKryptic project. Build the chart first; add a list only if exact values can't live in the chart.
 
