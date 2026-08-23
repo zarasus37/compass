@@ -120,21 +120,23 @@ export function SankeyFlow({
           >
             <span
               style={{
-                fontFamily: "var(--font-cinzel), serif",
+                fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 9.5,
                 color: "var(--ink-3)",
-                letterSpacing: "0.22em",
+                letterSpacing: "0.18em",
                 textTransform: "uppercase",
               }}
             >
-              From
+              <span style={{ color: "var(--ink-4)" }}>//</span> From
             </span>
             <span
               style={{
-                fontFamily: "var(--font-italiana), serif",
-                fontSize: 18,
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 14,
+                fontWeight: 600,
                 color: "var(--gold-glow)",
                 lineHeight: 1,
+                letterSpacing: "0.02em",
               }}
             >
               {sourceLabel}
@@ -142,10 +144,11 @@ export function SankeyFlow({
           </div>
           <span
             style={{
-              fontFamily: "var(--font-cormorant), serif",
-              fontSize: 12,
-              fontStyle: "italic",
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 10.5,
               color: "var(--ink-3)",
+              letterSpacing: "0.10em",
+              textTransform: "uppercase",
             }}
           >
             7 vessels · auto-distributed
@@ -180,14 +183,14 @@ export function SankeyFlow({
         theme={{
           background: "transparent",
           text: {
-            fontFamily: "var(--font-cormorant), serif",
-            fontSize: 13,
+            fontFamily: "var(--font-sora)",
+            fontSize: 12,
             fill: "var(--ink)",
           },
           labels: {
             text: {
-              fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-              fontSize: 14,
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 11,
               fontWeight: 500,
             },
           },
@@ -195,9 +198,9 @@ export function SankeyFlow({
             container: {
               background: "var(--surface)",
               color: "var(--ink)",
-              fontFamily: "var(--font-cormorant), serif",
-              fontSize: 13,
-              border: "1px solid var(--gold-soft)",
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 12,
+              border: "1px solid var(--line)",
               borderRadius: 2,
               padding: "8px 12px",
               boxShadow: "0 0 16px rgba(0,0,0,0.4)",
@@ -210,17 +213,33 @@ export function SankeyFlow({
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <strong
               style={{
-                fontFamily: "var(--font-italiana), serif",
-                fontSize: 16,
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 13,
+                fontWeight: 600,
                 color: node.color,
+                letterSpacing: "0.04em",
               }}
             >
               {node.label ?? node.id}
             </strong>
-            <span style={{ color: "var(--ink-2)" }}>
+            <span
+              style={{
+                color: "var(--ink-2)",
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 12,
+              }}
+            >
               {formatMoney(node.value)} of {formatMoney(totalCents)}
             </span>
-            <span style={{ color: "var(--ink-3)", fontStyle: "italic", fontSize: 12 }}>
+            <span
+              style={{
+                color: "var(--ink-3)",
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 10,
+                letterSpacing: "0.10em",
+                textTransform: "uppercase",
+              }}
+            >
               {((node.value / totalCents) * 100).toFixed(1)}% of paycheck
             </span>
           </div>
@@ -232,20 +251,29 @@ export function SankeyFlow({
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <strong
                 style={{
-                  fontFamily: "var(--font-italiana), serif",
-                  fontSize: 15,
+                  fontFamily: "var(--font-jetbrains), monospace",
+                  fontSize: 12,
+                  fontWeight: 600,
                   color: target.label === sourceLabel ? "var(--gold)" : colorFor(target as never),
                 }}
               >
                 {formatMoney(link.value)} → {target.label ?? target.id}
               </strong>
-              <span style={{ color: "var(--ink-2)" }}>{pct.toFixed(1)}% of paycheck</span>
+              <span
+                style={{
+                  color: "var(--ink-2)",
+                  fontFamily: "var(--font-jetbrains), monospace",
+                  fontSize: 12,
+                }}
+              >
+                {pct.toFixed(1)}% of paycheck
+              </span>
               {linkSubtitle && (
                 <span
                   style={{
                     color: "var(--ink-3)",
-                    fontStyle: "italic",
-                    fontSize: 12,
+                    fontSize: 11,
+                    fontFamily: "var(--font-sora)",
                     maxWidth: 220,
                     lineHeight: 1.4,
                   }}

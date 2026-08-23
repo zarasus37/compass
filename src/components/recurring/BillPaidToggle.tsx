@@ -52,10 +52,10 @@ export function BillPaidToggle({
         display: "inline-flex",
         alignItems: "center",
         gap: 6,
-        fontFamily: "var(--font-cinzel), serif",
+        fontFamily: "var(--font-jetbrains), monospace",
         fontSize: 10,
-        fontWeight: 600,
-        letterSpacing: "0.22em",
+        fontWeight: 700,
+        letterSpacing: "0.16em",
         textTransform: "uppercase",
         padding: "6px 12px",
         borderRadius: 2,
@@ -65,7 +65,7 @@ export function BillPaidToggle({
         border: `1px solid ${optimisticPaid ? "var(--ok)" : "var(--line)"}`,
         transition: "background 150ms ease, color 150ms ease, border 150ms ease",
         boxShadow: optimisticPaid
-          ? "0 0 10px rgba(106, 176, 136, 0.35)"
+          ? "0 0 10px rgba(74, 222, 128, 0.35)"
           : "none",
       }}
       aria-pressed={optimisticPaid}

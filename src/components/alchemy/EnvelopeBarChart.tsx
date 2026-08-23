@@ -9,6 +9,10 @@
  * position the envelope "should be" at based on how far through the
  * pay period we are. If the fill is past the tick, the user is
  * on-track (or ahead). If before, they're behind.
+ *
+ * Component Oracle Terminal treatment: vessel glyph stays (semantic
+ * mapping), bar names in Sora, amounts and percentages in JetBrains
+ * Mono. Pacing line footer in mono caps.
  */
 
 import * as React from "react";
@@ -105,10 +109,10 @@ export function EnvelopeBarChart({ envelopes, pacing, className }: EnvelopeBarCh
             </div>
             <div
               style={{
-                fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                fontSize: 18,
-                color: "var(--ink)",
+                fontFamily: "var(--font-sora)",
+                fontSize: 16,
                 fontWeight: 500,
+                color: "var(--ink)",
               }}
             >
               {b.name}
@@ -118,9 +122,16 @@ export function EnvelopeBarChart({ envelopes, pacing, className }: EnvelopeBarCh
                 fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 12.5,
                 color: "var(--ink-3)",
+                fontFeatureSettings: '"tnum" 1, "zero" 1',
               }}
             >
-              <span style={{ color: "var(--ink)", fontWeight: 500, fontSize: 13.5 }}>
+              <span
+                style={{
+                  color: "var(--ink)",
+                  fontWeight: 500,
+                  fontSize: 13.5,
+                }}
+              >
                 {formatCents(b.current)}
               </span>{" "}
               / {formatCents(b.target)}
@@ -139,7 +150,8 @@ export function EnvelopeBarChart({ envelopes, pacing, className }: EnvelopeBarCh
                   inset: "0 auto 0 0",
                   width: `${pct}%`,
                   background: fillColorFor(status, b.planet),
-                  boxShadow: status === "ok" && b.planet ? `0 0 8px ${PLANET_COLORS[b.planet]}` : "none",
+                  boxShadow:
+                    status === "ok" && b.planet ? `0 0 8px ${PLANET_COLORS[b.planet]}` : "none",
                 }}
               />
               {pacingPct !== null && (
@@ -189,6 +201,7 @@ export function EnvelopeBarChart({ envelopes, pacing, className }: EnvelopeBarCh
               style={{
                 fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 12,
+                fontWeight: 600,
                 textAlign: "right",
                 color:
                   status === "neg"
@@ -196,6 +209,7 @@ export function EnvelopeBarChart({ envelopes, pacing, className }: EnvelopeBarCh
                     : status === "warn"
                     ? "var(--warn)"
                     : "var(--ok)",
+                fontFeatureSettings: '"tnum" 1, "zero" 1',
               }}
             >
               {percentString(b)}
@@ -210,15 +224,26 @@ export function EnvelopeBarChart({ envelopes, pacing, className }: EnvelopeBarCh
             justifyContent: "space-between",
             alignItems: "center",
             padding: "12px 36px 6px",
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 9.5,
             color: "var(--gold)",
-            letterSpacing: "0.22em",
+            letterSpacing: "0.18em",
             textTransform: "uppercase",
           }}
         >
-          <span>◢ Pacing · day {pacing.day} of {pacing.total}</span>
-          <span style={{ fontStyle: "italic", color: "var(--ink-3)", letterSpacing: "0.01em", textTransform: "none", fontFamily: "var(--font-cormorant), serif" }}>
+          <span>
+            <span style={{ color: "var(--ink-4)" }}>//</span> Pacing · day {pacing.day} of {pacing.total}
+          </span>
+          <span
+            style={{
+              color: "var(--ink-3)",
+              letterSpacing: "0.02em",
+              textTransform: "none",
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 11,
+              fontWeight: 500,
+            }}
+          >
             gold tick = where you should be
           </span>
         </div>
