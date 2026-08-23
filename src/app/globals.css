@@ -4,12 +4,28 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ============================================================================
+   COMPASS — Alchemical / Celestial design system (v4 visual language, v6
+   product direction, v7 main page). Locked 2026-08-22 in 00-DESIGN.md §0a.
+
+   - Cosmic dark canvas (midnight indigo) is the only theme
+   - Gold leaf is the primary accent
+   - Seven planetary metals map to the seven default envelopes
+   - Body type is THICKER than typical web (500 baseline, not 400) for mom-grade
+     readability — locked per xKryptic feedback 2026-08-22
+   ============================================================================ */
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+
+  /* Compass font stack — locked */
+  --font-sans: var(--font-cormorant);
+  --font-display: var(--font-cinzel);
+  --font-numeric: var(--font-italiana);
+  --font-mono: var(--font-jetbrains);
+
+  /* Shadcn theme mappings (override below) */
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -26,105 +42,152 @@
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --color-destructive: var(--neg);
+  --color-accent-foreground: var(--gold);
+  --color-accent: var(--cosmos-3);
+  --color-muted-foreground: var(--ink-3);
+  --color-muted: var(--cosmos-2);
+  --color-secondary-foreground: var(--ink);
+  --color-secondary: var(--surface-2);
+  --color-primary-foreground: var(--void);
+  --color-primary: var(--gold);
+  --color-popover-foreground: var(--ink);
+  --color-popover: var(--surface);
+  --color-card-foreground: var(--ink);
+  --color-card: var(--surface);
+
+  /* Radii — small, refined */
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
+  --radius-2xl: 8px;
+  --radius-3xl: 12px;
+  --radius-4xl: 16px;
+  --radius: 4px;
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* === COSMOS === */
+  --void:       #06080f;
+  --cosmos:     #0a0e1f;
+  --cosmos-2:   #11172e;
+  --cosmos-3:   #1a2042;
+  --surface:    #131a36;
+  --surface-2:  #1a2244;
+  --line:       #2a3158;
+  --line-soft:  #1f2748;
+
+  /* === INK (parchment on dark) === */
+  --ink:        #ece6d3;
+  --ink-2:      #c4bda6;
+  --ink-3:      #8b8770;
+  --ink-4:      #5a5a55;
+  --ink-5:      #3a3a45;
+
+  /* === METALS === */
+  --gold:       #d4af52;
+  --gold-deep:  #a8853a;
+  --gold-soft:  #5a4824;
+  --gold-glow:  #f0d480;
+
+  /* === PLANETARY (visual only — never labeled in copy) === */
+  --sol:        #f0c14a;
+  --luna:       #b8c8e0;
+  --mercury:    #8ac0b8;
+  --venus:      #d4a578;
+  --mars:       #c45a3a;
+  --jupiter:    #9a7ac0;
+  --saturn:     #a8b0c8;
+
+  /* === STATUS === */
+  --ok:         #6ab088;
+  --warn:       #d4a050;
+  --neg:        #c45a3a;
+
+  /* === Shadcn mappings (dark, alchemical) === */
+  --background: var(--cosmos);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--gold);
+  --primary-foreground: var(--void);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--cosmos-2);
+  --muted-foreground: var(--ink-3);
+  --accent: var(--cosmos-3);
+  --accent-foreground: var(--gold);
+  --destructive: var(--neg);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--gold);
+  --chart-1: var(--sol);
+  --chart-2: var(--luna);
+  --chart-3: var(--mercury);
+  --chart-4: var(--venus);
+  --chart-5: var(--mars);
+  --sidebar: var(--cosmos);
+  --sidebar-foreground: var(--ink-2);
+  --sidebar-primary: var(--gold);
+  --sidebar-primary-foreground: var(--void);
+  --sidebar-accent: var(--cosmos-3);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--gold);
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-}
+/* Force dark mode — the alchemical canvas IS dark */
+.dark, html { color-scheme: dark; }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     @apply font-sans;
+    /* Bumped weight to 500 — thicker body for mom-grade readability */
+    font-weight: 500;
+    color: var(--ink);
+    background: var(--cosmos);
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "kern" 1, "liga" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: 0.005em;
+  }
+  /* Cormorant Garamond body — heavier than default 400 */
+  p, li, span, div, button, input, textarea, select, label {
+    font-weight: 500;
+  }
+  /* Headings + display elements get the heavier weights */
+  h1 { font-weight: 600; }
+  h2 { font-weight: 600; }
+  h3 { font-weight: 600; }
+  h4 { font-weight: 600; }
+  /* Numerics in JetBrains Mono — bold for big numbers */
+  .num {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-feature-settings: "tnum" 1, "zero" 1;
+  }
+  .num-big {
+    font-family: var(--font-numeric);
+    font-weight: 500;
+  }
+  /* Display headings — Cinzel, even heavier */
+  .display {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: 0.02em;
   }
 }

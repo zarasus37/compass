@@ -1,0 +1,1806 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Compass — Mockup v5 (Alchemical visuals, plain words)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500&family=Marcellus&family=Italiana&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      /* COSMOS — deep midnight */
+      --void:        #06080f;
+      --cosmos:      #0a0e1f;
+      --cosmos-2:    #11172e;
+      --cosmos-3:    #1a2042;
+      --surface:     #131a36;
+      --surface-2:   #1a2244;
+      --line:        #2a3158;
+      --line-soft:   #1f2748;
+
+      /* STARLIGHT */
+      --ink:         #ece6d3;
+      --ink-2:       #c4bda6;
+      --ink-3:       #8b8770;
+      --ink-4:       #5a5a55;
+      --ink-5:       #3a3a45;
+
+      /* METALS */
+      --gold:        #d4af52;
+      --gold-deep:   #a8853a;
+      --gold-soft:   #5a4824;
+      --gold-glow:   #f0d480;
+      --silver:      #c8c2a8;
+      --silver-soft: #6a6a78;
+      --copper:      #b87a4a;
+      --iron:        #a85a3a;
+
+      /* PLANETARY (visual only — not labeled in copy) */
+      --sol:         #f0c14a;
+      --luna:        #b8c8e0;
+      --mercury:     #8ac0b8;
+      --venus:       #d4a578;
+      --mars:        #c45a3a;
+      --jupiter:     #9a7ac0;
+      --saturn:      #6a708a;
+
+      /* STATUS */
+      --ok:          #6ab088;
+      --warn:        #d4a050;
+      --neg:         #c45a3a;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+
+    body {
+      font-family: "Cormorant Garamond", "EB Garamond", Georgia, serif;
+      background: var(--cosmos);
+      color: var(--ink);
+      font-size: 15px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      background-image:
+        radial-gradient(ellipse at 20% 0%,  rgba(154, 122, 192, 0.08) 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 100%, rgba(212, 175, 82, 0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 100% 20%, rgba(138, 192, 184, 0.05) 0%, transparent 50%);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed; inset: 0;
+      pointer-events: none;
+      background-image:
+        radial-gradient(1px 1px at 23% 12%, rgba(255,255,255,0.6), transparent),
+        radial-gradient(1px 1px at 67% 8%,  rgba(255,255,255,0.4), transparent),
+        radial-gradient(1px 1px at 89% 33%, rgba(255,255,255,0.5), transparent),
+        radial-gradient(1px 1px at 12% 47%, rgba(255,255,255,0.3), transparent),
+        radial-gradient(1px 1px at 44% 73%, rgba(255,255,255,0.5), transparent),
+        radial-gradient(1px 1px at 78% 88%, rgba(255,255,255,0.4), transparent),
+        radial-gradient(1px 1px at 33% 92%, rgba(255,255,255,0.3), transparent),
+        radial-gradient(1.5px 1.5px at 56% 22%, rgba(255,255,255,0.6), transparent),
+        radial-gradient(1.5px 1.5px at 91% 67%, rgba(255,255,255,0.4), transparent);
+      z-index: 0;
+    }
+
+    .mono { font-family: "JetBrains Mono", monospace; font-feature-settings: "tnum" 1, "zero" 1; }
+    .display { font-family: "Cinzel", "Times New Roman", serif; letter-spacing: 0.02em; }
+    .italic { font-style: italic; }
+
+    .app { display: grid; grid-template-columns: 248px 1fr; min-height: 100vh; position: relative; z-index: 1; }
+
+    /* ================== SIDEBAR ================== */
+    aside {
+      background:
+        linear-gradient(180deg, rgba(15, 20, 45, 0.7) 0%, rgba(10, 14, 31, 0.95) 100%);
+      border-right: 1px solid var(--line);
+      padding: 28px 18px 24px;
+      display: flex; flex-direction: column;
+      gap: 32px;
+      position: relative;
+    }
+    aside::after {
+      content: "";
+      position: absolute;
+      top: 80px; bottom: 80px; right: -1px;
+      width: 1px;
+      background: linear-gradient(180deg, transparent 0%, var(--gold-soft) 30%, var(--gold-soft) 70%, transparent 100%);
+      opacity: 0.5;
+    }
+
+    .sidebar-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 4px 8px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .brand-mark {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .brand-mark .logo {
+      width: 38px; height: 38px;
+      color: var(--gold);
+      filter: drop-shadow(0 0 8px rgba(212, 175, 82, 0.3));
+    }
+    .brand-mark .logo svg { width: 100%; height: 100%; }
+    .brand-mark .word {
+      font-family: "Cinzel", serif;
+      font-size: 17px;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      color: var(--ink);
+      text-transform: uppercase;
+    }
+    .collapse {
+      width: 24px; height: 24px;
+      display: grid; place-items: center;
+      color: var(--ink-3);
+      cursor: pointer;
+    }
+    .collapse svg { width: 12px; height: 12px; stroke-width: 1.5; }
+
+    .nav-section { display: flex; flex-direction: column; gap: 1px; }
+    .nav-label {
+      font-family: "Cinzel", serif;
+      font-size: 10px; font-weight: 600;
+      color: var(--gold-deep);
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      padding: 0 12px 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .nav-label::before, .nav-label::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold-soft), transparent);
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 8px 12px;
+      border-radius: 2px;
+      color: var(--ink-2);
+      font-family: "Cormorant Garamond", serif;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      position: relative;
+      transition: all 0.2s;
+    }
+    .nav-item::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 50%;
+      transform: translateY(-50%);
+      width: 2px; height: 0;
+      background: var(--gold);
+      transition: height 0.2s;
+    }
+    .nav-item:hover { color: var(--ink); background: rgba(212, 175, 82, 0.04); }
+    .nav-item:hover::before { height: 60%; }
+    .nav-item.active {
+      color: var(--gold-glow);
+      background: linear-gradient(90deg, rgba(212, 175, 82, 0.12) 0%, transparent 100%);
+    }
+    .nav-item.active::before { height: 70%; background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+    .nav-item .glyph {
+      width: 18px; height: 18px;
+      display: grid; place-items: center;
+      font-size: 16px; line-height: 1;
+      color: var(--ink-3);
+    }
+    .nav-item.active .glyph { color: var(--gold); }
+    .nav-item .badge {
+      margin-left: auto;
+      background: var(--cosmos-3);
+      color: var(--gold);
+      font-family: "JetBrains Mono", monospace;
+      font-size: 10px; font-weight: 500;
+      padding: 1px 7px;
+      border-radius: 2px;
+      border: 1px solid var(--gold-soft);
+      letter-spacing: 0.04em;
+    }
+    .nav-item .auto-mark {
+      margin-left: auto;
+      font-family: "Cinzel", serif;
+      font-size: 9px; font-weight: 600;
+      color: var(--mercury);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .nav-item .auto-mark::before {
+      content: "✦";
+      font-size: 8px;
+    }
+
+    .me {
+      margin-top: auto;
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      padding: 14px;
+      display: flex; align-items: center; gap: 12px;
+      background:
+        radial-gradient(ellipse at 30% 0%, rgba(212, 175, 82, 0.08) 0%, transparent 70%),
+        var(--surface);
+      position: relative;
+    }
+    .me::before {
+      content: "";
+      position: absolute;
+      top: -1px; left: 16px; right: 16px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    }
+    .me-avatar {
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 35% 30%, var(--gold-glow) 0%, var(--gold) 40%, var(--gold-deep) 100%);
+      color: var(--void);
+      display: grid; place-items: center;
+      font-family: "Cinzel", serif;
+      font-weight: 600; font-size: 15px;
+      box-shadow: 0 0 14px rgba(212, 175, 82, 0.4);
+    }
+    .me-info { display: flex; flex-direction: column; min-width: 0; }
+    .me-name { font-family: "Cormorant Garamond", serif; font-weight: 600; font-size: 15px; color: var(--ink); }
+    .me-sub { font-family: "JetBrains Mono", monospace; font-size: 10px; color: var(--ink-3); margin-top: 1px; letter-spacing: 0.02em; }
+
+    /* ================== MAIN ================== */
+    main {
+      padding: 48px 72px 96px;
+      max-width: 1440px;
+      position: relative;
+    }
+
+    /* =============== MASTHEAD =============== */
+    .masthead {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 56px;
+      position: relative;
+    }
+    .masthead::after {
+      content: "✦ ✦ ✦";
+      position: absolute;
+      bottom: -8px; left: 50%;
+      transform: translateX(-50%);
+      color: var(--gold);
+      font-size: 10px;
+      letter-spacing: 8px;
+      background: var(--cosmos);
+      padding: 0 16px;
+    }
+    .masthead-left { display: flex; flex-direction: column; gap: 6px; }
+    .masthead h1 {
+      font-family: "Italiana", "Cinzel", serif;
+      font-weight: 400;
+      font-size: 30px;
+      letter-spacing: 0.01em;
+      margin: 0;
+      color: var(--ink);
+    }
+    .masthead h1 em {
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      font-weight: 500;
+      color: var(--gold-glow);
+    }
+    .masthead .date {
+      font-family: "Cinzel", serif;
+      font-size: 10px;
+      color: var(--ink-3);
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+    .masthead-right { display: flex; align-items: center; gap: 12px; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      padding: 7px 14px;
+      font-family: "Cinzel", serif;
+      font-size: 10.5px;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-2);
+    }
+    .pill .glyph { color: var(--gold); font-size: 14px; line-height: 1; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-family: "Cinzel", serif;
+      background: var(--gold);
+      color: var(--void);
+      border: 0;
+      border-radius: 2px;
+      padding: 10px 18px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      box-shadow: 0 0 16px rgba(212, 175, 82, 0.25);
+      transition: all 0.2s;
+    }
+    .btn:hover { background: var(--gold-glow); box-shadow: 0 0 22px rgba(212, 175, 82, 0.4); }
+    .btn.ghost {
+      background: transparent;
+      color: var(--ink-2);
+      border: 1px solid var(--line);
+      box-shadow: none;
+    }
+    .btn.ghost:hover { color: var(--gold); border-color: var(--gold-soft); background: rgba(212, 175, 82, 0.04); }
+
+    /* =============== HERO =============== */
+    .hero {
+      display: grid;
+      grid-template-columns: 1fr 460px;
+      gap: 64px;
+      margin-bottom: 80px;
+      align-items: center;
+    }
+    .north-star { display: flex; flex-direction: column; }
+    .north-eyebrow {
+      display: flex; align-items: center; gap: 12px;
+      font-family: "Cinzel", serif;
+      font-size: 11px; font-weight: 600;
+      color: var(--gold);
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      margin-bottom: 22px;
+    }
+    .north-eyebrow::before {
+      content: "☉";
+      font-size: 18px;
+      line-height: 1;
+    }
+    .north-eyebrow::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, var(--gold-soft), transparent);
+    }
+    .north-amount {
+      font-family: "Italiana", "Cinzel", serif;
+      font-size: 112px;
+      font-weight: 400;
+      line-height: 0.9;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+      font-feature-settings: "tnum" 1;
+      margin: 0;
+      position: relative;
+      text-shadow: 0 0 32px rgba(212, 175, 82, 0.15);
+    }
+    .north-amount .cents {
+      font-size: 0.42em;
+      color: var(--ink-3);
+      vertical-align: 0.6em;
+      margin-left: 4px;
+    }
+    .north-amount .currency {
+      font-size: 0.55em;
+      color: var(--gold);
+      vertical-align: 0.15em;
+      margin-right: 8px;
+      font-family: "Cinzel", serif;
+      font-weight: 500;
+    }
+    .north-aspects {
+      display: flex; align-items: center; gap: 18px;
+      margin-top: 28px;
+      font-family: "Cormorant Garamond", serif;
+      font-size: 16px;
+      color: var(--ink-2);
+    }
+    .aspect {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .aspect .glyph { font-size: 18px; line-height: 1; }
+    .aspect .glyph.sol { color: var(--sol); }
+    .aspect .glyph.luna { color: var(--luna); }
+    .aspect .glyph.iron { color: var(--mars); }
+    .aspect .v {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--ink);
+      font-feature-settings: "tnum" 1;
+    }
+    .aspect .v.pos { color: var(--ok); }
+    .aspect .v.neg { color: var(--mars); }
+    .aspect .label {
+      font-size: 13px;
+      color: var(--ink-3);
+      font-style: italic;
+    }
+
+    /* =============== MANDALA =============== */
+    .mandala-wrap {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 18px;
+    }
+    .mandala-svg { width: 460px; height: 460px; filter: drop-shadow(0 0 24px rgba(212, 175, 82, 0.18)); }
+    .mandala-key {
+      display: flex; gap: 10px; justify-content: center;
+      align-items: center;
+    }
+    .mandala-key .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+
+    /* =============== SECTION HEADERS =============== */
+    .section {
+      margin-bottom: 80px;
+    }
+    .section-head {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      margin-bottom: 36px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--line);
+      position: relative;
+    }
+    .section-head::before {
+      content: "";
+      position: absolute;
+      bottom: -1px; left: 0;
+      width: 80px; height: 1px;
+      background: var(--gold);
+      box-shadow: 0 0 8px var(--gold);
+    }
+    .section-head h2 {
+      font-family: "Italiana", "Cinzel", serif;
+      font-weight: 400;
+      font-size: 32px;
+      letter-spacing: 0.005em;
+      margin: 0;
+      color: var(--ink);
+    }
+    .section-head h2 em {
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      color: var(--ink-3);
+      font-weight: 500;
+    }
+    .section-head .meta {
+      font-family: "Cinzel", serif;
+      font-size: 10px;
+      color: var(--ink-3);
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+    .section-head .meta b { color: var(--gold); font-weight: 600; }
+
+    /* =============== THIS PERIOD =============== */
+    .work {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 0;
+      background:
+        radial-gradient(ellipse at 0% 0%, rgba(212, 175, 82, 0.05) 0%, transparent 50%),
+        var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    .work::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent 0%, var(--gold) 50%, transparent 100%);
+    }
+    .work::after {
+      content: "";
+      position: absolute;
+      top: 50%; left: 360px; transform: translateY(-50%);
+      width: 1px; height: 70%;
+      background: linear-gradient(180deg, transparent, var(--gold-soft), transparent);
+    }
+    .work-left {
+      padding: 40px 36px;
+      background:
+        radial-gradient(ellipse at 50% 50%, rgba(212, 175, 82, 0.08) 0%, transparent 70%);
+    }
+    .work-left .roman {
+      font-family: "Cinzel", serif;
+      font-size: 10px;
+      color: var(--gold);
+      letter-spacing: 0.3em;
+      margin-bottom: 16px;
+    }
+    .work-left h3 {
+      font-family: "Italiana", "Cinzel", serif;
+      font-size: 28px;
+      line-height: 1.2;
+      letter-spacing: 0.005em;
+      margin: 0 0 18px;
+      color: var(--ink);
+    }
+    .work-left .sub {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 15px;
+      color: var(--ink-2);
+      line-height: 1.5;
+      margin-bottom: 28px;
+    }
+    .work-left .prima {
+      display: flex; flex-direction: column;
+      padding: 20px 0;
+      border-top: 1px solid var(--line-soft);
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .work-left .prima-label {
+      font-family: "Cinzel", serif;
+      font-size: 9.5px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+    .work-left .prima-amount {
+      font-family: "Italiana", "Cinzel", serif;
+      font-size: 38px;
+      line-height: 1;
+      color: var(--ink);
+      font-feature-settings: "tnum" 1;
+    }
+    .work-left .prima-amount .sym {
+      color: var(--gold);
+      font-size: 0.6em;
+      vertical-align: 0.2em;
+      margin-right: 6px;
+    }
+    .work-left .prima-meta {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 13px;
+      color: var(--ink-3);
+      margin-top: 8px;
+    }
+    .work-left .prima-meta b { color: var(--ink-2); font-weight: 600; }
+
+    .work-right {
+      padding: 36px 40px 40px;
+    }
+    .work-right .label {
+      font-family: "Cinzel", serif;
+      font-size: 9.5px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 18px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .work-right .label::after {
+      content: "";
+      flex: 1; height: 1px;
+      background: linear-gradient(90deg, var(--gold-soft), transparent);
+    }
+    .distill-list {
+      display: flex; flex-direction: column;
+      gap: 1px;
+      background: var(--line-soft);
+      border: 1px solid var(--line-soft);
+    }
+    .distill-row {
+      display: grid;
+      grid-template-columns: 36px 1.5fr 2fr 90px 60px;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 18px;
+      background: var(--surface);
+      font-size: 14px;
+    }
+    .distill-row:hover { background: var(--surface-2); }
+    .distill-row .glyph {
+      font-size: 22px; line-height: 1;
+      text-align: center;
+    }
+    .distill-row .name {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--ink);
+    }
+    .distill-row .track {
+      position: relative; height: 4px;
+      background: var(--cosmos);
+      border: 1px solid var(--line-soft);
+    }
+    .distill-row .track > span {
+      position: absolute; inset: 0 auto 0 0;
+      background: var(--gold);
+      box-shadow: 0 0 6px rgba(212, 175, 82, 0.4);
+    }
+    .distill-row .amount {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 13px;
+      font-weight: 500;
+      text-align: right;
+      color: var(--ink);
+      font-feature-settings: "tnum" 1;
+    }
+    .distill-row .amount .sym { color: var(--ink-3); margin-right: 2px; }
+    .distill-row .pct {
+      font-family: "Cinzel", serif;
+      font-size: 10px;
+      color: var(--ink-3);
+      text-align: right;
+      letter-spacing: 0.1em;
+    }
+
+    /* =============== ENVELOPES =============== */
+    .vessels {
+      background:
+        radial-gradient(ellipse at 50% 0%, rgba(212, 175, 82, 0.05) 0%, transparent 50%),
+        var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 4px 0;
+    }
+    .vessel {
+      display: grid;
+      grid-template-columns: 50px 1.6fr 2.4fr 1.2fr 110px;
+      align-items: center;
+      gap: 28px;
+      padding: 22px 36px;
+      border-bottom: 1px solid var(--line-soft);
+      position: relative;
+    }
+    .vessel:last-child { border-bottom: 0; }
+    .vessel:hover { background: rgba(212, 175, 82, 0.03); }
+
+    .vessel-glyph {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      display: grid; place-items: center;
+      font-size: 22px;
+      border: 1px solid var(--line);
+      background: var(--cosmos);
+      position: relative;
+    }
+    .vessel-glyph::before {
+      content: "";
+      position: absolute; inset: -3px;
+      border-radius: 50%;
+      border: 1px dashed var(--line-soft);
+    }
+    .vessel-name {
+      display: flex; flex-direction: column;
+      gap: 2px;
+    }
+    .vessel-name .nm {
+      font-family: "Italiana", "Cinzel", serif;
+      font-size: 20px;
+      color: var(--ink);
+    }
+    .vessel-aspect {
+      position: relative;
+      display: flex; flex-direction: column;
+      gap: 4px;
+    }
+    .vessel-aspect .track {
+      position: relative;
+      height: 5px;
+      background: var(--cosmos);
+      border: 1px solid var(--line-soft);
+      overflow: hidden;
+    }
+    .vessel-aspect .track .fill {
+      position: absolute; inset: 0 auto 0 0;
+      transition: width 0.3s;
+    }
+    .vessel-aspect .track .fill.ok { background: var(--ok); box-shadow: 0 0 8px rgba(106, 176, 136, 0.4); }
+    .vessel-aspect .track .fill.warn { background: var(--warn); box-shadow: 0 0 8px rgba(212, 160, 80, 0.4); }
+    .vessel-aspect .track .fill.neg {
+      background: var(--neg);
+      box-shadow: 0 0 10px rgba(196, 90, 58, 0.5);
+      background-image: repeating-linear-gradient(45deg, transparent 0, transparent 4px, rgba(6, 8, 15, 0.3) 4px, rgba(6, 8, 15, 0.3) 8px);
+    }
+    .vessel-aspect .nums {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11.5px;
+      color: var(--ink-3);
+    }
+    .vessel-aspect .nums .now { color: var(--ink); font-weight: 500; font-size: 13px; }
+
+    .vessel-status {
+      display: flex; flex-direction: column;
+      gap: 6px;
+      text-align: right;
+    }
+    .vessel-status .lbl {
+      font-family: "Cinzel", serif;
+      font-size: 9px;
+      color: var(--ink-3);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+    .vessel-status .val {
+      font-family: "Italiana", "Cinzel", serif;
+      font-size: 20px;
+      color: var(--ink);
+    }
+    .vessel-status .val.warn { color: var(--warn); }
+    .vessel-status .val.neg { color: var(--neg); }
+    .vessel-status .val.ok { color: var(--ok); }
+    .vessel-status .sub {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 12px;
+      color: var(--ink-3);
+    }
+
+    /* =============== TWO-COL: CALENDAR + CHARTS =============== */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 32px;
+    }
+
+    /* =============== CALENDAR =============== */
+    .almanac {
+      background:
+        radial-gradient(ellipse at 0% 0%, rgba(154, 122, 192, 0.05) 0%, transparent 50%),
+        var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 32px 36px 28px;
+      position: relative;
+      overflow: hidden;
+    }
+    .almanac::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--jupiter), transparent);
+    }
+    .alm-head {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      margin-bottom: 28px;
+    }
+    .alm-head h3 {
+      font-family: "Italiana", "Cinzel", serif;
+      font-size: 28px;
+      margin: 0;
+      font-weight: 400;
+    }
+    .alm-head h3 em {
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      color: var(--ink-3);
+      font-weight: 500;
+    }
+    .alm-head .meta {
+      font-family: "Cinzel", serif;
+      font-size: 9.5px;
+      color: var(--ink-3);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+    .alm-head .meta b { color: var(--gold); font-weight: 600; }
+    .alm-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+    .alm-dow {
+      text-align: center;
+      font-family: "Cinzel", serif;
+      font-size: 9px; font-weight: 600;
+      color: var(--ink-3);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      padding: 8px 0 12px;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 4px;
+    }
+    .alm-dow .glyph { font-size: 13px; color: var(--gold); line-height: 1; }
+    .alm-cell {
+      aspect-ratio: 1;
+      border: 1px solid var(--line-soft);
+      background: var(--cosmos);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 3px;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 13px;
+      color: var(--ink-2);
+      position: relative;
+      transition: all 0.2s;
+    }
+    .alm-cell:hover { background: var(--surface-2); border-color: var(--gold-soft); }
+    .alm-cell.muted { color: var(--ink-5); border-color: transparent; background: transparent; }
+    .alm-cell.muted:hover { background: var(--cosmos); }
+    .alm-cell .day-glyph {
+      font-size: 9px;
+      color: var(--ink-3);
+      line-height: 1;
+    }
+    .alm-cell.pay {
+      background:
+        radial-gradient(circle at 50% 50%, rgba(212, 175, 82, 0.18) 0%, transparent 80%),
+        var(--cosmos);
+      border-color: var(--gold);
+      color: var(--gold-glow);
+      font-weight: 500;
+      box-shadow: 0 0 12px rgba(212, 175, 82, 0.2);
+    }
+    .alm-cell.pay .day-glyph { color: var(--gold); }
+    .alm-cell.pay .amount {
+      font-size: 8.5px;
+      color: var(--gold);
+      font-weight: 500;
+    }
+    .alm-cell.goal {
+      background:
+        radial-gradient(circle at 50% 50%, rgba(154, 122, 192, 0.15) 0%, transparent 80%);
+      border-color: var(--jupiter);
+      color: var(--ink);
+    }
+    .alm-cell.goal .day-glyph { color: var(--jupiter); }
+    .alm-cell.goal .amount { font-size: 8.5px; color: var(--jupiter); }
+    .alm-cell.today {
+      background:
+        radial-gradient(circle at 50% 50%, rgba(184, 200, 224, 0.18) 0%, transparent 80%),
+        var(--cosmos);
+      border-color: var(--luna);
+      color: var(--luna);
+      font-weight: 500;
+      box-shadow: 0 0 12px rgba(184, 200, 224, 0.2);
+    }
+    .alm-cell.today .day-glyph { color: var(--luna); }
+    .alm-legend {
+      display: flex; gap: 24px;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line-soft);
+      font-family: "Cormorant Garamond", serif;
+      font-size: 13px;
+      color: var(--ink-3);
+    }
+    .alm-legend .it { display: flex; align-items: center; gap: 8px; }
+    .alm-legend .swatch {
+      width: 12px; height: 12px;
+      border: 1px solid;
+    }
+    .alm-legend .swatch.pay { background: rgba(212, 175, 82, 0.2); border-color: var(--gold); }
+    .alm-legend .swatch.goal { background: rgba(154, 122, 192, 0.2); border-color: var(--jupiter); }
+    .alm-legend .swatch.today { background: rgba(184, 200, 224, 0.2); border-color: var(--luna); }
+
+    .moon-panel {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line-soft);
+      display: flex; align-items: center; gap: 20px;
+    }
+    .moon-svg { width: 56px; height: 56px; flex-shrink: 0; }
+    .moon-text { flex: 1; }
+    .moon-text .lbl {
+      font-family: "Cinzel", serif;
+      font-size: 9.5px;
+      color: var(--ink-3);
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .moon-text .nm {
+      font-family: "Italiana", "Cinzel", serif;
+      font-size: 18px;
+      color: var(--ink);
+      margin-bottom: 2px;
+    }
+
+    /* =============== CHARTS =============== */
+    .divination {
+      background:
+        radial-gradient(ellipse at 100% 100%, rgba(196, 90, 58, 0.05) 0%, transparent 50%),
+        var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 32px 36px;
+      position: relative;
+    }
+    .divination::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--mars), transparent);
+    }
+    .div-head h4 {
+      font-family: "Italiana", "Cinzel", serif;
+      font-size: 22px;
+      font-weight: 400;
+      margin: 0 0 4px;
+    }
+    .div-head .sub {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 14px;
+      color: var(--ink-3);
+      margin: 0 0 28px;
+    }
+    .div-head .sub b { color: var(--gold); font-weight: 500; }
+
+    .ourob {
+      display: flex; align-items: center; gap: 32px;
+      margin-bottom: 32px;
+    }
+    .ourob-svg { width: 200px; height: 200px; flex-shrink: 0; }
+    .ourob-legend { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+    .ourob-row {
+      display: grid;
+      grid-template-columns: 24px 1fr auto;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--line-soft);
+      font-family: "Cormorant Garamond", serif;
+      font-size: 14px;
+    }
+    .ourob-row:last-child { border-bottom: 0; }
+    .ourob-row .glyph { font-size: 16px; text-align: center; line-height: 1; }
+    .ourob-row .nm { color: var(--ink-2); }
+    .ourob-row .pct {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 12px;
+      color: var(--ink);
+      font-weight: 500;
+    }
+
+    .trajectory {
+      padding-top: 24px;
+      border-top: 1px solid var(--line-soft);
+    }
+    .trajectory .lbl {
+      font-family: "Cinzel", serif;
+      font-size: 9.5px;
+      color: var(--ink-3);
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .trajectory-svg { width: 100%; height: 100px; }
+    .trajectory-foot {
+      display: flex; justify-content: space-between;
+      margin-top: 8px;
+      font-family: "Cormorant Garamond", serif;
+      font-size: 12.5px;
+      color: var(--ink-3);
+    }
+    .trajectory-foot .now { color: var(--gold); font-weight: 500; }
+
+    /* =============== RECENT TRANSACTIONS =============== */
+    .chronicle {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .chron-head {
+      padding: 24px 36px 18px;
+      display: flex; align-items: flex-end; justify-content: space-between;
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .chron-head h3 {
+      font-family: "Italiana", "Cinzel", serif;
+      font-size: 22px;
+      margin: 0;
+      font-weight: 400;
+    }
+    .chron-head h3 em {
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      color: var(--ink-3);
+    }
+    .chron-head .link {
+      font-family: "Cinzel", serif;
+      font-size: 10px;
+      color: var(--gold);
+      font-weight: 600;
+      text-decoration: none;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+    .chron-day {
+      padding: 14px 36px 6px;
+      font-family: "Cinzel", serif;
+      font-size: 9.5px;
+      color: var(--gold);
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      background: var(--cosmos);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .chron-day::after {
+      content: "";
+      flex: 1; height: 1px;
+      background: linear-gradient(90deg, var(--gold-soft), transparent);
+    }
+    .tx {
+      display: grid;
+      grid-template-columns: 36px 1fr 100px;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 36px;
+      border-bottom: 1px solid var(--line-soft);
+      font-size: 14px;
+    }
+    .tx:last-child { border-bottom: 0; }
+    .tx:hover { background: rgba(212, 175, 82, 0.03); }
+    .tx-glyph {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: grid; place-items: center;
+      font-size: 14px;
+      background: var(--cosmos);
+      border: 1px solid var(--line-soft);
+    }
+    .tx-name { font-family: "Cormorant Garamond", serif; font-size: 16px; font-weight: 500; color: var(--ink); }
+    .tx-amount {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 14px;
+      font-weight: 500;
+      text-align: right;
+      font-feature-settings: "tnum" 1;
+    }
+    .tx-amount.pos { color: var(--sol); }
+    .tx-amount.neg { color: var(--ink); }
+    .tx-amount.muted { color: var(--ink-3); }
+
+    .colophon {
+      margin-top: 80px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-family: "Cinzel", serif;
+      font-size: 10px;
+      color: var(--ink-3);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- ================== SIDEBAR ================== -->
+    <aside>
+      <div class="sidebar-head">
+        <div class="brand-mark">
+          <div class="logo">
+            <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="0.8">
+              <circle cx="20" cy="20" r="18" opacity="0.4"/>
+              <circle cx="20" cy="20" r="14" opacity="0.25"/>
+              <path d="M 20 4 L 22 18 L 20 20 L 18 18 Z" fill="currentColor"/>
+              <path d="M 20 36 L 22 22 L 20 20 L 18 22 Z" fill="currentColor" opacity="0.6"/>
+              <path d="M 4 20 L 18 18 L 20 20 L 18 22 Z" fill="currentColor" opacity="0.8"/>
+              <path d="M 36 20 L 22 18 L 20 20 L 22 22 Z" fill="currentColor" opacity="0.8"/>
+              <path d="M 9 9 L 18 17 L 20 20 L 17 18 Z" fill="currentColor" opacity="0.4"/>
+              <path d="M 31 9 L 22 17 L 20 20 L 23 18 Z" fill="currentColor" opacity="0.4"/>
+              <path d="M 9 31 L 17 22 L 20 20 L 18 23 Z" fill="currentColor" opacity="0.4"/>
+              <path d="M 31 31 L 23 22 L 20 20 L 22 23 Z" fill="currentColor" opacity="0.4"/>
+              <circle cx="20" cy="20" r="2.5" fill="currentColor"/>
+            </svg>
+          </div>
+          <div class="word">Compass</div>
+        </div>
+        <div class="collapse" title="Collapse">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 6l-6 6 6 6"/></svg>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Overview</div>
+        <a class="nav-item active" href="#">
+          <span class="glyph">☉</span>Dashboard
+        </a>
+        <a class="nav-item" href="#">
+          <span class="glyph">☽</span>Period
+          <span class="badge">5d</span>
+        </a>
+        <a class="nav-item" href="#">
+          <span class="glyph">✦</span>Calendar
+        </a>
+        <a class="nav-item" href="#">
+          <span class="glyph">⚝</span>Insights
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Plan</div>
+        <a class="nav-item" href="#">
+          <span class="glyph">✺</span>Goals
+        </a>
+        <a class="nav-item" href="#">
+          <span class="glyph">♁</span>Recurring bills
+        </a>
+        <a class="nav-item" href="#">
+          <span class="glyph">🜨</span>Emergency fund
+        </a>
+        <a class="nav-item" href="#">
+          <span class="glyph">⚷</span>Investment goal
+        </a>
+        <a class="nav-item" href="#">
+          <span class="glyph">⚹</span>Allocation plan
+          <span class="auto-mark">Auto</span>
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Money</div>
+        <a class="nav-item" href="#">
+          <span class="glyph">⚱</span>Envelopes
+        </a>
+        <a class="nav-item" href="#">
+          <span class="glyph">⚜</span>Transactions
+        </a>
+        <a class="nav-item" href="#">
+          <span class="glyph">⚛</span>Accounts
+        </a>
+        <a class="nav-item" href="#">
+          <span class="glyph">♆</span>Subscriptions
+          <span class="badge">2</span>
+        </a>
+        <a class="nav-item" href="#">
+          <span class="glyph">⚸</span>Debts
+        </a>
+        <a class="nav-item" href="#">
+          <span class="glyph">⚕</span>Investments
+        </a>
+      </div>
+
+      <div class="me">
+        <div class="me-avatar">M</div>
+        <div class="me-info">
+          <div class="me-name">Mom</div>
+          <div class="me-sub">mom@compass.local</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ================== MAIN ================== -->
+    <main>
+      <!-- MASTHEAD -->
+      <div class="masthead">
+        <div class="masthead-left">
+          <div class="date">Saturday · August 30 · 2025</div>
+          <h1>Good evening, <em>Mom.</em></h1>
+        </div>
+        <div class="masthead-right">
+          <div class="pill">
+            <span class="glyph">☉</span>
+            Aug 22 – Sep 4 · 14 days
+          </div>
+          <button class="btn ghost">+ Transaction</button>
+          <button class="btn">+ Envelope</button>
+        </div>
+      </div>
+
+      <!-- ================== HERO ================== -->
+      <div class="hero">
+        <div class="north-star">
+          <div class="north-eyebrow">
+            <span>Net Worth</span>
+          </div>
+          <div class="north-amount">
+            <span class="currency">$</span>84,210<span class="cents">.00</span>
+          </div>
+          <div class="north-aspects">
+            <div class="aspect">
+              <span class="glyph sol">↑</span>
+              <span class="v pos">+$1,612</span>
+              <span class="label">this period</span>
+            </div>
+            <div class="aspect">
+              <span class="glyph luna">☽</span>
+              <span class="v">+$3,200</span>
+              <span class="label">projected · 6 months</span>
+            </div>
+            <div class="aspect">
+              <span class="glyph iron">♂</span>
+              <span class="v neg">−$4,820</span>
+              <span class="label">remaining debt</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mandala-wrap">
+          <svg class="mandala-svg" viewBox="0 0 460 460" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="cosmos-bg" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#1a2042" stop-opacity="0.6"/>
+                <stop offset="60%" stop-color="#11172e" stop-opacity="0.4"/>
+                <stop offset="100%" stop-color="#0a0e1f" stop-opacity="0"/>
+              </radialGradient>
+              <radialGradient id="sun-glow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#f0d480" stop-opacity="1"/>
+                <stop offset="50%" stop-color="#d4af52" stop-opacity="0.8"/>
+                <stop offset="100%" stop-color="#a8853a" stop-opacity="0"/>
+              </radialGradient>
+              <radialGradient id="moon-glow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#dde6f0" stop-opacity="1"/>
+                <stop offset="60%" stop-color="#b8c8e0" stop-opacity="0.6"/>
+                <stop offset="100%" stop-color="#b8c8e0" stop-opacity="0"/>
+              </radialGradient>
+              <linearGradient id="gold-stroke" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#d4af52"/>
+                <stop offset="50%" stop-color="#f0d480"/>
+                <stop offset="100%" stop-color="#a8853a"/>
+              </linearGradient>
+              <path id="text-circle" d="M 230,40 a 190,190 0 1,1 0,380 a 190,190 0 1,1 0,-380" fill="none"/>
+            </defs>
+
+            <circle cx="230" cy="230" r="220" fill="url(#cosmos-bg)"/>
+
+            <circle cx="230" cy="230" r="215" fill="none" stroke="url(#gold-stroke)" stroke-width="0.6" opacity="0.5"/>
+            <circle cx="230" cy="230" r="195" fill="none" stroke="#a8853a" stroke-width="0.4" opacity="0.4"/>
+            <circle cx="230" cy="230" r="190" fill="none" stroke="#d4af52" stroke-width="0.5" opacity="0.6"/>
+
+            <text font-family="Cinzel, serif" font-size="8" fill="#a8853a" letter-spacing="3" font-weight="500" opacity="0.7">
+              <textPath href="#text-circle" startOffset="0%">·  VISITA  INTERIORA  TERRAE  ·  RECTIFICANDO  INVENIES  ·  </textPath>
+            </text>
+
+            <g fill="#d4af52">
+              <circle cx="230" cy="20" r="2.5"/>
+              <circle cx="440" cy="230" r="2.5"/>
+              <circle cx="230" cy="440" r="2.5"/>
+              <circle cx="20" cy="230" r="2.5"/>
+            </g>
+
+            <circle cx="230" cy="230" r="170" fill="none" stroke="#a8853a" stroke-width="0.3" stroke-dasharray="1 3" opacity="0.5"/>
+
+            <g transform="translate(230, 60)">
+              <circle cx="0" cy="0" r="20" fill="url(#sun-glow)"/>
+              <text x="0" y="0" text-anchor="middle" dominant-baseline="central" font-family="serif" font-size="28" fill="#fff" font-weight="500">☉</text>
+            </g>
+
+            <g transform="translate(363, 124)">
+              <circle cx="0" cy="0" r="16" fill="url(#moon-glow)"/>
+              <text x="0" y="0" text-anchor="middle" dominant-baseline="central" font-family="serif" font-size="22" fill="#dde6f0">☽</text>
+            </g>
+
+            <g transform="translate(396, 268)">
+              <circle cx="0" cy="0" r="16" fill="rgba(196, 90, 58, 0.15)" stroke="#c45a3a" stroke-width="0.5"/>
+              <text x="0" y="0" text-anchor="middle" dominant-baseline="central" font-family="serif" font-size="22" fill="#c45a3a">♂</text>
+            </g>
+
+            <g transform="translate(304, 383)">
+              <circle cx="0" cy="0" r="16" fill="rgba(138, 192, 184, 0.12)" stroke="#8ac0b8" stroke-width="0.5"/>
+              <text x="0" y="0" text-anchor="middle" dominant-baseline="central" font-family="serif" font-size="22" fill="#8ac0b8">☿</text>
+            </g>
+
+            <g transform="translate(156, 383)">
+              <circle cx="0" cy="0" r="16" fill="rgba(154, 122, 192, 0.12)" stroke="#9a7ac0" stroke-width="0.5"/>
+              <text x="0" y="0" text-anchor="middle" dominant-baseline="central" font-family="serif" font-size="22" fill="#9a7ac0">♃</text>
+            </g>
+
+            <g transform="translate(64, 268)">
+              <circle cx="0" cy="0" r="16" fill="rgba(212, 165, 120, 0.12)" stroke="#d4a578" stroke-width="0.5"/>
+              <text x="0" y="0" text-anchor="middle" dominant-baseline="central" font-family="serif" font-size="22" fill="#d4a578">♀</text>
+            </g>
+
+            <g transform="translate(97, 124)">
+              <circle cx="0" cy="0" r="16" fill="rgba(106, 112, 138, 0.15)" stroke="#6a708a" stroke-width="0.5"/>
+              <text x="0" y="0" text-anchor="middle" dominant-baseline="central" font-family="serif" font-size="22" fill="#a8b0c8">♄</text>
+            </g>
+
+            <circle cx="230" cy="230" r="120" fill="none" stroke="#a8853a" stroke-width="0.3" opacity="0.4"/>
+            <circle cx="230" cy="230" r="100" fill="none" stroke="#a8853a" stroke-width="0.3" opacity="0.3"/>
+
+            <circle cx="200" cy="200" r="65" fill="none" stroke="#d4af52" stroke-width="0.4" opacity="0.4"/>
+            <circle cx="260" cy="200" r="65" fill="none" stroke="#b8c8e0" stroke-width="0.4" opacity="0.4"/>
+
+            <g transform="translate(40, 230)">
+              <path d="M 0 0 Q 12 -8 22 -4 L 32 -2 Q 40 0 38 6 L 30 8 Q 18 10 8 6 Z"
+                    fill="none" stroke="#d4af52" stroke-width="0.6" opacity="0.7"/>
+              <path d="M 22 -4 L 22 8" stroke="#d4af52" stroke-width="0.3" opacity="0.5"/>
+              <text x="-2" y="2" text-anchor="end" font-family="Cinzel, serif" font-size="7" fill="#a8853a" letter-spacing="1.5" font-weight="600">IN</text>
+            </g>
+
+            <g transform="translate(420, 230) scale(-1, 1)">
+              <path d="M 0 0 Q 12 -8 22 -4 L 32 -2 Q 40 0 38 6 L 30 8 Q 18 10 8 6 Z"
+                    fill="none" stroke="#d4af52" stroke-width="0.6" opacity="0.7"/>
+              <path d="M 22 -4 L 22 8" stroke="#d4af52" stroke-width="0.3" opacity="0.5"/>
+              <text x="-2" y="2" text-anchor="end" font-family="Cinzel, serif" font-size="7" fill="#a8853a" letter-spacing="1.5" font-weight="600">OUT</text>
+            </g>
+
+            <g>
+              <path d="M 230 110 L 238 225 L 230 230 L 222 225 Z" fill="#d4af52" opacity="0.9"/>
+              <path d="M 230 350 L 238 235 L 230 230 L 222 235 Z" fill="#d4af52" opacity="0.5"/>
+              <path d="M 110 230 L 225 222 L 230 230 L 225 238 Z" fill="#d4af52" opacity="0.7"/>
+              <path d="M 350 230 L 235 222 L 230 230 L 235 238 Z" fill="#d4af52" opacity="0.7"/>
+              <path d="M 152 152 L 222 222 L 230 230 L 222 222 Z" fill="#a8853a" opacity="0.4"/>
+              <path d="M 308 152 L 238 222 L 230 230 L 238 222 Z" fill="#a8853a" opacity="0.4"/>
+              <path d="M 152 308 L 222 238 L 230 230 L 222 238 Z" fill="#a8853a" opacity="0.4"/>
+              <path d="M 308 308 L 238 238 L 230 230 L 238 238 Z" fill="#a8853a" opacity="0.4"/>
+            </g>
+
+            <g>
+              <line x1="230" y1="230" x2="183" y2="267" stroke="#c45a3a" stroke-width="1.8" stroke-linecap="round"/>
+              <polygon points="183,267 178,260 188,264" fill="#c45a3a"/>
+              <line x1="230" y1="230" x2="277" y2="193" stroke="#8a8770" stroke-width="0.6" stroke-linecap="round" stroke-dasharray="2 3" opacity="0.6"/>
+            </g>
+
+            <circle cx="230" cy="230" r="14" fill="#0a0e1f" stroke="#d4af52" stroke-width="0.6"/>
+            <circle cx="230" cy="230" r="11" fill="none" stroke="#a8853a" stroke-width="0.4" opacity="0.6"/>
+
+            <text x="230" y="223" text-anchor="middle" font-family="Cinzel, serif" font-size="6.5" fill="#a8853a" letter-spacing="1.5" font-weight="600">DAY</text>
+            <text x="230" y="237" text-anchor="middle" font-family="Italiana, Cinzel, serif" font-size="16" fill="#f0d480" font-weight="500">8</text>
+            <text x="230" y="248" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="5.5" fill="#8a8770">of 14</text>
+
+            <g transform="translate(230, 410)">
+              <circle cx="0" cy="0" r="14" fill="url(#moon-glow)"/>
+              <path d="M 0 -10 A 10 10 0 1 0 0 10 A 7 7 0 1 1 0 -10" fill="#0a0e1f" opacity="0.6"/>
+              <text x="0" y="2" text-anchor="middle" dominant-baseline="central" font-family="serif" font-size="14" fill="#dde6f0">☽</text>
+            </g>
+
+            <g transform="translate(230, 432)">
+              <line x1="-4" y1="0" x2="4" y2="0" stroke="#d4af52" stroke-width="0.3" opacity="0.5"/>
+              <line x1="0" y1="-3" x2="0" y2="3" stroke="#d4af52" stroke-width="0.3" opacity="0.5"/>
+            </g>
+          </svg>
+
+          <div class="mandala-key">
+            <span class="dot" style="background:#f0c14a"></span>
+            <span class="dot" style="background:#b8c8e0"></span>
+            <span class="dot" style="background:#c45a3a"></span>
+            <span class="dot" style="background:#8ac0b8"></span>
+            <span class="dot" style="background:#9a7ac0"></span>
+            <span class="dot" style="background:#d4a578"></span>
+            <span class="dot" style="background:#a8b0c8"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================== THIS PERIOD ================== -->
+      <div class="section">
+        <div class="section-head">
+          <h2>This Period, <em>Aug 22 – Sep 4.</em></h2>
+          <div class="meta">Next paycheck: <b>Aug 28 · 5 days</b> · Auto-allocate on</div>
+        </div>
+        <div class="work">
+          <div class="work-left">
+            <div class="roman">AUG 22 – SEP 4 · 14 DAYS</div>
+            <h3>From one paycheck, a plan.</h3>
+            <div class="sub">When your paycheck arrives, money moves into your envelopes automatically. You don't need to confirm each time.</div>
+            <div class="prima">
+              <div class="prima-label">Next Paycheck</div>
+              <div class="prima-amount"><span class="sym">$</span>2,400.00</div>
+              <div class="prima-meta">Arrives <b>Thursday, Aug 28</b> · <b>Chase Checking</b> •••• 4218</div>
+            </div>
+          </div>
+          <div class="work-right">
+            <div class="label">Will be distributed across 7 envelopes</div>
+            <div class="distill-list">
+              <div class="distill-row">
+                <span class="glyph" style="color:var(--sol)">☉</span>
+                <span class="name">Rent</span>
+                <div class="track"><span style="width:40%; background:var(--sol)"></span></div>
+                <span class="amount"><span class="sym">$</span>960</span>
+                <span class="pct">40%</span>
+              </div>
+              <div class="distill-row">
+                <span class="glyph" style="color:var(--luna)">☽</span>
+                <span class="name">Groceries</span>
+                <div class="track"><span style="width:20%; background:var(--luna)"></span></div>
+                <span class="amount"><span class="sym">$</span>480</span>
+                <span class="pct">20%</span>
+              </div>
+              <div class="distill-row">
+                <span class="glyph" style="color:var(--mercury)">☿</span>
+                <span class="name">Utilities</span>
+                <div class="track"><span style="width:8%; background:var(--mercury)"></span></div>
+                <span class="amount"><span class="sym">$</span>192</span>
+                <span class="pct">8%</span>
+              </div>
+              <div class="distill-row">
+                <span class="glyph" style="color:var(--venus)">♀</span>
+                <span class="name">Dining & Joy</span>
+                <div class="track"><span style="width:4%; background:var(--venus)"></span></div>
+                <span class="amount"><span class="sym">$</span>96</span>
+                <span class="pct">4%</span>
+              </div>
+              <div class="distill-row">
+                <span class="glyph" style="color:var(--mars)">♂</span>
+                <span class="name">Buffer</span>
+                <div class="track"><span style="width:6%; background:var(--mars)"></span></div>
+                <span class="amount"><span class="sym">$</span>144</span>
+                <span class="pct">6%</span>
+              </div>
+              <div class="distill-row">
+                <span class="glyph" style="color:var(--jupiter)">♃</span>
+                <span class="name">Savings</span>
+                <div class="track"><span style="width:18%; background:var(--jupiter)"></span></div>
+                <span class="amount"><span class="sym">$</span>432</span>
+                <span class="pct">18%</span>
+              </div>
+              <div class="distill-row">
+                <span class="glyph" style="color:var(--saturn)">♄</span>
+                <span class="name">Debt</span>
+                <div class="track"><span style="width:4%; background:var(--saturn)"></span></div>
+                <span class="amount"><span class="sym">$</span>96</span>
+                <span class="pct">4%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================== ENVELOPES ================== -->
+      <div class="section">
+        <div class="section-head">
+          <h2>Envelopes, <em>this period.</em></h2>
+          <div class="meta">7 envelopes · <b>2 over limit</b> · 1 near limit</div>
+        </div>
+        <div class="vessels">
+          <div class="vessel">
+            <div class="vessel-glyph" style="color:var(--sol)">☉</div>
+            <div class="vessel-name">
+              <span class="nm">Rent</span>
+            </div>
+            <div class="vessel-aspect">
+              <div class="track"><div class="fill ok" style="width:100%"></div></div>
+              <div class="nums"><span class="now">$800.00</span><span>of $800.00</span></div>
+            </div>
+            <div class="vessel-status">
+              <span class="lbl">Status</span>
+              <span class="val ok">Complete</span>
+              <span class="sub">paid Aug 23</span>
+            </div>
+          </div>
+
+          <div class="vessel">
+            <div class="vessel-glyph" style="color:var(--luna)">☽</div>
+            <div class="vessel-name">
+              <span class="nm">Groceries</span>
+            </div>
+            <div class="vessel-aspect">
+              <div class="track"><div class="fill neg" style="width:100%"></div></div>
+              <div class="nums"><span class="now">$612.00</span><span>of $400.00</span></div>
+            </div>
+            <div class="vessel-status">
+              <span class="lbl">Status</span>
+              <span class="val neg">Over limit</span>
+              <span class="sub">+$212 over</span>
+            </div>
+          </div>
+
+          <div class="vessel">
+            <div class="vessel-glyph" style="color:var(--mercury)">☿</div>
+            <div class="vessel-name">
+              <span class="nm">Utilities</span>
+            </div>
+            <div class="vessel-aspect">
+              <div class="track"><div class="fill warn" style="width:90%"></div></div>
+              <div class="nums"><span class="now">$180.00</span><span>of $200.00</span></div>
+            </div>
+            <div class="vessel-status">
+              <span class="lbl">Status</span>
+              <span class="val warn">90%</span>
+              <span class="sub">5 days remain</span>
+            </div>
+          </div>
+
+          <div class="vessel">
+            <div class="vessel-glyph" style="color:var(--venus)">♀</div>
+            <div class="vessel-name">
+              <span class="nm">Dining & Joy</span>
+            </div>
+            <div class="vessel-aspect">
+              <div class="track"><div class="fill warn" style="width:78%"></div></div>
+              <div class="nums"><span class="now">$78.00</span><span>of $100.00</span></div>
+            </div>
+            <div class="vessel-status">
+              <span class="lbl">Status</span>
+              <span class="val warn">78%</span>
+              <span class="sub">5 days remain</span>
+            </div>
+          </div>
+
+          <div class="vessel">
+            <div class="vessel-glyph" style="color:var(--mars)">♂</div>
+            <div class="vessel-name">
+              <span class="nm">Buffer</span>
+            </div>
+            <div class="vessel-aspect">
+              <div class="track"><div class="fill neg" style="width:100%"></div></div>
+              <div class="nums"><span class="now">$96.00</span><span>of $96.00</span></div>
+            </div>
+            <div class="vessel-status">
+              <span class="lbl">Status</span>
+              <span class="val neg">Over limit</span>
+              <span class="sub">−$4 over</span>
+            </div>
+          </div>
+
+          <div class="vessel">
+            <div class="vessel-glyph" style="color:var(--jupiter)">♃</div>
+            <div class="vessel-name">
+              <span class="nm">Savings</span>
+            </div>
+            <div class="vessel-aspect">
+              <div class="track"><div class="fill ok" style="width:34%"></div></div>
+              <div class="nums"><span class="now">$1,360.00</span><span>of $4,000.00</span></div>
+            </div>
+            <div class="vessel-status">
+              <span class="lbl">Status</span>
+              <span class="val ok">34%</span>
+              <span class="sub">$20k by Feb '26</span>
+            </div>
+          </div>
+
+          <div class="vessel">
+            <div class="vessel-glyph" style="color:var(--saturn)">♄</div>
+            <div class="vessel-name">
+              <span class="nm">Debt</span>
+            </div>
+            <div class="vessel-aspect">
+              <div class="track"><div class="fill ok" style="width:42%"></div></div>
+              <div class="nums"><span class="now">$2,021.00</span><span>of $4,820.00</span></div>
+            </div>
+            <div class="vessel-status">
+              <span class="lbl">Status</span>
+              <span class="val ok">42%</span>
+              <span class="sub">free by May '26</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================== CALENDAR + CHARTS ================== -->
+      <div class="section two-col">
+        <div class="almanac">
+          <div class="alm-head">
+            <h3>September, <em>at a glance.</em></h3>
+            <div class="meta">Biweekly · <b>3 paydays</b> · 1 goal target</div>
+          </div>
+          <div class="alm-grid">
+            <div class="alm-dow"><span class="glyph">☉</span>Sun</div>
+            <div class="alm-dow"><span class="glyph">☽</span>Mon</div>
+            <div class="alm-dow"><span class="glyph">♂</span>Tue</div>
+            <div class="alm-dow"><span class="glyph">☿</span>Wed</div>
+            <div class="alm-dow"><span class="glyph">♃</span>Thu</div>
+            <div class="alm-dow"><span class="glyph">♀</span>Fri</div>
+            <div class="alm-dow"><span class="glyph">♄</span>Sat</div>
+
+            <div class="alm-cell muted"><span class="day-glyph">☉</span>25</div>
+            <div class="alm-cell muted"><span class="day-glyph">☽</span>26</div>
+            <div class="alm-cell muted"><span class="day-glyph">♂</span>27</div>
+            <div class="alm-cell muted"><span class="day-glyph">☿</span>28</div>
+            <div class="alm-cell muted"><span class="day-glyph">♃</span>29</div>
+            <div class="alm-cell muted"><span class="day-glyph">♀</span>30</div>
+            <div class="alm-cell muted"><span class="day-glyph">♄</span>31</div>
+
+            <div class="alm-cell"><span class="day-glyph">☉</span>1</div>
+            <div class="alm-cell"><span class="day-glyph">☽</span>2</div>
+            <div class="alm-cell"><span class="day-glyph">♂</span>3</div>
+            <div class="alm-cell pay"><span class="day-glyph">☿</span>4<span class="amount">$2,400</span></div>
+            <div class="alm-cell"><span class="day-glyph">♃</span>5</div>
+            <div class="alm-cell"><span class="day-glyph">♀</span>6</div>
+            <div class="alm-cell"><span class="day-glyph">♄</span>7</div>
+
+            <div class="alm-cell"><span class="day-glyph">☉</span>8</div>
+            <div class="alm-cell"><span class="day-glyph">☽</span>9</div>
+            <div class="alm-cell"><span class="day-glyph">♂</span>10</div>
+            <div class="alm-cell"><span class="day-glyph">☿</span>11</div>
+            <div class="alm-cell"><span class="day-glyph">♃</span>12</div>
+            <div class="alm-cell"><span class="day-glyph">♀</span>13</div>
+            <div class="alm-cell"><span class="day-glyph">♄</span>14</div>
+
+            <div class="alm-cell"><span class="day-glyph">☉</span>15</div>
+            <div class="alm-cell"><span class="day-glyph">☽</span>16</div>
+            <div class="alm-cell"><span class="day-glyph">♂</span>17</div>
+            <div class="alm-cell pay"><span class="day-glyph">☿</span>18<span class="amount">$2,400</span></div>
+            <div class="alm-cell"><span class="day-glyph">♃</span>19</div>
+            <div class="alm-cell"><span class="day-glyph">♀</span>20</div>
+            <div class="alm-cell"><span class="day-glyph">♄</span>21</div>
+
+            <div class="alm-cell today"><span class="day-glyph">☉</span>22</div>
+            <div class="alm-cell"><span class="day-glyph">☽</span>23</div>
+            <div class="alm-cell"><span class="day-glyph">♂</span>24</div>
+            <div class="alm-cell"><span class="day-glyph">☿</span>25</div>
+            <div class="alm-cell goal"><span class="day-glyph">♃</span>26<span class="amount">$20k</span></div>
+            <div class="alm-cell"><span class="day-glyph">♀</span>27</div>
+            <div class="alm-cell"><span class="day-glyph">♄</span>28</div>
+
+            <div class="alm-cell"><span class="day-glyph">☉</span>29</div>
+            <div class="alm-cell"><span class="day-glyph">☽</span>30</div>
+          </div>
+
+          <div class="alm-legend">
+            <div class="it"><span class="swatch pay"></span>Payday</div>
+            <div class="it"><span class="swatch goal"></span>Goal target</div>
+            <div class="it"><span class="swatch today"></span>Today</div>
+          </div>
+
+          <div class="moon-panel">
+            <svg class="moon-svg" viewBox="0 0 56 56">
+              <defs>
+                <radialGradient id="mp-glow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#dde6f0" stop-opacity="1"/>
+                  <stop offset="60%" stop-color="#b8c8e0" stop-opacity="0.5"/>
+                  <stop offset="100%" stop-color="#b8c8e0" stop-opacity="0"/>
+                </radialGradient>
+              </defs>
+              <circle cx="28" cy="28" r="22" fill="url(#mp-glow)"/>
+              <circle cx="28" cy="28" r="16" fill="#dde6f0"/>
+              <path d="M 28 12 A 16 16 0 0 1 28 44 A 8 16 0 0 0 28 12" fill="#0a0e1f" opacity="0.85"/>
+              <circle cx="28" cy="28" r="16" fill="none" stroke="#5a5a78" stroke-width="0.3"/>
+            </svg>
+            <div class="moon-text">
+              <div class="lbl">Moon</div>
+              <div class="nm">First Quarter</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="divination">
+          <div class="div-head">
+            <h4>Allocation</h4>
+            <div class="sub">Where each paycheck goes. <b>$2,400</b> split across 7 envelopes.</div>
+          </div>
+          <div class="ourob">
+            <svg class="ourob-svg" viewBox="0 0 200 200">
+              <defs>
+                <linearGradient id="og1" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stop-color="#f0c14a"/>
+                  <stop offset="100%" stop-color="#a8853a"/>
+                </linearGradient>
+              </defs>
+              <circle cx="100" cy="100" r="92" fill="none" stroke="#2a3158" stroke-width="0.5"/>
+              <circle cx="100" cy="100" r="68" fill="none" stroke="#2a3158" stroke-width="0.5"/>
+
+              <path d="M 100 8 A 92 92 0 0 1 192 100 L 168 100 A 68 68 0 0 0 100 32 Z" fill="url(#og1)"/>
+              <path d="M 192 100 A 92 92 0 0 1 124.6 184.8 L 116.2 164.0 A 68 68 0 0 0 168 100 Z" fill="#b8c8e0"/>
+              <path d="M 124.6 184.8 A 92 92 0 0 1 24.4 162.5 L 49.7 137.5 A 68 68 0 0 0 116.2 164.0 Z" fill="#9a7ac0"/>
+              <path d="M 24.4 162.5 A 92 92 0 0 1 12.0 117.4 L 35.5 113.7 A 68 68 0 0 0 49.7 137.5 Z" fill="#8ac0b8"/>
+              <path d="M 12.0 117.4 A 92 92 0 0 1 8 100 L 32 100 A 68 68 0 0 0 35.5 113.7 Z" fill="#c45a3a"/>
+              <path d="M 8 100 A 92 92 0 0 1 12.0 82.6 L 35.5 86.3 A 68 68 0 0 0 32 100 Z" fill="#d4a578"/>
+              <path d="M 12.0 82.6 A 92 92 0 0 1 100 8 L 100 32 A 68 68 0 0 0 35.5 86.3 Z" fill="#a8b0c8"/>
+
+              <circle cx="100" cy="100" r="40" fill="#0a0e1f" stroke="#a8853a" stroke-width="0.4"/>
+              <text x="100" y="92" text-anchor="middle" font-family="Cinzel, serif" font-size="7" fill="#a8853a" letter-spacing="1.5" font-weight="600">TOTAL</text>
+              <text x="100" y="108" text-anchor="middle" font-family="Italiana, serif" font-size="13" fill="#f0d480">$2,400</text>
+              <text x="100" y="120" text-anchor="middle" font-family="Cinzel, serif" font-size="6.5" fill="#8a8770" letter-spacing="1.2">EACH PAYCHECK</text>
+
+              <g stroke="#a8853a" stroke-width="0.4" opacity="0.6">
+                <line x1="100" y1="2" x2="100" y2="8"/>
+                <line x1="100" y1="192" x2="100" y2="198"/>
+                <line x1="2" y1="100" x2="8" y2="100"/>
+                <line x1="192" y1="100" x2="198" y2="100"/>
+              </g>
+            </svg>
+            <div class="ourob-legend">
+              <div class="ourob-row">
+                <span class="glyph" style="color:var(--sol)">☉</span>
+                <span class="nm">Rent</span>
+                <span class="pct">40%</span>
+              </div>
+              <div class="ourob-row">
+                <span class="glyph" style="color:var(--luna)">☽</span>
+                <span class="nm">Groceries</span>
+                <span class="pct">20%</span>
+              </div>
+              <div class="ourob-row">
+                <span class="glyph" style="color:var(--jupiter)">♃</span>
+                <span class="nm">Savings</span>
+                <span class="pct">18%</span>
+              </div>
+              <div class="ourob-row">
+                <span class="glyph" style="color:var(--mercury)">☿</span>
+                <span class="nm">Utilities</span>
+                <span class="pct">8%</span>
+              </div>
+              <div class="ourob-row">
+                <span class="glyph" style="color:var(--mars)">♂</span>
+                <span class="nm">Buffer</span>
+                <span class="pct">6%</span>
+              </div>
+              <div class="ourob-row">
+                <span class="glyph" style="color:var(--venus)">♀</span>
+                <span class="nm">Dining & Joy</span>
+                <span class="pct">4%</span>
+              </div>
+              <div class="ourob-row">
+                <span class="glyph" style="color:var(--saturn)">♄</span>
+                <span class="nm">Debt</span>
+                <span class="pct">4%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="trajectory">
+            <div class="lbl">Net Worth Projection · 12 Months</div>
+            <svg class="trajectory-svg" viewBox="0 0 400 100" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="tr-grad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stop-color="#a8853a" stop-opacity="0.2"/>
+                  <stop offset="50%" stop-color="#f0d480" stop-opacity="0.8"/>
+                  <stop offset="100%" stop-color="#f0d480"/>
+                </linearGradient>
+              </defs>
+              <g fill="#d4af52" opacity="0.4">
+                <circle cx="60" cy="20" r="0.8"/>
+                <circle cx="120" cy="40" r="0.6"/>
+                <circle cx="180" cy="15" r="0.7"/>
+                <circle cx="240" cy="35" r="0.5"/>
+                <circle cx="320" cy="22" r="0.8"/>
+              </g>
+              <path d="M 0 75 L 30 70 L 60 64 L 100 56 L 140 48 L 180 40 L 220 33 L 260 27 L 300 22 L 340 18 L 380 14 L 400 12"
+                    fill="none" stroke="url(#tr-grad)" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M 0 75 L 30 70 L 60 64 L 100 56 L 140 48 L 180 40 L 220 33 L 260 27 L 300 22 L 340 18 L 380 14 L 400 12 L 400 100 L 0 100 Z"
+                    fill="url(#tr-grad)" opacity="0.1"/>
+              <line x1="30" y1="0" x2="30" y2="100" stroke="#d4af52" stroke-width="0.4" stroke-dasharray="2 3" opacity="0.6"/>
+              <circle cx="30" cy="70" r="3" fill="#f0d480"/>
+              <circle cx="30" cy="70" r="6" fill="none" stroke="#d4af52" stroke-width="0.5" opacity="0.5"/>
+              <circle cx="320" cy="22" r="4" fill="none" stroke="#9a7ac0" stroke-width="0.6"/>
+              <circle cx="320" cy="22" r="1.5" fill="#9a7ac0"/>
+            </svg>
+            <div class="trajectory-foot">
+              <span><span class="now">Now</span> · $84,210</span>
+              <span>Debt payoff · May '26</span>
+              <span>$20k savings · <span class="now">Feb '26</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================== RECENT TRANSACTIONS ================== -->
+      <div class="section">
+        <div class="section-head">
+          <h2>Recent Transactions, <em>this period.</em></h2>
+          <div class="meta"><b>23 entries</b> this period · 2 uncategorized</div>
+        </div>
+        <div class="chronicle">
+          <div class="chron-day">Today · Aug 30</div>
+          <div class="tx">
+            <div class="tx-glyph" style="color:var(--mercury)">☿</div>
+            <div class="tx-name">H-E-B · Groceries</div>
+            <div class="tx-amount neg">−$87.42</div>
+          </div>
+          <div class="tx">
+            <div class="tx-glyph" style="color:var(--venus)">♀</div>
+            <div class="tx-name">Pappasito's · Dinner with Ana</div>
+            <div class="tx-amount neg">−$48.20</div>
+          </div>
+          <div class="chron-day">Yesterday · Aug 29</div>
+          <div class="tx">
+            <div class="tx-glyph" style="color:var(--luna)">☽</div>
+            <div class="tx-name">Costco · Stock-up</div>
+            <div class="tx-amount neg">−$184.16</div>
+          </div>
+          <div class="tx">
+            <div class="tx-glyph" style="color:var(--mercury)">☿</div>
+            <div class="tx-name">Spectrum · Internet</div>
+            <div class="tx-amount muted">−$75.00 · auto</div>
+          </div>
+          <div class="chron-day">Aug 27</div>
+          <div class="tx">
+            <div class="tx-glyph" style="color:var(--sol)">☉</div>
+            <div class="tx-name">Chase · Paycheck</div>
+            <div class="tx-amount pos">+$2,400.00</div>
+          </div>
+          <div class="tx">
+            <div class="tx-glyph" style="color:var(--saturn)">♄</div>
+            <div class="tx-name">Discover · Auto-pay</div>
+            <div class="tx-amount muted">−$96.00 · auto</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="colophon">
+        <span>Compass</span>
+        <span>2025 · Q3</span>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

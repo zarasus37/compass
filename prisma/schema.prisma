@@ -1,5 +1,5 @@
 // Compass — Prisma schema
-// Stage 2 scaffold: User model only. Full data model lands in Step 3 (per COORDINATION.md).
+// Cluster 1 (Pay Period 1.0) data model.
 // Money math: every monetary field uses integer cents (per spec — never floats).
 
 generator client {
@@ -35,6 +35,13 @@ model User {
   updatedAt       DateTime  @updatedAt
 
   sessions        Session[]
+  accounts        Account[]
+  envelopes       Envelope[]
+  transactions    Transaction[]
+  paySchedules    PaySchedule[]
+  goals           Goal[]
+  allocationPlans AllocationPlan[]
+  auditLog        AuditLog[]
 
   @@index([email])
 }
@@ -62,4 +69,221 @@ model Session {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+/// Where money lives. In v1 these are "connected" via the mock flow
+/// (Cluster 1 step 14). L2 routing (Plaid) is a future feature.
+model Account {
+  id            String   @id @default(cuid())
+  userId        String
+  name          String
+  /// checking | savings | credit | cash | other
+  type          String
+  /// Current balance in cents.
+  currentBalance Int     @default(0)
+  institution   String?
+  /// Last 4 digits of the account number, for display.
+  mask          String?
+  /// When L2 lands: whether the app can move money on this account.
+  routingEnabled Boolean  @default(false)
+  isArchived    Boolean  @default(false)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
+  paySchedules  PaySchedule[]
+
+  @@index([userId])
+}
+
+/// A vessel. The 7 default envelopes are seeded with planetary affiliation
+/// (D14) so each one carries a glyph + color (visual only — never labeled in copy).
+model Envelope {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  /// Target balance in cents (the cap / goal).
+  targetBalance   Int      @default(0)
+  /// Cached current balance. Recomputed on every transaction; kept in sync
+  /// by the auto-allocate engine and the transaction write path.
+  currentBalance  Int      @default(0)
+  /// sol | luna | mars | mercury | jupiter | venus | saturn — null for custom envelopes.
+  planet          String?
+  /// Color (hex) — for non-planetary custom envelopes.
+  color           String?
+  /// Icon — single character or short code. Defaults to the planetary glyph.
+  icon            String?
+  /// Optional destination account — the account money from this envelope "leaves to"
+  /// when L1 routing is armed.
+  destinationAccountId String?
+  /// Hard cap behavior: 0 = soft warning, 1 = hard block (D16 enforcement).
+  enforceHardCap  Boolean  @default(true)
+  /// Sort order in lists.
+  sortOrder       Int      @default(0)
+  isArchived      Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions    Transaction[]
+  allocationRules AllocationRule[]
+
+  @@index([userId])
+}
+
+/// The atomic money event. Amount is signed: +income, -expense, integer cents.
+/// `isPrimaMateria` is true for income transactions that trigger auto-allocate.
+model Transaction {
+  id              String   @id @default(cuid())
+  userId          String
+  accountId       String
+  /// Nullable — uncategorized transactions (e.g. imported before categorization).
+  envelopeId      String?
+  /// Signed: +income, -expense, in cents.
+  amount          Int
+  date            DateTime
+  payee           String
+  notes           String?
+  /// manual | csv | recurring | ai_suggested | routing
+  source          String   @default("manual")
+  /// Free-form JSON metadata (e.g. AI categorization suggestions, recurring rule id).
+  metadata        String   @default("{}")
+  /// True if this transaction is a paycheck that should trigger auto-allocate.
+  isPrimaMateria  Boolean  @default(false)
+  /// Set by the auto-allocate engine to indicate which plan produced this row.
+  fromPlanId      String?
+  /// Set by the auto-allocate engine to indicate the paycheck row that produced this row.
+  fromPaycheckId  String?
+  cleared         Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account         Account  @relation(fields: [accountId], references: [id])
+  envelope        Envelope? @relation(fields: [envelopeId], references: [id])
+
+  @@index([userId])
+  @@index([accountId])
+  @@index([envelopeId])
+  @@index([date])
+  @@index([userId, date])
+}
+
+/// The user's pay schedule — cadence + which account paychecks land in.
+/// Used to derive the period range and to schedule recurring paycheck detection.
+model PaySchedule {
+  id            String   @id @default(cuid())
+  userId        String
+  /// weekly | biweekly | semi_monthly | monthly
+  cadence       String
+  /// Default paycheck amount in cents.
+  amount        Int
+  /// Account paychecks land in.
+  accountId     String
+  /// Anchor date — usually the first known paycheck.
+  startDate     DateTime
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account       Account  @relation(fields: [accountId], references: [id])
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+/// A life goal the user is working toward. The "Your Direction" section.
+/// Top priority flag controls what shows in the dashboard hero.
+model Goal {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  description     String?
+  /// Target amount in cents.
+  targetAmount    Int
+  /// Cached current amount in cents.
+  currentAmount   Int      @default(0)
+  /// Optional target date.
+  targetDate      DateTime?
+  /// Which envelope funds this goal (e.g. "Savings" envelope → Emergency Fund goal).
+  envelopeId      String?
+  /// Which planet this goal is associated with — purely visual.
+  planet          String?
+  /// Hero priority — at most one per user (enforced in app code).
+  isPrimary       Boolean  @default(false)
+  sortOrder       Int      @default(0)
+  isArchived      Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isPrimary])
+}
+
+/// A user's allocation plan (D11/D12). When armed, every paycheck
+/// transaction triggers the rules silently — no confirm modal (D12).
+model AllocationPlan {
+  id            String   @id @default(cuid())
+  userId        String
+  /// envelope | zero_based | fifty_thirty_twenty | pay_yourself_first
+  strategyId    String   @default("envelope")
+  /// Armed: when true, every paycheck transaction runs the rules.
+  isArmed       Boolean  @default(false)
+  /// Optional human-readable name ("Mom's plan").
+  name          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rules         AllocationRule[]
+
+  @@index([userId])
+}
+
+/// One row per (plan, envelope) — the percentage of each paycheck that
+/// gets distributed into that envelope. Sums should be ≤ 100 (remainder
+/// goes to a default "buffer" or is held).
+model AllocationRule {
+  id          String   @id @default(cuid())
+  planId      String
+  envelopeId  String
+  /// 0–100. Integer percent.
+  pct         Int
+  /// Optional per-rule override: distribute a fixed amount in cents instead.
+  /// If both are set, the engine uses fixedCents if set, else pct of paycheck.
+  fixedCents  Int?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  plan        AllocationPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  envelope    Envelope       @relation(fields: [envelopeId], references: [id])
+
+  @@index([planId])
+  @@index([envelopeId])
+}
+
+/// Every L1+ action the system takes on the user's behalf. The
+/// "auto-allocate" engine writes here. The user can browse their
+/// audit log in a future cluster.
+model AuditLog {
+  id            String   @id @default(cuid())
+  userId        String
+  /// auto_allocate | plan_armed | plan_paused | plan_edited | envelope_created | ...
+  actionType    String
+  /// Free-form JSON describing what happened.
+  payload       String   @default("{}")
+  /// Snapshot of the user's AI tier at the time of the action.
+  aiTierAtTime  Int      @default(1)
+  createdAt     DateTime @default(now())
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([userId, createdAt])
 }

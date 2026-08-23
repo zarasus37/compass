@@ -167,6 +167,73 @@ export const BILLS_SEED: BillSeed[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// Debts — Cluster 1.9. Each debt has a current balance, an APR (in basis
+// points to avoid float math — 24.99% = 2499), a minimum monthly
+// payment, and the original balance (so the page can show progress).
+// The engine ranks them with snowball (smallest first) or avalanche
+// (highest APR first) and projects the payoff timeline given a monthly
+// extra payment.
+// ---------------------------------------------------------------------------
+
+export interface DebtSeed {
+  id: string;
+  name: string;
+  /** Current balance in cents. */
+  balanceCents: number;
+  /** Original balance when the debt was first tracked, in cents. */
+  originalBalanceCents: number;
+  /** Annual percentage rate, in basis points. 24.99% → 2499. */
+  aprBps: number;
+  /** Minimum monthly payment, in cents. */
+  minPaymentCents: number;
+  /** Day of month the bill is due (1-31). 0 if not on a schedule. */
+  dueDay: number;
+  /** Optional destination account. */
+  accountId: string | null;
+  sortOrder: number;
+  isArchived: boolean;
+}
+
+export const DEBTS_SEED: DebtSeed[] = [
+  {
+    id: "debt-discover",
+    name: "Discover It",
+    balanceCents: 4_820_00,        // $4,820
+    originalBalanceCents: 6_841_00, // started at $6,841
+    aprBps: 2499,                  // 24.99%
+    minPaymentCents: 96_00,        // $96
+    dueDay: 27,
+    accountId: "acct-chase",
+    sortOrder: 1,
+    isArchived: false,
+  },
+  {
+    id: "debt-chase-sapphire",
+    name: "Chase Sapphire",
+    balanceCents: 2_100_00,        // $2,100
+    originalBalanceCents: 2_100_00, // not paid down yet
+    aprBps: 2199,                  // 21.99%
+    minPaymentCents: 45_00,        // $45
+    dueDay: 22,
+    accountId: "acct-chase",
+    sortOrder: 2,
+    isArchived: false,
+  },
+  {
+    id: "debt-carecredit",
+    name: "CareCredit",
+    balanceCents: 1_240_00,        // $1,240
+    originalBalanceCents: 4_500_00,
+    aprBps: 0,                     // 0% promo
+    minPaymentCents: 0,            // pay in full this month
+    dueDay: 5,
+    accountId: "acct-chase",
+    sortOrder: 3,
+    isArchived: false,
+  },
+];
+
+// ---------------------------------------------------------------------------
 // Allocation plan — the seven default rules (Envelope strategy).
 // Each rule tells the engine what to do with a paycheck when it arrives.
 // Order matters: percent + fixed rules run in `priority` order, then any

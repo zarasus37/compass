@@ -1,0 +1,1156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Compass — Mockup v3 (Editorial)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f7f3ea;
+      --bg-deep: #efe9dc;
+      --surface: #ffffff;
+      --surface-2: #faf7ef;
+      --line: #e3dccb;
+      --line-soft: #ece5d4;
+      --ink: #1a1814;
+      --ink-2: #4a443c;
+      --ink-3: #7a7066;
+      --ink-4: #a89e8e;
+      --brand: #0c5e58;
+      --brand-deep: #0a4d48;
+      --brand-soft: #d3e8e4;
+      --brand-ink: #0a3b37;
+      --terracotta: #b04a1c;
+      --terracotta-soft: #f5d8c2;
+      --terracotta-ink: #7a3210;
+      --amber: #a06a14;
+      --amber-soft: #f3e0bd;
+      --amber-ink: #6a4410;
+      --pos: #2d6a3c;
+      --pos-soft: #d8eadc;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: "Inter Tight", -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      background-image:
+        radial-gradient(at 0% 0%, rgba(12, 94, 88, 0.04) 0%, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(176, 74, 28, 0.03) 0%, transparent 50%);
+    }
+    .mono { font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; font-feature-settings: "tnum" 1, "zero" 1; }
+    .serif { font-family: "DM Serif Display", "Times New Roman", serif; font-weight: 400; }
+    .app { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
+
+    /* SIDEBAR */
+    aside {
+      background: var(--surface-2);
+      border-right: 1px solid var(--line);
+      padding: 24px 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+    .sidebar-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 4px 4px;
+    }
+    .brand-mark {
+      display: flex; align-items: baseline; gap: 8px;
+    }
+    .brand-mark .logo {
+      width: 30px; height: 30px;
+      display: grid; place-items: center;
+      color: var(--brand);
+    }
+    .brand-mark .logo svg { width: 28px; height: 28px; }
+    .brand-mark .word {
+      font-family: "DM Serif Display", serif;
+      font-size: 19px;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+    }
+    .collapse {
+      width: 26px; height: 26px;
+      border-radius: 6px;
+      background: transparent;
+      border: 1px solid var(--line);
+      display: grid; place-items: center;
+      color: var(--ink-3);
+      cursor: pointer;
+    }
+    .collapse svg { width: 12px; height: 12px; stroke-width: 2; }
+
+    .nav-section { display: flex; flex-direction: column; gap: 2px; }
+    .nav-label {
+      font-family: "Inter Tight", sans-serif;
+      font-size: 10px; font-weight: 700;
+      color: var(--ink-3);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 0 10px 8px;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 7px 10px;
+      border-radius: 8px;
+      color: var(--ink-2);
+      font-size: 13.5px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .nav-item:hover { background: var(--bg-deep); color: var(--ink); }
+    .nav-item.active { background: var(--brand-soft); color: var(--brand-ink); }
+    .nav-item svg { width: 16px; height: 16px; stroke-width: 1.5; flex-shrink: 0; }
+    .nav-item .badge {
+      margin-left: auto;
+      background: var(--terracotta-soft);
+      color: var(--terracotta-ink);
+      font-size: 10px; font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 999px;
+    }
+    .nav-item .pill-go {
+      margin-left: auto;
+      font-size: 9.5px; font-weight: 700;
+      color: var(--brand);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .me {
+      margin-top: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex; align-items: center; gap: 10px;
+      background: var(--surface);
+    }
+    .me-avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--brand) 0%, #1d8a7e 100%);
+      color: white;
+      display: grid; place-items: center;
+      font-weight: 600; font-size: 13px;
+    }
+    .me-info { display: flex; flex-direction: column; min-width: 0; }
+    .me-name { font-weight: 600; font-size: 13px; }
+    .me-sub { font-size: 10.5px; color: var(--ink-3); }
+
+    /* MAIN */
+    main { padding: 56px 64px 80px; max-width: 1320px; }
+
+    /* MASTHEAD */
+    .masthead {
+      display: flex; align-items: baseline; justify-content: space-between;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 56px;
+    }
+    .masthead-left { display: flex; align-items: baseline; gap: 18px; }
+    .masthead h1 {
+      font-family: "DM Serif Display", serif;
+      font-weight: 400;
+      font-size: 28px;
+      letter-spacing: -0.015em;
+      margin: 0;
+    }
+    .masthead h1 em {
+      font-style: italic;
+      color: var(--ink-2);
+    }
+    .masthead .date {
+      font-size: 11.5px;
+      color: var(--ink-3);
+      font-weight: 500;
+      letter-spacing: 0.04em;
+    }
+    .masthead-right { display: flex; align-items: center; gap: 10px; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--ink-2);
+    }
+    .pill svg { width: 12px; height: 12px; stroke-width: 2; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--ink);
+      color: var(--bg);
+      border: 0;
+      border-radius: 999px;
+      padding: 9px 16px;
+      font-family: inherit;
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      letter-spacing: 0.01em;
+    }
+    .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+
+    /* HERO — north star number */
+    .hero {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap: 64px;
+      margin-bottom: 64px;
+      align-items: end;
+    }
+    .north-star {
+      display: flex; flex-direction: column;
+    }
+    .north-eyebrow {
+      font-size: 10.5px; font-weight: 700;
+      color: var(--ink-3);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+    .north-amount {
+      font-family: "DM Serif Display", serif;
+      font-size: 96px;
+      font-weight: 400;
+      line-height: 0.95;
+      letter-spacing: -0.03em;
+      color: var(--ink);
+      font-feature-settings: "tnum" 1;
+    }
+    .north-amount .cents {
+      font-size: 0.5em;
+      color: var(--ink-3);
+      vertical-align: 0.4em;
+      margin-left: 4px;
+    }
+    .north-meta {
+      display: flex; align-items: center; gap: 14px;
+      margin-top: 18px;
+      font-size: 13px;
+      color: var(--ink-2);
+    }
+    .north-meta .delta { display: inline-flex; align-items: center; gap: 5px; color: var(--pos); font-weight: 600; }
+    .north-meta .delta svg { width: 12px; height: 12px; stroke-width: 2.5; }
+    .north-meta .sep { width: 4px; height: 4px; background: var(--ink-4); border-radius: 50%; }
+
+    /* COMPASS DIAL */
+    .dial-wrap {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 18px;
+    }
+    .dial-svg { width: 220px; height: 220px; }
+    .dial-label {
+      font-size: 10.5px; font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+    }
+    .dial-readout {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px;
+      color: var(--ink-2);
+      text-align: center;
+      letter-spacing: 0.04em;
+    }
+    .dial-readout b {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    /* PERIOD DIALOGUE — full width, editorial */
+    .period {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      margin-bottom: 64px;
+      overflow: hidden;
+      position: relative;
+    }
+    .period::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--brand);
+    }
+    .period-side {
+      padding: 40px 48px;
+    }
+    .period-side.right {
+      background: var(--bg);
+      border-left: 1px solid var(--line);
+    }
+    .period-eyebrow {
+      font-size: 10.5px; font-weight: 700;
+      color: var(--ink-3);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+    .period-headline {
+      font-family: "DM Serif Display", serif;
+      font-size: 36px;
+      line-height: 1.1;
+      letter-spacing: -0.015em;
+      margin: 0 0 16px;
+    }
+    .period-amount {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 22px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      margin: 8px 0 4px;
+      font-feature-settings: "tnum" 1;
+    }
+    .period-amount .sym { color: var(--ink-3); font-weight: 400; }
+    .period-meta {
+      font-size: 12.5px; color: var(--ink-2);
+      margin: 12px 0 24px;
+    }
+    .period-meta .sep { color: var(--ink-4); margin: 0 8px; }
+    .alloc-list {
+      display: flex; flex-direction: column;
+      gap: 8px;
+      font-size: 12.5px;
+    }
+    .alloc-row {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .alloc-name { flex: 1; color: var(--ink-2); }
+    .alloc-bar {
+      flex: 2;
+      height: 3px;
+      background: var(--line-soft);
+      position: relative;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .alloc-bar > span {
+      position: absolute;
+      inset: 0 auto 0 0;
+      background: var(--brand);
+    }
+    .alloc-amount {
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      min-width: 60px;
+      text-align: right;
+    }
+    .alloc-pct {
+      font-size: 10.5px;
+      color: var(--ink-3);
+      min-width: 32px;
+      text-align: right;
+    }
+    .period-cta {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--brand);
+      padding-top: 16px;
+    }
+
+    /* SECTION HEADERS */
+    .section-label {
+      display: flex; align-items: baseline; justify-content: space-between;
+      margin-bottom: 28px;
+    }
+    .section-label h2 {
+      font-family: "DM Serif Display", serif;
+      font-weight: 400;
+      font-size: 28px;
+      letter-spacing: -0.015em;
+      margin: 0;
+    }
+    .section-label .meta {
+      font-size: 11.5px;
+      color: var(--ink-3);
+      letter-spacing: 0.04em;
+    }
+    .section-label .meta b { color: var(--ink); font-weight: 600; }
+
+    /* ENVELOPES — editorial list */
+    .envelopes {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 8px 0;
+      margin-bottom: 64px;
+    }
+    .env-row {
+      display: grid;
+      grid-template-columns: 8px 1.4fr 2fr 1fr 80px;
+      align-items: center;
+      gap: 24px;
+      padding: 18px 32px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .env-row:last-child { border-bottom: 0; }
+    .env-row:hover { background: var(--surface-2); }
+    .env-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .env-name { font-family: "DM Serif Display", serif; font-size: 18px; }
+    .env-track { position: relative; height: 3px; background: var(--line-soft); border-radius: 2px; overflow: hidden; }
+    .env-fill { position: absolute; inset: 0 auto 0 0; background: var(--pos); }
+    .env-fill.warn { background: var(--amber); }
+    .env-fill.neg { background: var(--terracotta); }
+    .env-numbers { font-family: "JetBrains Mono", monospace; font-size: 12.5px; text-align: right; font-feature-settings: "tnum" 1; }
+    .env-numbers .pct {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 6px;
+      font-size: 10.5px;
+      font-weight: 600;
+      border-radius: 3px;
+      background: var(--surface-2);
+    }
+    .env-numbers .pct.warn { background: var(--amber-soft); color: var(--amber-ink); }
+    .env-numbers .pct.neg { background: var(--terracotta-soft); color: var(--terracotta-ink); }
+    .env-numbers .pct.ok { background: var(--pos-soft); color: var(--pos); }
+
+    /* PERIOD CALENDAR — editorial */
+    .calendar {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 36px 40px 32px;
+      margin-bottom: 64px;
+      position: relative;
+    }
+    .calendar::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--terracotta);
+    }
+    .cal-head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      margin-bottom: 32px;
+    }
+    .cal-head h3 {
+      font-family: "DM Serif Display", serif;
+      font-weight: 400;
+      font-size: 32px;
+      letter-spacing: -0.02em;
+      margin: 0;
+    }
+    .cal-head h3 em { font-style: italic; color: var(--ink-3); }
+    .cal-head .meta {
+      font-size: 11.5px;
+      color: var(--ink-3);
+      letter-spacing: 0.04em;
+    }
+    .cal-head .meta b { color: var(--ink); font-weight: 600; }
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+    }
+    .cal-grid .dow {
+      text-align: center;
+      font-size: 10px; font-weight: 700;
+      color: var(--ink-3);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 6px 0 12px;
+    }
+    .cal-cell {
+      aspect-ratio: 1;
+      border-radius: 4px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      position: relative;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 12.5px;
+      color: var(--ink-2);
+      gap: 4px;
+      border: 1px solid var(--line-soft);
+    }
+    .cal-cell.muted { color: var(--ink-4); border-color: transparent; }
+    .cal-cell.pay {
+      background: var(--ink);
+      color: var(--bg);
+      border-color: var(--ink);
+      font-weight: 500;
+    }
+    .cal-cell.pay .amount { font-size: 9.5px; opacity: 0.7; }
+    .cal-cell.goal {
+      background: var(--terracotta-soft);
+      color: var(--terracotta-ink);
+      border-color: var(--terracotta-soft);
+      font-weight: 500;
+    }
+    .cal-cell.goal .amount { font-size: 9.5px; opacity: 0.7; }
+    .cal-cell.today {
+      background: var(--brand-soft);
+      border-color: var(--brand-soft);
+      color: var(--brand-ink);
+      font-weight: 500;
+    }
+    .cal-legend {
+      display: flex; gap: 18px; flex-wrap: wrap;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line-soft);
+      font-size: 11.5px;
+      color: var(--ink-2);
+    }
+    .cal-legend .it { display: flex; align-items: center; gap: 8px; }
+    .cal-legend .swatch { width: 12px; height: 12px; border-radius: 2px; }
+    .cal-legend .swatch.pay { background: var(--ink); }
+    .cal-legend .swatch.goal { background: var(--terracotta-soft); border: 1px solid var(--terracotta); }
+    .cal-legend .swatch.today { background: var(--brand-soft); border: 1px solid var(--brand); }
+
+    /* CHARTS */
+    .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 64px; }
+    .chart-frame {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 32px 36px;
+    }
+    .chart-frame h4 {
+      font-family: "DM Serif Display", serif;
+      font-weight: 400;
+      font-size: 20px;
+      letter-spacing: -0.01em;
+      margin: 0 0 4px;
+    }
+    .chart-frame .sub {
+      font-size: 12.5px;
+      color: var(--ink-3);
+      margin: 0 0 24px;
+    }
+    .chart-frame .sub b { color: var(--ink-2); font-weight: 600; }
+    .donut-wrap { display: flex; gap: 32px; align-items: center; }
+    .donut-svg { width: 180px; height: 180px; }
+    .donut-svg text { font-family: inherit; }
+    .donut-legend { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; flex: 1; }
+    .donut-legend .row { display: flex; align-items: center; gap: 8px; }
+    .donut-legend .swatch { width: 8px; height: 8px; border-radius: 2px; }
+    .donut-legend .pct { margin-left: auto; font-family: "JetBrains Mono", monospace; font-weight: 600; font-size: 11.5px; }
+    .donut-center-label {
+      font-size: 9.5px; font-weight: 700; color: var(--ink-3);
+      letter-spacing: 0.12em; text-transform: uppercase;
+    }
+    .donut-center-amt {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 19px; font-weight: 500;
+      font-feature-settings: "tnum" 1;
+    }
+
+    /* PROJECTION — editorial */
+    .projection {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 32px 36px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 32px;
+      margin-bottom: 64px;
+    }
+    .proj-card {}
+    .proj-label {
+      font-size: 10.5px; font-weight: 700;
+      color: var(--ink-3);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .proj-value {
+      font-family: "DM Serif Display", serif;
+      font-size: 24px; line-height: 1.15;
+      letter-spacing: -0.01em;
+      margin-bottom: 8px;
+    }
+    .proj-detail { font-size: 12.5px; color: var(--ink-2); }
+    .proj-bar { margin-top: 12px; height: 3px; background: var(--line-soft); border-radius: 2px; position: relative; overflow: hidden; }
+    .proj-bar > span { position: absolute; inset: 0 auto 0 0; background: var(--brand); }
+
+    /* RECENT ACTIVITY */
+    .activity {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 32px;
+    }
+    .activity-head {
+      padding: 22px 32px 14px;
+      display: flex; align-items: baseline; justify-content: space-between;
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .activity-head h3 {
+      font-family: "DM Serif Display", serif;
+      font-size: 20px; margin: 0; font-weight: 400;
+    }
+    .activity-head .link { font-size: 11.5px; color: var(--brand); font-weight: 600; text-decoration: none; letter-spacing: 0.04em; }
+    .tx {
+      display: grid;
+      grid-template-columns: 36px 1fr 100px 110px;
+      align-items: center;
+      padding: 14px 32px;
+      border-bottom: 1px solid var(--line-soft);
+      font-size: 13px;
+    }
+    .tx:last-child { border-bottom: 0; }
+    .tx-icon {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--bg);
+      display: grid; place-items: center;
+      color: var(--ink-2);
+    }
+    .tx-icon svg { width: 14px; height: 14px; stroke-width: 1.5; }
+    .tx-icon.income { background: var(--pos-soft); color: var(--pos); }
+    .tx-icon.transfer { background: var(--brand-soft); color: var(--brand-ink); }
+    .tx-name { font-weight: 500; }
+    .tx-sub { font-size: 11px; color: var(--ink-3); margin-top: 2px; letter-spacing: 0.02em; }
+    .tx-cat { font-size: 10.5px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.1em; }
+    .tx-amount { font-family: "JetBrains Mono", monospace; font-size: 13px; font-weight: 500; text-align: right; font-feature-settings: "tnum" 1; }
+    .tx-amount.pos { color: var(--pos); }
+    .tx-amount.muted { color: var(--ink-3); }
+
+    /* FOOTER */
+    .colophon {
+      margin-top: 64px; padding-top: 24px;
+      border-top: 1px solid var(--line);
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-size: 11px; color: var(--ink-3);
+      letter-spacing: 0.04em;
+    }
+    .colophon em { font-family: "DM Serif Display", serif; font-style: italic; color: var(--ink-2); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- SIDEBAR -->
+    <aside>
+      <div class="sidebar-head">
+        <div class="brand-mark">
+          <div class="logo">
+            <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.4">
+              <circle cx="16" cy="16" r="13"/>
+              <path d="M16 4v4M16 24v4M4 16h4M24 16h4"/>
+              <path d="M16 16 L21 8 L16 16 L11 8 Z" fill="currentColor" fill-opacity="0.85"/>
+              <path d="M16 16 L21 24 L16 16 L11 24 Z" fill="currentColor" fill-opacity="0.4"/>
+            </svg>
+          </div>
+          <div class="word">Compass</div>
+        </div>
+        <div class="collapse" title="Collapse">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 6l-6 6 6 6"/></svg>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Overview</div>
+        <a class="nav-item active" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12 12 3l9 9"/><path d="M5 10v10h14V10"/></svg>
+          Dashboard
+        </a>
+        <a class="nav-item" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+          Period
+          <span class="badge">5d</span>
+        </a>
+        <a class="nav-item" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>
+          Insights
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Build a plan</div>
+        <a class="nav-item" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          Map out goals
+        </a>
+        <a class="nav-item" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="6" width="16" height="14" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/></svg>
+          Recurring bills
+        </a>
+        <a class="nav-item" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/></svg>
+          Emergency fund
+        </a>
+        <a class="nav-item" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 17l4-4 4 4 6-6 4 4"/><path d="M3 21h18"/></svg>
+          Investment goal
+        </a>
+        <a class="nav-item" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h16M4 12h10M4 18h13"/></svg>
+          Allocation plan
+          <span class="pill-go">Auto</span>
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Money</div>
+        <a class="nav-item" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 7h18M3 12h18M3 17h18"/></svg>
+          Transactions
+        </a>
+        <a class="nav-item" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16v13H4z"/><path d="M4 7l8-4 8 4"/></svg>
+          Envelopes
+        </a>
+        <a class="nav-item" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>
+          Accounts
+        </a>
+        <a class="nav-item" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          Subscriptions
+          <span class="badge">2</span>
+        </a>
+        <a class="nav-item" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>
+          Debts
+        </a>
+        <a class="nav-item" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 17l4-4 4 4 6-6 4 4"/><path d="M3 21h18"/></svg>
+          Investments
+        </a>
+      </div>
+
+      <div class="me">
+        <div class="me-avatar">M</div>
+        <div class="me-info">
+          <div class="me-name">Mom</div>
+          <div class="me-sub">mom@compass.local</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main>
+      <!-- MASTHEAD -->
+      <div class="masthead">
+        <div class="masthead-left">
+          <h1>Good evening, <em>Mom.</em></h1>
+          <div class="date">PERIOD 4 OF Q3 · AUG 22 → SEP 4 · 5 DAYS TO NEXT PAYCHECK</div>
+        </div>
+        <div class="masthead-right">
+          <div class="pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+            AUG 22 – SEP 4
+          </div>
+          <button class="btn ghost">Add transaction</button>
+          <button class="btn">New envelope</button>
+        </div>
+      </div>
+
+      <!-- HERO: north-star number + compass dial -->
+      <div class="hero">
+        <div class="north-star">
+          <div class="north-eyebrow">Net worth</div>
+          <div class="north-amount">$84,210<span class="cents">.00</span></div>
+          <div class="north-meta">
+            <span class="delta">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 14l5-5 5 5"/></svg>
+              $1,612 this period
+            </span>
+            <span class="sep"></span>
+            <span class="mono" style="font-size:11.5px;color:var(--ink-3)">+$3,200 projected · 6 months</span>
+          </div>
+        </div>
+
+        <div class="dial-wrap">
+          <svg class="dial-svg" viewBox="0 0 220 220">
+            <!-- Outer ring -->
+            <circle cx="110" cy="110" r="100" fill="none" stroke="var(--line)" stroke-width="0.6"/>
+            <circle cx="110" cy="110" r="84" fill="none" stroke="var(--line-soft)" stroke-width="0.6"/>
+
+            <!-- Period arc: current period is a dark filled arc on the right (representing progress through the period) -->
+            <!-- Period is 14 days, day 8/14 = ~57% through -->
+            <!-- arc from -90deg (top) going clockwise to (-90 + 360*0.57) = ~115deg -->
+            <path d="M 110 10 A 100 100 0 0 1 207 142 L 168 153 A 84 84 0 0 0 110 26 Z" fill="var(--ink)" fill-opacity="0.92"/>
+            <!-- Past portion (lighter) -->
+            <path d="M 110 10 A 100 100 0 0 1 110 210 L 110 194 A 84 84 0 0 0 110 26 Z" fill="var(--line)"/>
+
+            <!-- Tick marks every 30deg on outer ring -->
+            <g stroke="var(--ink-3)" stroke-width="0.8">
+              <line x1="110" y1="6" x2="110" y2="14"/>
+              <line x1="160" y1="29" x2="155" y2="36" transform="rotate(0)"/>
+            </g>
+            <!-- cardinal markers -->
+            <text x="110" y="-4" text-anchor="middle" font-size="9" fill="var(--ink-3)" font-weight="700" font-family="inherit" letter-spacing="0.1em">PAST</text>
+            <text x="218" y="113" text-anchor="middle" font-size="9" fill="var(--ink-3)" font-weight="700" font-family="inherit" letter-spacing="0.1em" transform="rotate(90 218 113)">FUTURE</text>
+            <text x="110" y="226" text-anchor="middle" font-size="9" fill="var(--ink-3)" font-weight="700" font-family="inherit" letter-spacing="0.1em"></text>
+            <text x="2" y="113" text-anchor="middle" font-size="9" fill="var(--ink-3)" font-weight="700" font-family="inherit" letter-spacing="0.1em" transform="rotate(-90 2 113)"></text>
+
+            <!-- Compass needle: pointing to today (Aug 30) within the period Aug 22 - Sep 4 (13 days) -->
+            <!-- today is day 8/13, so angle = 360 * (8/13) = ~221deg from top, going clockwise = -49deg from vertical = pointing up-right -->
+            <!-- actually: period from 12 o'clock (Aug 22) sweeping CW. Today is day 8 of 13, so needle at angle (8/13) * 360 = 221.5deg from 12 o'clock CW -->
+            <!-- In SVG that's: needle tip at (cx + r*sin(angle), cy - r*cos(angle)) where angle is in degrees from 12 o'clock CW -->
+            <!-- angle=221.5, r=92. tip: (110 + 92*sin(221.5), 110 - 92*cos(221.5)) = (110 - 67, 110 + 68) = (43, 178) — down-left. that makes sense if past portion was top half and we're past midpoint -->
+            <!-- Let me reconsider: Aug 22 = top, Sep 4 = 14 days later. CW sweep. Day 8 = 8/13 of the way = 221deg from top. -->
+            <!-- 221deg CW from 12 = bottom-left-ish. Yes that works. -->
+            <g>
+              <line x1="110" y1="110" x2="49" y2="180" stroke="var(--terracotta)" stroke-width="2" stroke-linecap="round"/>
+              <line x1="110" y1="110" x2="171" y2="40" stroke="var(--ink-3)" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="2 3"/>
+              <circle cx="110" cy="110" r="6" fill="var(--ink)"/>
+              <circle cx="110" cy="110" r="2.5" fill="var(--bg)"/>
+            </g>
+
+            <!-- Today label -->
+            <text x="44" y="190" text-anchor="middle" font-size="10" fill="var(--terracotta)" font-weight="700" font-family="inherit" letter-spacing="0.06em">TODAY · AUG 30</text>
+
+            <!-- Center readout -->
+            <text x="110" y="100" text-anchor="middle" font-size="9" fill="var(--ink-3)" font-weight="700" font-family="inherit" letter-spacing="0.14em">DAY</text>
+            <text x="110" y="125" text-anchor="middle" font-size="32" fill="var(--ink)" font-weight="400" font-family="DM Serif Display, serif" font-feature-settings="'tnum' 1">8</text>
+            <text x="110" y="140" text-anchor="middle" font-size="9" fill="var(--ink-3)" font-family="JetBrains Mono, monospace">of 13</text>
+          </svg>
+          <div class="dial-label">This period</div>
+          <div class="dial-readout">Filled arc = days elapsed · Needle = today</div>
+        </div>
+      </div>
+
+      <!-- PERIOD — editorial split -->
+      <div class="period">
+        <div class="period-side">
+          <div class="period-eyebrow">Next paycheck</div>
+          <h2 class="period-headline">Your money is on a path.<br/>Where it goes next is up to you.</h2>
+          <div class="period-amount"><span class="sym">$</span>2,400<span class="sym">.00</span></div>
+          <div class="period-meta">
+            <span>Aug 28, 2025</span>
+            <span class="sep">·</span>
+            <span>5 days</span>
+            <span class="sep">·</span>
+            <span>Chase Checking •••• 4218</span>
+          </div>
+          <div class="period-cta">▸ Auto-allocate plan is active</div>
+        </div>
+        <div class="period-side right">
+          <div class="period-eyebrow">Will distribute on Aug 28</div>
+          <div class="alloc-list" style="margin-top: 8px;">
+            <div class="alloc-row">
+              <span class="alloc-name">Rent</span>
+              <div class="alloc-bar"><span style="width:40%"></span></div>
+              <span class="alloc-amount">$960</span>
+              <span class="alloc-pct">40%</span>
+            </div>
+            <div class="alloc-row">
+              <span class="alloc-name">Groceries</span>
+              <div class="alloc-bar"><span style="width:20%"></span></div>
+              <span class="alloc-amount">$480</span>
+              <span class="alloc-pct">20%</span>
+            </div>
+            <div class="alloc-row">
+              <span class="alloc-name">Gas</span>
+              <div class="alloc-bar"><span style="width:10%"></span></div>
+              <span class="alloc-amount">$240</span>
+              <span class="alloc-pct">10%</span>
+            </div>
+            <div class="alloc-row">
+              <span class="alloc-name">Utilities</span>
+              <div class="alloc-bar"><span style="width:8%"></span></div>
+              <span class="alloc-amount">$192</span>
+              <span class="alloc-pct">8%</span>
+            </div>
+            <div class="alloc-row">
+              <span class="alloc-name">Savings</span>
+              <div class="alloc-bar"><span style="width:8%"></span></div>
+              <span class="alloc-amount">$192</span>
+              <span class="alloc-pct">8%</span>
+            </div>
+            <div class="alloc-row">
+              <span class="alloc-name">Buffer</span>
+              <div class="alloc-bar"><span style="width:6%"></span></div>
+              <span class="alloc-amount">$144</span>
+              <span class="alloc-pct">6%</span>
+            </div>
+            <div class="alloc-row">
+              <span class="alloc-name">Subscriptions</span>
+              <div class="alloc-bar"><span style="width:4%"></span></div>
+              <span class="alloc-amount">$96</span>
+              <span class="alloc-pct">4%</span>
+            </div>
+            <div class="alloc-row">
+              <span class="alloc-name">Fun</span>
+              <div class="alloc-bar"><span style="width:4%"></span></div>
+              <span class="alloc-amount">$96</span>
+              <span class="alloc-pct">4%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ENVELOPES -->
+      <div class="section-label">
+        <h2>Envelopes, <em style="color:var(--ink-3);font-style:italic">this period.</em></h2>
+        <div class="meta"><b>9 envelopes</b> · 2 over · 1 nearing limit</div>
+      </div>
+      <div class="envelopes">
+        <div class="env-row">
+          <div class="env-dot" style="background:var(--brand)"></div>
+          <div class="env-name">Rent</div>
+          <div class="env-track"><div class="env-fill" style="width:100%"></div></div>
+          <div class="env-numbers">$800 / $800 <span class="pct ok">100%</span></div>
+          <div class="env-numbers" style="color:var(--ink-3)">0d left</div>
+        </div>
+        <div class="env-row">
+          <div class="env-dot" style="background:#16a34a"></div>
+          <div class="env-name">Groceries</div>
+          <div class="env-track"><div class="env-fill neg" style="width:100%"></div></div>
+          <div class="env-numbers">$612 / $400 <span class="pct neg">153%</span></div>
+          <div class="env-numbers" style="color:var(--terracotta-ink)">−$212</div>
+        </div>
+        <div class="env-row">
+          <div class="env-dot" style="background:#0891b2"></div>
+          <div class="env-name">Utilities</div>
+          <div class="env-track"><div class="env-fill warn" style="width:90%"></div></div>
+          <div class="env-numbers">$180 / $200 <span class="pct warn">90%</span></div>
+          <div class="env-numbers" style="color:var(--ink-3)">5d left</div>
+        </div>
+        <div class="env-row">
+          <div class="env-dot" style="background:#7c3aed"></div>
+          <div class="env-name">Gas</div>
+          <div class="env-track"><div class="env-fill" style="width:58%"></div></div>
+          <div class="env-numbers">$87 / $150 <span class="pct ok">58%</span></div>
+          <div class="env-numbers" style="color:var(--ink-3)">5d left</div>
+        </div>
+        <div class="env-row">
+          <div class="env-dot" style="background:#db2777"></div>
+          <div class="env-name">Subscriptions</div>
+          <div class="env-track"><div class="env-fill" style="width:56%"></div></div>
+          <div class="env-numbers">$45 / $80 <span class="pct ok">56%</span></div>
+          <div class="env-numbers" style="color:var(--ink-3)">5d left</div>
+        </div>
+        <div class="env-row">
+          <div class="env-dot" style="background:#ea580c"></div>
+          <div class="env-name">Dining Out</div>
+          <div class="env-track"><div class="env-fill" style="width:0%"></div></div>
+          <div class="env-numbers">$0 / $80 <span class="pct ok">0%</span></div>
+          <div class="env-numbers" style="color:var(--ink-3)">5d left</div>
+        </div>
+        <div class="env-row">
+          <div class="env-dot" style="background:#facc15"></div>
+          <div class="env-name">Buffer</div>
+          <div class="env-track"><div class="env-fill neg" style="width:100%"></div></div>
+          <div class="env-numbers">$96 / $96 <span class="pct neg">104%</span></div>
+          <div class="env-numbers" style="color:var(--terracotta-ink)">−$4</div>
+        </div>
+      </div>
+
+      <!-- PROJECTION -->
+      <div class="projection">
+        <div class="proj-card">
+          <div class="proj-label">If pace holds</div>
+          <div class="proj-value">+$3,200<br/>net worth in 6 months.</div>
+          <div class="proj-detail">On track for the $20k emergency fund by Feb 2026.</div>
+          <div class="proj-bar"><span style="width:64%"></span></div>
+        </div>
+        <div class="proj-card">
+          <div class="proj-label">Debt · avalanche</div>
+          <div class="proj-value">Discover It<br/>paid May '26.</div>
+          <div class="proj-detail">$4,820 at 24.99% · $400/mo extra from unspent envelope.</div>
+          <div class="proj-bar"><span style="width:42%"></span></div>
+        </div>
+        <div class="proj-card">
+          <div class="proj-label">Subscriptions</div>
+          <div class="proj-value">2 unused<br/>over 60 days.</div>
+          <div class="proj-detail">NYTimes $17/mo · Headspace $12.99/mo. $30/mo recoverable.</div>
+          <div class="proj-bar"><span style="width:30%; background:var(--amber)"></span></div>
+        </div>
+      </div>
+
+      <!-- PERIOD CALENDAR -->
+      <div class="section-label">
+        <h2>September, <em style="color:var(--ink-3);font-style:italic">at a glance.</em></h2>
+        <div class="meta">Biweekly · <b>3 pay dates</b> this month · 1 forward-looking goal target</div>
+      </div>
+      <div class="calendar">
+        <div class="cal-head">
+          <h3>September <em>2025</em></h3>
+          <div class="meta">Click a pay date for the full period breakdown.</div>
+        </div>
+        <div class="cal-grid">
+          <div class="dow">Mon</div><div class="dow">Tue</div><div class="dow">Wed</div>
+          <div class="dow">Thu</div><div class="dow">Fri</div><div class="dow">Sat</div><div class="dow">Sun</div>
+
+          <div class="cal-cell muted">25</div>
+          <div class="cal-cell muted">26</div>
+          <div class="cal-cell muted">27</div>
+          <div class="cal-cell muted">28</div>
+          <div class="cal-cell muted">29</div>
+          <div class="cal-cell muted">30</div>
+          <div class="cal-cell muted">31</div>
+
+          <div class="cal-cell">1</div>
+          <div class="cal-cell">2</div>
+          <div class="cal-cell">3</div>
+          <div class="cal-cell pay">4<span class="amount">$2,400</span></div>
+          <div class="cal-cell">5</div>
+          <div class="cal-cell">6</div>
+          <div class="cal-cell">7</div>
+
+          <div class="cal-cell">8</div>
+          <div class="cal-cell">9</div>
+          <div class="cal-cell">10</div>
+          <div class="cal-cell">11</div>
+          <div class="cal-cell">12</div>
+          <div class="cal-cell">13</div>
+          <div class="cal-cell">14</div>
+
+          <div class="cal-cell">15</div>
+          <div class="cal-cell">16</div>
+          <div class="cal-cell">17</div>
+          <div class="cal-cell pay">18<span class="amount">$2,400</span></div>
+          <div class="cal-cell">19</div>
+          <div class="cal-cell">20</div>
+          <div class="cal-cell">21</div>
+
+          <div class="cal-cell">22</div>
+          <div class="cal-cell">23</div>
+          <div class="cal-cell">24</div>
+          <div class="cal-cell">25</div>
+          <div class="cal-cell">26</div>
+          <div class="cal-cell">27</div>
+          <div class="cal-cell">28</div>
+
+          <div class="cal-cell">29</div>
+          <div class="cal-cell today">30</div>
+        </div>
+        <div class="cal-legend">
+          <div class="it"><div class="swatch pay"></div> Pay date · money lands and auto-allocates</div>
+          <div class="it"><div class="swatch today"></div> Today</div>
+          <div class="it"><div class="swatch goal"></div> Goal target date · rendered from Map out goals</div>
+        </div>
+      </div>
+
+      <!-- RECENT ACTIVITY -->
+      <div class="section-label" style="margin-top: 8px">
+        <h2>Recent activity.</h2>
+        <div class="meta">12 transactions · <b>last 7 days</b></div>
+      </div>
+      <div class="activity">
+        <div class="activity-head">
+          <h3>This period</h3>
+          <a class="link" href="#">View all →</a>
+        </div>
+        <div class="tx">
+          <div class="tx-icon income">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+          </div>
+          <div>
+            <div class="tx-name">Paycheck · Acme Corp</div>
+            <div class="tx-sub">Aug 21 · Chase •••• 4218</div>
+          </div>
+          <div class="tx-cat">Salary</div>
+          <div class="tx-amount pos">+$2,400.00</div>
+        </div>
+        <div class="tx">
+          <div class="tx-icon transfer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 7l-5 5-5-5M12 12v9"/></svg>
+          </div>
+          <div>
+            <div class="tx-name">Auto-allocated to plan</div>
+            <div class="tx-sub">Aug 21 · 8 envelopes</div>
+          </div>
+          <div class="tx-cat">Plan</div>
+          <div class="tx-amount muted">$2,400.00</div>
+        </div>
+        <div class="tx">
+          <div class="tx-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 7h18l-2 13H5z"/><path d="M8 7V4h8v3"/></svg>
+          </div>
+          <div>
+            <div class="tx-name">HEB</div>
+            <div class="tx-sub">Aug 22 · Amex •••• 1004</div>
+          </div>
+          <div class="tx-cat">Groceries</div>
+          <div class="tx-amount">−$45.18</div>
+        </div>
+        <div class="tx">
+          <div class="tx-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 21V8l7-5 7 5v13M9 21v-7h6v7"/></svg>
+          </div>
+          <div>
+            <div class="tx-name">Shell</div>
+            <div class="tx-sub">Aug 22 · Chase •••• 4218</div>
+          </div>
+          <div class="tx-cat">Gas</div>
+          <div class="tx-amount">−$38.40</div>
+        </div>
+        <div class="tx">
+          <div class="tx-icon transfer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 7h18M3 12h12M3 17h6"/></svg>
+          </div>
+          <div>
+            <div class="tx-name">Transfer · 401(k) contribution</div>
+            <div class="tx-sub">Aug 20 · Chase → Vanguard</div>
+          </div>
+          <div class="tx-cat">Export</div>
+          <div class="tx-amount muted">−$600.00</div>
+        </div>
+      </div>
+
+      <!-- DONUT (small chart) -->
+      <div class="section-label">
+        <h2>Where every dollar <em style="color:var(--ink-3);font-style:italic">lives.</em></h2>
+        <div class="meta">Allocation plan · per paycheck</div>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-frame">
+          <h4>Allocation plan</h4>
+          <p class="sub">Set once in <b>Build a plan → Allocation plan</b> · runs on every paycheck automatically.</p>
+          <div class="donut-wrap">
+            <svg class="donut-svg" viewBox="0 0 180 180">
+              <path d="M 90 18 A 72 72 0 0 1 156 50 L 132 50 A 48 48 0 0 0 90 42 Z" fill="#0c5e58"/>
+              <path d="M 156 50 A 72 72 0 0 1 156 130 L 132 130 A 48 48 0 0 0 132 50 Z" fill="#16a34a"/>
+              <path d="M 156 130 A 72 72 0 0 1 117 156 L 105 138 A 48 48 0 0 0 132 130 Z" fill="#0891b2"/>
+              <path d="M 117 156 A 72 72 0 0 1 84 162 L 86 138 A 48 48 0 0 0 105 138 Z" fill="#7c3aed"/>
+              <path d="M 84 162 A 72 72 0 0 1 50 152 L 70 137 A 48 48 0 0 0 86 138 Z" fill="#2d6a3c"/>
+              <path d="M 50 152 A 72 72 0 0 1 30 124 L 56 110 A 48 48 0 0 0 70 137 Z" fill="#a06a14"/>
+              <path d="M 30 124 A 72 72 0 0 1 26 100 L 54 90 A 48 48 0 0 0 56 110 Z" fill="#db2777"/>
+              <path d="M 26 100 A 72 72 0 0 1 30 76 L 54 78 A 48 48 0 0 0 54 90 Z" fill="#ea580c"/>
+              <circle cx="90" cy="90" r="46" fill="var(--surface)"/>
+              <text x="90" y="84" text-anchor="middle" class="donut-center-label">PER CHECK</text>
+              <text x="90" y="104" text-anchor="middle" class="donut-center-amt">$2,400</text>
+            </svg>
+            <div class="donut-legend">
+              <div class="row"><div class="swatch" style="background:#0c5e58"></div>Rent <span class="pct">40%</span></div>
+              <div class="row"><div class="swatch" style="background:#16a34a"></div>Groceries <span class="pct">20%</span></div>
+              <div class="row"><div class="swatch" style="background:#0891b2"></div>Gas <span class="pct">10%</span></div>
+              <div class="row"><div class="swatch" style="background:#7c3aed"></div>Utilities <span class="pct">8%</span></div>
+              <div class="row"><div class="swatch" style="background:#2d6a3c"></div>Savings <span class="pct">8%</span></div>
+              <div class="row"><div class="swatch" style="background:#a06a14"></div>Buffer <span class="pct">6%</span></div>
+              <div class="row"><div class="swatch" style="background:#db2777"></div>Subscriptions <span class="pct">4%</span></div>
+              <div class="row"><div class="swatch" style="background:#ea580c"></div>Fun <span class="pct">4%</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="chart-frame" style="display:flex;flex-direction:column;justify-content:center">
+          <h4>What the plan actually <em style="color:var(--ink-3);font-style:italic">means.</em></h4>
+          <p class="sub">Once confirmed, the system distributes the paycheck the moment it lands. No "remember to transfer to savings." No "did I move enough to investments?" The plan runs because the plan is the system.</p>
+          <p class="sub" style="margin-top: 8px; font-size: 14px; color: var(--ink); font-family: 'DM Serif Display', serif; font-style: italic; line-height: 1.4;">"Budgeting shouldn't just be planning. It should be implemented and followed."</p>
+        </div>
+      </div>
+
+      <div class="colophon">
+        <div><em>Compass</em> · Mockup v3 · editorial direction</div>
+        <div>v3 · 2026-08-22 · all data illustrative</div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

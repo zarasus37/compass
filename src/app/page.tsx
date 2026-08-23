@@ -5,6 +5,8 @@ import { EnvelopeBarChart } from "@/components/alchemy/EnvelopeBarChart";
 import { VesselGlyph } from "@/components/alchemy/VesselGlyph";
 import { PaycheckSimulator } from "@/components/dashboard/PaycheckSimulator";
 import { PlanMyNextCheck } from "@/components/dashboard/PlanMyNextCheck";
+import { DebtPayoffSimulator } from "@/components/debts/DebtPayoffSimulator";
+import { paycheckBreakdown } from "@/lib/store";
 
 // Force-dynamic so the dashboard re-reads the live store after every
 // paycheck simulation. Static rendering would freeze the initial seed.
@@ -14,6 +16,7 @@ import {
   liveGoals,
   liveSnapshot,
   liveBills,
+  liveDebts,
   livePlan,
   TODAY,
   PERIOD_START,
@@ -46,6 +49,7 @@ export default async function Dashboard() {
   const GOALS = liveGoals();
   const SNAPSHOT = liveSnapshot();
   const BILLS = liveBills();
+  const DEBTS = liveDebts();
   const PLAN = livePlan();
   const NEXT_PAYCHECK_CENTS = SNAPSHOT.nextPaycheckCents;
 
@@ -377,6 +381,24 @@ export default async function Dashboard() {
           periodEnd={PERIOD_END}
           nextPayDate={NEXT_PAY_DATE}
         />
+
+        {/* ============== DEBT PAYOFF SIMULATOR (Cluster 1.9) ============== */}
+        {DEBTS.length > 0 && DEBTS.some((d) => d.balanceCents > 0) && (
+          <DebtPayoffSimulator
+            debts={DEBTS}
+            availableDollars={
+              paycheckBreakdown(
+                NEXT_PAYCHECK_CENTS,
+                BILLS,
+                PLAN,
+                ENVELOPES,
+                PERIOD_START,
+                PERIOD_END,
+              ).unallocatedCents / 100
+            }
+            anchor={TODAY}
+          />
+        )}
 
         {/* ============== ENVELOPES ============== */}
         <section style={{ marginBottom: 72 }}>

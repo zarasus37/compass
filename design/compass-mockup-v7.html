@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Compass — Mockup v7 (Personal · bar chart · small mandala)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500&family=Marcellus&family=Italiana&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --void:        #06080f;
+      --cosmos:      #0a0e1f;
+      --cosmos-2:    #11172e;
+      --cosmos-3:    #1a2042;
+      --surface:     #131a36;
+      --surface-2:   #1a2244;
+      --line:        #2a3158;
+      --line-soft:   #1f2748;
+      --ink:         #ece6d3;
+      --ink-2:       #c4bda6;
+      --ink-3:       #8b8770;
+      --ink-4:       #5a5a55;
+      --gold:        #d4af52;
+      --gold-deep:   #a8853a;
+      --gold-soft:   #5a4824;
+      --gold-glow:   #f0d480;
+      --silver:      #c8c2a8;
+      --sol:         #f0c14a;
+      --luna:        #b8c8e0;
+      --mercury:     #8ac0b8;
+      --venus:       #d4a578;
+      --mars:        #c45a3a;
+      --jupiter:     #9a7ac0;
+      --saturn:      #6a708a;
+      --ok:          #6ab088;
+      --warn:        #d4a050;
+      --neg:         #c45a3a;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: "Cormorant Garamond", "EB Garamond", Georgia, serif;
+      background: var(--cosmos);
+      color: var(--ink);
+      font-size: 15px; line-height: 1.55;
+      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+      background-image:
+        radial-gradient(ellipse at 20% 0%,  rgba(154, 122, 192, 0.08) 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 100%, rgba(212, 175, 82, 0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 100% 20%, rgba(138, 192, 184, 0.05) 0%, transparent 50%);
+      min-height: 100vh; overflow-x: hidden;
+    }
+    body::before {
+      content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background-image:
+        radial-gradient(1px 1px at 23% 12%, rgba(255,255,255,0.6), transparent),
+        radial-gradient(1px 1px at 67% 8%,  rgba(255,255,255,0.4), transparent),
+        radial-gradient(1px 1px at 89% 33%, rgba(255,255,255,0.5), transparent),
+        radial-gradient(1px 1px at 12% 47%, rgba(255,255,255,0.3), transparent),
+        radial-gradient(1px 1px at 44% 73%, rgba(255,255,255,0.5), transparent),
+        radial-gradient(1px 1px at 78% 88%, rgba(255,255,255,0.4), transparent),
+        radial-gradient(1px 1px at 33% 92%, rgba(255,255,255,0.3), transparent),
+        radial-gradient(1.5px 1.5px at 56% 22%, rgba(255,255,255,0.6), transparent),
+        radial-gradient(1.5px 1.5px at 91% 67%, rgba(255,255,255,0.4), transparent);
+    }
+    .mono { font-family: "JetBrains Mono", monospace; font-feature-settings: "tnum" 1, "zero" 1; }
+    .italic { font-style: italic; }
+    .app { display: grid; grid-template-columns: 248px 1fr; min-height: 100vh; position: relative; z-index: 1; }
+
+    /* ============== SIDEBAR ============== */
+    aside {
+      background: linear-gradient(180deg, rgba(15, 20, 45, 0.7) 0%, rgba(10, 14, 31, 0.95) 100%);
+      border-right: 1px solid var(--line);
+      padding: 28px 18px 24px;
+      display: flex; flex-direction: column; gap: 32px; position: relative;
+    }
+    aside::after {
+      content: ""; position: absolute;
+      top: 80px; bottom: 80px; right: -1px; width: 1px;
+      background: linear-gradient(180deg, transparent 0%, var(--gold-soft) 30%, var(--gold-soft) 70%, transparent 100%);
+      opacity: 0.5;
+    }
+    .sidebar-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 4px 8px; border-bottom: 1px solid var(--line-soft);
+    }
+    .brand-mark { display: flex; align-items: center; gap: 12px; }
+    .brand-mark .logo { width: 36px; height: 36px; color: var(--gold); filter: drop-shadow(0 0 6px rgba(212, 175, 82, 0.4)); }
+    .brand-mark .logo svg { width: 100%; height: 100%; }
+    .brand-mark .word { font-family: "Cinzel", serif; font-size: 16px; font-weight: 500; letter-spacing: 0.18em; color: var(--ink); text-transform: uppercase; }
+    .collapse { width: 24px; height: 24px; display: grid; place-items: center; color: var(--ink-3); cursor: pointer; }
+    .collapse svg { width: 12px; height: 12px; stroke-width: 1.5; }
+    .nav-section { display: flex; flex-direction: column; gap: 1px; }
+    .nav-label { font-family: "Cinzel", serif; font-size: 10px; font-weight: 600; color: var(--gold-deep); letter-spacing: 0.22em; text-transform: uppercase; padding: 0 12px 12px; display: flex; align-items: center; gap: 8px; }
+    .nav-label::before, .nav-label::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--gold-soft), transparent); }
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 2px; color: var(--ink-2); font-family: "Cormorant Garamond", serif; font-size: 16px; font-weight: 500; cursor: pointer; text-decoration: none; position: relative; transition: all 0.2s; }
+    .nav-item::before { content: ""; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 2px; height: 0; background: var(--gold); transition: height 0.2s; }
+    .nav-item:hover { color: var(--ink); background: rgba(212, 175, 82, 0.04); }
+    .nav-item:hover::before { height: 60%; }
+    .nav-item.active { color: var(--gold-glow); background: linear-gradient(90deg, rgba(212, 175, 82, 0.12) 0%, transparent 100%); }
+    .nav-item.active::before { height: 70%; background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+    .nav-item .glyph { width: 18px; height: 18px; display: grid; place-items: center; font-size: 16px; line-height: 1; color: var(--ink-3); }
+    .nav-item.active .glyph { color: var(--gold); }
+    .me { margin-top: auto; border: 1px solid var(--line); border-radius: 2px; padding: 14px; display: flex; align-items: center; gap: 12px; background: radial-gradient(ellipse at 30% 0%, rgba(212, 175, 82, 0.08) 0%, transparent 70%), var(--surface); position: relative; }
+    .me::before { content: ""; position: absolute; top: -1px; left: 16px; right: 16px; height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
+    .me-avatar { width: 38px; height: 38px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, var(--gold-glow) 0%, var(--gold) 40%, var(--gold-deep) 100%); color: var(--void); display: grid; place-items: center; font-family: "Cinzel", serif; font-weight: 600; font-size: 15px; box-shadow: 0 0 14px rgba(212, 175, 82, 0.4); }
+    .me-info { display: flex; flex-direction: column; min-width: 0; }
+    .me-name { font-family: "Cormorant Garamond", serif; font-weight: 600; font-size: 15px; color: var(--ink); }
+    .me-sub { font-family: "JetBrains Mono", monospace; font-size: 10px; color: var(--ink-3); margin-top: 1px; letter-spacing: 0.02em; }
+
+    /* ============== MAIN ============== */
+    main { padding: 48px 80px 96px; max-width: 1480px; position: relative; }
+
+    /* ============== WELCOME ============== */
+    .welcome {
+      display: grid; grid-template-columns: 1fr auto;
+      gap: 32px; align-items: flex-end;
+      padding-bottom: 24px; margin-bottom: 56px;
+      border-bottom: 1px solid var(--line);
+      position: relative;
+    }
+    .welcome::after { content: "✦ ✦ ✦"; position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); color: var(--gold); font-size: 10px; letter-spacing: 8px; background: var(--cosmos); padding: 0 16px; }
+    .welcome-left { display: flex; flex-direction: column; gap: 10px; }
+    .welcome .date { font-family: "Cinzel", serif; font-size: 10px; color: var(--ink-3); font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; }
+    .welcome h1 { font-family: "Italiana", "Cinzel", serif; font-weight: 400; font-size: 44px; line-height: 1; letter-spacing: 0.005em; margin: 0; color: var(--ink); }
+    .welcome h1 em { font-family: "Cormorant Garamond", serif; font-style: italic; color: var(--gold-glow); font-weight: 500; }
+    .welcome .lede { font-family: "Cormorant Garamond", serif; font-size: 18px; line-height: 1.5; color: var(--ink-2); max-width: 640px; margin: 6px 0 0; }
+    .welcome-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+    .pill { display: inline-flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 2px; padding: 7px 14px; font-family: "Cinzel", serif; font-size: 10.5px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-2); }
+    .pill .glyph { color: var(--gold); font-size: 14px; line-height: 1; }
+
+    /* ============== TOP PRIORITY HERO ============== */
+    .priority {
+      background:
+        radial-gradient(ellipse at 100% 0%, rgba(154, 122, 192, 0.12) 0%, transparent 55%),
+        radial-gradient(ellipse at 0% 100%, rgba(212, 175, 82, 0.06) 0%, transparent 50%),
+        var(--surface);
+      border: 1px solid var(--jupiter);
+      border-radius: 4px;
+      padding: 40px 44px 36px;
+      margin-bottom: 56px;
+      position: relative;
+      overflow: hidden;
+    }
+    .priority::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--jupiter), transparent); }
+    .priority-head {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      margin-bottom: 28px;
+    }
+    .priority-eyebrow {
+      display: flex; align-items: center; gap: 12px;
+      font-family: "Cinzel", serif; font-size: 10.5px; font-weight: 600;
+      color: var(--jupiter); letter-spacing: 0.28em; text-transform: uppercase;
+    }
+    .priority-eyebrow::before { content: "✺"; font-size: 16px; line-height: 1; }
+    .priority-edit {
+      font-family: "Cinzel", serif; font-size: 10px; font-weight: 600;
+      color: var(--ink-3); letter-spacing: 0.22em; text-transform: uppercase;
+      padding: 6px 12px; border: 1px solid var(--line); border-radius: 2px;
+      text-decoration: none; cursor: pointer;
+    }
+    .priority-edit:hover { color: var(--jupiter); border-color: var(--jupiter); }
+
+    .priority-body { display: grid; grid-template-columns: 1fr 360px; gap: 48px; align-items: center; }
+    .priority-left h2 {
+      font-family: "Italiana", "Cinzel", serif; font-weight: 400;
+      font-size: 48px; line-height: 1.05; letter-spacing: 0.005em;
+      margin: 0 0 12px; color: var(--ink);
+    }
+    .priority-left .qu {
+      font-family: "Cormorant Garamond", serif; font-size: 16px; line-height: 1.5;
+      color: var(--ink-2); margin: 0 0 24px; max-width: 520px;
+    }
+    .priority-numbers {
+      display: flex; align-items: baseline; gap: 24px;
+      margin-bottom: 20px;
+    }
+    .pn-now { font-family: "Italiana", "Cinzel", serif; font-size: 56px; line-height: 1; color: var(--jupiter); font-feature-settings: "tnum" 1; }
+    .pn-sep { font-family: "Cormorant Garamond", serif; font-size: 24px; color: var(--ink-3); }
+    .pn-tgt { font-family: "Italiana", "Cinzel", serif; font-size: 32px; line-height: 1; color: var(--ink-3); font-feature-settings: "tnum" 1; }
+    .pn-pct { font-family: "JetBrains Mono", monospace; font-size: 14px; color: var(--jupiter); margin-left: 4px; font-weight: 500; }
+    .priority-bar {
+      position: relative; height: 8px;
+      background: var(--cosmos); border: 1px solid var(--line-soft);
+      overflow: hidden; margin-bottom: 16px;
+    }
+    .priority-bar > span {
+      position: absolute; inset: 0 auto 0 0;
+      background: linear-gradient(90deg, var(--jupiter), var(--venus));
+      box-shadow: 0 0 12px var(--jupiter);
+    }
+    .priority-meta { display: flex; justify-content: space-between; font-family: "Cormorant Garamond", serif; font-size: 14px; color: var(--ink-2); }
+    .priority-meta .when { font-family: "JetBrains Mono", monospace; font-size: 13px; color: var(--ink); font-weight: 500; }
+
+    .priority-right {
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+      padding-left: 24px; border-left: 1px solid var(--line-soft);
+    }
+    .pr-label { font-family: "Cinzel", serif; font-size: 9.5px; color: var(--ink-3); letter-spacing: 0.22em; text-transform: uppercase; }
+    .pr-glyph { font-size: 64px; line-height: 1; color: var(--jupiter); filter: drop-shadow(0 0 16px rgba(154, 122, 192, 0.5)); }
+    .pr-name { font-family: "Italiana", "Cinzel", serif; font-size: 20px; color: var(--ink); }
+    .pr-quote {
+      font-family: "Cormorant Garamond", serif; font-style: italic;
+      font-size: 14px; color: var(--ink-3); text-align: center;
+      line-height: 1.4; max-width: 280px; margin-top: 4px;
+    }
+
+    /* ============== SECTION HEADERS ============== */
+    .section { margin-bottom: 72px; }
+    .section-head {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      margin-bottom: 32px; padding-bottom: 16px;
+      border-bottom: 1px solid var(--line); position: relative;
+    }
+    .section-head::before { content: ""; position: absolute; bottom: -1px; left: 0; width: 80px; height: 1px; background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+    .section-head h2 { font-family: "Italiana", "Cinzel", serif; font-weight: 400; font-size: 32px; letter-spacing: 0.005em; margin: 0; color: var(--ink); }
+    .section-head h2 em { font-family: "Cormorant Garamond", serif; font-style: italic; color: var(--ink-3); font-weight: 500; }
+    .section-head .meta { font-family: "Cinzel", serif; font-size: 10px; color: var(--ink-3); letter-spacing: 0.22em; text-transform: uppercase; max-width: 380px; text-align: right; }
+    .section-head .meta b { color: var(--gold); font-weight: 600; }
+
+    /* ============== OTHER GOALS ============== */
+    .goals-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+    .goal {
+      background: var(--surface); border: 1px solid var(--line);
+      border-radius: 4px; padding: 24px 28px 22px;
+      display: flex; flex-direction: column; gap: 14px;
+      position: relative;
+    }
+    .goal-glyph-row { display: flex; align-items: center; gap: 14px; }
+    .goal-glyph { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 18px; }
+    .goal-name { font-family: "Italiana", "Cinzel", serif; font-size: 20px; color: var(--ink); }
+    .goal-progress { position: relative; height: 5px; background: var(--cosmos); border: 1px solid var(--line-soft); }
+    .goal-progress > span { position: absolute; inset: 0 auto 0 0; }
+    .goal-numbers { display: flex; justify-content: space-between; font-family: "JetBrains Mono", monospace; font-size: 11.5px; }
+    .goal-numbers .now { color: var(--ink); font-weight: 500; font-size: 13px; }
+    .goal-numbers .tgt { color: var(--ink-3); }
+    .goal-when { font-family: "Cormorant Garamond", serif; font-style: italic; font-size: 12.5px; color: var(--ink-3); display: flex; justify-content: space-between; }
+    .goal-when b { font-family: "JetBrains Mono", monospace; font-style: normal; font-weight: 500; color: var(--ink); }
+
+    /* ============== ENVELOPES BAR CHART ============== */
+    .envelopes {
+      background: var(--surface); border: 1px solid var(--line);
+      border-radius: 4px; padding: 8px 0;
+    }
+    .env-row {
+      display: grid; grid-template-columns: 36px 1.2fr 1fr 2.4fr 110px;
+      align-items: center; gap: 24px;
+      padding: 16px 36px;
+      border-bottom: 1px solid var(--line-soft);
+      font-size: 14px;
+    }
+    .env-row:last-child { border-bottom: 0; }
+    .env-row:hover { background: rgba(212, 175, 82, 0.03); }
+    .env-glyph { font-size: 22px; line-height: 1; text-align: center; }
+    .env-name { font-family: "Italiana", "Cinzel", serif; font-size: 18px; color: var(--ink); }
+    .env-nums { font-family: "JetBrains Mono", monospace; font-size: 12.5px; color: var(--ink-3); }
+    .env-nums .now { color: var(--ink); font-weight: 500; font-size: 13.5px; }
+    .env-track { position: relative; height: 8px; background: var(--cosmos); border: 1px solid var(--line-soft); }
+    .env-track > span { position: absolute; inset: 0 auto 0 0; }
+    .env-track > span.ok { background: var(--ok); }
+    .env-track > span.warn { background: var(--warn); }
+    .env-track > span.neg { background: var(--neg); background-image: repeating-linear-gradient(45deg, transparent 0, transparent 4px, rgba(6, 8, 15, 0.3) 4px, rgba(6, 8, 15, 0.3) 8px); }
+    .env-track .marker { position: absolute; top: -3px; bottom: -3px; width: 1px; background: var(--ink-3); opacity: 0.4; }
+    .env-status { font-family: "JetBrains Mono", monospace; font-size: 12px; text-align: right; }
+    .env-status.ok { color: var(--ok); }
+    .env-status.warn { color: var(--warn); }
+    .env-status.neg { color: var(--neg); }
+
+    /* ============== SNAPSHOT ============== */
+    .snapshot { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--line); background: var(--surface); }
+    .snap { padding: 22px 28px; border-right: 1px solid var(--line-soft); }
+    .snap:last-child { border-right: 0; }
+    .snap .lbl { font-family: "Cinzel", serif; font-size: 9.5px; color: var(--ink-3); letter-spacing: 0.22em; text-transform: uppercase; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .snap .v { font-family: "Italiana", "Cinzel", serif; font-size: 30px; line-height: 1; color: var(--ink); font-feature-settings: "tnum" 1; }
+    .snap .v.gold { color: var(--gold); }
+    .snap .v.pos { color: var(--ok); }
+    .snap .sub { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--ink-3); margin-top: 8px; }
+    .snap .tinycompass { width: 22px; height: 22px; color: var(--gold); }
+
+    /* ============== EXPLORE ============== */
+    .explore-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .explore { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 24px 26px 22px; display: flex; flex-direction: column; min-height: 200px; position: relative; text-decoration: none; color: inherit; transition: all 0.2s; cursor: pointer; }
+    .explore::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--gold-soft), transparent); opacity: 0; transition: opacity 0.2s; }
+    .explore:hover { border-color: var(--gold-soft); transform: translateY(-2px); }
+    .explore:hover::before { opacity: 1; }
+    .explore-glyph { width: 32px; height: 32px; display: grid; place-items: center; font-size: 22px; margin-bottom: 16px; color: var(--gold); }
+    .explore h3 { font-family: "Italiana", "Cinzel", serif; font-size: 22px; margin: 0 0 6px; font-weight: 400; }
+    .explore p { font-family: "Cormorant Garamond", serif; font-size: 14px; line-height: 1.45; color: var(--ink-2); margin: 0 0 16px; flex: 1; }
+    .explore-preview { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--line-soft); }
+    .explore-cta { display: inline-flex; align-items: center; gap: 6px; font-family: "Cinzel", serif; font-size: 10px; font-weight: 600; color: var(--gold); letter-spacing: 0.22em; text-transform: uppercase; }
+    .explore-cta::after { content: "→"; font-family: inherit; }
+
+    /* ============== NEXT STEP ============== */
+    .next-step { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--neg); border-radius: 4px; padding: 28px 36px; display: flex; align-items: center; gap: 28px; }
+    .ns-glyph { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; font-size: 26px; background: rgba(196, 90, 58, 0.1); color: var(--neg); border: 1px solid var(--neg); flex-shrink: 0; }
+    .ns-text { flex: 1; }
+    .ns-eyebrow { font-family: "Cinzel", serif; font-size: 9.5px; color: var(--neg); letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 6px; }
+    .ns-h { font-family: "Italiana", "Cinzel", serif; font-size: 22px; color: var(--ink); margin: 0 0 4px; }
+    .ns-sub { font-family: "Cormorant Garamond", serif; font-size: 15px; color: var(--ink-2); }
+    .ns-cta { display: inline-flex; align-items: center; gap: 8px; font-family: "Cinzel", serif; background: var(--ink); color: var(--cosmos); border: 0; border-radius: 2px; padding: 12px 22px; font-size: 11px; font-weight: 600; cursor: pointer; letter-spacing: 0.18em; text-transform: uppercase; flex-shrink: 0; text-decoration: none; }
+
+    .colophon { margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: baseline; font-family: "Cinzel", serif; font-size: 10px; color: var(--ink-3); letter-spacing: 0.2em; text-transform: uppercase; }
+    .colophon em { font-family: "Cormorant Garamond", serif; font-style: italic; color: var(--gold); text-transform: none; letter-spacing: 0.01em; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- ================== SIDEBAR ================== -->
+    <aside>
+      <div class="sidebar-head">
+        <div class="brand-mark">
+          <div class="logo">
+            <!-- Small mandala as the Compass logo (simplified) -->
+            <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="0.7">
+              <circle cx="20" cy="20" r="18" opacity="0.5"/>
+              <circle cx="20" cy="20" r="13" opacity="0.3"/>
+              <!-- 8-pointed star -->
+              <path d="M 20 3 L 21.6 18.4 L 20 20 L 18.4 18.4 Z" fill="currentColor"/>
+              <path d="M 20 37 L 21.6 21.6 L 20 20 L 18.4 21.6 Z" fill="currentColor" opacity="0.7"/>
+              <path d="M 3 20 L 18.4 18.4 L 20 20 L 18.4 21.6 Z" fill="currentColor" opacity="0.85"/>
+              <path d="M 37 20 L 21.6 18.4 L 20 20 L 21.6 21.6 Z" fill="currentColor" opacity="0.85"/>
+              <path d="M 8 8 L 18 18 L 20 20 L 18 18 Z" fill="currentColor" opacity="0.4"/>
+              <path d="M 32 8 L 22 18 L 20 20 L 22 18 Z" fill="currentColor" opacity="0.4"/>
+              <path d="M 8 32 L 18 22 L 20 20 L 18 22 Z" fill="currentColor" opacity="0.4"/>
+              <path d="M 32 32 L 22 22 L 20 20 L 22 22 Z" fill="currentColor" opacity="0.4"/>
+              <circle cx="20" cy="20" r="2" fill="currentColor"/>
+            </svg>
+          </div>
+          <div class="word">Compass</div>
+        </div>
+        <div class="collapse" title="Collapse">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 6l-6 6 6 6"/></svg>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Overview</div>
+        <a class="nav-item active" href="#"><span class="glyph">☉</span>Dashboard</a>
+        <a class="nav-item" href="#"><span class="glyph">☽</span>Period <span class="pill" style="margin-left:auto;font-size:9.5px;letter-spacing:0.2em;background:transparent;border:1px solid var(--gold-soft);color:var(--gold);padding:1px 7px;border-radius:2px">5D</span></a>
+        <a class="nav-item" href="#"><span class="glyph">✦</span>Calendar</a>
+        <a class="nav-item" href="#"><span class="glyph">⚝</span>Insights</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Plan</div>
+        <a class="nav-item" href="#"><span class="glyph">✺</span>Goals</a>
+        <a class="nav-item" href="#"><span class="glyph">♁</span>Recurring bills</a>
+        <a class="nav-item" href="#"><span class="glyph">🜨</span>Emergency fund</a>
+        <a class="nav-item" href="#"><span class="glyph">⚷</span>Investment goal</a>
+        <a class="nav-item" href="#"><span class="glyph">⚹</span>Allocation plan <span class="pill" style="margin-left:auto;font-size:9.5px;letter-spacing:0.2em;background:transparent;border:1px solid var(--mercury);color:var(--mercury);padding:1px 7px;border-radius:2px">AUTO</span></a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Money</div>
+        <a class="nav-item" href="#"><span class="glyph">⚱</span>Envelopes</a>
+        <a class="nav-item" href="#"><span class="glyph">⚜</span>Transactions</a>
+        <a class="nav-item" href="#"><span class="glyph">⚛</span>Accounts</a>
+        <a class="nav-item" href="#"><span class="glyph">♆</span>Subscriptions</a>
+        <a class="nav-item" href="#"><span class="glyph">⚸</span>Debts</a>
+        <a class="nav-item" href="#"><span class="glyph">⚕</span>Investments</a>
+      </div>
+
+      <div class="me">
+        <div class="me-avatar">M</div>
+        <div class="me-info">
+          <div class="me-name">Mom</div>
+          <div class="me-sub">mom@compass.local</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ================== MAIN ================== -->
+    <main>
+      <!-- =============== WELCOME =============== -->
+      <div class="welcome">
+        <div class="welcome-left">
+          <div class="date">Saturday · August 30 · 2025</div>
+          <h1>Good evening, <em>Mom.</em></h1>
+          <p class="lede">Compass is your guide to where your money is going — and where you want it to go. Set your priorities. Watch them grow.</p>
+        </div>
+        <div class="welcome-right">
+          <div class="pill">
+            <span class="glyph">☉</span>
+            Aug 22 – Sep 4 · 14 days
+          </div>
+        </div>
+      </div>
+
+      <!-- =============== TOP PRIORITY =============== -->
+      <div class="priority">
+        <div class="priority-head">
+          <div class="priority-eyebrow">Your top priority</div>
+          <a class="priority-edit" href="#">Change priority</a>
+        </div>
+        <div class="priority-body">
+          <div class="priority-left">
+            <h2>Emergency Fund</h2>
+            <p class="qu">Your safety net. Three months of expenses, ready when life surprises you. You're well on your way — keep it up.</p>
+            <div class="priority-numbers">
+              <span class="pn-now">$6,800</span>
+              <span class="pn-sep">of</span>
+              <span class="pn-tgt">$20,000</span>
+              <span class="pn-pct">34%</span>
+            </div>
+            <div class="priority-bar"><span style="width:34%"></span></div>
+            <div class="priority-meta">
+              <span>Target reached <b class="when">Feb 2026</b> · 6 months away</span>
+              <span>+$432 / paycheck</span>
+            </div>
+          </div>
+          <div class="priority-right">
+            <div class="pr-label">Saving into</div>
+            <div class="pr-glyph">♃</div>
+            <div class="pr-name">Jupiter · Savings</div>
+            <div class="pr-quote">"The long view. The thing that buys you time, when you need it most."</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =============== OTHER GOALS =============== -->
+      <div class="section">
+        <div class="section-head">
+          <h2>Other Goals, <em>also on your path.</em></h2>
+          <div class="meta">Set these as your top priority any time from the <b>Goals</b> page.</div>
+        </div>
+        <div class="goals-grid">
+          <div class="goal">
+            <div class="goal-glyph-row">
+              <div class="goal-glyph" style="background:rgba(106, 112, 138, 0.15); color:var(--saturn)">♄</div>
+              <div class="goal-name">Debt Free</div>
+            </div>
+            <div class="goal-progress"><span style="width:42%; background:var(--saturn); box-shadow: 0 0 8px var(--saturn)"></span></div>
+            <div class="goal-numbers"><span class="now">$2,021 paid</span><span class="tgt">of $4,820</span></div>
+            <div class="goal-when">Free by <b>May 2026</b></div>
+          </div>
+
+          <div class="goal">
+            <div class="goal-glyph-row">
+              <div class="goal-glyph" style="background:rgba(212, 165, 120, 0.15); color:var(--venus)">♀</div>
+              <div class="goal-name">Visit Family</div>
+            </div>
+            <div class="goal-progress"><span style="width:18%; background:var(--venus); box-shadow: 0 0 8px var(--venus)"></span></div>
+            <div class="goal-numbers"><span class="now">$180</span><span class="tgt">of $1,000</span></div>
+            <div class="goal-when">Target <b>Dec 2025</b></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =============== ENVELOPES (BAR CHART) =============== -->
+      <div class="section">
+        <div class="section-head">
+          <h2>Envelopes, <em>at a glance.</em></h2>
+          <div class="meta">Each envelope has a target. The bar shows how full it is. <b>Over limit</b> means you've spent more than the target.</div>
+        </div>
+        <div class="envelopes">
+          <div class="env-row">
+            <div class="env-glyph" style="color:var(--sol)">☉</div>
+            <div class="env-name">Rent</div>
+            <div class="env-nums"><span class="now">$800</span> / $800</div>
+            <div class="env-track"><span class="ok" style="width:100%"></span></div>
+            <div class="env-status ok">100%</div>
+          </div>
+          <div class="env-row">
+            <div class="env-glyph" style="color:var(--luna)">☽</div>
+            <div class="env-name">Groceries</div>
+            <div class="env-nums"><span class="now">$612</span> / $400</div>
+            <div class="env-track"><span class="neg" style="width:100%"></span></div>
+            <div class="env-status neg">153%</div>
+          </div>
+          <div class="env-row">
+            <div class="env-glyph" style="color:var(--mercury)">☿</div>
+            <div class="env-name">Utilities</div>
+            <div class="env-nums"><span class="now">$180</span> / $200</div>
+            <div class="env-track"><span class="warn" style="width:90%"></span></div>
+            <div class="env-status warn">90%</div>
+          </div>
+          <div class="env-row">
+            <div class="env-glyph" style="color:var(--venus)">♀</div>
+            <div class="env-name">Dining & Joy</div>
+            <div class="env-nums"><span class="now">$78</span> / $100</div>
+            <div class="env-track"><span class="warn" style="width:78%"></span></div>
+            <div class="env-status warn">78%</div>
+          </div>
+          <div class="env-row">
+            <div class="env-glyph" style="color:var(--mars)">♂</div>
+            <div class="env-name">Buffer</div>
+            <div class="env-nums"><span class="now">$96</span> / $96</div>
+            <div class="env-track"><span class="neg" style="width:100%"></span></div>
+            <div class="env-status neg">104%</div>
+          </div>
+          <div class="env-row">
+            <div class="env-glyph" style="color:var(--jupiter)">♃</div>
+            <div class="env-name">Savings</div>
+            <div class="env-nums"><span class="now">$1,360</span> / $4,000</div>
+            <div class="env-track"><span class="ok" style="width:34%"></span></div>
+            <div class="env-status ok">34%</div>
+          </div>
+          <div class="env-row">
+            <div class="env-glyph" style="color:var(--saturn)">♄</div>
+            <div class="env-name">Debt</div>
+            <div class="env-nums"><span class="now">$2,021</span> / $4,820</div>
+            <div class="env-track"><span class="ok" style="width:42%"></span></div>
+            <div class="env-status ok">42%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =============== SNAPSHOT =============== -->
+      <div class="section">
+        <div class="snapshot">
+          <div class="snap">
+            <div class="lbl">
+              <svg class="tinycompass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                <circle cx="12" cy="12" r="10" opacity="0.4"/>
+                <path d="M 12 3 L 13 11 L 12 12 L 11 11 Z" fill="currentColor"/>
+                <path d="M 12 21 L 13 13 L 12 12 L 11 13 Z" fill="currentColor" opacity="0.6"/>
+                <path d="M 3 12 L 11 11 L 12 12 L 11 13 Z" fill="currentColor" opacity="0.7"/>
+                <path d="M 21 12 L 13 11 L 12 12 L 13 13 Z" fill="currentColor" opacity="0.7"/>
+                <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+              </svg>
+              Net Worth
+            </div>
+            <div class="v">$84,210</div>
+            <div class="sub">+$1,612 this period</div>
+          </div>
+          <div class="snap">
+            <div class="lbl">Next Paycheck</div>
+            <div class="v gold">$2,400</div>
+            <div class="sub">in 5 days · Aug 28</div>
+          </div>
+          <div class="snap">
+            <div class="lbl">This Period</div>
+            <div class="v pos">8 of 14</div>
+            <div class="sub">Aug 22 – Sep 4</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =============== EXPLORE =============== -->
+      <div class="section">
+        <div class="section-head">
+          <h2>Explore Compass, <em>each area fully explained.</em></h2>
+          <div class="meta">Every page in the sidebar is a room of its own. Click any of these to go deeper.</div>
+        </div>
+        <div class="explore-grid">
+          <a class="explore" href="#">
+            <div class="explore-glyph">☽</div>
+            <h3>This Period</h3>
+            <p>The two weeks between paychecks. The full breakdown, day by day, with what came in and what went out.</p>
+            <div class="explore-preview"><span class="explore-cta">Open</span></div>
+          </a>
+          <a class="explore" href="#">
+            <div class="explore-glyph">⚱</div>
+            <h3>Envelopes</h3>
+            <p>Each envelope has a purpose. Set the target, watch them fill, know what's available before you spend.</p>
+            <div class="explore-preview"><span class="explore-cta">Open</span></div>
+          </a>
+          <a class="explore" href="#">
+            <div class="explore-glyph">⚹</div>
+            <h3>Allocation Plan</h3>
+            <p>Pick a strategy, set the percentages. Compass runs it on every paycheck. No confirm, no friction.</p>
+            <div class="explore-preview"><span class="explore-cta">Open</span></div>
+          </a>
+          <a class="explore" href="#">
+            <div class="explore-glyph">✦</div>
+            <h3>Calendar</h3>
+            <p>Paydays, goal targets, and your spending at a glance. The whole month, on one page.</p>
+            <div class="explore-preview"><span class="explore-cta">Open</span></div>
+          </a>
+          <a class="explore" href="#">
+            <div class="explore-glyph">⚸</div>
+            <h3>Debts</h3>
+            <p>One line per debt. See the balance, the interest, the path to zero. Avalanche or snowball — your call.</p>
+            <div class="explore-preview"><span class="explore-cta">Open</span></div>
+          </a>
+          <a class="explore" href="#">
+            <div class="explore-glyph">⚜</div>
+            <h3>Transactions</h3>
+            <p>Every dollar in and out, organized by day. Search, filter, tag. The full record of your money.</p>
+            <div class="explore-preview"><span class="explore-cta">Open</span></div>
+          </a>
+        </div>
+      </div>
+
+      <!-- =============== NEXT STEP =============== -->
+      <div class="section">
+        <div class="next-step">
+          <div class="ns-glyph">!</div>
+          <div class="ns-text">
+            <div class="ns-eyebrow">Your next step</div>
+            <h3 class="ns-h">Two envelopes are over limit — see what happened.</h3>
+            <p class="ns-sub">Groceries is at $612 of $400, Buffer is at $96 of $96. Open Envelopes to see where the overage came from.</p>
+          </div>
+          <a class="ns-cta" href="#">Open Envelopes →</a>
+        </div>
+      </div>
+
+      <div class="colophon">
+        <span>Compass</span>
+        <em>Your money, on a path.</em>
+        <span>2025 · Q3</span>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
