@@ -12,7 +12,7 @@
 - **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory) — ✅ done, commit `cda8972`. Cluster 1.7 visual audit — ✅ done, commit `3da5716`. **Cluster 1.8 (Bill organizer + Plan My Next Check + calendar warnings) — ✅ done, commit `999ff37`. Cluster 1.9 (Debt payoff simulator + Saturn vessel + 3-up card + paid-off celebration) — ✅ done, commits `feb50e3` + `801525c` (math-bug fix) + `0ffb439` (per-debt sparkline).** Biweekly period locked as the canonical pay schedule (D17); period-close renamed to match (D18). **Chart-next-to-data principle applied across /goals, /envelopes, /recurring, /debts, /insights — commit `843375c`. Cluster 1.10 (drill-downs + new transaction / goal / envelope / bill / debt forms + edit forms) — ✅ done, commits `03f308f` + `006bca0` + `3dc679f` + `649d76e`. **Cluster 2.0 (customizable, scrollable, card-based dashboard with @dnd-kit drag-and-drop + localStorage persistence) — ✅ done, commit `e648ef5`.** Next: Cluster 2.x (form actions deep-dive, bill reminders, variable income, period close), then 3.x (real Plaid, AI tiers).
 - **Stage 3 (Test & bug-fix)**: pending Stage 2
 
-> Last update: 2026-08-23 (post-Cluster-2.0 — customizable card dashboard)
+> Last update: 2026-08-23 (post-Cluster-2.0.1 — visual-first treatment)
 
 ---
 
@@ -229,6 +229,52 @@ The dashboard is now a 2-col card grid on desktop (1-col on mobile), mixing full
 - Snapshot → `/period` (the period page with the full walk)
 
 `tsc --noEmit` clean. `pnpm build` clean (10 static pages, 25 routes — same as before, just refactored `page.tsx`). Visual check: customize toggle works, add-card sheet opens, drag handle visible in edit mode, tap-through routes correctly, layout persists across reloads.
+
+### Cluster 2.0.1 — Visual-first treatment for all 4 data-display cards (✅ DONE — commit `af0b8d3`; 2026-08-23)
+
+Per xKryptic directive 2026-08-23: a budget planner should let the user budget with clear guidelines that illustrate the simplicity. **Default to a visual over a list of text rows**; lists only when the visual would confuse. Applied to all four dashboard cards that show structured data.
+
+**Critical Timeline → 14-day calendar strip**
+- Pure SVG, 14 day columns spanning the pay period (D17)
+- Each bill is a dot at its due day, color = planet (Luna/Mercury/Venus/Mars/Saturn/Sol/Jupiter)
+- Paid bills = 35% opacity, unpaid = 100%, overdue = iron-red ring
+- Today = gold vertical tick + "TODAY" label at the top
+- Stacked dots when multiple bills share a day
+- The 3-bill list with name + amount + status badge remains below the strip (the strip answers "when?", the list answers "what?")
+- Day-of-month labels along the bottom edge, AUG 22 / SEP 5 range labels at the corners
+
+**Daily Tracking → 7-day spend sparkline**
+- `WeekSparkline` added to the Weekly Health cell
+- Line shows the daily shape (flat = steady, spike = one big charge, falling = slowing)
+- Today dot is the rightmost column, accent-colored by pace (ok/warn/neg)
+- Dashed horizontal line at the 7-day average
+- Spikes ≥ 2× the average get a gold ring marker
+- Layout fix: pace label moved from inline to the sub line so cells don't overflow at narrow widths
+
+**Envelope Status → per-envelope burn sparkline**
+- `BurnSparkline` added to each row, sitting directly above the ratio bar
+- 7-day per-envelope spend, color = planet, today dot = status color
+- Subtle area fill below the line for shape emphasis
+- A flat line = steady pace. A rising line = accelerating toward the cap.
+- The shape tells the trajectory the static bar can't: Groceries is rising fast (burning), Rent/Buffer are flat (quiet)
+- Empty state: dashed line in ink-5 (no recent spend)
+
+**Top Priority → embedded GoalSparkline**
+- The trajectory sparkline from /goals lives inside the card now
+- Shows the projected path from "now" to 100% target over 18 months
+- Reuses the existing `GoalSparkline` component (188×48) for visual consistency with the deep page
+- Layout: stacked (numbers + bar at top, sparkline + projection label below) so the sparkline gets full card width instead of being squeezed beside the numbers
+- Caption: "At +$432.00/check" or "Plan isn't moving this goal" or "Goal reached"
+
+**Data plumbing** (computed server-side in `page.tsx`):
+- `dailySpendCents`: 7-element array of per-day totals (oldest first), used by DailyTracking
+- `spendByEnvelope`: `Record<envelopeId, 7-element array>`, used by EnvelopeStatus
+- `allDueThisPeriod`: every bill due in the period with `dayIndex: 0..13`, used by CriticalTimeline strip
+- `last7Days`: array of 7 Date objects for x-axis labels (sparklines)
+
+`tsc --noEmit` clean. `pnpm build` clean. All 4 cards now visually communicate at a glance — the user doesn't have to read every number to spot the pattern.
+
+**Apply going forward** (per the principle saved to User Memory 2026-08-23): every data-display surface in any xKryptic project. Build the chart first; add a list only if exact values can't live in the chart.
 
 ### Cluster 2 (after Cluster 2.0)
 
