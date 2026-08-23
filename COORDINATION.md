@@ -9,7 +9,7 @@
 ## Status
 
 - **Stage 1 (Design)**: ✅ Complete (v1.0) → **v4.0** reframe locked 2026-08-22 (alchemical/celestial visual language, pay-period as unit of truth, auto-allocate, 7 planetary vessels, 3-chapter sidebar, 4 allocation strategies)
-- **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory) — ✅ done, commit `cda8972`. **Cluster 1.7 visual audit (the 7 known chart/banner issues + /envelopes cleanup) — ✅ done, commit `3da5716`.** Next: Cluster 1.6 — form actions (New envelope, New transaction, New goal) + onboarding flow.
+- **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory) — ✅ done, commit `cda8972`. Cluster 1.7 visual audit — ✅ done, commit `3da5716`. **Cluster 1.8 (Bill organizer + Plan My Next Check + calendar warnings) — ✅ done, commit `999ff37`.** Biweekly period locked as the canonical pay schedule (D17); period-close renamed to match (D18). Next: Cluster 1.6 (form actions + onboarding), then Cluster 1.9 (debt payoff + celebrations + variable income).
 - **Stage 3 (Test & bug-fix)**: pending Stage 2
 
 > Last update: 2026-08-22 (post-Cluster-1.7-visual-audit)
@@ -123,6 +123,20 @@ The four "must-have" charts for a pay-period-centered finance app, each in the r
    - `/goals` (the visual companion to the goal list cards)
 
 All three new viz components are in `src/components/viz/`, themed to the alchemical visual system (cosmic canvas, gold leaf, planetary metals, Cinzel labels, Italiana numerics, Cormorant body). `tsc --noEmit` is clean; the dev server still returns 200 on every page.
+
+### Cluster 1.8 — Bill organizer + Plan My Next Check + calendar warnings (✅ DONE — commit `999ff37`; 2026-08-22)
+
+The "what's due before my next paycheck" + "how much can I safely spend" workflow is live end-to-end.
+
+- **`BILLS_SEED`** — 6 bills (Rent, Spectrum, Discover, Spotify, ChatGPT, Magic Valley Electric) covering the 7-vessel plan, with `dueDay`, `autopay`, `paidAt`, and `envelopeId` wired through.
+- **Biweekly period locked** (D17 in `00-DESIGN.md`): every-two-weeks is the canonical cadence; `PERIOD_START`, `PERIOD_END`, `NEXT_PAY_DATE` derived from the schedule. Period-close renamed to its pay-period-anchored form (D18).
+- **Live store** got `Bill` type, `setBillPaid()` mutator (with audit entry), `billsDueInPeriod()` engine (handles month-boundary crossing correctly), `paycheckBreakdown()` for the 5-way split, `safeToSpend()` for the headline.
+- **`/recurring` rewritten** with live data: summary strip (Total / Due this period / Period coverage / Autopay), three sections (Due / Paid / Not this period), per-row `BillPaidToggle` (useTransition + useOptimistic for instant feedback).
+- **Plan My Next Check card on the dashboard** — always-visible 5-way breakdown (Bills / Spending / Debt / Savings / Free), stacked bar, warning banners when bills exceed the paycheck or safe-to-spend is under $50.
+- **`/calendar`** got the bills-due-before-next-paycheck warning at the top, gold when covered, iron-red when bills exceed the paycheck.
+- **PaycheckSimulator** text refreshed to "Run my next check" / "Plan my next check" — the user-facing intent matches the action.
+
+Deferred to Clusters 1.9 and 2.x (see handoff below): debt payoff simulator, Snowball/Avalanche toggle, extra-payment "what if?", progress celebrations, period close mechanic, variable-income mode, bill reminders (AI tier).
 
 ### Cluster 1.7 visual audit + display fixes (✅ DONE — commit `3da5716`; 2026-08-22)
 
@@ -303,7 +317,7 @@ The 7 known issues from the handoff doc are resolved. The `/envelopes` page also
 
 ### Next session: Cluster 1.6 — form actions + onboarding
 
-The visual audit is **done** (commit `3da5716`; see "Cluster 1.7 visual audit + display fixes" section above for the per-issue resolution). The next push is **Cluster 1.6 — form actions + onboarding**.
+The visual audit is **done** (commit `3da5716`). **Cluster 1.8 is also done** (commit `999ff37`) — see the Cluster 1.8 section above for the per-issue resolution (Biweekly period locked, /recurring wired to live data, Plan My Next Check on the dashboard, calendar warnings). The next push is **Cluster 1.6 — form actions + onboarding**.
 
 **Scope (per 00-DESIGN.md §9 and the v4 cluster ordering):**
 
@@ -311,9 +325,9 @@ The visual audit is **done** (commit `3da5716`; see "Cluster 1.7 visual audit + 
    - "New envelope" on `/envelopes` → form action that appends to the live store, revalidates the page.
    - "New transaction" on `/transactions` → form action; envelope dropdown; amount in dollars → cents conversion; updates envelope balance.
    - "New goal" on `/goals` → form action; envelope target association; per-paycheck contribution.
-   - "New debt" on `/debts` → form action; balance, APR, min payment.
+   - "New bill" on `/recurring` → form action; name, amount, dueDay, autopay, envelopeId. (Bills are live as of 1.8; only the form to add/edit is missing.)
 2. **Onboarding flow** — the first-run experience when no user has set up yet:
-   - Pay schedule picker (weekly / biweekly / monthly / custom)
+   - Pay schedule picker (weekly / biweekly / monthly / custom) — **biweekly is the default per D17**
    - Seed 7 default envelopes (the planetary defaults, from `00-DESIGN.md` D14)
    - Arm the first Allocation Plan (default to "Envelope" strategy)
    - Land on the dashboard with everything wired
@@ -323,7 +337,7 @@ The visual audit is **done** (commit `3da5716`; see "Cluster 1.7 visual audit + 
    - Inline error rendering with `useActionState` (same pattern as the auth pages)
    - Success path: revalidate the page, scroll to the new entry
 
-**The paycheck simulator (Cluster 1.5) is the gold standard** for form actions — same `useActionState` + `revalidatePath` pattern, dollar→cents conversion at the boundary, no client-side mutation. New form actions should follow the same shape.
+**The paycheck simulator (Cluster 1.5) is the gold standard** for form actions — same `useActionState` + `revalidatePath` pattern, dollar→cents conversion at the boundary, no client-side mutation. The `toggleBillPaid` action added in 1.8 is also a clean reference: minimal payload (just billId + paid flag), revalidates 3 pages.
 
 **Form-action contract (apply to every new action):**
 - Reads the form input as **dollars** (the human-readable unit)
@@ -338,8 +352,47 @@ The visual audit is **done** (commit `3da5716`; see "Cluster 1.7 visual audit + 
 - [ ] `New transaction` form updates the envelope balance; the bar chart and recent activity both reflect it.
 - [ ] `New goal` form creates a goal with per-paycheck contribution; the dashboard top-priority hero + GoalTrajectory reflect it.
 - [ ] `New debt` form creates a debt with balance + APR; the `/debts` list reflects it.
-- [ ] Onboarding flow: clear the DB, hit `/welcome` → first user → pay schedule → seed 7 envelopes → arm plan → land on dashboard with everything wired.
+- [ ] `New bill` form creates a recurring bill with name, amount, dueDay, autopay; the Recurring page and the Plan My Next Check card on the dashboard both reflect it.
+- [ ] Onboarding flow: clear the DB, hit `/welcome` → first user → pay schedule (biweekly default) → seed 7 envelopes → arm plan → land on dashboard with everything wired.
 - [ ] `tsc --noEmit` clean; `pnpm build` clean; smoke test still passes.
+
+---
+
+## Cluster 1.9 + 2.x handoff (mom's full feature list)
+
+This is the **roadmap of remaining work** derived from mom's feature list (2026-08-22). The "change certain displays" push surfaced the items below; the visible-UI priority is what mom touches every payday.
+
+### Cluster 1.9 — Debt payoff + projections (visible-UI push, NOT yet started)
+
+The `/debts` page exists with mock data only. This cluster makes it real and adds the payoff simulator the user explicitly asked for.
+
+1. **Add `Debt` to the live store** (mirror the Bill model):
+   - `Debt` type: id, name, balanceCents, aprBps (basis points to avoid float), minPaymentCents, dueDay, accountId, sortOrder, isArchived
+   - `DEBTS_SEED`: 1-2 real-looking debts (Discover card, maybe a small medical)
+   - `addDebt()`, `updateDebt()`, `deleteDebt()` mutators
+   - `readDebts()`, `liveDebts()` (mirror the Bill API)
+2. **Wire `/debts` to live data** — list view with balance, APR, min payment, next-due, payoff estimate.
+3. **Snowball vs Avalanche toggle** — re-rank the list. Snowball = smallest balance first. Avalanche = highest APR first. Toggle on the page, no need to persist (per-session).
+4. **Extra-payment payoff simulator** — the "You have $175 available. Add it to Credit Card #1?" prompt + a 3-up payoff card (current / with-extra / saved months + interest). Reuses the GoalTrajectory 0–100% Y-axis pattern.
+5. **"What if?" slider** — `+$X/mo toward debt`; live updates the payoff card.
+6. **Progress celebrations** — when a debt hits balance $0, fire a one-time celestially-themed overlay (compass needle completes, mandala rotates, etc.) + write a journal entry to the audit log.
+
+### Cluster 2.x — Smart bills + variable income (AI tier, NOT yet started)
+
+These touch the auto-allocate engine + the AI provider layer. Schedule for after the layout-customization system (Cluster 3) and the form-action pattern lands (1.6).
+
+7. **Bill reminders** (Tier 1) — "Spectrum Internet due in 3 days, $75 from Chase Checking." Needs a notification surface (in-app banner first; push later).
+8. **Variable-income mode** — paycheck amount is already a free input in the simulator. The missing piece: a "this paycheck is irregular" flag that routes the whole check to Buffer (no auto-distribution) or distributes differently. Small engine change + a toggle in the PaycheckSimulator.
+9. **Period close (D18) — end-of-period rollover mechanic** — at `TODAY > PERIOD_END`, write a `PeriodClose` row, snapshot closing balances, roll unallocated Buffer / over-limit envelope deltas into the next period, write an audit entry. The "monthly rollover" framing in mom's list becomes period close in the biweekly model.
+
+### Cluster 3 (already in roadmap)
+
+- Layout customization system — widget registry, slot system, drag-drop, save views (the structural piece from v1.0 ordering)
+- CSV import + recurring detection
+
+### Cluster 4 (future)
+
+- L2 actual bank routing (Plaid + ACH)
 
 **Dev-server lifecycle note for the new session**: the bash tool has a 30-minute max runtime cap on background processes, which reaps the wrapping shell around `pnpm dev` even when Next itself is healthy. The session will need to restart the dev server roughly every 30 minutes via `pnpm dev` in a background task. The fresh session can avoid this by starting the dev server in a separate background task and only checking it as needed; or by running the build smoke (`pnpm build`) instead of `pnpm dev` for static verification.
 
@@ -402,12 +455,15 @@ The visual audit is **done** (commit `3da5716`; see "Cluster 1.7 visual audit + 
 - **Cluster 1.5 (visible interactivity pass — auto-allocate engine + paycheck simulator + live store)**: ✅ 2026-08-22, commit `35ccc6e`
 - **Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory)**: ✅ 2026-08-22, commit `cda8972`
 - **Cluster 1.7 visual audit (7 chart/banner issues + /envelopes cleanup)**: ✅ 2026-08-22, commit `3da5716`
+- **Cluster 1.8 (Bill organizer + Plan My Next Check + calendar warnings)**: ✅ 2026-08-22, commit `999ff37`
 - **Cluster 1.6 (form actions + onboarding)**: ⏳ next
+- **Cluster 1.9 (Debt payoff + projections)**: ⏳ scoped, not started
+- **Cluster 2.x (Smart bills + variable income)**: ⏳ scoped, not started
 - **Handed off (design)**: 2026-08-21
 - **Handed off (scaffold)**: 2026-08-22
 - **Handed off (auth)**: 2026-08-22
 - **Handed off (Cluster 1)**: 2026-08-22
 - **From session**: `mvs_77706038b3dc41f0818e43d1aca029bd` (design)
 - **From session**: `mvs_0ca37adfb53b4de188d584afc12df309` (scaffold + auth + Cluster 1 + Cluster 1.5 + Cluster 1.7)
-- **From session**: `mvs_4d1dd62520784d9c9f0c7511fdeaee6d` (Cluster 1.7 visual audit + display fixes)
-- **Handed to**: next session (TBD) — start with **Cluster 1.6 (form actions + onboarding)**; the visual audit is already done.
+- **From session**: `mvs_4d1dd62520784d9c9f0c7511fdeaee6d` (Cluster 1.7 visual audit + display fixes + Cluster 1.8 bill organizer + Plan My Next Check + calendar warnings + handoff scoping for 1.9 / 2.x)
+- **Handed to**: next session (TBD) — start with **Cluster 1.6 (form actions + onboarding)**, then Cluster 1.9 (debt payoff). Full handoff for both in the "Cluster 1.9 + 2.x handoff" section below.
