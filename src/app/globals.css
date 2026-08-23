@@ -191,3 +191,101 @@
     letter-spacing: 0.02em;
   }
 }
+
+/* ============================================================================
+   DASHBOARD (Cluster 2.0 — Customizable, scrollable, card-based)
+   ============================================================================ */
+
+/* The grid is 2 columns on desktop, mixed full/half. On mobile it
+   collapses to a single column where every card is full width. */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: stretch;
+}
+
+@media (max-width: 880px) {
+  .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dashboard-grid > [data-card-wrapper] {
+    grid-column: 1 / -1 !important;
+  }
+}
+
+/* Card surface — hover lifts the border and brings the chevron
+   forward. :active scales the card 1% down for tactile feedback. */
+.dashboard-card-link:hover .dashboard-card-surface {
+  border-color: var(--line);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  transform: translateY(-1px);
+}
+.dashboard-card-link:active .dashboard-card-surface {
+  transform: scale(0.992) translateY(0);
+  transition-duration: 80ms;
+}
+.dashboard-card-link:hover .dashboard-card-chevron {
+  color: var(--gold);
+  transform: translateX(3px);
+}
+.dashboard-card-link:focus-visible {
+  outline: none;
+}
+.dashboard-card-link:focus-visible .dashboard-card-surface {
+  box-shadow: 0 0 0 2px var(--gold), 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* Add Card sheet — hover state on the rows. */
+.dashboard-add-row:hover {
+  background: var(--cosmos-3) !important;
+  border-color: var(--line) !important;
+}
+
+/* Customize button — bottom-right; small lift on hover. */
+.dashboard-customize-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 18px rgba(212, 175, 82, 0.25);
+}
+
+/* View transitions — the card hands off to the destination page.
+   When the destination page opts in with the same view-transition-name,
+   the browser cross-fades and morphs the card into the target.
+   For now, we use a subtle stretch-and-fade so the card feels like
+   it's becoming the new view, not just disappearing. */
+@supports (view-transition-name: foo) {
+  ::view-transition-old(card-*) {
+    animation: 220ms cubic-bezier(0.2, 0.7, 0.3, 1) both fadeOut;
+  }
+  ::view-transition-new(card-*) {
+    animation: 280ms cubic-bezier(0.2, 0.7, 0.3, 1) 80ms both stretchIn;
+  }
+}
+
+@keyframes fadeOut {
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+@keyframes stretchIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Reduced-motion fallback */
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-card-link:hover .dashboard-card-surface,
+  .dashboard-card-link:active .dashboard-card-surface,
+  .dashboard-card-link:hover .dashboard-card-chevron,
+  .dashboard-customize-toggle:hover {
+    transform: none !important;
+  }
+}
