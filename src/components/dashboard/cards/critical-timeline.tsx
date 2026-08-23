@@ -14,6 +14,10 @@
  *
  * Tap-through → /recurring, where the full timeline strip + paid
  * toggles + add-bill form live.
+ *
+ * Component Oracle Terminal treatment: section header with //
+ * prefix, planet-colored dots, day badge in mono gold, amounts in
+ * JetBrains Mono. Paid bills get a line-through at 50% opacity.
  */
 
 import * as React from "react";
@@ -55,7 +59,7 @@ export function CriticalTimelineCard({ data }: { data: CriticalTimelineCardData 
       <div
         style={{
           background: "var(--cosmos-2)",
-          border: "1px solid var(--line-soft)",
+          border: "1px solid var(--line)",
           borderRadius: 3,
           overflow: "hidden",
         }}
@@ -73,23 +77,27 @@ export function CriticalTimelineCard({ data }: { data: CriticalTimelineCardData 
             style={{
               width: 36,
               height: 36,
-              borderRadius: "50%",
+              borderRadius: 2,
               display: "grid",
               placeItems: "center",
-              fontSize: 18,
+              fontSize: 14,
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontWeight: 700,
               color: "var(--ok)",
-              background: "rgba(106, 176, 136, 0.10)",
+              background: "rgba(74, 222, 128, 0.10)",
               border: "1px solid var(--ok)",
               flexShrink: 0,
+              letterSpacing: "0.04em",
             }}
           >
-            ✓
+            [OK]
           </div>
           <div>
             <div
               style={{
-                fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                fontSize: 18,
+                fontFamily: "var(--font-sora)",
+                fontSize: 15,
+                fontWeight: 600,
                 color: "var(--ink)",
                 marginBottom: 2,
               }}
@@ -98,8 +106,8 @@ export function CriticalTimelineCard({ data }: { data: CriticalTimelineCardData 
             </div>
             <div
               style={{
-                fontFamily: "var(--font-cormorant), serif",
-                fontSize: 14,
+                fontFamily: "var(--font-sora)",
+                fontSize: 13,
                 color: "var(--ink-2)",
               }}
             >
@@ -144,23 +152,30 @@ function ScheduledBillsList({ rows }: { rows: CriticalTimelineListRow[] }) {
     <div
       style={{
         background: "var(--cosmos-2)",
-        border: "1px solid var(--line-soft)",
+        border: "1px solid var(--line)",
         borderRadius: 3,
         overflow: "hidden",
       }}
     >
       <div
         style={{
-          fontFamily: "var(--font-cinzel), serif",
-          fontSize: 9,
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 9.5,
           fontWeight: 600,
-          color: "var(--ink-3)",
-          letterSpacing: "0.22em",
+          color: "var(--terminal-cyan)",
+          letterSpacing: "0.18em",
           textTransform: "uppercase",
-          padding: "10px 18px 6px",
+          padding: "10px 18px 8px",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          borderBottom: "1px solid var(--line-soft)",
         }}
       >
-        Scheduled bills this month
+        <span style={{ color: "var(--ink-4)" }}>//</span>
+        <span>scheduled bills</span>
+        <span style={{ color: "var(--ink-4)" }}>·</span>
+        <span style={{ color: "var(--ink-3)" }}>this month · {sorted.length}</span>
       </div>
       <ul style={{ listStyle: "none", margin: 0, padding: "0 6px 6px" }}>
         {sorted.map((row, i) => {
@@ -169,29 +184,29 @@ function ScheduledBillsList({ rows }: { rows: CriticalTimelineListRow[] }) {
             <li
               key={row.id}
               style={{
-                padding: "8px 12px",
+                padding: "9px 12px",
                 borderTop: i === 0 ? "0" : "1px solid var(--line-soft)",
                 display: "grid",
                 gridTemplateColumns: "auto 1fr auto auto",
                 alignItems: "center",
-                gap: 10,
+                gap: 12,
                 opacity: row.isPaid ? 0.5 : 1,
               }}
             >
               <span
                 aria-hidden
                 style={{
-                  width: 6,
-                  height: 6,
+                  width: 7,
+                  height: 7,
                   borderRadius: "50%",
                   background: planetColor,
-                  boxShadow: `0 0 4px ${planetColor}`,
+                  boxShadow: `0 0 6px ${planetColor}`,
                   flexShrink: 0,
                 }}
               />
               <span
                 style={{
-                  fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+                  fontFamily: "var(--font-sora)",
                   fontSize: 14,
                   color: "var(--ink)",
                   lineHeight: 1.1,
@@ -205,11 +220,15 @@ function ScheduledBillsList({ rows }: { rows: CriticalTimelineListRow[] }) {
                 {row.autopay && (
                   <span
                     style={{
-                      fontFamily: "var(--font-cinzel), serif",
+                      fontFamily: "var(--font-jetbrains), monospace",
                       fontSize: 8,
-                      color: "var(--ink-4)",
-                      letterSpacing: "0.18em",
-                      marginLeft: 6,
+                      fontWeight: 700,
+                      color: "var(--terminal-cyan)",
+                      letterSpacing: "0.10em",
+                      marginLeft: 8,
+                      padding: "1px 4px",
+                      border: "0.5px solid var(--terminal-cyan-dim)",
+                      borderRadius: 1,
                     }}
                   >
                     AP
@@ -218,28 +237,29 @@ function ScheduledBillsList({ rows }: { rows: CriticalTimelineListRow[] }) {
               </span>
               <span
                 style={{
-                  fontFamily: "var(--font-cinzel), serif",
+                  fontFamily: "var(--font-jetbrains), monospace",
                   fontSize: 9,
-                  fontWeight: 600,
+                  fontWeight: 700,
                   color: "var(--gold)",
-                  letterSpacing: "0.20em",
-                  background: "rgba(212, 175, 82, 0.10)",
-                  border: "1px solid var(--gold)",
+                  letterSpacing: "0.16em",
+                  background: "rgba(201, 164, 92, 0.08)",
+                  border: "0.5px solid var(--gold)",
                   borderRadius: 1,
                   padding: "2px 6px",
                   whiteSpace: "nowrap",
                 }}
               >
-                DAY {row.dayOfMonth}
+                DAY {String(row.dayOfMonth).padStart(2, "0")}
               </span>
               <span
                 style={{
                   fontFamily: "var(--font-jetbrains), monospace",
                   fontSize: 13,
                   color: row.isPaid ? "var(--ink-3)" : "var(--ink)",
-                  fontFeatureSettings: '"tnum" 1',
+                  fontFeatureSettings: '"tnum" 1, "zero" 1',
                   textDecoration: row.isPaid ? "line-through" : "none",
                   whiteSpace: "nowrap",
+                  fontWeight: 500,
                 }}
               >
                 {formatMoney(row.amountCents)}

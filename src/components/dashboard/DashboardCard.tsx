@@ -1,63 +1,64 @@
 "use client";
 
 /**
- * DashboardCard — the atomic card primitive for the scrollable dashboard.
+ * DashboardCard — the atomic card primitive for the Component Oracle
+ * Terminal dashboard.
  *
  * Pattern (mom-grade, locked):
- *  - In VIEW mode: the entire card is a single tap-through target. The
- *    href routes to a deep-dive tab where the user sees the full data
- *    set (transactions, calendar, envelopes, etc.). A subtle chevron
- *    on the right edge signals "more here". The whole card scales down
- *    1% on :active for tactile feedback.
+ *  - In VIEW mode: the entire card is a single tap-through target.
+ *    The chevron is a terminal `›` glyph that signals "more here".
+ *    Hovering lifts the card slightly with a teal-cyan border glow
+ *    (the "connection active" state). :active scales the card 0.5%
+ *    down for tactile feedback.
  *  - In EDIT mode: the Link is replaced with a div; the card shows
  *    reorder controls (up/down) on the left and a remove (X) on the
  *    right. The content remains visible so the user can see what
  *    they're reordering.
  *
- * The card renders a "view-transition-name" so the browser can
- * smoothly hand off to the destination page if both sides opt in.
- * Falls back to a simple slide-in animation where view transitions
- * aren't supported.
+ * Visual language:
+ *  - thin teal-gray border (#28404C)
+ *  - square corners (4px)
+ *  - mono labels (eyebrow, badges)
+ *  - Sora for headings, mono for everything else
+ *  - teal/cyan for active/connect, antique gold for primary accent
  */
 
 import * as React from "react";
 import Link from "next/link";
 
-export type CardAccent = "gold" | "warn" | "neg" | "ok" | "jupiter" | "saturn" | "venus" | "luna" | "mercury" | "mars" | "sol";
+export type CardAccent = "gold" | "warn" | "neg" | "ok" | "cyan" | "jupiter" | "saturn" | "venus" | "luna" | "mercury" | "mars" | "sol";
 
 export interface DashboardCardProps {
   /** Stable id used by the dashboard grid for reorder / hide. */
   cardId: string;
   /** Destination for the tap-through. Required in view mode. */
   href?: string;
-  /** Small caps eyebrow above the title. */
+  /** Mono caps eyebrow above the title (e.g. "// INDEXED"). */
   eyebrow?: string;
-  /** Card title (Italiana, prominent). */
+  /** Card title — Sora, prominent. */
   title: string;
-  /** Tail phrase in italic after the title, e.g. "tomorrow.". */
+  /** Italic tail after the title, e.g. "what's safe to spend.". */
   em?: string;
   /** Right-side meta — e.g. a small status pill, an amount, a date. */
   rightMeta?: React.ReactNode;
-  /** Accent color for the eyebrow + the left border / top tint. */
+  /** Accent color for the left rail (terminal-cyan by default). */
   accent?: CardAccent;
   /** Edit mode — show reorder + remove controls instead of tap-through. */
   editing?: boolean;
-  /** First card? (hide the "up" button in the edit rail). */
   isFirst?: boolean;
-  /** Last card? (hide the "down" button). */
   isLast?: boolean;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
   onRemove?: () => void;
-  /** The card's body. */
   children: React.ReactNode;
 }
 
-const ACCENT_BORDER: Record<CardAccent, string> = {
+const ACCENT_VAR: Record<CardAccent, string> = {
   gold: "var(--gold)",
   warn: "var(--warn)",
   neg: "var(--neg)",
   ok: "var(--ok)",
+  cyan: "var(--terminal-cyan)",
   jupiter: "var(--jupiter)",
   saturn: "var(--saturn)",
   venus: "var(--venus)",
@@ -68,17 +69,18 @@ const ACCENT_BORDER: Record<CardAccent, string> = {
 };
 
 const ACCENT_TINT: Record<CardAccent, string> = {
-  gold: "rgba(212, 175, 82, 0.10)",
-  warn: "rgba(212, 160, 80, 0.10)",
-  neg: "rgba(196, 90, 58, 0.12)",
-  ok: "rgba(106, 176, 136, 0.10)",
-  jupiter: "rgba(154, 122, 192, 0.12)",
-  saturn: "rgba(168, 176, 200, 0.12)",
-  venus: "rgba(212, 165, 120, 0.12)",
-  luna: "rgba(184, 200, 224, 0.12)",
-  mercury: "rgba(138, 192, 184, 0.12)",
-  mars: "rgba(196, 90, 58, 0.12)",
-  sol: "rgba(240, 193, 74, 0.10)",
+  gold: "rgba(201, 164, 92, 0.08)",
+  warn: "rgba(245, 158, 11, 0.08)",
+  neg: "rgba(239, 68, 68, 0.10)",
+  ok: "rgba(74, 222, 128, 0.08)",
+  cyan: "rgba(45, 212, 191, 0.10)",
+  jupiter: "rgba(196, 181, 253, 0.10)",
+  saturn: "rgba(148, 163, 184, 0.08)",
+  venus: "rgba(252, 165, 165, 0.10)",
+  luna: "rgba(203, 213, 225, 0.08)",
+  mercury: "rgba(103, 232, 249, 0.10)",
+  mars: "rgba(251, 146, 60, 0.10)",
+  sol: "rgba(252, 211, 77, 0.08)",
 };
 
 export function DashboardCard({
@@ -88,7 +90,7 @@ export function DashboardCard({
   title,
   em,
   rightMeta,
-  accent = "gold",
+  accent = "cyan",
   editing = false,
   isFirst,
   isLast,
@@ -97,23 +99,24 @@ export function DashboardCard({
   onRemove,
   children,
 }: DashboardCardProps) {
-  const accentColor = ACCENT_BORDER[accent];
+  const accentColor = ACCENT_VAR[accent];
   const tint = ACCENT_TINT[accent];
 
   const body = (
     <div
       style={{
         position: "relative",
-        background: `radial-gradient(ellipse at 0% 0%, ${tint} 0%, transparent 55%), var(--surface)`,
+        background: `${tint}, var(--surface)`,
+        backgroundBlendMode: "normal" as const,
         border: "1px solid var(--line)",
-        borderLeft: `2px solid ${accentColor}`,
+        borderLeft: `1px solid ${accentColor}`,
         borderRadius: 4,
-        padding: "26px 28px 24px",
+        padding: "20px 22px 18px",
         transition:
           "transform 180ms cubic-bezier(0.2, 0.7, 0.3, 1), border-color 180ms, box-shadow 180ms",
         viewTransitionName: `card-${cardId}`,
         cursor: editing ? "default" : "pointer",
-        boxShadow: editing ? "0 0 0 1px var(--gold) inset" : "none",
+        boxShadow: editing ? `0 0 0 1px ${accentColor} inset` : "none",
       }}
       className="dashboard-card-surface"
     >
@@ -122,15 +125,16 @@ export function DashboardCard({
         <div
           style={{
             position: "absolute",
-            top: 12,
-            right: 12,
+            top: 10,
+            right: 10,
             display: "inline-flex",
             alignItems: "center",
-            gap: 4,
+            gap: 2,
             background: "var(--cosmos-2)",
             border: "1px solid var(--line)",
             borderRadius: 2,
             padding: 2,
+            zIndex: 2,
           }}
         >
           <EditButton
@@ -160,19 +164,19 @@ export function DashboardCard({
           display: "flex",
           alignItems: "flex-end",
           justifyContent: "space-between",
-          gap: 16,
-          marginBottom: 16,
+          gap: 14,
+          marginBottom: 14,
         }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, flex: 1 }}>
           {eyebrow && (
             <div
               style={{
-                fontFamily: "var(--font-cinzel), serif",
+                fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 10,
-                fontWeight: 600,
+                fontWeight: 500,
                 color: accentColor,
-                letterSpacing: "0.24em",
+                letterSpacing: "0.18em",
                 textTransform: "uppercase",
                 display: "inline-flex",
                 alignItems: "center",
@@ -194,11 +198,11 @@ export function DashboardCard({
           )}
           <h3
             style={{
-              fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-              fontWeight: 400,
-              fontSize: 26,
-              lineHeight: 1.1,
-              letterSpacing: "0.005em",
+              fontFamily: "var(--font-sora)",
+              fontWeight: 600,
+              fontSize: 20,
+              lineHeight: 1.15,
+              letterSpacing: "-0.005em",
               margin: 0,
               color: "var(--ink)",
             }}
@@ -207,12 +211,12 @@ export function DashboardCard({
             {em && (
               <em
                 style={{
-                  fontFamily: "var(--font-cormorant), serif",
-                  fontStyle: "italic",
+                  fontFamily: "var(--font-sora)",
+                  fontStyle: "normal",
                   color: "var(--ink-3)",
-                  fontWeight: 500,
+                  fontWeight: 400,
                   marginLeft: 6,
-                  fontSize: 18,
+                  fontSize: 15,
                 }}
               >
                 {em}
@@ -226,10 +230,10 @@ export function DashboardCard({
           <div
             aria-hidden
             style={{
-              fontFamily: "var(--font-cinzel), serif",
-              fontSize: 22,
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 18,
               lineHeight: 1,
-              color: "var(--ink-3)",
+              color: "var(--ink-4)",
               flexShrink: 0,
               transition: "transform 200ms cubic-bezier(0.2, 0.7, 0.3, 1), color 200ms",
             }}
@@ -299,11 +303,11 @@ function EditButton({
       onClick={onClick}
       disabled={disabled}
       style={{
-        fontFamily: "var(--font-cinzel), serif",
-        fontSize: 11,
+        fontFamily: "var(--font-jetbrains), monospace",
+        fontSize: 10,
         fontWeight: 600,
-        width: 24,
-        height: 24,
+        width: 22,
+        height: 22,
         display: "grid",
         placeItems: "center",
         background: "transparent",
@@ -322,8 +326,8 @@ function EditButton({
       onMouseEnter={(e) => {
         if (disabled) return;
         e.currentTarget.style.background = danger
-          ? "rgba(196, 90, 58, 0.18)"
-          : "rgba(212, 175, 82, 0.18)";
+          ? "rgba(239, 68, 68, 0.18)"
+          : "rgba(45, 212, 191, 0.18)";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = "transparent";

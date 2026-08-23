@@ -13,13 +13,17 @@
  *     A flat line = steady. A spike midweek = one big charge. A
  *     rising line = accelerating toward the cap.
  *   - percentage of target
- *   - status badge (Over / Watch / Calm)
+ *   - status badge (Over / Watch / Calm) with [WARN] / [OK] markers
  *
- * If everything is calm, the card shows the jade "All within target"
- * summary so the user can scroll past it confidently.
+ * If everything is calm, the card shows the [OK] ALL CALM summary
+ * so the user can scroll past it confidently.
  *
  * Tap-through → /envelopes, where the per-envelope detail page has
  * the full bar chart, transaction list, and the pacing tick.
+ *
+ * Component Oracle Terminal treatment: mono caps eyebrows with //
+ * prefix, status badge in mono with [WARN] / [OK] markers,
+ * JetBrains Mono for the numbers, planet-colored dots.
  */
 
 import * as React from "react";
@@ -45,11 +49,26 @@ export interface EnvelopeStatusCardData {
 
 const STATUS_META: Record<
   EnvelopeStatusRow["status"],
-  { label: string; accent: string; ratioColor: string }
+  { label: string; marker: string; accent: string; barColor: string }
 > = {
-  over: { label: "Over", accent: "var(--neg)", ratioColor: "var(--neg)" },
-  watch: { label: "Watch", accent: "var(--warn)", ratioColor: "var(--warn)" },
-  calm: { label: "Calm", accent: "var(--ok)", ratioColor: "var(--ok)" },
+  over: {
+    label: "OVER",
+    marker: "[WARN]",
+    accent: "var(--neg)",
+    barColor: "var(--neg)",
+  },
+  watch: {
+    label: "WATCH",
+    marker: "[WARN]",
+    accent: "var(--warn)",
+    barColor: "var(--warn)",
+  },
+  calm: {
+    label: "CALM",
+    marker: "[OK]",
+    accent: "var(--ok)",
+    barColor: "var(--ok)",
+  },
 };
 
 export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
@@ -60,7 +79,7 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
     <div
       style={{
         background: "var(--cosmos-2)",
-        border: "1px solid var(--line-soft)",
+        border: "1px solid var(--line)",
         borderRadius: 3,
         overflow: "hidden",
       }}
@@ -79,23 +98,27 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
             style={{
               width: 36,
               height: 36,
-              borderRadius: "50%",
+              borderRadius: 2,
               display: "grid",
               placeItems: "center",
-              fontSize: 18,
+              fontSize: 11,
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontWeight: 700,
               color: "var(--ok)",
-              background: "rgba(106, 176, 136, 0.10)",
+              background: "rgba(74, 222, 128, 0.10)",
               border: "1px solid var(--ok)",
               flexShrink: 0,
+              letterSpacing: "0.04em",
             }}
           >
-            ✓
+            [OK]
           </div>
           <div>
             <div
               style={{
-                fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                fontSize: 18,
+                fontFamily: "var(--font-sora)",
+                fontSize: 15,
+                fontWeight: 600,
                 color: "var(--ink)",
                 marginBottom: 2,
               }}
@@ -104,8 +127,8 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
             </div>
             <div
               style={{
-                fontFamily: "var(--font-cormorant), serif",
-                fontSize: 14,
+                fontFamily: "var(--font-sora)",
+                fontSize: 13,
                 color: "var(--ink-2)",
               }}
             >
@@ -165,8 +188,9 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
                   >
                     <span
                       style={{
-                        fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                        fontSize: 16,
+                        fontFamily: "var(--font-sora)",
+                        fontSize: 14,
+                        fontWeight: 500,
                         color: "var(--ink)",
                         lineHeight: 1.1,
                         whiteSpace: "nowrap",
@@ -181,7 +205,7 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
                         fontFamily: "var(--font-jetbrains), monospace",
                         fontSize: 11,
                         color: "var(--ink-3)",
-                        fontFeatureSettings: '"tnum" 1',
+                        fontFeatureSettings: '"tnum" 1, "zero" 1',
                       }}
                     >
                       {formatMoney(row.currentCents)}
@@ -192,7 +216,7 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
                   {/* Burn sparkline — 7-day shape, sits directly above the bar */}
                   <BurnSparkline
                     cents={row.burnCents}
-                    accent={meta.ratioColor}
+                    accent={meta.barColor}
                     planetColor={planetColor}
                   />
                   {/* Ratio bar */}
@@ -213,7 +237,7 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
                         position: "absolute",
                         inset: "0 auto 0 0",
                         width: `${ratio * 100}%`,
-                        background: meta.ratioColor,
+                        background: meta.barColor,
                       }}
                     />
                     {row.status === "over" && (
@@ -224,7 +248,7 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
                           inset: "0 auto 0 100%",
                           width: `${overflowRatio * 100}%`,
                           background:
-                            "repeating-linear-gradient(45deg, var(--neg), var(--neg) 3px, rgba(196, 90, 58, 0.3) 3px, rgba(196, 90, 58, 0.3) 6px)",
+                            "repeating-linear-gradient(45deg, var(--neg), var(--neg) 3px, rgba(239, 68, 68, 0.3) 3px, rgba(239, 68, 68, 0.3) 6px)",
                         }}
                       />
                     )}
@@ -236,9 +260,10 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
                     fontFamily: "var(--font-jetbrains), monospace",
                     fontSize: 11,
                     color: "var(--ink-2)",
-                    fontFeatureSettings: '"tnum" 1',
-                    minWidth: 32,
+                    fontFeatureSettings: '"tnum" 1, "zero" 1',
+                    minWidth: 36,
                     textAlign: "right",
+                    fontWeight: 600,
                   }}
                 >
                   {Math.round(ratio * 100)}%
@@ -246,21 +271,23 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
                 {/* Status badge */}
                 <span
                   style={{
-                    fontFamily: "var(--font-cinzel), serif",
+                    fontFamily: "var(--font-jetbrains), monospace",
                     fontSize: 9,
-                    fontWeight: 600,
-                    letterSpacing: "0.22em",
-                    textTransform: "uppercase",
+                    fontWeight: 700,
+                    letterSpacing: "0.14em",
                     color: meta.accent,
                     background:
                       row.status === "over"
-                        ? "rgba(196, 90, 58, 0.18)"
+                        ? "rgba(239, 68, 68, 0.10)"
                         : "transparent",
                     border: `1px solid ${meta.accent}`,
                     borderRadius: 2,
                     padding: "4px 8px",
                     whiteSpace: "nowrap",
                     flexShrink: 0,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
                   }}
                 >
                   {meta.label}

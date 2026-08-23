@@ -5,27 +5,35 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ============================================================================
-   COMPASS — Alchemical / Celestial design system (v4 visual language, v6
-   product direction, v7 main page). Locked 2026-08-22 in 00-DESIGN.md §0a.
+   COMPASS — "Component Oracle Terminal" design system
+   Locked 2026-08-23 in conversation (xKryptic). Replaces the alchemical /
+   celestial warm-gold language with a cool terminal/oracle language. The
+   planet system (7 vessels) is preserved as a semantic mapping, but the
+   visual treatment is terminal — no occult decoration.
 
-   - Cosmic dark canvas (midnight indigo) is the only theme
-   - Gold leaf is the primary accent
-   - Seven planetary metals map to the seven default envelopes
-   - Body type is THICKER than typical web (500 baseline, not 400) for mom-grade
-     readability — locked per xKryptic feedback 2026-08-22
+   - Base: #060A12 (near-black terminal)
+   - Primary signal: #2DD4BF (teal) — active states, connections, CTA
+   - Accent: #C9A45C (antique gold) — symbolic, insight, primary
+   - System green: #4ADE80 — healthy, confirmed
+   - Borders: #28404C (teal-gray) — thin, dense
+   - Surface: dark navy, square/4px corners
+   - Typography: Sora for headings, JetBrains Mono for labels / data / controls
+   - Voice: oracle / protocol / sigil, not decorative occult
    ============================================================================ */
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
-  /* Compass font stack — locked */
-  --font-sans: var(--font-cormorant);
-  --font-display: var(--font-cinzel);
-  --font-numeric: var(--font-italiana);
+  /* Compass font stack — Sora for display, JetBrains Mono for data. */
+  /* The three legacy variables (--font-cinzel/italiana/cormorant) all */
+  /* alias Sora so the existing components inherit the new typeface. */
+  --font-sans: var(--font-sora);
+  --font-display: var(--font-sora);
+  --font-numeric: var(--font-sora);
   --font-mono: var(--font-jetbrains);
 
-  /* Shadcn theme mappings (override below) */
+  /* Shadcn theme mappings */
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -40,11 +48,11 @@
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
+  --color-input: var(--line);
+  --color-border: var(--line);
   --color-destructive: var(--neg);
-  --color-accent-foreground: var(--gold);
-  --color-accent: var(--cosmos-3);
+  --color-accent-foreground: var(--gold-glow);
+  --color-accent: var(--terminal-cyan-dim);
   --color-muted-foreground: var(--ink-3);
   --color-muted: var(--cosmos-2);
   --color-secondary-foreground: var(--ink);
@@ -56,56 +64,61 @@
   --color-card-foreground: var(--ink);
   --color-card: var(--surface);
 
-  /* Radii — small, refined */
+  /* Square corners — terminal density */
   --radius-sm: 2px;
   --radius-md: 3px;
   --radius-lg: 4px;
-  --radius-xl: 6px;
-  --radius-2xl: 8px;
-  --radius-3xl: 12px;
-  --radius-4xl: 16px;
+  --radius-xl: 4px;
+  --radius-2xl: 4px;
+  --radius-3xl: 4px;
+  --radius-4xl: 4px;
   --radius: 4px;
 }
 
 :root {
-  /* === COSMOS === */
-  --void:       #06080f;
-  --cosmos:     #0a0e1f;
-  --cosmos-2:   #11172e;
-  --cosmos-3:   #1a2042;
-  --surface:    #131a36;
-  --surface-2:  #1a2244;
-  --line:       #2a3158;
-  --line-soft:  #1f2748;
+  /* === COSMOS (terminal dark) === */
+  --void:       #060A12;
+  --cosmos:     #0B1118;
+  --cosmos-2:   #131C28;
+  --cosmos-3:   #1B2533;
+  --surface:    #0F1722;
+  --surface-2:  #182030;
+  --line:       #28404C;     /* primary teal-gray border */
+  --line-soft:  #1F2D38;
 
-  /* === INK (parchment on dark) === */
-  --ink:        #ece6d3;
-  --ink-2:      #c4bda6;
-  --ink-3:      #8b8770;
-  --ink-4:      #5a5a55;
-  --ink-5:      #3a3a45;
+  /* === INK (terminal light text) === */
+  --ink:        #E2E8F0;
+  --ink-2:      #94A3B8;
+  --ink-3:      #64748B;
+  --ink-4:      #475569;
+  --ink-5:      #334155;
 
-  /* === METALS === */
-  --gold:       #d4af52;
-  --gold-deep:  #a8853a;
-  --gold-soft:  #5a4824;
-  --gold-glow:  #f0d480;
+  /* === METALS — accent only === */
+  --gold:       #C9A45C;     /* antique gold — primary */
+  --gold-deep:  #8B7339;
+  --gold-soft:  #4A3E20;
+  --gold-glow:  #E2C58A;
 
-  /* === PLANETARY (visual only — never labeled in copy) === */
-  --sol:        #f0c14a;
-  --luna:       #b8c8e0;
-  --mercury:    #8ac0b8;
-  --venus:      #d4a578;
-  --mars:       #c45a3a;
-  --jupiter:    #9a7ac0;
-  --saturn:     #a8b0c8;
+  /* === TERMINAL SIGNAL (new) === */
+  --terminal-cyan:      #2DD4BF;   /* primary signal — connections, CTA */
+  --terminal-cyan-dim:  #0F766E;
+  --terminal-cyan-glow: #5EEAD4;
 
   /* === STATUS === */
-  --ok:         #6ab088;
-  --warn:       #d4a050;
-  --neg:        #c45a3a;
+  --ok:    #4ADE80;    /* healthy/confirmed (was #6ab088) */
+  --warn:  #F59E0B;    /* amber (more terminal than warm gold) */
+  --neg:   #EF4444;    /* red (more terminal) */
 
-  /* === Shadcn mappings (dark, alchemical) === */
+  /* === PLANETS (7 vessels) — muted, terminal-friendly hues === */
+  --sol:     #FCD34D;  /* gold-yellow */
+  --luna:    #CBD5E1;  /* slate-silver */
+  --mars:    #FB923C;  /* burnt orange (less alarming) */
+  --mercury: #67E8F9;  /* cyan (close to terminal-cyan, but lighter) */
+  --jupiter: #C4B5FD;  /* violet */
+  --venus:   #FCA5A5;  /* rose */
+  --saturn:  #94A3B8;  /* slate */
+
+  /* === Shadcn mappings (dark, terminal) === */
   --background: var(--cosmos);
   --foreground: var(--ink);
   --card: var(--surface);
@@ -119,27 +132,27 @@
   --muted: var(--cosmos-2);
   --muted-foreground: var(--ink-3);
   --accent: var(--cosmos-3);
-  --accent-foreground: var(--gold);
+  --accent-foreground: var(--gold-glow);
   --destructive: var(--neg);
   --border: var(--line);
   --input: var(--line);
-  --ring: var(--gold);
-  --chart-1: var(--sol);
-  --chart-2: var(--luna);
-  --chart-3: var(--mercury);
-  --chart-4: var(--venus);
-  --chart-5: var(--mars);
+  --ring: var(--terminal-cyan);
+  --chart-1: var(--terminal-cyan);
+  --chart-2: var(--gold);
+  --chart-3: var(--ok);
+  --chart-4: var(--jupiter);
+  --chart-5: var(--venus);
   --sidebar: var(--cosmos);
   --sidebar-foreground: var(--ink-2);
-  --sidebar-primary: var(--gold);
+  --sidebar-primary: var(--terminal-cyan);
   --sidebar-primary-foreground: var(--void);
   --sidebar-accent: var(--cosmos-3);
   --sidebar-accent-foreground: var(--ink);
   --sidebar-border: var(--line);
-  --sidebar-ring: var(--gold);
+  --sidebar-ring: var(--terminal-cyan);
 }
 
-/* Force dark mode — the alchemical canvas IS dark */
+/* Force dark mode — the terminal canvas IS dark */
 .dark, html { color-scheme: dark; }
 
 @layer base {
@@ -148,7 +161,6 @@
   }
   html {
     @apply font-sans;
-    /* Bumped weight to 500 — thicker body for mom-grade readability */
     font-weight: 500;
     color: var(--ink);
     background: var(--cosmos);
@@ -161,19 +173,13 @@
     text-rendering: optimizeLegibility;
   }
   h1, h2, h3, h4 {
-    font-family: var(--font-display);
+    font-family: var(--font-sora);
     font-weight: 600;
-    letter-spacing: 0.005em;
+    letter-spacing: -0.005em;
   }
-  /* Cormorant Garamond body — heavier than default 400 */
   p, li, span, div, button, input, textarea, select, label {
     font-weight: 500;
   }
-  /* Headings + display elements get the heavier weights */
-  h1 { font-weight: 600; }
-  h2 { font-weight: 600; }
-  h3 { font-weight: 600; }
-  h4 { font-weight: 600; }
   /* Numerics in JetBrains Mono — bold for big numbers */
   .num {
     font-family: var(--font-mono);
@@ -181,14 +187,14 @@
     font-feature-settings: "tnum" 1, "zero" 1;
   }
   .num-big {
-    font-family: var(--font-numeric);
-    font-weight: 500;
-  }
-  /* Display headings — Cinzel, even heavier */
-  .display {
-    font-family: var(--font-display);
+    font-family: var(--font-sora);
     font-weight: 600;
-    letter-spacing: 0.02em;
+  }
+  /* Display headings — Sora, even heavier */
+  .display {
+    font-family: var(--font-sora);
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
 }
 
@@ -201,7 +207,7 @@
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
+  gap: 16px;
   align-items: stretch;
 }
 
@@ -214,11 +220,11 @@
   }
 }
 
-/* Card surface — hover lifts the border and brings the chevron
-   forward. :active scales the card 1% down for tactile feedback. */
+/* Card surface — terminal telemetry. Hover lifts the border, and
+   the chevron moves forward; :active scales the card 1% down. */
 .dashboard-card-link:hover .dashboard-card-surface {
-  border-color: var(--line);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  border-color: var(--terminal-cyan);
+  box-shadow: 0 0 0 1px var(--terminal-cyan-dim) inset, 0 4px 12px rgba(0, 0, 0, 0.4);
   transform: translateY(-1px);
 }
 .dashboard-card-link:active .dashboard-card-surface {
@@ -226,33 +232,29 @@
   transition-duration: 80ms;
 }
 .dashboard-card-link:hover .dashboard-card-chevron {
-  color: var(--gold);
+  color: var(--terminal-cyan);
   transform: translateX(3px);
 }
 .dashboard-card-link:focus-visible {
   outline: none;
 }
 .dashboard-card-link:focus-visible .dashboard-card-surface {
-  box-shadow: 0 0 0 2px var(--gold), 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 0 2px var(--terminal-cyan), 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 /* Add Card sheet — hover state on the rows. */
 .dashboard-add-row:hover {
   background: var(--cosmos-3) !important;
-  border-color: var(--line) !important;
+  border-color: var(--terminal-cyan-dim) !important;
 }
 
 /* Customize button — bottom-right; small lift on hover. */
 .dashboard-customize-toggle:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 18px rgba(212, 175, 82, 0.25);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45), 0 0 12px rgba(45, 212, 191, 0.2);
 }
 
-/* View transitions — the card hands off to the destination page.
-   When the destination page opts in with the same view-transition-name,
-   the browser cross-fades and morphs the card into the target.
-   For now, we use a subtle stretch-and-fade so the card feels like
-   it's becoming the new view, not just disappearing. */
+/* View transitions — the card hands off to the destination page. */
 @supports (view-transition-name: foo) {
   ::view-transition-old(card-*) {
     animation: 220ms cubic-bezier(0.2, 0.7, 0.3, 1) both fadeOut;
@@ -288,4 +290,13 @@
   .dashboard-customize-toggle:hover {
     transform: none !important;
   }
+}
+
+/* ============================================================================
+   CALENDAR (Cluster 2.0.2 — Month view)
+   ============================================================================ */
+.month-calendar-day:hover {
+  background: var(--cosmos-3);
+  transform: scale(1.05);
+  z-index: 2;
 }

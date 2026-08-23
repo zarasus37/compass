@@ -325,14 +325,14 @@ export default async function Dashboard() {
         rightMeta={
           <span
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 9.5,
-              color: "var(--ink-3)",
-              letterSpacing: "0.22em",
+              color: overLimit.length === 0 ? "var(--ok)" : "var(--neg)",
+              letterSpacing: "0.18em",
               textTransform: "uppercase",
             }}
           >
-            {overLimit.length === 0 ? "All calm" : `${overLimit.length} need attention`}
+            {overLimit.length === 0 ? "[OK] ALL CALM" : `[WARN] ${overLimit.length} ATTENTION`}
           </span>
         }
       >
@@ -394,7 +394,7 @@ export default async function Dashboard() {
     <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", minHeight: "100vh" }}>
       <AppSidebar user={{ name: user.name, email: user.email }} />
       <div style={{ padding: "48px 80px 96px", maxWidth: 1480, position: "relative" }}>
-        {/* ============== WELCOME ============== */}
+        {/* ============== HERO ============== */}
         <header
           style={{
             display: "grid",
@@ -410,61 +410,69 @@ export default async function Dashboard() {
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <div
               style={{
-                fontFamily: "var(--font-cinzel), serif",
-                fontSize: 10,
-                color: "var(--ink-3)",
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 10.5,
+                color: "var(--terminal-cyan)",
                 fontWeight: 500,
-                letterSpacing: "0.22em",
+                letterSpacing: "0.18em",
                 textTransform: "uppercase",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 10,
               }}
             >
-              {formatLongDate(TODAY)}
+              <span aria-hidden style={{ color: "var(--ok)" }}>●</span>
+              <span>SESSION · {formatLongDate(TODAY)}</span>
             </div>
             <h1
               style={{
-                fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                fontWeight: 400,
-                fontSize: 44,
-                lineHeight: 1,
-                letterSpacing: "0.005em",
+                fontFamily: "var(--font-sora)",
+                fontWeight: 600,
+                fontSize: 38,
+                lineHeight: 1.1,
+                letterSpacing: "-0.015em",
                 margin: 0,
                 color: "var(--ink)",
               }}
             >
-              Good evening, <em style={{ fontFamily: "var(--font-cormorant), serif", fontStyle: "italic", color: "var(--gold-glow)", fontWeight: 500 }}>Mom.</em>
+              Welcome back, <span style={{ color: "var(--terminal-cyan)" }}>Mom.</span>
             </h1>
             <p
               style={{
-                fontFamily: "var(--font-cormorant), serif",
-                fontSize: 18,
+                fontFamily: "var(--font-sora)",
+                fontSize: 15,
                 lineHeight: 1.5,
                 color: "var(--ink-2)",
                 maxWidth: 640,
                 margin: "6px 0 0",
+                fontWeight: 400,
               }}
             >
-              Your dashboard, your way. Tap any card to go deeper — and tap the pencil to make it yours.
+              Your dashboard, your way. Tap any card to go deeper — and tap{" "}
+              <span style={{ fontFamily: "var(--font-jetbrains), monospace", color: "var(--terminal-cyan)" }}>CUSTOMIZE</span> to make it yours.
             </p>
           </div>
           <div
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: 8,
+              gap: 10,
               background: "var(--surface)",
               border: "1px solid var(--line)",
               borderRadius: 2,
-              padding: "7px 14px",
-              fontFamily: "var(--font-cinzel), serif",
+              padding: "8px 14px",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 10.5,
               fontWeight: 500,
-              letterSpacing: "0.18em",
+              letterSpacing: "0.14em",
               textTransform: "uppercase",
               color: "var(--ink-2)",
             }}
           >
             <span style={{ color: "var(--gold)", fontSize: 14, lineHeight: 1 }}>☉</span>
-            {formatPeriodRange(PERIOD_START, PERIOD_END)} · {totalDays} days
+            <span>
+              PERIOD · {formatPeriodRange(PERIOD_START, PERIOD_END)} · {totalDays}D
+            </span>
           </div>
         </header>
 
@@ -479,19 +487,17 @@ export default async function Dashboard() {
             borderTop: "1px solid var(--line)",
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "baseline",
-            fontFamily: "var(--font-cinzel), serif",
+            alignItems: "center",
+            fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 10,
             color: "var(--ink-3)",
-            letterSpacing: "0.2em",
+            letterSpacing: "0.18em",
             textTransform: "uppercase",
           }}
         >
-          <span>Compass</span>
-          <em style={{ fontFamily: "var(--font-cormorant), serif", fontStyle: "italic", color: "var(--gold)", textTransform: "none", letterSpacing: "0.01em" }}>
-            Your money, on a path.
-          </em>
-          <span>2026 · Q3</span>
+          <span style={{ color: "var(--terminal-cyan)" }}>● COMPASS_ORACLE</span>
+          <span style={{ color: "var(--gold)" }}>A oracle for your money.</span>
+          <span>v0.1 · 2026 · Q3</span>
         </footer>
       </div>
     </div>

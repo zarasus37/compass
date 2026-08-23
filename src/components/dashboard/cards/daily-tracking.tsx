@@ -10,11 +10,14 @@
  *    a falling line = slowing down.
  *
  * Tap-through → /transactions, where the full record lives.
+ *
+ * Component Oracle Terminal treatment: mono caps eyebrows with //
+ * prefix, big numbers in JetBrains Mono, body in Sora. Status line
+ * uses [OK] / [WARN] markers. Sparkline is pure SVG.
  */
 
 import * as React from "react";
 import { formatMoney, formatMoneySigned } from "@/lib/money";
-import { TODAY } from "@/lib/mock";
 import type { PaycheckBreakdown } from "@/lib/store";
 
 export interface DailyTrackingCardData {
@@ -51,22 +54,23 @@ export function DailyTrackingCard({ data }: { data: DailyTrackingCardData }) {
   const pace = expectedDailyCents > 0 ? todaySpentCents / expectedDailyCents : 0;
   const paceLabel =
     pace === 0
-      ? "calm"
+      ? "[OK] calm"
       : pace < 0.5
-      ? "well under"
+      ? "[OK] well under"
       : pace < 1
-      ? "under"
+      ? "[OK] under"
       : pace < 1.5
-      ? "on pace"
+      ? "[OK] on pace"
       : pace < 2
-      ? "above"
-      : "well above";
+      ? "[WARN] above"
+      : "[WARN] well above";
   const paceAccent =
     pace < 1
       ? "var(--ok)"
       : pace < 1.5
-      ? "var(--warn)"
-      : "var(--neg)";
+      ? "var(--ok)"
+      : "var(--warn)";
+  const safeAccent = safeToSpendCents < 0 ? "var(--neg)" : "var(--terminal-cyan)";
 
   return (
     <div
@@ -74,7 +78,7 @@ export function DailyTrackingCard({ data }: { data: DailyTrackingCardData }) {
         display: "grid",
         gridTemplateColumns: "1.4fr 1fr 1fr",
         gap: 0,
-        border: "1px solid var(--line-soft)",
+        border: "1px solid var(--line)",
         borderRadius: 3,
         overflow: "hidden",
         background: "var(--cosmos-2)",
@@ -82,18 +86,18 @@ export function DailyTrackingCard({ data }: { data: DailyTrackingCardData }) {
     >
       {/* SAFE TO SPEND — the headline */}
       <Cell
-        eyebrow="Safe to spend"
+        eyebrow="// safe to spend"
         align="left"
-        accent={safeToSpendCents < 0 ? "var(--neg)" : "var(--ink)"}
         main={
           <span
             style={{
-              fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-              fontSize: 40,
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 32,
               lineHeight: 1,
-              color: safeToSpendCents < 0 ? "var(--neg)" : "var(--gold-glow)",
-              fontFeatureSettings: '"tnum" 1',
-              letterSpacing: "0.005em",
+              color: safeAccent,
+              fontFeatureSettings: '"tnum" 1, "zero" 1',
+              fontWeight: 600,
+              letterSpacing: "-0.01em",
             }}
           >
             {formatMoney(safeToSpendCents)}
@@ -102,7 +106,7 @@ export function DailyTrackingCard({ data }: { data: DailyTrackingCardData }) {
         sub={
           <span style={{ color: "var(--ink-3)" }}>
             {safeToSpendCents < 0
-              ? "over the line — pull back"
+              ? "over the line · pull back"
               : "after bills, debt, savings"}
           </span>
         }
@@ -110,10 +114,9 @@ export function DailyTrackingCard({ data }: { data: DailyTrackingCardData }) {
 
       {/* TODAY'S PACE — number, pace label moves to the sub line */}
       <Cell
-        eyebrow="Today"
+        eyebrow="// today"
         borderLeft
         align="left"
-        accent="var(--ink)"
         main={
           <span
             style={{
@@ -121,7 +124,8 @@ export function DailyTrackingCard({ data }: { data: DailyTrackingCardData }) {
               fontSize: 22,
               lineHeight: 1,
               color: "var(--ink)",
-              fontFeatureSettings: '"tnum" 1',
+              fontFeatureSettings: '"tnum" 1, "zero" 1',
+              fontWeight: 600,
             }}
           >
             {formatMoneySigned(todaySpentCents)}
@@ -131,8 +135,14 @@ export function DailyTrackingCard({ data }: { data: DailyTrackingCardData }) {
           <span style={{ color: paceAccent }}>
             {paceLabel}
             {expectedDailyCents > 0 ? (
-              <span style={{ color: "var(--ink-3)" }}>
-                {" "}
+              <span
+                style={{
+                  color: "var(--ink-3)",
+                  fontFamily: "var(--font-jetbrains), monospace",
+                  fontSize: 11,
+                  marginLeft: 6,
+                }}
+              >
                 · of ~{formatMoney(expectedDailyCents)}
               </span>
             ) : null}
@@ -142,10 +152,9 @@ export function DailyTrackingCard({ data }: { data: DailyTrackingCardData }) {
 
       {/* WEEKLY HEALTH — number + 7-day sparkline */}
       <Cell
-        eyebrow="Weekly health"
+        eyebrow="// weekly health"
         borderLeft
         align="left"
-        accent="var(--ink)"
         main={
           <div
             style={{
@@ -162,18 +171,20 @@ export function DailyTrackingCard({ data }: { data: DailyTrackingCardData }) {
                   fontSize: 18,
                   lineHeight: 1,
                   color: "var(--ink)",
-                  fontFeatureSettings: '"tnum" 1',
+                  fontFeatureSettings: '"tnum" 1, "zero" 1',
+                  fontWeight: 600,
                 }}
               >
                 {formatMoney(weeklyAvgPerDayCents)}
               </span>
               <span
                 style={{
-                  fontFamily: "var(--font-cormorant), serif",
-                  fontStyle: "italic",
-                  fontSize: 12,
+                  fontFamily: "var(--font-jetbrains), monospace",
+                  fontSize: 10,
                   color: "var(--ink-3)",
-                  marginLeft: 3,
+                  marginLeft: 4,
+                  letterSpacing: "0.10em",
+                  textTransform: "uppercase",
                 }}
               >
                 / day
@@ -197,7 +208,17 @@ export function DailyTrackingCard({ data }: { data: DailyTrackingCardData }) {
           </div>
         }
         sub={
-          <span style={{ color: "var(--ink-3)" }}>7-day shape</span>
+          <span
+            style={{
+              color: "var(--ink-3)",
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 10,
+              letterSpacing: "0.10em",
+              textTransform: "uppercase",
+            }}
+          >
+            7-day shape
+          </span>
         }
       />
     </div>
@@ -206,7 +227,7 @@ export function DailyTrackingCard({ data }: { data: DailyTrackingCardData }) {
 
 // ---------------------------------------------------------------------------
 // 7-day sparkline — pure SVG, fits inside the Weekly Health cell.
-// Y axis: cents. Today is the rightmost column, with a gold dot +
+// Y axis: cents. Today is the rightmost column, with a teal dot +
 // the pace-accent line through it. Dashed horizontal line = average.
 // ---------------------------------------------------------------------------
 
@@ -267,8 +288,8 @@ function WeekSparkline({
       <path
         d={path}
         fill="none"
-        stroke="var(--ink-2)"
-        strokeWidth={1.2}
+        stroke="var(--terminal-cyan)"
+        strokeWidth={1.4}
         strokeLinecap="round"
         strokeLinejoin="round"
         opacity={0.85}
@@ -305,14 +326,12 @@ function Cell({
   sub,
   borderLeft,
   align,
-  accent,
 }: {
   eyebrow: string;
   main: React.ReactNode;
   sub: React.ReactNode;
   borderLeft?: boolean;
   align?: "left" | "right";
-  accent?: string;
 }) {
   return (
     <div
@@ -328,11 +347,11 @@ function Cell({
     >
       <div
         style={{
-          fontFamily: "var(--font-cinzel), serif",
+          fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 9.5,
           fontWeight: 600,
-          color: accent ?? "var(--ink-3)",
-          letterSpacing: "0.22em",
+          color: "var(--ink-3)",
+          letterSpacing: "0.18em",
           textTransform: "uppercase",
         }}
       >
@@ -341,9 +360,10 @@ function Cell({
       <div style={{ minWidth: 0 }}>{main}</div>
       <div
         style={{
-          fontFamily: "var(--font-cormorant), serif",
+          fontFamily: "var(--font-sora)",
           fontSize: 12.5,
           color: "var(--ink-3)",
+          lineHeight: 1.4,
         }}
       >
         {sub}

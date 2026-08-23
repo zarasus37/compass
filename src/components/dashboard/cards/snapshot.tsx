@@ -4,6 +4,10 @@
  * Preserved as a card variant of the dashboard snapshot. The deep
  * numbers (full balance history, paycheck details, period walk)
  * live on /accounts, /period, and /recurring respectively.
+ *
+ * Component Oracle Terminal treatment: mono caps eyebrows with //
+ * prefix, big numbers in JetBrains Mono with the per-cell accent
+ * (cyan / gold / green), mono sub for the date text.
  */
 
 import * as React from "react";
@@ -29,27 +33,28 @@ export function SnapshotCard({ data }: { data: SnapshotCardData }) {
         gridTemplateColumns: "repeat(3, 1fr)",
         gap: 0,
         background: "var(--cosmos-2)",
-        border: "1px solid var(--line-soft)",
+        border: "1px solid var(--line)",
         borderRadius: 3,
         overflow: "hidden",
       }}
     >
       <Cell
-        label={`Net Worth · Day ${data.day} of ${data.totalDays}`}
+        label="net worth"
         value={formatMoney(data.netWorthCents)}
         sub={formatMoneySigned(data.periodDeltaCents) + " this period"}
-        accent="ink"
+        accent="cyan"
+        topRight={`day ${data.day}/${data.totalDays}`}
       />
       <Cell
-        label="Next Paycheck"
+        label="next paycheck"
         value={formatMoney(data.nextPaycheckCents)}
         sub={`${formatRelativeDate(data.nextPayDate)} · ${formatPillDate(data.nextPayDate)}`}
         accent="gold"
         borderLeft
       />
       <Cell
-        label="This Period"
-        value={`${data.day} of ${data.totalDays}`}
+        label="this period"
+        value={`${data.day} / ${data.totalDays}`}
         sub={formatPeriodRange(data.periodStart, data.periodEnd)}
         accent="ok"
         borderLeft
@@ -64,15 +69,21 @@ function Cell({
   sub,
   accent,
   borderLeft,
+  topRight,
 }: {
   label: string;
   value: string;
   sub: string;
-  accent: "gold" | "ok" | "ink";
+  accent: "gold" | "ok" | "cyan";
   borderLeft?: boolean;
+  topRight?: string;
 }) {
   const valueColor =
-    accent === "gold" ? "var(--gold)" : accent === "ok" ? "var(--ok)" : "var(--ink)";
+    accent === "gold"
+      ? "var(--gold)"
+      : accent === "ok"
+      ? "var(--ok)"
+      : "var(--terminal-cyan)";
   return (
     <div
       style={{
@@ -82,23 +93,35 @@ function Cell({
     >
       <div
         style={{
-          fontFamily: "var(--font-cinzel), serif",
+          fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 9.5,
+          fontWeight: 600,
           color: "var(--ink-3)",
-          letterSpacing: "0.22em",
+          letterSpacing: "0.18em",
           textTransform: "uppercase",
           marginBottom: 8,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
         }}
       >
-        {label}
+        <span>
+          <span style={{ color: "var(--ink-4)" }}>//</span> {label}
+        </span>
+        {topRight && (
+          <span style={{ color: "var(--ink-4)" }}>{topRight}</span>
+        )}
       </div>
       <div
         style={{
-          fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+          fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 26,
           lineHeight: 1,
           color: valueColor,
-          fontFeatureSettings: '"tnum" 1',
+          fontFeatureSettings: '"tnum" 1, "zero" 1',
+          fontWeight: 600,
+          letterSpacing: "-0.01em",
         }}
       >
         {value}
@@ -108,7 +131,8 @@ function Cell({
           fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 11,
           color: "var(--ink-3)",
-          marginTop: 6,
+          marginTop: 8,
+          letterSpacing: "0.04em",
         }}
       >
         {sub}

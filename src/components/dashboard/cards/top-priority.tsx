@@ -11,6 +11,10 @@
  * The vessel glyph, description, and target-date copy are dropped —
  * the deep-dive on /goals/[id] has all of that with the full chart.
  *
+ * Component Oracle Terminal treatment: numbers in JetBrains Mono,
+ * "of" / "by" in Sora small body, trajectory section in a
+ * bordered sub-card with mono caps header.
+ *
  * Tap-through → /goals/[id].
  */
 
@@ -37,7 +41,7 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
         style={{
           padding: "24px 22px",
           color: "var(--ink-3)",
-          fontFamily: "var(--font-cormorant), serif",
+          fontFamily: "var(--font-sora)",
           fontSize: 14,
         }}
       >
@@ -59,38 +63,43 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
           style={{
             display: "flex",
             alignItems: "baseline",
-            gap: 14,
+            gap: 12,
             marginBottom: 12,
             flexWrap: "wrap",
           }}
         >
           <span
             style={{
-              fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-              fontSize: 32,
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 30,
               lineHeight: 1,
-              color: "var(--jupiter)",
-              fontFeatureSettings: '"tnum" 1',
+              color: "var(--terminal-cyan)",
+              fontFeatureSettings: '"tnum" 1, "zero" 1',
+              fontWeight: 600,
+              letterSpacing: "-0.01em",
             }}
           >
             {formatMoney(data.currentCents)}
           </span>
           <span
             style={{
-              fontFamily: "var(--font-cormorant), serif",
-              fontSize: 16,
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 12,
               color: "var(--ink-3)",
+              letterSpacing: "0.10em",
+              textTransform: "uppercase",
             }}
           >
             of
           </span>
           <span
             style={{
-              fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 20,
               lineHeight: 1,
-              color: "var(--ink-3)",
-              fontFeatureSettings: '"tnum" 1',
+              color: "var(--ink-2)",
+              fontFeatureSettings: '"tnum" 1, "zero" 1',
+              fontWeight: 500,
             }}
           >
             {formatMoney(data.targetCents)}
@@ -99,8 +108,13 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
             style={{
               fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 12,
-              color: "var(--jupiter)",
-              fontWeight: 500,
+              color: "var(--gold)",
+              fontWeight: 700,
+              letterSpacing: "0.04em",
+              padding: "3px 8px",
+              border: "1px solid var(--gold)",
+              borderRadius: 2,
+              background: "rgba(201, 164, 92, 0.08)",
             }}
           >
             {Math.round(pct)}%
@@ -121,8 +135,8 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
               position: "absolute",
               inset: "0 auto 0 0",
               width: `${pct}%`,
-              background: "linear-gradient(90deg, var(--jupiter), var(--venus))",
-              boxShadow: "0 0 8px var(--jupiter)",
+              background: "linear-gradient(90deg, var(--terminal-cyan), var(--gold))",
+              boxShadow: "0 0 8px var(--terminal-cyan)",
             }}
           />
         </div>
@@ -133,37 +147,67 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
             alignItems: "baseline",
             flexWrap: "wrap",
             gap: 8,
-            fontFamily: "var(--font-cormorant), serif",
+            fontFamily: "var(--font-sora)",
             fontSize: 13,
             color: "var(--ink-2)",
           }}
         >
           <span>
             {data.targetDate > TODAY ? "Free by" : "Target"}{" "}
-            <b
+            <span
               style={{
                 fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 12,
                 color: "var(--ink)",
                 fontWeight: 500,
+                letterSpacing: "0.02em",
+                padding: "0 4px",
+                border: "0.5px solid var(--line)",
+                borderRadius: 1,
+                marginLeft: 4,
               }}
             >
               {formatShortDate(data.targetDate)}
-            </b>
-            {monthsAway > 0 ? ` · ${monthsAway}mo` : ""}
+            </span>
+            {monthsAway > 0 ? (
+              <span
+                style={{
+                  fontFamily: "var(--font-jetbrains), monospace",
+                  fontSize: 11,
+                  color: "var(--ink-3)",
+                  marginLeft: 6,
+                }}
+              >
+                · {monthsAway}mo
+              </span>
+            ) : null}
           </span>
           <span>
-            <b
+            <span
               style={{
                 fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 12,
-                color: "var(--jupiter)",
-                fontWeight: 500,
+                color: "var(--terminal-cyan)",
+                fontWeight: 600,
+                padding: "0 4px",
+                border: "0.5px solid var(--terminal-cyan-dim)",
+                borderRadius: 1,
               }}
             >
               +{formatMoney(data.perPaycheckCents)}
-            </b>{" "}
-            / check
+            </span>{" "}
+            <span
+              style={{
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 11,
+                color: "var(--ink-3)",
+                letterSpacing: "0.10em",
+                textTransform: "uppercase",
+                marginLeft: 4,
+              }}
+            >
+              / check
+            </span>
           </span>
         </div>
       </div>
@@ -178,8 +222,9 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
           alignItems: "stretch",
           gap: 6,
           padding: "10px 16px 12px",
-          background: "rgba(154, 122, 192, 0.06)",
-          border: "1px solid var(--line-soft)",
+          background: "rgba(45, 212, 191, 0.04)",
+          border: "1px solid var(--line)",
+          borderLeft: "2px solid var(--terminal-cyan)",
           borderRadius: 3,
         }}
       >
@@ -188,23 +233,25 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
             display: "flex",
             justifyContent: "space-between",
             alignItems: "baseline",
-            fontFamily: "var(--font-cinzel), serif",
-            fontSize: 9,
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 9.5,
             fontWeight: 600,
             color: "var(--ink-3)",
-            letterSpacing: "0.22em",
+            letterSpacing: "0.18em",
             textTransform: "uppercase",
           }}
         >
-          <span>18-month projection</span>
+          <span style={{ color: "var(--terminal-cyan)" }}>
+            <span style={{ color: "var(--ink-4)" }}>//</span> 18-month projection
+          </span>
           <span
             style={{
-              fontFamily: "var(--font-cormorant), serif",
-              fontStyle: "italic",
-              fontSize: 12,
               color: "var(--ink-2)",
               textTransform: "none",
-              letterSpacing: "0.01em",
+              letterSpacing: "0.02em",
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 11,
+              fontWeight: 500,
             }}
           >
             {data.perPaycheckCents <= 0

@@ -3,7 +3,11 @@
  *
  * Same logic as the previous dashboard's NextStep section: surfaces
  * the over-limit envelopes with their current/target/overage, or
- * the calm jade summary when nothing is over.
+ * the [OK] ALL CALM summary when nothing is over.
+ *
+ * Component Oracle Terminal treatment: status marker in mono caps
+ * with [WARN] / [OK], names in Sora (gold for over, ink for calm),
+ * amounts in JetBrains Mono. The overage parenthetical is mono.
  *
  * Tap-through → /envelopes.
  */
@@ -35,29 +39,34 @@ export function NextStepCard({ data }: { data: NextStepCardData }) {
       }}
     >
       <div
+        aria-hidden
         style={{
           width: 48,
           height: 48,
-          borderRadius: "50%",
+          borderRadius: 2,
           display: "grid",
           placeItems: "center",
-          fontSize: 22,
-          background: calm ? "rgba(106, 176, 136, 0.12)" : "rgba(196, 90, 58, 0.14)",
+          fontSize: 12,
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontWeight: 700,
+          letterSpacing: "0.04em",
+          background: calm ? "rgba(74, 222, 128, 0.10)" : "rgba(239, 68, 68, 0.12)",
           color: calm ? "var(--ok)" : "var(--neg)",
           border: `1px solid ${calm ? "var(--ok)" : "var(--neg)"}`,
           flexShrink: 0,
           lineHeight: 1,
         }}
       >
-        {calm ? "✓" : "!"}
+        {calm ? "[OK]" : "[WARN]"}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         {calm ? (
           <>
             <div
               style={{
-                fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                fontSize: 18,
+                fontFamily: "var(--font-sora)",
+                fontSize: 15,
+                fontWeight: 600,
                 color: "var(--ink)",
                 marginBottom: 2,
               }}
@@ -66,23 +75,24 @@ export function NextStepCard({ data }: { data: NextStepCardData }) {
             </div>
             <div
               style={{
-                fontFamily: "var(--font-cormorant), serif",
-                fontSize: 14,
+                fontFamily: "var(--font-sora)",
+                fontSize: 13,
                 color: "var(--ink-2)",
               }}
             >
-              Nice pace. Keep going, and the next paycheck will top up the ones that need it.
+              Nice pace — the next paycheck will top up the ones that need it.
             </div>
           </>
         ) : (
           <>
             <div
               style={{
-                fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                fontSize: 18,
+                fontFamily: "var(--font-sora)",
+                fontSize: 15,
+                fontWeight: 600,
                 color: "var(--ink)",
                 marginBottom: 4,
-                lineHeight: 1.25,
+                lineHeight: 1.3,
               }}
             >
               {overLimit.length === 1
@@ -91,9 +101,9 @@ export function NextStepCard({ data }: { data: NextStepCardData }) {
             </div>
             <div
               style={{
-                fontFamily: "var(--font-cormorant), serif",
-                fontSize: 14,
-                color: "var(--ink)",
+                fontFamily: "var(--font-sora)",
+                fontSize: 13.5,
+                color: "var(--ink-2)",
                 lineHeight: 1.5,
               }}
             >
@@ -108,12 +118,21 @@ export function NextStepCard({ data }: { data: NextStepCardData }) {
                 return (
                   <span key={e.id}>
                     {sep}
-                    <b style={{ color: "var(--neg)", fontWeight: 600 }}>{e.name}</b>{" "}
+                    <b
+                      style={{
+                        color: "var(--neg)",
+                        fontWeight: 600,
+                        fontFamily: "var(--font-sora)",
+                      }}
+                    >
+                      {e.name}
+                    </b>{" "}
                     <span
                       style={{
                         fontFamily: "var(--font-jetbrains), monospace",
-                        fontSize: 13,
+                        fontSize: 12,
                         color: "var(--ink)",
+                        fontFeatureSettings: '"tnum" 1, "zero" 1',
                       }}
                     >
                       {formatMoney(e.current)}
@@ -121,11 +140,11 @@ export function NextStepCard({ data }: { data: NextStepCardData }) {
                     of {formatMoney(e.target)}
                     <span
                       style={{
-                        fontStyle: "italic",
+                        fontFamily: "var(--font-jetbrains), monospace",
                         color: "var(--ink-3)",
+                        marginLeft: 4,
                       }}
                     >
-                      {" "}
                       (+{formatMoney(overage)})
                     </span>
                   </span>

@@ -22,6 +22,11 @@
  *
  * Hover on a day with a bill → tooltip with bill name(s) + amount(s).
  * The native `title` attribute gives a simple, accessible baseline.
+ *
+ * Component Oracle Terminal treatment: day numbers in JetBrains Mono
+ * (data), planetary glyphs in gold (the planet system is preserved as
+ * a semantic mapping), cell borders in teal-gray with today in gold,
+ * badges in mono uppercase.
  */
 
 import * as React from "react";
@@ -137,25 +142,30 @@ export function MonthCalendar({ today, bills, goals, transactionDays }: MonthCal
     <div
       style={{
         background: "var(--cosmos-2)",
-        border: "1px solid var(--line-soft)",
-        borderRadius: 3,
-        padding: "14px 12px 12px",
+        border: "1px solid var(--line)",
+        borderRadius: 4,
+        padding: "14px 14px 12px",
       }}
     >
-      {/* Month label */}
+      {/* Month label — terminal mono caps with teal prefix */}
       <div
         style={{
-          fontFamily: "var(--font-cinzel), serif",
-          fontSize: 10,
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 10.5,
           fontWeight: 600,
-          color: "var(--ink-2)",
-          letterSpacing: "0.20em",
+          color: "var(--terminal-cyan)",
+          letterSpacing: "0.18em",
           textTransform: "uppercase",
           marginBottom: 12,
           textAlign: "center",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 8,
         }}
       >
-        {monthLabel}
+        <span style={{ color: "var(--ink-4)" }}>//</span>
+        <span style={{ color: "var(--ink)" }}>{monthLabel}</span>
       </div>
 
       {/* Planetary day-of-week headers */}
@@ -173,20 +183,26 @@ export function MonthCalendar({ today, bills, goals, transactionDays }: MonthCal
             title={`${PLANET_NAMES[i]}'s day`}
             style={{
               textAlign: "center",
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 9,
               color: "var(--ink-3)",
-              letterSpacing: "0.20em",
+              letterSpacing: "0.18em",
               fontWeight: 500,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: 1,
+              gap: 2,
             }}
           >
             <span
               aria-hidden
-              style={{ fontSize: 12, lineHeight: 1, color: "var(--gold)" }}
+              style={{
+                fontSize: 13,
+                lineHeight: 1,
+                color: "var(--gold)",
+                fontFamily: "var(--font-sora)",
+                fontWeight: 400,
+              }}
             >
               {PLANET_GLYPHS[i]}
             </span>
@@ -230,7 +246,10 @@ function DayCell({ day }: { day: MonthCalendarDay }) {
   const tooltipParts: string[] = [];
   if (hasPay) {
     const billLines = day.bills
-      .map((b) => `${b.name} — $${(b.amountCents / 100).toFixed(2)}${b.autopay ? " (autopay)" : ""}`)
+      .map(
+        (b) =>
+          `${b.name} — $${(b.amountCents / 100).toFixed(2)}${b.autopay ? " (autopay)" : ""}`,
+      )
       .join("\n");
     tooltipParts.push(`PAY:\n${billLines}`);
   }
@@ -248,15 +267,15 @@ function DayCell({ day }: { day: MonthCalendarDay }) {
       style={{
         position: "relative",
         aspectRatio: "1 / 1",
-        minHeight: 30,
+        minHeight: 32,
         border: isToday
           ? "1.5px solid var(--gold)"
           : "1px solid var(--line-soft)",
         borderRadius: 2,
         background: isToday
-          ? "rgba(212, 175, 82, 0.10)"
+          ? "rgba(201, 164, 92, 0.10)"
           : hasPay
-          ? "rgba(212, 175, 82, 0.04)"
+          ? "rgba(201, 164, 92, 0.04)"
           : "transparent",
         display: "flex",
         flexDirection: "column",
@@ -273,15 +292,15 @@ function DayCell({ day }: { day: MonthCalendarDay }) {
       {hasPay && (
         <span
           style={{
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 6.5,
-            fontWeight: 600,
-            letterSpacing: "0.06em",
+            fontWeight: 700,
+            letterSpacing: "0.10em",
             color: "var(--gold)",
             border: "0.5px solid var(--gold)",
             borderRadius: 1,
             padding: "0 3px",
-            lineHeight: 1.2,
+            lineHeight: 1.3,
             opacity: 0.95,
           }}
         >
@@ -291,15 +310,15 @@ function DayCell({ day }: { day: MonthCalendarDay }) {
       {hasGoal && (
         <span
           style={{
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 6.5,
-            fontWeight: 600,
-            letterSpacing: "0.06em",
+            fontWeight: 700,
+            letterSpacing: "0.10em",
             color: "var(--jupiter)",
             border: "0.5px solid var(--jupiter)",
             borderRadius: 1,
             padding: "0 3px",
-            lineHeight: 1.2,
+            lineHeight: 1.3,
             opacity: 0.95,
           }}
         >
@@ -307,18 +326,19 @@ function DayCell({ day }: { day: MonthCalendarDay }) {
         </span>
       )}
 
-      {/* Day number — the headline */}
+      {/* Day number — JetBrains Mono, the canonical data font */}
       <span
         style={{
-          fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-          fontSize: 14,
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 13,
           lineHeight: 1,
           color: isToday
             ? "var(--gold-glow)"
             : dim
             ? "var(--ink-4)"
             : "var(--ink)",
-          fontFeatureSettings: '"tnum" 1',
+          fontFeatureSettings: '"tnum" 1, "zero" 1',
+          fontWeight: isToday ? 600 : 500,
         }}
       >
         {day.dayOfMonth}
@@ -337,7 +357,7 @@ function DayCell({ day }: { day: MonthCalendarDay }) {
             height: 3,
             borderRadius: "50%",
             background: "var(--gold)",
-            opacity: 0.8,
+            opacity: 0.85,
           }}
         />
       )}

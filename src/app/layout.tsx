@@ -1,53 +1,44 @@
 import type { Metadata, Viewport } from "next";
-import { Cinzel, Italiana, Cormorant_Garamond, JetBrains_Mono } from "next/font/google";
+import { Sora, JetBrains_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
 
-// Compass font stack — locked in 00-DESIGN.md §0a.
-// All weights included so the design system can pick 400/500/600/700 freely.
+/**
+ * Compass font stack — Component Oracle Terminal (locked 2026-08-23).
+ * Sora for major headings + display numbers. JetBrains Mono for
+ * labels, logs, IDs, data, and controls. The legacy variable names
+ * (--font-cinzel / --font-italiana / --font-cormorant) all alias
+ * Sora in globals.css so the existing components inherit the new
+ * typeface without renaming every JSX site.
+ */
 
-const cinzel = Cinzel({
-  variable: "--font-cinzel",
+const sora = Sora({
+  variable: "--font-sora",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
-
-const italiana = Italiana({
-  variable: "--font-italiana",
-  subsets: ["latin"],
-  weight: ["400"],
-  display: "swap",
-});
-
-const cormorant = Cormorant_Garamond({
-  variable: "--font-cormorant",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
+  weight: ["300", "400", "500", "600", "700"],
   display: "swap",
 });
 
 const jetbrains = JetBrains_Mono({
   variable: "--font-jetbrains",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
+  weight: ["300", "400", "500", "600", "700"],
   display: "swap",
 });
 
 export const metadata: Metadata = {
   title: {
-    default: "Compass",
+    default: "Compass — Component Oracle",
     template: "%s — Compass",
   },
-  description: "Your money, on a path.",
+  description: "An oracle for your money. Personal-finance terminal, indexed by the user, for the user.",
   applicationName: "Compass",
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#0a0e1f" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0e1f" },
+    { media: "(prefers-color-scheme: light)", color: "#060A12" },
+    { media: "(prefers-color-scheme: dark)", color: "#060A12" },
   ],
 };
 
@@ -57,7 +48,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${cinzel.variable} ${italiana.variable} ${cormorant.variable} ${jetbrains.variable} h-full antialiased`}
+      className={`${sora.variable} ${jetbrains.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">

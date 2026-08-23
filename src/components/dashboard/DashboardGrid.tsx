@@ -202,14 +202,17 @@ export function DashboardGrid({ cardNodes }: DashboardGridProps) {
               onClick={() => setShowAdd(true)}
               disabled={hiddenIds.length === 0}
               style={{
-                fontFamily: "var(--font-cinzel), serif",
+                fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 10.5,
                 fontWeight: 600,
-                letterSpacing: "0.22em",
+                letterSpacing: "0.18em",
                 textTransform: "uppercase",
                 background: "var(--cosmos-2)",
-                color: hiddenIds.length === 0 ? "var(--ink-5)" : "var(--gold)",
-                border: `1px solid ${hiddenIds.length === 0 ? "var(--line)" : "var(--gold)"}`,
+                color:
+                  hiddenIds.length === 0 ? "var(--ink-5)" : "var(--terminal-cyan)",
+                border: `1px solid ${
+                  hiddenIds.length === 0 ? "var(--line)" : "var(--terminal-cyan)"
+                }`,
                 borderRadius: 2,
                 padding: "12px 22px",
                 cursor: hiddenIds.length === 0 ? "default" : "pointer",
@@ -280,19 +283,21 @@ function CustomizeToggle({
         display: "inline-flex",
         alignItems: "center",
         gap: 10,
-        fontFamily: "var(--font-cinzel), serif",
+        fontFamily: "var(--font-jetbrains), monospace",
         fontSize: 11,
         fontWeight: 600,
-        letterSpacing: "0.20em",
+        letterSpacing: "0.18em",
         textTransform: "uppercase",
-        background: editing ? "var(--gold)" : "var(--cosmos-2)",
-        color: editing ? "var(--void)" : "var(--gold)",
-        border: `1px solid ${editing ? "var(--gold)" : "var(--line)"}`,
+        background: editing ? "var(--terminal-cyan)" : "var(--cosmos-2)",
+        color: editing ? "var(--void)" : "var(--terminal-cyan)",
+        border: `1px solid ${
+          editing ? "var(--terminal-cyan)" : "var(--line)"
+        }`,
         borderRadius: 2,
         padding: "12px 18px",
         cursor: "pointer",
         boxShadow: editing
-          ? "0 0 16px rgba(212, 175, 82, 0.35), 0 8px 24px rgba(0, 0, 0, 0.4)"
+          ? "0 0 16px rgba(45, 212, 191, 0.35), 0 8px 24px rgba(0, 0, 0, 0.4)"
           : "0 4px 16px rgba(0, 0, 0, 0.35)",
         transition: "all 200ms cubic-bezier(0.2, 0.7, 0.3, 1)",
       }}
@@ -300,13 +305,22 @@ function CustomizeToggle({
     >
       {editing ? (
         <>
-          <span aria-hidden style={{ fontSize: 14, lineHeight: 1 }}>✓</span>
-          <span>Done · {visibleCount} cards</span>
+          <span
+            aria-hidden
+            style={{
+              fontSize: 12,
+              lineHeight: 1,
+              fontFamily: "var(--font-jetbrains), monospace",
+            }}
+          >
+            [OK]
+          </span>
+          <span>DONE · {visibleCount} CARDS</span>
         </>
       ) : (
         <>
           <span aria-hidden style={{ fontSize: 14, lineHeight: 1 }}>✎</span>
-          <span>Customize</span>
+          <span>CUSTOMIZE</span>
         </>
       )}
     </button>
@@ -447,9 +461,9 @@ function AddCardSheet({
           maxHeight: "80vh",
           background: "var(--surface)",
           border: "1px solid var(--line)",
-          borderTop: "2px solid var(--gold)",
-          borderRadius: "12px 12px 0 0",
-          padding: "32px 36px 28px",
+          borderTop: "1px solid var(--terminal-cyan)",
+          borderRadius: 4,
+          padding: "28px 32px 24px",
           overflow: "auto",
           boxShadow: "0 -16px 64px rgba(0, 0, 0, 0.5)",
         }}
@@ -460,31 +474,32 @@ function AddCardSheet({
             display: "flex",
             alignItems: "flex-end",
             justifyContent: "space-between",
-            marginBottom: 24,
-            paddingBottom: 16,
+            marginBottom: 20,
+            paddingBottom: 14,
             borderBottom: "1px solid var(--line)",
           }}
         >
           <div>
             <div
               style={{
-                fontFamily: "var(--font-cinzel), serif",
+                fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 10,
-                color: "var(--gold)",
-                letterSpacing: "0.24em",
+                color: "var(--terminal-cyan)",
+                letterSpacing: "0.18em",
                 textTransform: "uppercase",
                 marginBottom: 4,
               }}
             >
-              Customize
+              // configure
             </div>
             <h2
               style={{
-                fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                fontWeight: 400,
-                fontSize: 28,
+                fontFamily: "var(--font-sora)",
+                fontWeight: 600,
+                fontSize: 22,
                 color: "var(--ink)",
                 margin: 0,
+                letterSpacing: "-0.01em",
               }}
             >
               Add a card
@@ -513,14 +528,14 @@ function AddCardSheet({
         {hidden.length === 0 ? (
           <div
             style={{
-              fontFamily: "var(--font-cormorant), serif",
-              fontSize: 16,
+              fontFamily: "var(--font-sora)",
+              fontSize: 14,
               color: "var(--ink-2)",
               textAlign: "center",
               padding: "32px 0",
             }}
           >
-            All available cards are already on your dashboard.
+            [OK] All available cards are already on your dashboard.
           </div>
         ) : (
           <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -566,20 +581,22 @@ function AddCardSheet({
                   <div>
                     <div
                       style={{
-                        fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                        fontSize: 18,
+                        fontFamily: "var(--font-sora)",
+                        fontSize: 16,
+                        fontWeight: 600,
                         color: "var(--ink)",
-                        marginBottom: 2,
+                        marginBottom: 3,
+                        letterSpacing: "-0.005em",
                       }}
                     >
                       {c.title}
                     </div>
                     <div
                       style={{
-                        fontFamily: "var(--font-cormorant), serif",
-                        fontSize: 13.5,
+                        fontFamily: "var(--font-sora)",
+                        fontSize: 13,
                         color: "var(--ink-2)",
-                        lineHeight: 1.4,
+                        lineHeight: 1.45,
                       }}
                     >
                       {c.description}
@@ -587,12 +604,16 @@ function AddCardSheet({
                   </div>
                   <span
                     style={{
-                      fontFamily: "var(--font-cinzel), serif",
+                      fontFamily: "var(--font-jetbrains), monospace",
                       fontSize: 10,
-                      color: "var(--gold)",
-                      letterSpacing: "0.22em",
+                      fontWeight: 700,
+                      color: "var(--terminal-cyan)",
+                      letterSpacing: "0.16em",
                       textTransform: "uppercase",
                       whiteSpace: "nowrap",
+                      padding: "4px 8px",
+                      border: "1px solid var(--terminal-cyan-dim)",
+                      borderRadius: 2,
                     }}
                   >
                     + Add
@@ -617,10 +638,10 @@ function AddCardSheet({
             type="button"
             onClick={onReset}
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 10.5,
               fontWeight: 600,
-              letterSpacing: "0.20em",
+              letterSpacing: "0.16em",
               textTransform: "uppercase",
               background: "transparent",
               color: "var(--ink-3)",
@@ -628,6 +649,7 @@ function AddCardSheet({
               borderRadius: 2,
               padding: "10px 16px",
               cursor: "pointer",
+              transition: "color 160ms, border-color 160ms",
             }}
           >
             ↺ Reset to default
@@ -636,17 +658,18 @@ function AddCardSheet({
             type="button"
             onClick={onClose}
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: "0.20em",
+              fontWeight: 700,
+              letterSpacing: "0.16em",
               textTransform: "uppercase",
-              background: "var(--ink)",
-              color: "var(--cosmos)",
+              background: "var(--terminal-cyan)",
+              color: "var(--void)",
               border: 0,
               borderRadius: 2,
               padding: "12px 22px",
               cursor: "pointer",
+              transition: "filter 160ms",
             }}
           >
             Close

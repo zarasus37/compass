@@ -3,25 +3,27 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CompassRose } from "@/components/alchemy/CompassRose";
 
 /**
- * AppSidebar — the 3-chapter sidebar (D13).
+ * AppSidebar — the 3-chapter navigation rail (Component Oracle Terminal).
  *
- * Chapters: Overview / Plan / Money
- * Page names: plain English (Calendar / Insights / Envelopes / Transactions).
- * Glyphs: planetary/alchemical — visual only, never labeled in copy.
+ * Chapters: OVERVIEW / PLAN / MONEY (mono uppercase, terminal labels)
+ * Page names: plain English, mono items.
+ * Active state: teal/cyan left rail + filled background.
+ * AUTO badge: teal/cyan border + text.
  *
- * Active state: derived from the URL pathname so it works for every
- * page in the app. The user can collapse the rail with the chevron,
- * which is wired up as a state toggle in the parent.
+ * Active state: derived from the URL pathname. The user can collapse
+ * the rail with the chevron toggle in the header.
+ *
+ * The sidebar is the "sticky dark bar" the spec calls for, with mono
+ * nav items and a teal connection-status CTA. No decorative occult
+ * symbols — the product is a terminal, not a grimoire.
  */
 
 interface NavItem {
   href: string;
   label: string;
-  glyph: string;
-  badge?: { text: string; tone: "gold" | "teal" };
+  badge?: { text: string; tone: "auto" | "count" };
 }
 
 interface NavChapter {
@@ -31,33 +33,33 @@ interface NavChapter {
 
 const NAV: NavChapter[] = [
   {
-    label: "Overview",
+    label: "// Overview",
     items: [
-      { href: "/",              label: "Dashboard", glyph: "☉" },
-      { href: "/period",        label: "Period",    glyph: "☽", badge: { text: "5D", tone: "gold" } },
-      { href: "/calendar",      label: "Calendar",  glyph: "✦" },
-      { href: "/insights",      label: "Insights",  glyph: "⚝" },
+      { href: "/",         label: "Dashboard" },
+      { href: "/period",   label: "Period",    badge: { text: "5D", tone: "count" } },
+      { href: "/calendar", label: "Calendar" },
+      { href: "/insights", label: "Insights" },
     ],
   },
   {
-    label: "Plan",
+    label: "// Plan",
     items: [
-      { href: "/goals",         label: "Goals",            glyph: "✺" },
-      { href: "/recurring",     label: "Recurring bills",  glyph: "♁" },
-      { href: "/emergency",     label: "Emergency fund",   glyph: "🜨" },
-      { href: "/invest",        label: "Investment goal",  glyph: "⚷" },
-      { href: "/allocation",    label: "Allocation plan",  glyph: "⚹", badge: { text: "AUTO", tone: "teal" } },
+      { href: "/goals",      label: "Goals" },
+      { href: "/recurring",  label: "Recurring" },
+      { href: "/emergency",  label: "Emergency" },
+      { href: "/invest",     label: "Investment" },
+      { href: "/allocation", label: "Allocation", badge: { text: "AUTO", tone: "auto" } },
     ],
   },
   {
-    label: "Money",
+    label: "// Money",
     items: [
-      { href: "/envelopes",     label: "Envelopes",     glyph: "⚱" },
-      { href: "/transactions",  label: "Transactions",  glyph: "⚜" },
-      { href: "/accounts",      label: "Accounts",      glyph: "⚛" },
-      { href: "/subscriptions", label: "Subscriptions", glyph: "♆" },
-      { href: "/debts",         label: "Debts",         glyph: "⚸" },
-      { href: "/investments",   label: "Investments",   glyph: "⚕" },
+      { href: "/envelopes",     label: "Envelopes" },
+      { href: "/transactions",  label: "Transactions" },
+      { href: "/accounts",      label: "Accounts" },
+      { href: "/subscriptions", label: "Subscriptions" },
+      { href: "/debts",         label: "Debts" },
+      { href: "/investments",   label: "Investments" },
     ],
   },
 ];
@@ -73,51 +75,45 @@ export function AppSidebar({ user }: AppSidebarProps) {
   return (
     <aside
       style={{
-        background:
-          "linear-gradient(180deg, rgba(15, 20, 45, 0.7) 0%, rgba(10, 14, 31, 0.95) 100%)",
+        background: "var(--cosmos)",
         borderRight: "1px solid var(--line)",
-        padding: "28px 18px 24px",
+        padding: "20px 12px 16px",
         display: "flex",
         flexDirection: "column",
-        gap: 32,
+        gap: 24,
         position: "relative",
-        width: collapsed ? 72 : 248,
+        width: collapsed ? 64 : 232,
         transition: "width 0.2s",
       }}
     >
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          top: 80,
-          bottom: 80,
-          right: -1,
-          width: 1,
-          background:
-            "linear-gradient(180deg, transparent 0%, var(--gold-soft) 30%, var(--gold-soft) 70%, transparent 100%)",
-          opacity: 0.5,
-        }}
-      />
-
+      {/* Header — brand + collapse toggle */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 4px 8px",
+          justifyContent: collapsed ? "center" : "space-between",
+          padding: "4px 4px 12px",
           borderBottom: "1px solid var(--line-soft)",
         }}
       >
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}>
-          <CompassRose size={36} color="var(--gold)" />
+        <Link
+          href="/"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            textDecoration: "none",
+          }}
+        >
+          <BrandMark />
           {!collapsed && (
             <span
               style={{
-                fontFamily: "var(--font-cinzel), serif",
-                fontSize: 17,
-                fontWeight: 500,
-                letterSpacing: "0.18em",
+                fontFamily: "var(--font-sora)",
+                fontSize: 14,
+                fontWeight: 600,
                 color: "var(--ink)",
+                letterSpacing: "0.10em",
                 textTransform: "uppercase",
               }}
             >
@@ -125,25 +121,35 @@ export function AppSidebar({ user }: AppSidebarProps) {
             </span>
           )}
         </Link>
-        <button
-          type="button"
-          onClick={() => setCollapsed((c) => !c)}
-          title={collapsed ? "Expand" : "Collapse"}
-          style={{
-            width: 24,
-            height: 24,
-            display: "grid",
-            placeItems: "center",
-            color: "var(--ink-3)",
-            background: "transparent",
-            border: 0,
-            cursor: "pointer",
-          }}
-        >
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d={collapsed ? "M9 6l6 6-6 6" : "M15 6l-6 6 6 6"} />
-          </svg>
-        </button>
+        {!collapsed && (
+          <button
+            type="button"
+            onClick={() => setCollapsed((c) => !c)}
+            title="Collapse"
+            style={{
+              width: 22,
+              height: 22,
+              display: "grid",
+              placeItems: "center",
+              color: "var(--ink-3)",
+              background: "transparent",
+              border: "1px solid var(--line-soft)",
+              borderRadius: 2,
+              cursor: "pointer",
+            }}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="10"
+              height="10"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
+              <path d="M15 6l-6 6 6 6" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {NAV.map((chapter) => (
@@ -152,50 +158,54 @@ export function AppSidebar({ user }: AppSidebarProps) {
           chapter={chapter}
           pathname={pathname}
           collapsed={collapsed}
+          onToggleCollapse={() => setCollapsed((c) => !c)}
         />
       ))}
 
+      {/* User — terminal-style status card at the bottom */}
       <div
         style={{
           marginTop: "auto",
           border: "1px solid var(--line)",
           borderRadius: 2,
-          padding: 14,
+          padding: 10,
           display: "flex",
           alignItems: "center",
-          gap: 12,
-          background:
-            "radial-gradient(ellipse at 30% 0%, rgba(212, 175, 82, 0.08) 0%, transparent 70%), var(--surface)",
+          gap: 10,
+          background: "var(--surface)",
           position: "relative",
         }}
       >
         <div
+          aria-hidden
           style={{
-            width: 38,
-            height: 38,
-            borderRadius: "50%",
-            background:
-              "radial-gradient(circle at 35% 30%, var(--gold-glow) 0%, var(--gold) 40%, var(--gold-deep) 100%)",
-            color: "var(--void)",
+            width: 32,
+            height: 32,
+            borderRadius: 2,
+            background: "var(--cosmos-2)",
+            border: "1px solid var(--terminal-cyan-dim)",
+            color: "var(--terminal-cyan)",
             display: "grid",
             placeItems: "center",
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             fontWeight: 600,
-            fontSize: 15,
-            boxShadow: "0 0 14px rgba(212, 175, 82, 0.4)",
+            fontSize: 12,
             flexShrink: 0,
           }}
         >
           {user.name?.[0]?.toUpperCase() ?? "M"}
         </div>
         {!collapsed && (
-          <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
             <span
               style={{
-                fontFamily: "var(--font-cormorant), serif",
-                fontWeight: 600,
-                fontSize: 15,
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontWeight: 500,
+                fontSize: 12,
                 color: "var(--ink)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
               }}
             >
               {user.name}
@@ -203,16 +213,15 @@ export function AppSidebar({ user }: AppSidebarProps) {
             <span
               style={{
                 fontFamily: "var(--font-jetbrains), monospace",
-                fontSize: 10,
+                fontSize: 9.5,
                 color: "var(--ink-3)",
                 marginTop: 1,
-                letterSpacing: "0.02em",
                 whiteSpace: "nowrap",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
               }}
             >
-              {user.email}
+              <span style={{ color: "var(--terminal-cyan)" }}>●</span> {user.email}
             </span>
           </div>
         )}
@@ -221,50 +230,84 @@ export function AppSidebar({ user }: AppSidebarProps) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Brand mark — a square with a [C] and a tiny cursor. Terminal-flavored.
+// ---------------------------------------------------------------------------
+
+function BrandMark() {
+  return (
+    <div
+      aria-hidden
+      style={{
+        width: 28,
+        height: 28,
+        display: "grid",
+        placeItems: "center",
+        background: "var(--cosmos-2)",
+        border: "1px solid var(--terminal-cyan-dim)",
+        borderRadius: 2,
+        position: "relative",
+      }}
+    >
+      <span
+        style={{
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 13,
+          fontWeight: 700,
+          color: "var(--terminal-cyan)",
+          letterSpacing: "-0.02em",
+        }}
+      >
+        [C]
+      </span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// NavChapterView — a labeled section of nav items.
+// Chapter labels are terminal-style `// Overview` (mono, uppercase, with
+// the JS comment prefix as a flavor).
+// ---------------------------------------------------------------------------
+
 function NavChapterView({
   chapter,
   pathname,
   collapsed,
+  onToggleCollapse,
 }: {
   chapter: NavChapter;
   pathname: string;
   collapsed: boolean;
+  onToggleCollapse: () => void;
 }) {
   return (
-    <nav style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-      {!collapsed && (
+    <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      {!collapsed ? (
         <div
           style={{
-            fontFamily: "var(--font-cinzel), serif",
-            fontSize: 10,
-            fontWeight: 600,
-            color: "var(--gold-deep)",
-            letterSpacing: "0.22em",
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 9.5,
+            fontWeight: 500,
+            color: "var(--ink-3)",
+            letterSpacing: "0.18em",
             textTransform: "uppercase",
-            padding: "0 12px 12px",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
+            padding: "8px 12px 4px",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
           }}
         >
-          <span
-            aria-hidden
-            style={{
-              flex: 1,
-              height: 1,
-              background: "linear-gradient(90deg, transparent, var(--gold-soft), transparent)",
-            }}
-          />
           {chapter.label}
-          <span
-            aria-hidden
-            style={{
-              flex: 1,
-              height: 1,
-              background: "linear-gradient(90deg, transparent, var(--gold-soft), transparent)",
-            }}
-          />
         </div>
+      ) : (
+        <div
+          aria-hidden
+          style={{
+            height: 1,
+            background: "var(--line-soft)",
+            margin: "4px 8px",
+          }}
+        />
       )}
       {chapter.items.map((item) => {
         const isActive = pathname === item.href || (item.href === "/" && pathname === "/");
@@ -277,68 +320,98 @@ function NavChapterView({
               position: "relative",
               display: "flex",
               alignItems: "center",
-              gap: 12,
-              padding: "8px 12px",
+              gap: 10,
+              padding: collapsed ? "8px 0" : "7px 10px",
               borderRadius: 2,
-              color: isActive ? "var(--gold-glow)" : "var(--ink-2)",
-              fontFamily: "var(--font-cormorant), serif",
-              fontSize: 16,
-              fontWeight: 500,
+              color: isActive ? "var(--terminal-cyan)" : "var(--ink-2)",
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 12.5,
+              fontWeight: isActive ? 600 : 500,
               textDecoration: "none",
-              background: isActive
-                ? "linear-gradient(90deg, rgba(212, 175, 82, 0.12) 0%, transparent 100%)"
-                : "transparent",
+              background: isActive ? "var(--cosmos-2)" : "transparent",
+              border: isActive
+                ? "1px solid var(--terminal-cyan-dim)"
+                : "1px solid transparent",
               whiteSpace: "nowrap",
               justifyContent: collapsed ? "center" : "flex-start",
+              transition: "all 120ms",
             }}
           >
-            {isActive && (
+            {/* The teal connection indicator — left rail for active items */}
+            {isActive && !collapsed && (
               <span
                 aria-hidden
                 style={{
                   position: "absolute",
                   left: 0,
-                  top: "50%",
-                  transform: "translateY(-50%)",
+                  top: 4,
+                  bottom: 4,
                   width: 2,
-                  height: "70%",
-                  background: "var(--gold)",
-                  boxShadow: "0 0 8px var(--gold)",
+                  background: "var(--terminal-cyan)",
+                  boxShadow: "0 0 6px var(--terminal-cyan)",
                 }}
               />
             )}
+            {/* The leading ">" terminal prompt — only on active items */}
+            {!collapsed && (
+              <span
+                aria-hidden
+                style={{
+                  width: 10,
+                  flexShrink: 0,
+                  color: isActive ? "var(--terminal-cyan)" : "var(--ink-5)",
+                  fontSize: 11,
+                }}
+              >
+                {isActive ? "›" : " "}
+              </span>
+            )}
             <span
               style={{
-                width: 18,
-                height: 18,
-                display: "grid",
-                placeItems: "center",
-                fontSize: 16,
-                lineHeight: 1,
-                color: isActive ? "var(--gold)" : "var(--ink-3)",
-                flexShrink: 0,
+                flex: collapsed ? "0 0 auto" : "1 1 auto",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                minWidth: 0,
               }}
             >
-              {item.glyph}
+              {item.label}
             </span>
-            {!collapsed && <span>{item.label}</span>}
             {!collapsed && item.badge && (
               <span
                 style={{
-                  marginLeft: "auto",
                   fontFamily: "var(--font-jetbrains), monospace",
-                  fontSize: 9.5,
-                  fontWeight: 500,
-                  padding: "1px 7px",
+                  fontSize: 9,
+                  fontWeight: 600,
+                  padding: "1px 6px",
                   borderRadius: 2,
                   background: "transparent",
-                  border: `1px solid ${item.badge.tone === "teal" ? "var(--mercury)" : "var(--gold-soft)"}`,
-                  color: item.badge.tone === "teal" ? "var(--mercury)" : "var(--gold)",
+                  border: `1px solid ${
+                    item.badge.tone === "auto" ? "var(--terminal-cyan-dim)" : "var(--line)"
+                  }`,
+                  color:
+                    item.badge.tone === "auto"
+                      ? "var(--terminal-cyan)"
+                      : "var(--ink-2)",
                   letterSpacing: "0.04em",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
                 }}
               >
                 {item.badge.text}
               </span>
+            )}
+            {collapsed && onToggleCollapse && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onToggleCollapse();
+                }}
+                title="Expand"
+                style={{
+                  display: "none", // hidden in expanded mode
+                }}
+              />
             )}
           </Link>
         );
