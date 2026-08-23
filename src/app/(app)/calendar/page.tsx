@@ -19,34 +19,25 @@ export const dynamic = "force-dynamic";
 
 /**
  * Calendar — articulated deep page.
- * The almanac. Month view with paydays, goal targets, and a moon
- * phase panel. The day-of-week header carries a planetary glyph
- * (subtle visual reference — never labeled in copy).
  *
- * Cluster 1.8: the top of the page now has a "Bills due before next
- * paycheck" warning that surfaces the live bill list binned into the
- * current pay period. Red iron if the bills exceed the next paycheck;
- * amber if they're covered but tight; calm gold if comfortably under.
+ * Component Oracle Terminal treatment: Sora title, JetBrains Mono
+ * for amounts, mono caps headers with // prefix. Paydays (gold) and
+ * Goal targets (jupiter) preserved as semantic colors. The bills-due
+ * warning card uses terminal markers.
  */
 export default function CalendarPage() {
   const GOALS = liveGoals();
   const TRANSACTIONS = liveTransactions();
   const BILLS = liveBills();
   const SNAPSHOT = liveSnapshot();
-  // Mock: showing September 2025 with current period dates
   const month = "September";
   const year = 2025;
-  const firstDay = 1; // Sep 1, 2025 was a Monday
+  const firstDay = 1;
   const daysInMonth = 30;
-
-  // Paydays for this period (mock): Sep 4, Sep 18
   const paydays = [4, 18];
-  // Goal target date: Sep 26 (from GOALS)
   const goalTarget = 26;
-  // Today marker
   const today = 22;
 
-  // Cluster 1.8 — bills-due-before-next-paycheck warning
   const billsDue = billsDueInPeriod(BILLS, PERIOD_START, PERIOD_END);
   const unpaidBills = billsDue.filter((d) => !d.paidThisPeriod);
   const paidBills = billsDue.filter((d) => d.paidThisPeriod);
@@ -57,10 +48,10 @@ export default function CalendarPage() {
   return (
     <div>
       <PageHead
-        eyebrow="Overview · Calendar"
+        eyebrow="// overview · calendar"
         title="The Calendar"
         em={`${month} ${year}.`}
-        accent="luna"
+        accent="cyan"
         explanation={
           <>
             Every pay period, every goal target, every transaction has a date. This is the whole month on one page. Paydays are gold. Goal targets are purple. Today is silver. The little dots are days with transactions — they're the rhythm of your spending. Click any day to see what happened.
@@ -68,15 +59,14 @@ export default function CalendarPage() {
         }
       />
 
-      {/* Bills-due-before-next-paycheck warning (Cluster 1.8) */}
       {billsDue.length > 0 && (
         <section
           style={{
             background: billsExceed
-              ? "radial-gradient(ellipse at 0% 50%, rgba(196, 90, 58, 0.18) 0%, transparent 60%), var(--surface)"
-              : "radial-gradient(ellipse at 0% 50%, rgba(212, 175, 82, 0.10) 0%, transparent 60%), var(--surface)",
+              ? "var(--surface)"
+              : "var(--surface)",
             border: "1px solid var(--line)",
-            borderLeft: `3px solid ${billsExceed ? "var(--neg)" : "var(--gold)"}`,
+            borderLeft: `2px solid ${billsExceed ? "var(--neg)" : "var(--gold)"}`,
             borderRadius: 4,
             padding: "20px 28px",
             marginBottom: 40,
@@ -89,50 +79,58 @@ export default function CalendarPage() {
             style={{
               width: 48,
               height: 48,
-              borderRadius: "50%",
+              borderRadius: 2,
               display: "grid",
               placeItems: "center",
-              background: billsExceed ? "rgba(196, 90, 58, 0.14)" : "rgba(212, 175, 82, 0.12)",
+              background: billsExceed ? "rgba(239, 68, 68, 0.10)" : "rgba(201, 164, 92, 0.10)",
               color: billsExceed ? "var(--neg)" : "var(--gold)",
               border: `1px solid ${billsExceed ? "var(--neg)" : "var(--gold)"}`,
-              fontSize: 22,
+              fontSize: 12,
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontWeight: 700,
               flexShrink: 0,
               lineHeight: 1,
+              letterSpacing: "0.04em",
             }}
             aria-hidden
           >
-            {billsExceed ? "!" : "$"}
+            {billsExceed ? "[WARN]" : "$"}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div
               style={{
-                fontFamily: "var(--font-cinzel), serif",
+                fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 9.5,
+                fontWeight: 700,
                 color: billsExceed ? "var(--neg)" : "var(--gold)",
-                letterSpacing: "0.25em",
+                letterSpacing: "0.18em",
                 textTransform: "uppercase",
                 marginBottom: 6,
               }}
             >
+              <span style={{ color: "var(--ink-4)" }}>//</span>{" "}
               {billsExceed
                 ? "Bills exceed this paycheck"
                 : `Bills due before your next paycheck`}
             </div>
             <div
               style={{
-                fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                fontSize: 24,
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 22,
+                fontWeight: 600,
                 color: "var(--ink)",
                 lineHeight: 1.15,
+                fontFeatureSettings: '"tnum" 1, "zero" 1',
               }}
             >
               {formatMoney(totalBillsCents)}{" "}
               <span
                 style={{
-                  fontFamily: "var(--font-cormorant), serif",
-                  fontStyle: "italic",
+                  fontFamily: "var(--font-jetbrains), monospace",
+                  fontWeight: 400,
                   color: "var(--ink-3)",
-                  fontSize: 16,
+                  fontSize: 12,
+                  letterSpacing: "0.04em",
                 }}
               >
                 across {billsDue.length} bill{billsDue.length === 1 ? "" : "s"} · {formatPeriodRange(PERIOD_START, PERIOD_END)}
@@ -140,10 +138,11 @@ export default function CalendarPage() {
             </div>
             <div
               style={{
-                fontFamily: "var(--font-cormorant), serif",
-                fontSize: 14,
+                fontFamily: "var(--font-sora)",
+                fontSize: 13.5,
                 color: "var(--ink-2)",
                 marginTop: 8,
+                lineHeight: 1.5,
               }}
             >
               {billsExceed ? (
@@ -188,8 +187,9 @@ export default function CalendarPage() {
                 key={i}
                 style={{
                   textAlign: "center",
-                  fontFamily: "var(--font-cinzel), serif",
-                  fontSize: 10,
+                  fontFamily: "var(--font-jetbrains), monospace",
+                  fontSize: 9.5,
+                  fontWeight: 600,
                   color: "var(--ink-3)",
                   letterSpacing: "0.18em",
                   textTransform: "uppercase",
@@ -203,7 +203,7 @@ export default function CalendarPage() {
                 <span style={{ color: "var(--gold)", fontSize: 14, lineHeight: 1 }}>
                   {<VesselGlyph planet={p} size={14} />}
                 </span>
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][i]}
+                {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"][i]}
               </div>
             ),
           )}
@@ -224,7 +224,7 @@ export default function CalendarPage() {
                   aspectRatio: "1",
                   border: `1px solid ${
                     isToday
-                      ? "var(--luna)"
+                      ? "var(--gold)"
                       : isPayday
                       ? "var(--gold)"
                       : isGoal
@@ -232,11 +232,11 @@ export default function CalendarPage() {
                       : "var(--line-soft)"
                   }`,
                   background: isToday
-                    ? "radial-gradient(circle, rgba(184, 200, 224, 0.18), transparent 80%)"
+                    ? "rgba(201, 164, 92, 0.10)"
                     : isPayday
-                    ? "radial-gradient(circle, rgba(212, 175, 82, 0.18), transparent 80%)"
+                    ? "rgba(201, 164, 92, 0.05)"
                     : isGoal
-                    ? "radial-gradient(circle, rgba(154, 122, 192, 0.15), transparent 80%)"
+                    ? "rgba(196, 181, 253, 0.05)"
                     : "var(--cosmos)",
                   display: "flex",
                   flexDirection: "column",
@@ -246,26 +246,22 @@ export default function CalendarPage() {
                   fontFamily: "var(--font-jetbrains), monospace",
                   fontSize: 13,
                   color: isToday
-                    ? "var(--luna)"
+                    ? "var(--gold-glow)"
                     : isPayday
                     ? "var(--gold-glow)"
                     : "var(--ink-2)",
                   position: "relative",
-                  boxShadow:
-                    isPayday
-                      ? "0 0 12px rgba(212, 175, 82, 0.2)"
-                      : isToday
-                      ? "0 0 12px rgba(184, 200, 224, 0.2)"
-                      : "none",
-                  fontWeight: 500,
+                  fontFeatureSettings: '"tnum" 1',
+                  fontWeight: isToday ? 700 : 500,
                 }}
               >
                 {isPayday && (
                   <span
                     style={{
-                      fontSize: 8,
+                      fontSize: 7,
                       color: "var(--gold)",
-                      letterSpacing: 0,
+                      letterSpacing: 0.5,
+                      fontWeight: 700,
                     }}
                   >
                     PAY
@@ -274,9 +270,10 @@ export default function CalendarPage() {
                 {isGoal && (
                   <span
                     style={{
-                      fontSize: 8,
+                      fontSize: 7,
                       color: "var(--jupiter)",
-                      letterSpacing: 0,
+                      letterSpacing: 0.5,
+                      fontWeight: 700,
                     }}
                   >
                     GOAL
@@ -284,13 +281,7 @@ export default function CalendarPage() {
                 )}
                 {day}
                 {txCount > 0 && (
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 2,
-                      marginTop: 2,
-                    }}
-                  >
+                  <div style={{ display: "flex", gap: 2, marginTop: 2 }}>
                     {Array.from({ length: Math.min(txCount, 4) }, (_, j) => (
                       <div
                         key={j}
@@ -298,12 +289,11 @@ export default function CalendarPage() {
                           width: 3,
                           height: 3,
                           borderRadius: "50%",
-                          background:
-                            isPayday
-                              ? "var(--gold)"
-                              : isToday
-                              ? "var(--luna)"
-                              : "var(--ink-3)",
+                          background: isToday
+                            ? "var(--gold)"
+                            : isPayday
+                            ? "var(--gold)"
+                            : "var(--ink-3)",
                         }}
                       />
                     ))}
@@ -321,22 +311,24 @@ export default function CalendarPage() {
             marginTop: 24,
             paddingTop: 20,
             borderTop: "1px solid var(--line-soft)",
-            fontFamily: "var(--font-cormorant), serif",
-            fontSize: 14,
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 10.5,
             color: "var(--ink-3)",
+            letterSpacing: "0.10em",
+            textTransform: "uppercase",
             flexWrap: "wrap",
           }}
         >
           <Legend swatch="var(--gold)" label="Payday (2 this month)" />
           <Legend swatch="var(--jupiter)" label="Goal target · Emergency Fund" />
-          <Legend swatch="var(--luna)" label="Today" />
+          <Legend swatch="var(--gold)" label="Today" />
           <Legend dot label="Day with transactions" />
         </div>
       </section>
 
       {/* Moon phase panel */}
       <section>
-        <SectionHeader title="Moon" em="the month's counsel." />
+        <SectionHeader title="Moon" em="the month's counsel." accent="luna" />
         <div
           style={{
             background: "var(--surface)",
@@ -363,32 +355,35 @@ export default function CalendarPage() {
           <div style={{ flex: 1 }}>
             <div
               style={{
-                fontFamily: "var(--font-cinzel), serif",
+                fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 9.5,
+                fontWeight: 600,
                 color: "var(--ink-3)",
-                letterSpacing: "0.22em",
+                letterSpacing: "0.18em",
                 textTransform: "uppercase",
                 marginBottom: 6,
               }}
             >
-              Moon phase
+              <span style={{ color: "var(--ink-4)" }}>//</span> Moon phase
             </div>
             <div
               style={{
-                fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                fontSize: 28,
+                fontFamily: "var(--font-sora)",
+                fontSize: 24,
+                fontWeight: 600,
                 color: "var(--ink)",
                 marginBottom: 6,
+                letterSpacing: "-0.005em",
               }}
             >
               First Quarter
             </div>
             <p
               style={{
-                fontFamily: "var(--font-cormorant), serif",
-                fontSize: 15,
+                fontFamily: "var(--font-sora)",
+                fontSize: 14,
                 color: "var(--ink-2)",
-                lineHeight: 1.5,
+                lineHeight: 1.55,
                 margin: 0,
               }}
             >
@@ -397,21 +392,24 @@ export default function CalendarPage() {
           </div>
           <div
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 10,
+              fontWeight: 600,
               color: "var(--ink-3)",
-              letterSpacing: "0.22em",
+              letterSpacing: "0.18em",
               textTransform: "uppercase",
               textAlign: "right",
             }}
           >
-            Next full
+            <span style={{ color: "var(--ink-4)" }}>//</span> Next full
             <div
               style={{
-                fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+                fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 18,
+                fontWeight: 600,
                 color: "var(--ink)",
                 marginTop: 6,
+                fontFeatureSettings: '"tnum" 1',
               }}
             >
               Sep 12
@@ -442,6 +440,7 @@ function Legend({
             height: 12,
             background: `${swatch}33`,
             border: `1px solid ${swatch}`,
+            borderRadius: 1,
           }}
         />
       ) : (
@@ -464,11 +463,19 @@ function SectionHeader({
   title,
   em,
   meta,
+  accent = "cyan",
 }: {
   title: string;
   em?: string;
   meta?: string;
+  accent?: "cyan" | "luna" | "gold";
 }) {
+  const accentColor =
+    accent === "luna"
+      ? "var(--luna)"
+      : accent === "gold"
+      ? "var(--gold)"
+      : "var(--terminal-cyan)";
   return (
     <div
       style={{
@@ -481,38 +488,51 @@ function SectionHeader({
         position: "relative",
       }}
     >
-      <h2
-        style={{
-          fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-          fontWeight: 400,
-          fontSize: 30,
-          letterSpacing: "0.005em",
-          margin: 0,
-          color: "var(--ink)",
-        }}
-      >
-        {title}
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+        <span
+          style={{
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 9.5,
+            fontWeight: 600,
+            color: accentColor,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+          }}
+        >
+          <span style={{ color: "var(--ink-4)" }}>//</span>
+        </span>
+        <h2
+          style={{
+            fontFamily: "var(--font-sora)",
+            fontWeight: 600,
+            fontSize: 26,
+            letterSpacing: "-0.01em",
+            margin: 0,
+            color: "var(--ink)",
+          }}
+        >
+          {title}
+        </h2>
         {em && (
-          <em
+          <span
             style={{
-              fontFamily: "var(--font-cormorant), serif",
-              fontStyle: "italic",
+              fontFamily: "var(--font-sora)",
+              fontWeight: 400,
+              fontSize: 16,
               color: "var(--ink-3)",
-              fontWeight: 500,
-              marginLeft: 8,
             }}
           >
             {em}
-          </em>
+          </span>
         )}
-      </h2>
+      </div>
       {meta && (
         <div
           style={{
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 10,
             color: "var(--ink-3)",
-            letterSpacing: "0.22em",
+            letterSpacing: "0.10em",
             textTransform: "uppercase",
             maxWidth: 380,
             textAlign: "right",
@@ -529,8 +549,8 @@ function SectionHeader({
           left: 0,
           width: 80,
           height: 1,
-          background: "var(--gold)",
-          boxShadow: "0 0 8px var(--gold)",
+          background: accentColor,
+          boxShadow: `0 0 8px ${accentColor}`,
         }}
       />
     </div>

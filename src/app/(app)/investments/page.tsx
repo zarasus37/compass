@@ -14,7 +14,7 @@ export default function InvestmentsPage() {
   return (
     <div>
       <PageHead
-        eyebrow="Money · Investments"
+        eyebrow="// money · investments"
         title="Investments"
         em="the long-view money."
         accent="jupiter"
@@ -22,17 +22,18 @@ export default function InvestmentsPage() {
           <button
             type="button"
             style={{
-              fontFamily: "var(--font-cinzel), serif",
-              background: "var(--gold)",
+              fontFamily: "var(--font-jetbrains), monospace",
+              background: "var(--terminal-cyan)",
               color: "var(--void)",
               border: 0,
               borderRadius: 2,
               padding: "12px 22px",
-              fontSize: 11,
-              fontWeight: 600,
+              fontSize: 10.5,
+              fontWeight: 700,
               letterSpacing: "0.18em",
               textTransform: "uppercase",
               cursor: "pointer",
+              boxShadow: "0 0 16px rgba(45, 212, 191, 0.3)",
             }}
           >
             + Add holding
@@ -46,9 +47,9 @@ export default function InvestmentsPage() {
       />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, border: "1px solid var(--line)", background: "var(--surface)", marginBottom: 32 }}>
-        <StatCell label="Total value" value={formatMoney(totalValue)} sub="across all holdings" />
-        <StatCell label="Monthly contribution" value={formatMoney(totalContrib)} sub="into Jupiter" accent="gold" />
-        <StatCell label="Avg return" value="9.1%" sub="weighted by holding" accent="ok" />
+        <StatCell label="total value" value={formatMoney(totalValue)} sub="across all holdings" />
+        <StatCell label="monthly contribution" value={formatMoney(totalContrib)} sub="into Jupiter" accent="cyan" />
+        <StatCell label="avg return" value="9.1%" sub="weighted by holding" accent="ok" />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 0, background: "var(--surface)", border: "1px solid var(--line)" }}>
@@ -65,43 +66,44 @@ export default function InvestmentsPage() {
             }}
           >
             <div>
-              <div style={{ fontFamily: "var(--font-cormorant), serif", fontSize: 16, color: "var(--ink)", fontWeight: 500 }}>
+              <div style={{ fontFamily: "var(--font-sora)", fontSize: 16, fontWeight: 500, color: "var(--ink)" }}>
                 {inv.name}
               </div>
-              <div style={{ fontFamily: "var(--font-cormorant), serif", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)", marginTop: 2 }}>
-                {inv.type} · {inv.contrib > 0 ? `${formatMoney(inv.contrib)} / paycheck` : "no contribution"}
+              <div style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 10.5, color: "var(--ink-3)", marginTop: 2, letterSpacing: "0.04em" }}>
+                {inv.type.toUpperCase()} · {inv.contrib > 0 ? `${formatMoney(inv.contrib)} / CHECK` : "NO CONTRIBUTION"}
               </div>
             </div>
             <div
               style={{
-                fontFamily: "var(--font-cinzel), serif",
+                fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 9.5,
+                fontWeight: 600,
                 color: "var(--ink-3)",
-                letterSpacing: "0.22em",
+                letterSpacing: "0.18em",
                 textTransform: "uppercase",
               }}
             >
-              Value
+              <span style={{ color: "var(--ink-4)" }}>//</span> Value
             </div>
-            <div style={{ fontFamily: "var(--font-italiana), var(--font-cinzel), serif", fontSize: 22, color: "var(--ink)" }}>
+            <div style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 22, fontWeight: 600, color: "var(--ink)", fontFeatureSettings: '"tnum" 1, "zero" 1' }}>
               {formatMoney(inv.value)}
             </div>
-            <div style={{ fontFamily: "var(--font-italiana), var(--font-cinzel), serif", fontSize: 18, color: "var(--ok)" }}>
+            <div style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 18, color: "var(--ok)", fontWeight: 600, fontFeatureSettings: '"tnum" 1' }}>
               +{(inv.return * 100).toFixed(1)}%
             </div>
             <div style={{ textAlign: "right" }}>
               <button
                 type="button"
                 style={{
-                  fontFamily: "var(--font-cinzel), serif",
+                  fontFamily: "var(--font-jetbrains), monospace",
                   background: "transparent",
                   color: "var(--ink-3)",
                   border: "1px solid var(--line)",
                   borderRadius: 2,
                   padding: "5px 10px",
                   fontSize: 9.5,
-                  fontWeight: 500,
-                  letterSpacing: "0.18em",
+                  fontWeight: 600,
+                  letterSpacing: "0.14em",
                   textTransform: "uppercase",
                   cursor: "pointer",
                 }}
@@ -116,22 +118,24 @@ export default function InvestmentsPage() {
   );
 }
 
-function StatCell({ label, value, sub, accent }: { label: string; value: string; sub: string; accent?: "ok" | "gold" }) {
+function StatCell({ label, value, sub, accent }: { label: string; value: string; sub: string; accent?: "ok" | "cyan" }) {
   return (
     <div style={{ padding: "20px 24px", borderRight: "1px solid var(--line-soft)" }}>
-      <div style={{ fontFamily: "var(--font-cinzel), serif", fontSize: 9.5, color: "var(--ink-3)", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 8 }}>
-        {label}
+      <div style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 9.5, fontWeight: 600, color: "var(--ink-3)", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 8 }}>
+        <span style={{ color: "var(--ink-4)" }}>//</span> {label}
       </div>
       <div
         style={{
-          fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-          fontSize: 28,
-          color: accent === "ok" ? "var(--ok)" : accent === "gold" ? "var(--gold)" : "var(--ink)",
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 24,
+          fontWeight: 600,
+          color: accent === "ok" ? "var(--ok)" : accent === "cyan" ? "var(--terminal-cyan)" : "var(--ink)",
+          fontFeatureSettings: '"tnum" 1, "zero" 1',
         }}
       >
         {value}
       </div>
-      <div style={{ fontFamily: "var(--font-cormorant), serif", fontStyle: "italic", fontSize: 12, color: "var(--ink-3)", marginTop: 4 }}>
+      <div style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 10.5, color: "var(--ink-3)", marginTop: 4, letterSpacing: "0.04em" }}>
         {sub}
       </div>
     </div>

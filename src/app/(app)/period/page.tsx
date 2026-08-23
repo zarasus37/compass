@@ -14,7 +14,6 @@ import { formatMoney, formatMoneySigned } from "@/lib/money";
 import {
   formatPeriodRange,
   formatShortDate,
-  formatLongDate,
   dayOfPeriod,
   periodLength,
   addDays,
@@ -25,12 +24,15 @@ export const dynamic = "force-dynamic";
 
 /**
  * Period — articulated deep page.
- * The full period detail. Where the dashboard shows the headline,
- * this page shows the timeline, the full allocation breakdown, and
- * the day-by-day walk.
+ *
+ * Component Oracle Terminal treatment: mono caps section headers
+ * with // prefix, JetBrains Mono for amounts and the day counter,
+ * Sora for section titles and the "days until paycheck" headline.
+ * Today highlight in gold (semantic). The Mandala is preserved as
+ * the visual centerpiece (it shows the period arc), but with
+ * terminal styling around it.
  */
 export default function PeriodPage() {
-  // Live reads so the page reflects the latest allocations.
   const ENVELOPES = liveEnvelopes();
   const TRANSACTIONS = liveTransactions();
 
@@ -41,15 +43,15 @@ export default function PeriodPage() {
   const totalIncome = TRANSACTIONS.filter((t) => t.amountCents > 0).reduce((s, t) => s + t.amountCents, 0);
   const totalExpense = TRANSACTIONS.filter((t) => t.amountCents < 0).reduce((s, t) => s + t.amountCents, 0);
   const totalDistill = ENVELOPES.reduce((s, e) => s + e.target, 0);
-  const projectedBalance = 240_000 - totalDistill; // next paycheck minus allocations
+  const projectedBalance = 240_000 - totalDistill;
 
   return (
     <div>
       <PageHead
-        eyebrow={`Period ${Math.ceil((TODAY.getTime() - PERIOD_START.getTime()) / (14 * 86400000)) + 1} of Q3`}
+        eyebrow={`// period ${Math.ceil((TODAY.getTime() - PERIOD_START.getTime()) / (14 * 86400000)) + 1} of Q3`}
         title="This Period"
         em={`${formatPeriodRange(PERIOD_START, PERIOD_END)}`}
-        accent="jupiter"
+        accent="cyan"
         actions={
           <div
             style={{
@@ -61,14 +63,15 @@ export default function PeriodPage() {
           >
             <div
               style={{
-                fontFamily: "var(--font-cinzel), serif",
+                fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 9.5,
+                fontWeight: 600,
                 color: "var(--ink-3)",
-                letterSpacing: "0.22em",
+                letterSpacing: "0.18em",
                 textTransform: "uppercase",
               }}
             >
-              Day
+              <span style={{ color: "var(--ink-4)" }}>//</span> Day
             </div>
             <div
               style={{
@@ -79,18 +82,21 @@ export default function PeriodPage() {
             >
               <span
                 style={{
-                  fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+                  fontFamily: "var(--font-jetbrains), monospace",
+                  fontWeight: 600,
                   fontSize: 48,
-                  color: "var(--ink)",
+                  color: "var(--terminal-cyan)",
+                  fontFeatureSettings: '"tnum" 1, "zero" 1',
                 }}
               >
                 {day}
               </span>
               <span
                 style={{
-                  fontFamily: "var(--font-cormorant), serif",
-                  fontSize: 20,
+                  fontFamily: "var(--font-jetbrains), monospace",
+                  fontSize: 18,
                   color: "var(--ink-3)",
+                  fontFeatureSettings: '"tnum" 1',
                 }}
               >
                 of {totalDays}
@@ -128,44 +134,48 @@ export default function PeriodPage() {
           <div
             style={{
               marginTop: 12,
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 10,
-              color: "var(--ink-3)",
-              letterSpacing: "0.22em",
+              fontWeight: 600,
+              color: "var(--gold)",
+              letterSpacing: "0.18em",
               textTransform: "uppercase",
             }}
           >
-            The compass · day {day} of {totalDays}
+            <span style={{ color: "var(--ink-4)" }}>//</span> The compass · day {day} of {totalDays}
           </div>
         </div>
         <div>
           <div
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 10.5,
-              color: "var(--gold)",
-              letterSpacing: "0.28em",
+              fontWeight: 600,
+              color: "var(--terminal-cyan)",
+              letterSpacing: "0.18em",
               textTransform: "uppercase",
               marginBottom: 16,
             }}
           >
-            Where the money goes this period
+            <span style={{ color: "var(--ink-4)" }}>//</span> Where the money goes this period
           </div>
           <h3
             style={{
-              fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-              fontSize: 36,
+              fontFamily: "var(--font-sora)",
+              fontSize: 32,
               margin: "0 0 16px",
-              fontWeight: 400,
-              lineHeight: 1.1,
+              fontWeight: 600,
+              lineHeight: 1.15,
+              letterSpacing: "-0.01em",
+              color: "var(--ink)",
             }}
           >
             {daysToPay} days until the next paycheck
           </h3>
           <p
             style={{
-              fontFamily: "var(--font-cormorant), serif",
-              fontSize: 17,
+              fontFamily: "var(--font-sora)",
+              fontSize: 16,
               lineHeight: 1.55,
               color: "var(--ink-2)",
               margin: "0 0 24px",
@@ -182,10 +192,10 @@ export default function PeriodPage() {
               background: "var(--surface)",
             }}
           >
-            <PeriodStat label="Period income" value={formatMoney(totalIncome)} accent="gold" sub={`Paycheck ${formatShortDate(TODAY)}`} />
-            <PeriodStat label="Period spending" value={formatMoneySigned(totalExpense)} sub="6 days into period" />
-            <PeriodStat label="Allocated" value={formatMoney(totalDistill)} sub="across 7 envelopes" />
-            <PeriodStat label="Projected carry" value={formatMoney(projectedBalance)} sub="after next paycheck" accent={projectedBalance < 0 ? "neg" : "ok"} />
+            <PeriodStat label="period income" value={formatMoney(totalIncome)} accent="cyan" sub={`Paycheck ${formatShortDate(TODAY)}`} />
+            <PeriodStat label="period spending" value={formatMoneySigned(totalExpense)} sub={`${totalDays - day} days left`} />
+            <PeriodStat label="allocated" value={formatMoney(totalDistill)} sub="across 7 envelopes" />
+            <PeriodStat label="projected carry" value={formatMoney(projectedBalance)} sub="after next paycheck" accent={projectedBalance < 0 ? "neg" : "ok"} />
           </div>
         </div>
       </section>
@@ -219,8 +229,9 @@ export default function PeriodPage() {
                 <VesselGlyph planet={e.planet} size={24} inCircle />
                 <div
                   style={{
-                    fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                    fontSize: 18,
+                    fontFamily: "var(--font-sora)",
+                    fontSize: 16,
+                    fontWeight: 500,
                     color: "var(--ink)",
                   }}
                 >
@@ -231,7 +242,8 @@ export default function PeriodPage() {
                     fontFamily: "var(--font-jetbrains), monospace",
                     fontSize: 14,
                     color: "var(--ink)",
-                    fontFeatureSettings: '"tnum" 1',
+                    fontFeatureSettings: '"tnum" 1, "zero" 1',
+                    fontWeight: 500,
                   }}
                 >
                   {formatMoney(e.target)}
@@ -257,14 +269,15 @@ export default function PeriodPage() {
                 </div>
                 <div
                   style={{
-                    fontFamily: "var(--font-cinzel), serif",
+                    fontFamily: "var(--font-jetbrains), monospace",
                     fontSize: 11,
+                    fontWeight: 600,
                     color: "var(--ink-3)",
-                    letterSpacing: "0.2em",
+                    letterSpacing: "0.14em",
                     textAlign: "right",
                   }}
                 >
-                  {pct}% of total
+                  {pct}%
                 </div>
               </div>
             );
@@ -296,9 +309,9 @@ export default function PeriodPage() {
                 key={i}
                 style={{
                   aspectRatio: "1",
-                  border: `1px solid ${isToday ? "var(--luna)" : "var(--line-soft)"}`,
+                  border: `1px solid ${isToday ? "var(--gold)" : "var(--line-soft)"}`,
                   background: isToday
-                    ? "radial-gradient(circle, rgba(184, 200, 224, 0.15), transparent 70%)"
+                    ? "rgba(201, 164, 92, 0.10)"
                     : isPast
                     ? "var(--cosmos)"
                     : "transparent",
@@ -309,7 +322,9 @@ export default function PeriodPage() {
                   gap: 2,
                   fontSize: 11,
                   fontFamily: "var(--font-jetbrains), monospace",
-                  color: isToday ? "var(--luna)" : isPast ? "var(--ink-2)" : "var(--ink-4)",
+                  fontFeatureSettings: '"tnum" 1',
+                  color: isToday ? "var(--gold)" : isPast ? "var(--ink-2)" : "var(--ink-4)",
+                  fontWeight: isToday ? 700 : 500,
                 }}
               >
                 <div style={{ fontSize: 8, color: "var(--ink-3)" }}>{formatShortDate(date).split(" ")[0]}</div>
@@ -320,7 +335,7 @@ export default function PeriodPage() {
                       width: 4,
                       height: 4,
                       borderRadius: "50%",
-                      background: isToday ? "var(--luna)" : "var(--gold)",
+                      background: isToday ? "var(--gold)" : "var(--gold-soft)",
                     }}
                   />
                 )}
@@ -333,9 +348,11 @@ export default function PeriodPage() {
             display: "flex",
             gap: 24,
             marginTop: 16,
-            fontFamily: "var(--font-cormorant), serif",
-            fontSize: 13,
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 10.5,
             color: "var(--ink-3)",
+            letterSpacing: "0.10em",
+            textTransform: "uppercase",
           }}
         >
           <span>
@@ -344,7 +361,7 @@ export default function PeriodPage() {
                 display: "inline-block",
                 width: 8,
                 height: 8,
-                background: "var(--luna)",
+                background: "var(--gold)",
                 borderRadius: "50%",
                 marginRight: 6,
                 verticalAlign: "middle",
@@ -381,23 +398,24 @@ export default function PeriodPage() {
         >
           <div
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 9.5,
+              fontWeight: 600,
               color: "var(--ink-3)",
-              letterSpacing: "0.22em",
+              letterSpacing: "0.18em",
               textTransform: "uppercase",
               marginBottom: 20,
             }}
           >
-            Closing balance · this period
+            <span style={{ color: "var(--ink-4)" }}>//</span> Closing balance · this period
           </div>
           <div
             style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-              fontSize: 18,
+              fontFamily: "var(--font-sora)",
+              fontSize: 16,
               color: "var(--ink-2)",
             }}
           >
@@ -407,11 +425,23 @@ export default function PeriodPage() {
                   fontFamily: "var(--font-jetbrains), monospace",
                   fontSize: 11,
                   color: "var(--ink-3)",
+                  letterSpacing: "0.10em",
+                  textTransform: "uppercase",
                 }}
               >
                 Start
               </div>
-              <div style={{ fontSize: 24, marginTop: 4 }}>{formatMoney(2_400)}</div>
+              <div
+                style={{
+                  fontFamily: "var(--font-jetbrains), monospace",
+                  fontSize: 22,
+                  fontWeight: 600,
+                  marginTop: 4,
+                  fontFeatureSettings: '"tnum" 1, "zero" 1',
+                }}
+              >
+                {formatMoney(2_400)}
+              </div>
             </div>
             <div style={{ flex: 1, textAlign: "center", color: "var(--gold)" }}>→</div>
             <div style={{ textAlign: "center" }}>
@@ -420,11 +450,24 @@ export default function PeriodPage() {
                   fontFamily: "var(--font-jetbrains), monospace",
                   fontSize: 11,
                   color: "var(--ok)",
+                  letterSpacing: "0.10em",
+                  textTransform: "uppercase",
                 }}
               >
                 + Income
               </div>
-              <div style={{ fontSize: 24, marginTop: 4, color: "var(--ok)" }}>{formatMoney(2_400)}</div>
+              <div
+                style={{
+                  fontFamily: "var(--font-jetbrains), monospace",
+                  fontSize: 22,
+                  fontWeight: 600,
+                  marginTop: 4,
+                  color: "var(--ok)",
+                  fontFeatureSettings: '"tnum" 1, "zero" 1',
+                }}
+              >
+                {formatMoney(2_400)}
+              </div>
             </div>
             <div style={{ flex: 1, textAlign: "center", color: "var(--mars)" }}>→</div>
             <div style={{ textAlign: "center" }}>
@@ -433,11 +476,24 @@ export default function PeriodPage() {
                   fontFamily: "var(--font-jetbrains), monospace",
                   fontSize: 11,
                   color: "var(--mars)",
+                  letterSpacing: "0.10em",
+                  textTransform: "uppercase",
                 }}
               >
                 − Spending
               </div>
-              <div style={{ fontSize: 24, marginTop: 4, color: "var(--mars)" }}>{formatMoneySigned(-1_003_78)}</div>
+              <div
+                style={{
+                  fontFamily: "var(--font-jetbrains), monospace",
+                  fontSize: 22,
+                  fontWeight: 600,
+                  marginTop: 4,
+                  color: "var(--mars)",
+                  fontFeatureSettings: '"tnum" 1, "zero" 1',
+                }}
+              >
+                {formatMoneySigned(-1_003_78)}
+              </div>
             </div>
             <div style={{ flex: 1, textAlign: "center", color: "var(--gold)" }}>→</div>
             <div style={{ textAlign: "center" }}>
@@ -446,11 +502,24 @@ export default function PeriodPage() {
                   fontFamily: "var(--font-jetbrains), monospace",
                   fontSize: 11,
                   color: "var(--gold)",
+                  letterSpacing: "0.10em",
+                  textTransform: "uppercase",
                 }}
               >
                 Projected
               </div>
-              <div style={{ fontSize: 32, marginTop: 4, color: "var(--gold)" }}>{formatMoney(3_796_22)}</div>
+              <div
+                style={{
+                  fontFamily: "var(--font-jetbrains), monospace",
+                  fontSize: 28,
+                  fontWeight: 700,
+                  marginTop: 4,
+                  color: "var(--gold)",
+                  fontFeatureSettings: '"tnum" 1, "zero" 1',
+                }}
+              >
+                {formatMoney(3_796_22)}
+              </div>
             </div>
           </div>
         </div>
@@ -468,7 +537,7 @@ function PeriodStat({
   label: string;
   value: string;
   sub: string;
-  accent?: "gold" | "ok" | "neg";
+  accent?: "cyan" | "ok" | "neg" | "gold";
 }) {
   return (
     <div
@@ -480,40 +549,44 @@ function PeriodStat({
     >
       <div
         style={{
-          fontFamily: "var(--font-cinzel), serif",
+          fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 9.5,
+          fontWeight: 600,
           color: "var(--ink-3)",
-          letterSpacing: "0.22em",
+          letterSpacing: "0.18em",
           textTransform: "uppercase",
           marginBottom: 8,
         }}
       >
-        {label}
+        <span style={{ color: "var(--ink-4)" }}>//</span> {label}
       </div>
       <div
         style={{
-          fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+          fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 22,
+          fontWeight: 600,
           color:
             accent === "neg"
-              ? "var(--mars)"
+              ? "var(--neg)"
               : accent === "ok"
               ? "var(--ok)"
               : accent === "gold"
               ? "var(--gold)"
+              : accent === "cyan"
+              ? "var(--terminal-cyan)"
               : "var(--ink)",
-          fontFeatureSettings: '"tnum" 1',
+          fontFeatureSettings: '"tnum" 1, "zero" 1',
         }}
       >
         {value}
       </div>
       <div
         style={{
-          fontFamily: "var(--font-cormorant), serif",
-          fontStyle: "italic",
-          fontSize: 12,
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 10.5,
           color: "var(--ink-3)",
           marginTop: 4,
+          letterSpacing: "0.04em",
         }}
       >
         {sub}
@@ -531,6 +604,7 @@ function SectionHeader({
   em?: string;
   meta?: string;
 }) {
+  const accentColor = "var(--terminal-cyan)";
   return (
     <div
       style={{
@@ -543,38 +617,51 @@ function SectionHeader({
         position: "relative",
       }}
     >
-      <h2
-        style={{
-          fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-          fontWeight: 400,
-          fontSize: 30,
-          letterSpacing: "0.005em",
-          margin: 0,
-          color: "var(--ink)",
-        }}
-      >
-        {title}
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+        <span
+          style={{
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 9.5,
+            fontWeight: 600,
+            color: accentColor,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+          }}
+        >
+          <span style={{ color: "var(--ink-4)" }}>//</span>
+        </span>
+        <h2
+          style={{
+            fontFamily: "var(--font-sora)",
+            fontWeight: 600,
+            fontSize: 26,
+            letterSpacing: "-0.01em",
+            margin: 0,
+            color: "var(--ink)",
+          }}
+        >
+          {title}
+        </h2>
         {em && (
-          <em
+          <span
             style={{
-              fontFamily: "var(--font-cormorant), serif",
-              fontStyle: "italic",
+              fontFamily: "var(--font-sora)",
+              fontWeight: 400,
+              fontSize: 16,
               color: "var(--ink-3)",
-              fontWeight: 500,
-              marginLeft: 8,
             }}
           >
             {em}
-          </em>
+          </span>
         )}
-      </h2>
+      </div>
       {meta && (
         <div
           style={{
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 10,
             color: "var(--ink-3)",
-            letterSpacing: "0.22em",
+            letterSpacing: "0.10em",
             textTransform: "uppercase",
             maxWidth: 380,
             textAlign: "right",
@@ -591,8 +678,8 @@ function SectionHeader({
           left: 0,
           width: 80,
           height: 1,
-          background: "var(--gold)",
-          boxShadow: "0 0 8px var(--gold)",
+          background: accentColor,
+          boxShadow: `0 0 8px ${accentColor}`,
         }}
       />
     </div>

@@ -7,7 +7,7 @@ export default function EmergencyPage() {
   return (
     <div>
       <PageHead
-        eyebrow="Plan · Emergency Fund"
+        eyebrow="// plan · emergency fund"
         title="Emergency Fund"
         em="the safety net."
         accent="jupiter"
@@ -15,17 +15,18 @@ export default function EmergencyPage() {
           <button
             type="button"
             style={{
-              fontFamily: "var(--font-cinzel), serif",
-              background: "var(--gold)",
+              fontFamily: "var(--font-jetbrains), monospace",
+              background: "var(--terminal-cyan)",
               color: "var(--void)",
               border: 0,
               borderRadius: 2,
               padding: "12px 22px",
-              fontSize: 11,
-              fontWeight: 600,
+              fontSize: 10.5,
+              fontWeight: 700,
               letterSpacing: "0.18em",
               textTransform: "uppercase",
               cursor: "pointer",
+              boxShadow: "0 0 16px rgba(45, 212, 191, 0.3)",
             }}
           >
             Adjust target
@@ -43,33 +44,38 @@ export default function EmergencyPage() {
           style={{
             background: "var(--surface)",
             border: "1px solid var(--jupiter)",
+            borderLeft: "2px solid var(--jupiter)",
             borderRadius: 4,
             padding: 32,
           }}
         >
           <div
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 9.5,
+              fontWeight: 600,
               color: "var(--jupiter)",
-              letterSpacing: "0.22em",
+              letterSpacing: "0.18em",
               textTransform: "uppercase",
               marginBottom: 8,
             }}
           >
-            Saved
+            <span style={{ color: "var(--ink-4)" }}>//</span> Saved
           </div>
           <div
             style={{
-              fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-              fontSize: 48,
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 40,
+              fontWeight: 600,
               color: "var(--ink)",
               marginBottom: 4,
+              fontFeatureSettings: '"tnum" 1, "zero" 1',
+              letterSpacing: "-0.01em",
             }}
           >
             {formatMoney(6_800_00)}
           </div>
-          <div style={{ fontFamily: "var(--font-cormorant), serif", fontStyle: "italic", fontSize: 14, color: "var(--ink-3)" }}>
+          <div style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, color: "var(--ink-3)", letterSpacing: "0.04em" }}>
             of {formatMoney(20_000_00)} target
           </div>
           <div
@@ -104,31 +110,34 @@ export default function EmergencyPage() {
         >
           <div
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 9.5,
+              fontWeight: 600,
               color: "var(--ink-3)",
-              letterSpacing: "0.22em",
+              letterSpacing: "0.18em",
               textTransform: "uppercase",
               marginBottom: 8,
             }}
           >
-            Target reached
+            <span style={{ color: "var(--ink-4)" }}>//</span> Target reached
           </div>
           <div
             style={{
-              fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 32,
+              fontWeight: 600,
               color: "var(--ink)",
               marginBottom: 4,
+              fontFeatureSettings: '"tnum" 1, "zero" 1',
             }}
           >
             Feb 2026
           </div>
-          <div style={{ fontFamily: "var(--font-cormorant), serif", fontStyle: "italic", fontSize: 14, color: "var(--ink-3)" }}>
+          <div style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, color: "var(--ink-3)", letterSpacing: "0.04em" }}>
             6 months away at current pace
           </div>
-          <div style={{ marginTop: 18, fontFamily: "var(--font-cormorant), serif", fontSize: 14, color: "var(--ink-2)" }}>
-            +{formatMoney(432_00)} per paycheck · {formatShortDate(new Date("2026-08-15"))} last contribution
+          <div style={{ marginTop: 18, fontFamily: "var(--font-jetbrains), monospace", fontSize: 12, color: "var(--ink-2)", letterSpacing: "0.04em" }}>
+            <span style={{ color: "var(--ok)", fontWeight: 600 }}>+{formatMoney(432_00)}</span> per paycheck · {formatShortDate(new Date("2026-08-15"))} last contribution
           </div>
         </div>
       </div>
@@ -137,26 +146,28 @@ export default function EmergencyPage() {
         style={{
           background: "var(--surface)",
           border: "1px solid var(--line)",
+          borderLeft: "2px solid var(--gold)",
           borderRadius: 4,
           padding: "24px 28px",
         }}
       >
         <div
           style={{
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 10.5,
+            fontWeight: 600,
             color: "var(--gold)",
-            letterSpacing: "0.28em",
+            letterSpacing: "0.18em",
             textTransform: "uppercase",
             marginBottom: 8,
           }}
         >
-          Why $20,000?
+          <span style={{ color: "var(--ink-4)" }}>//</span> Why $20,000?
         </div>
         <p
           style={{
-            fontFamily: "var(--font-cormorant), serif",
-            fontSize: 17,
+            fontFamily: "var(--font-sora)",
+            fontSize: 16,
             lineHeight: 1.55,
             color: "var(--ink-2)",
             margin: 0,

@@ -17,7 +17,7 @@ export default function SubscriptionsPage() {
   return (
     <div>
       <PageHead
-        eyebrow="Money · Subscriptions"
+        eyebrow="// money · subscriptions"
         title="Subscriptions"
         em="the small charges that add up."
         accent="venus"
@@ -29,9 +29,9 @@ export default function SubscriptionsPage() {
       />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, border: "1px solid var(--line)", background: "var(--surface)", marginBottom: 32 }}>
-        <StatCell label="Active" value={SUBS.filter((s) => s.status === "active").length.toString()} sub="billed this period" />
-        <StatCell label="Review" value={SUBS.filter((s) => s.status === "review").length.toString()} sub="60+ days unused" accent="warn" />
-        <StatCell label="Recoverable" value={formatMoney(recoverable)} sub="if you cancel the reviews" accent="ok" />
+        <StatCell label="active" value={SUBS.filter((s) => s.status === "active").length.toString()} sub="billed this period" />
+        <StatCell label="review" value={SUBS.filter((s) => s.status === "review").length.toString()} sub="60+ days unused" accent="warn" />
+        <StatCell label="recoverable" value={formatMoney(recoverable)} sub="if you cancel the reviews" accent="ok" />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 0, background: "var(--surface)", border: "1px solid var(--line)" }}>
@@ -48,49 +48,52 @@ export default function SubscriptionsPage() {
             }}
           >
             <div>
-              <div style={{ fontFamily: "var(--font-cormorant), serif", fontSize: 16, color: "var(--ink)", fontWeight: 500 }}>
+              <div style={{ fontFamily: "var(--font-sora)", fontSize: 16, color: "var(--ink)", fontWeight: 500 }}>
                 {s.name}
               </div>
-              <div style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 10.5, color: "var(--ink-3)", marginTop: 2 }}>
-                last used: {s.lastUsed}
+              <div style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 10.5, color: "var(--ink-3)", marginTop: 2, letterSpacing: "0.04em" }}>
+                LAST USED · {s.lastUsed}
               </div>
             </div>
             <div
               style={{
-                fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+                fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 18,
                 color: "var(--ink)",
                 textAlign: "right",
+                fontFeatureSettings: '"tnum" 1, "zero" 1',
+                fontWeight: 500,
               }}
             >
               {formatMoney(s.amount)}
             </div>
             <div
               style={{
-                fontFamily: "var(--font-cinzel), serif",
-                fontSize: 9.5,
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 10,
+                fontWeight: 700,
                 color: s.status === "review" ? "var(--warn)" : "var(--ok)",
-                letterSpacing: "0.22em",
+                letterSpacing: "0.18em",
                 textTransform: "uppercase",
                 textAlign: "right",
               }}
             >
-              {s.status === "review" ? "Review" : "Active"}
+              {s.status === "review" ? "[WARN] Review" : "[OK] Active"}
             </div>
             <div style={{ textAlign: "right" }}>
               {s.status === "review" ? (
                 <button
                   type="button"
                   style={{
-                    fontFamily: "var(--font-cinzel), serif",
+                    fontFamily: "var(--font-jetbrains), monospace",
                     background: "transparent",
                     color: "var(--warn)",
                     border: "1px solid var(--warn)",
                     borderRadius: 2,
                     padding: "5px 10px",
                     fontSize: 9.5,
-                    fontWeight: 600,
-                    letterSpacing: "0.18em",
+                    fontWeight: 700,
+                    letterSpacing: "0.14em",
                     textTransform: "uppercase",
                     cursor: "pointer",
                   }}
@@ -101,15 +104,15 @@ export default function SubscriptionsPage() {
                 <button
                   type="button"
                   style={{
-                    fontFamily: "var(--font-cinzel), serif",
+                    fontFamily: "var(--font-jetbrains), monospace",
                     background: "transparent",
                     color: "var(--ink-3)",
                     border: "1px solid var(--line)",
                     borderRadius: 2,
                     padding: "5px 10px",
                     fontSize: 9.5,
-                    fontWeight: 500,
-                    letterSpacing: "0.18em",
+                    fontWeight: 600,
+                    letterSpacing: "0.14em",
                     textTransform: "uppercase",
                     cursor: "pointer",
                   }}
@@ -128,19 +131,21 @@ export default function SubscriptionsPage() {
 function StatCell({ label, value, sub, accent }: { label: string; value: string; sub: string; accent?: "warn" | "ok" }) {
   return (
     <div style={{ padding: "20px 24px", borderRight: "1px solid var(--line-soft)" }}>
-      <div style={{ fontFamily: "var(--font-cinzel), serif", fontSize: 9.5, color: "var(--ink-3)", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 8 }}>
-        {label}
+      <div style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 9.5, fontWeight: 600, color: "var(--ink-3)", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 8 }}>
+        <span style={{ color: "var(--ink-4)" }}>//</span> {label}
       </div>
       <div
         style={{
-          fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-          fontSize: 28,
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 24,
+          fontWeight: 600,
           color: accent === "warn" ? "var(--warn)" : accent === "ok" ? "var(--ok)" : "var(--ink)",
+          fontFeatureSettings: '"tnum" 1, "zero" 1',
         }}
       >
         {value}
       </div>
-      <div style={{ fontFamily: "var(--font-cormorant), serif", fontStyle: "italic", fontSize: 12, color: "var(--ink-3)", marginTop: 4 }}>
+      <div style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 10.5, color: "var(--ink-3)", marginTop: 4, letterSpacing: "0.04em" }}>
         {sub}
       </div>
     </div>

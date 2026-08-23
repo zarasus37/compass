@@ -13,9 +13,11 @@ export const dynamic = "force-dynamic";
 
 /**
  * Envelopes — articulated deep page.
- * Per 00-DESIGN.md §7: every deep page has a title + explanation
- * block + data + insight. This page is the heart of the daily
- * budgeting experience.
+ *
+ * Component Oracle Terminal treatment: Sora section titles, JetBrains
+ * Mono for amounts and labels, mono caps section headers with // prefix.
+ * Primary "New" CTA in terminal-cyan. Status accents (over = neg,
+ * near = warn, ok = ok-green) preserved as semantic mapping.
  */
 export default function EnvelopesPage() {
   // Live reads: the bar chart and over-limit count reflect the current
@@ -35,10 +37,10 @@ export default function EnvelopesPage() {
   return (
     <div>
       <PageHead
-        eyebrow="Money · Envelopes"
+        eyebrow="// money · envelopes"
         title="Envelopes"
         em="each with a purpose."
-        accent="gold"
+        accent="cyan"
         actions={
           <Link
             href="/envelopes/new"
@@ -46,19 +48,18 @@ export default function EnvelopesPage() {
               display: "inline-flex",
               alignItems: "center",
               gap: 8,
-              fontFamily: "var(--font-cinzel), serif",
-              background: "var(--gold)",
+              fontFamily: "var(--font-jetbrains), monospace",
+              background: "var(--terminal-cyan)",
               color: "var(--void)",
               border: 0,
               borderRadius: 2,
               padding: "12px 22px",
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: "pointer",
+              fontSize: 10.5,
+              fontWeight: 700,
               letterSpacing: "0.18em",
               textTransform: "uppercase",
               textDecoration: "none",
-              boxShadow: "0 0 16px rgba(212, 175, 82, 0.3)",
+              boxShadow: "0 0 16px rgba(45, 212, 191, 0.3)",
             }}
           >
             + New envelope
@@ -82,31 +83,25 @@ export default function EnvelopesPage() {
           marginBottom: 56,
         }}
       >
-        <SummaryCell label="Envelopes" value={ENVELOPES.length.toString()} sub="7 planetary · 0 custom" />
+        <SummaryCell label="envelopes" value={ENVELOPES.length.toString()} sub="7 planetary · 0 custom" />
         <SummaryCell
-          label="Total balance"
+          label="total balance"
           value={formatMoney(totalBalance)}
           sub={`of ${formatMoney(totalTarget)} target`}
         />
         <SummaryCell
-          label="Needs attention"
+          label="needs attention"
           value={overLimit.length.toString()}
           sub={overLimit.length === 0 ? "all within target" : "over limit — review"}
           accent={overLimit.length > 0 ? "neg" : "ok"}
         />
         <SummaryCell
-          label="On track"
+          label="on track"
           value={onTrack.length.toString()}
           sub={`${nearLimit.length} near limit`}
         />
       </div>
 
-      {/* The bar chart moved INTO the "Every envelope" row below —
-          each envelope row carries its own mini bar so the visual
-          sits directly next to the data. The big chart at the top
-          was duplicating that info without any new signal, so it
-          was removed. The full EnvelopeBarChart is still on the
-          dashboard. */}
       <section style={{ marginBottom: 64 }}>
         <SectionHeader
           title="Budget vs actual"
@@ -114,10 +109,6 @@ export default function EnvelopesPage() {
           meta="Gold = plan per paycheck, planetary = what's actually happened so far."
         />
         <BudgetVsActual rows={ENVELOPES.map((e) => {
-          // Plan per paycheck (target share per period). We don't have
-          // a direct per-period target, so use the envelope's target as
-          // the "plan" amount. Actual is currentCents (the spent so
-          // far this period, exposed via current/target semantics).
           const plan = e.target;
           const actual = e.current;
           return {
@@ -140,7 +131,7 @@ export default function EnvelopesPage() {
                 ? "one envelope needs attention."
                 : `${overLimit.length} envelopes need attention.`
             }
-            accent="mars"
+            accent="neg"
             meta="These spent more than the target. Open the envelope to see recent activity."
           />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
@@ -178,7 +169,7 @@ export default function EnvelopesPage() {
                 key={e.id}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "32px 1fr 80px 80px 160px 56px",
+                  gridTemplateColumns: "32px 1fr 100px 100px 160px 60px",
                   alignItems: "center",
                   gap: 20,
                   padding: "16px 24px",
@@ -192,8 +183,9 @@ export default function EnvelopesPage() {
                 <Link
                   href={`/envelopes/${e.id}`}
                   style={{
-                    fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                    fontSize: 17,
+                    fontFamily: "var(--font-sora)",
+                    fontSize: 15,
+                    fontWeight: 500,
                     color: "var(--ink)",
                     textDecoration: "none",
                   }}
@@ -205,8 +197,9 @@ export default function EnvelopesPage() {
                     fontFamily: "var(--font-jetbrains), monospace",
                     fontSize: 13,
                     color: "var(--ink)",
-                    fontFeatureSettings: '"tnum" 1',
+                    fontFeatureSettings: '"tnum" 1, "zero" 1',
                     textAlign: "right",
+                    fontWeight: 500,
                   }}
                 >
                   {formatMoney(e.current)}
@@ -234,10 +227,11 @@ export default function EnvelopesPage() {
                 </div>
                 <span
                   style={{
-                    fontFamily: "var(--font-cinzel), serif",
+                    fontFamily: "var(--font-jetbrains), monospace",
                     fontSize: 10,
+                    fontWeight: 700,
                     color: isOver ? "var(--neg)" : pct >= 0.85 ? "var(--warn)" : "var(--ok)",
-                    letterSpacing: "0.18em",
+                    letterSpacing: "0.14em",
                     textAlign: "right",
                   }}
                 >
@@ -249,9 +243,7 @@ export default function EnvelopesPage() {
         </div>
       </section>
 
-      {/* Insight at the bottom — dynamic. Surfaces the worst over-limit
-          envelope from live state and offers two paths forward. When all
-          envelopes are within target, shows a calm positive insight. */}
+      {/* Insight at the bottom — dynamic. */}
       <EnvelopesInsight
         overLimit={overLimit}
         onTrack={onTrack.length}
@@ -283,20 +275,21 @@ function SummaryCell({
     >
       <div
         style={{
-          fontFamily: "var(--font-cinzel), serif",
+          fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 9.5,
+          fontWeight: 600,
           color: "var(--ink-3)",
-          letterSpacing: "0.22em",
+          letterSpacing: "0.18em",
           textTransform: "uppercase",
           marginBottom: 10,
         }}
       >
-        {label}
+        <span style={{ color: "var(--ink-4)" }}>//</span> {label}
       </div>
       <div
         style={{
-          fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-          fontSize: 28,
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 24,
           lineHeight: 1,
           color:
             accent === "neg"
@@ -304,7 +297,8 @@ function SummaryCell({
               : accent === "ok"
               ? "var(--ok)"
               : "var(--ink)",
-          fontFeatureSettings: '"tnum" 1',
+          fontFeatureSettings: '"tnum" 1, "zero" 1',
+          fontWeight: 600,
         }}
       >
         {value}
@@ -315,6 +309,7 @@ function SummaryCell({
           fontSize: 10.5,
           color: "var(--ink-3)",
           marginTop: 6,
+          letterSpacing: "0.04em",
         }}
       >
         {sub}
@@ -327,15 +322,21 @@ function SectionHeader({
   title,
   em,
   meta,
-  accent = "gold",
+  accent = "cyan",
 }: {
   title: string;
   em?: string;
   meta?: string;
-  accent?: "gold" | "mars" | "jupiter";
+  accent?: "cyan" | "neg" | "jupiter" | "gold";
 }) {
   const accentColor =
-    accent === "mars" ? "var(--mars)" : accent === "jupiter" ? "var(--jupiter)" : "var(--gold)";
+    accent === "neg"
+      ? "var(--neg)"
+      : accent === "jupiter"
+      ? "var(--jupiter)"
+      : accent === "gold"
+      ? "var(--gold)"
+      : "var(--terminal-cyan)";
   return (
     <div
       style={{
@@ -348,38 +349,51 @@ function SectionHeader({
         position: "relative",
       }}
     >
-      <h2
-        style={{
-          fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-          fontWeight: 400,
-          fontSize: 30,
-          letterSpacing: "0.005em",
-          margin: 0,
-          color: "var(--ink)",
-        }}
-      >
-        {title}
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+        <span
+          style={{
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 9.5,
+            fontWeight: 600,
+            color: accentColor,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+          }}
+        >
+          <span style={{ color: "var(--ink-4)" }}>//</span>
+        </span>
+        <h2
+          style={{
+            fontFamily: "var(--font-sora)",
+            fontWeight: 600,
+            fontSize: 26,
+            letterSpacing: "-0.01em",
+            margin: 0,
+            color: "var(--ink)",
+          }}
+        >
+          {title}
+        </h2>
         {em && (
-          <em
+          <span
             style={{
-              fontFamily: "var(--font-cormorant), serif",
-              fontStyle: "italic",
+              fontFamily: "var(--font-sora)",
+              fontWeight: 400,
+              fontSize: 16,
               color: "var(--ink-3)",
-              fontWeight: 500,
-              marginLeft: 8,
             }}
           >
             {em}
-          </em>
+          </span>
         )}
-      </h2>
+      </div>
       {meta && (
         <div
           style={{
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 10,
             color: "var(--ink-3)",
-            letterSpacing: "0.22em",
+            letterSpacing: "0.10em",
             textTransform: "uppercase",
             maxWidth: 380,
             textAlign: "right",
@@ -416,7 +430,7 @@ function EnvelopeDetail({
   const e = envelope;
   const pct = e.target > 0 ? Math.min((e.current / e.target) * 100, 100) : 0;
   const isOver = e.current > e.target && e.target > 0;
-  const daysLeft = Math.max(0, daysBetween(TODAY, addDays(TODAY, 5))); // mock: 5 days left in period
+  const daysLeft = Math.max(0, daysBetween(TODAY, addDays(TODAY, 5)));
   const recentTx = transactions.filter((t) => t.envelope === e.id).slice(0, compact ? 2 : 3);
   const overage = isOver ? e.current - e.target : 0;
 
@@ -443,7 +457,7 @@ function EnvelopeDetail({
             style={{
               width: 44,
               height: 44,
-              borderRadius: "50%",
+              borderRadius: 2,
               display: "grid",
               placeItems: "center",
               background: "var(--cosmos)",
@@ -457,7 +471,7 @@ function EnvelopeDetail({
               style={{
                 position: "absolute",
                 inset: -3,
-                borderRadius: "50%",
+                borderRadius: 2,
                 border: "1px dashed var(--line-soft)",
               }}
             />
@@ -465,20 +479,23 @@ function EnvelopeDetail({
           <div>
             <div
               style={{
-                fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                fontSize: 22,
+                fontFamily: "var(--font-sora)",
+                fontSize: 20,
+                fontWeight: 600,
                 color: "var(--ink)",
+                letterSpacing: "-0.005em",
               }}
             >
               {e.name}
             </div>
             <div
               style={{
-                fontFamily: "var(--font-cormorant), serif",
-                fontStyle: "italic",
-                fontSize: 13,
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 10,
                 color: "var(--ink-3)",
                 marginTop: 2,
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
               }}
             >
               {planetName(e.planet)}
@@ -488,10 +505,11 @@ function EnvelopeDetail({
         <div style={{ textAlign: "right" }}>
           <div
             style={{
-              fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-              fontSize: 24,
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 22,
+              fontWeight: 600,
               color: isOver ? "var(--neg)" : pct >= 0.85 ? "var(--warn)" : "var(--ink)",
-              fontFeatureSettings: '"tnum" 1',
+              fontFeatureSettings: '"tnum" 1, "zero" 1',
             }}
           >
             {formatMoney(e.current)}
@@ -552,22 +570,23 @@ function EnvelopeDetail({
         style={{
           display: "flex",
           justifyContent: "space-between",
-          fontFamily: "var(--font-cormorant), serif",
-          fontSize: 13,
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 11,
           color: "var(--ink-2)",
           paddingBottom: compact ? 0 : 16,
           borderBottom: compact ? "none" : "1px solid var(--line-soft)",
           marginBottom: compact ? 0 : 16,
+          letterSpacing: "0.04em",
         }}
       >
         <span>
-          <b style={{ color: "var(--ink)", fontWeight: 600 }}>{daysLeft}</b> days left in period
+          <b style={{ color: "var(--ink)", fontWeight: 700 }}>{daysLeft}</b> days left
         </span>
         <span>
           {isOver ? (
-            <b style={{ color: "var(--neg)", fontWeight: 600 }}>+{formatMoney(overage)} over</b>
+            <b style={{ color: "var(--neg)", fontWeight: 700 }}>[WARN] +{formatMoney(overage)} over</b>
           ) : (
-            <b style={{ color: "var(--ok)", fontWeight: 600 }}>{formatMoney(e.target - e.current)} left</b>
+            <b style={{ color: "var(--ok)", fontWeight: 700 }}>[OK] {formatMoney(e.target - e.current)} left</b>
           )}
         </span>
       </div>
@@ -577,15 +596,16 @@ function EnvelopeDetail({
         <div>
           <div
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 9.5,
+              fontWeight: 600,
               color: "var(--ink-3)",
-              letterSpacing: "0.22em",
+              letterSpacing: "0.18em",
               textTransform: "uppercase",
               marginBottom: 12,
             }}
           >
-            Recent activity
+            <span style={{ color: "var(--ink-4)" }}>//</span> Recent activity
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {recentTx.map((t) => (
@@ -596,41 +616,18 @@ function EnvelopeDetail({
                   alignItems: "center",
                   justifyContent: "space-between",
                   fontSize: 13,
-                  padding: "8px 0",
-                  borderBottom: "1px solid var(--line-soft)",
                 }}
               >
-                <div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-cormorant), serif",
-                      color: "var(--ink)",
-                      fontSize: 14,
-                    }}
-                  >
-                    {t.payee}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-jetbrains), monospace",
-                      fontSize: 10.5,
-                      color: "var(--ink-3)",
-                      marginTop: 2,
-                    }}
-                  >
-                    {formatShortDate(t.date)} {t.isAuto ? "· auto" : ""}
-                  </div>
-                </div>
-                <div
+                <span style={{ color: "var(--ink-2)" }}>{t.payee ?? "—"}</span>
+                <span
                   style={{
                     fontFamily: "var(--font-jetbrains), monospace",
-                    fontSize: 13,
-                    color: t.amountCents > 0 ? "var(--gold)" : "var(--ink)",
+                    color: t.amountCents < 0 ? "var(--ink)" : "var(--ok)",
                     fontFeatureSettings: '"tnum" 1',
                   }}
                 >
                   {formatMoneySigned(t.amountCents)}
-                </div>
+                </span>
               </div>
             ))}
           </div>
@@ -640,161 +637,136 @@ function EnvelopeDetail({
   );
 }
 
-function planetName(planet: PlanetId | null): string {
-  switch (planet) {
-    case "sol":
-      return "the foundation — your fixed costs";
-    case "luna":
-      return "the daily — what feeds the body";
-    case "mars":
-      return "the wall — your safety buffer";
-    case "mercury":
-      return "the wiring — utilities, comms";
-    case "jupiter":
-      return "the long view — savings, growth";
-    case "venus":
-      return "the joy — pleasure, beauty, gathering";
-    case "saturn":
-      return "the debt — past time, paid down";
-    default:
-      return "custom envelope";
-  }
+function planetName(p: PlanetId | null): string {
+  if (!p) return "custom";
+  return p.charAt(0).toUpperCase() + p.slice(1);
 }
 
-/**
- * EnvelopesInsight — the dynamic "Insight" rail at the bottom of
- * /envelopes. Surfaces the worst over-limit envelope in plain English
- * with a recommendation, or a calm positive insight when everything is
- * within target. AI Tier 2 will eventually generate this; for v1 the
- * pattern is deterministic from the live store.
- */
 function EnvelopesInsight({
   overLimit,
   onTrack,
   totalEnvelopes,
 }: {
-  overLimit: ReturnType<typeof liveEnvelopes>;
+  overLimit: Array<{ id: string; name: string; current: number; target: number }>;
   onTrack: number;
   totalEnvelopes: number;
 }) {
-  const worst = overLimit[0]; // already sorted by the page in display order; pick first
-  const calm = overLimit.length === 0 || !worst;
-
-  return (
-    <section style={{ marginBottom: 0 }}>
-      <div
+  if (overLimit.length === 0) {
+    return (
+      <section
         style={{
-          background: calm
-            ? "radial-gradient(ellipse at 0% 50%, rgba(106, 176, 136, 0.08) 0%, transparent 60%), var(--surface)"
-            : "radial-gradient(ellipse at 0% 50%, rgba(196, 90, 58, 0.08) 0%, transparent 60%), var(--surface)",
+          background: "var(--cosmos-2)",
           border: "1px solid var(--line)",
-          borderLeft: `3px solid ${calm ? "var(--ok)" : "var(--mars)"}`,
+          borderLeft: "2px solid var(--ok)",
           borderRadius: 4,
-          padding: "32px 36px",
+          padding: "24px 28px",
           display: "flex",
           alignItems: "center",
-          gap: 24,
+          gap: 16,
         }}
       >
         <div
+          aria-hidden
           style={{
-            fontFamily: "var(--font-cinzel), serif",
-            fontSize: 9.5,
-            color: calm ? "var(--ok)" : "var(--mars)",
-            letterSpacing: "0.28em",
-            textTransform: "uppercase",
-            writingMode: "vertical-rl",
-            transform: "rotate(180deg)",
-            padding: "8px 0",
-            borderRight: "1px solid var(--line-soft)",
-            paddingRight: 18,
-            marginRight: 4,
+            width: 36,
+            height: 36,
+            borderRadius: 2,
+            display: "grid",
+            placeItems: "center",
+            fontSize: 11,
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontWeight: 700,
+            color: "var(--ok)",
+            background: "rgba(74, 222, 128, 0.10)",
+            border: "1px solid var(--ok)",
+            flexShrink: 0,
+            letterSpacing: "0.04em",
           }}
         >
-          Insight
+          [OK]
         </div>
-        <div style={{ flex: 1 }}>
-          {calm ? (
-            <p
-              style={{
-                fontFamily: "var(--font-cormorant), serif",
-                fontSize: 18,
-                lineHeight: 1.55,
-                color: "var(--ink-2)",
-                margin: 0,
-              }}
-            >
-              <span style={{ color: "var(--ink)", fontWeight: 600 }}>
-                {onTrack} of {totalEnvelopes} envelopes are within target.
-              </span>{" "}
-              The plan is doing its job. Keep the rhythm; the next paycheck will refill the ones that need it.
-            </p>
-          ) : (
-            <>
-              <p
-                style={{
-                  fontFamily: "var(--font-cormorant), serif",
-                  fontSize: 18,
-                  lineHeight: 1.55,
-                  color: "var(--ink-2)",
-                  margin: 0,
-                }}
-              >
-                <span style={{ color: "var(--ink)", fontWeight: 600 }}>
-                  {worst!.name} is at{" "}
-                  {Math.round((worst!.current / worst!.target) * 100)}%
-                </span>{" "}
-                — over by {formatMoney(worst!.current - worst!.target)}. The target may be set too low for the way this period is going. Either{" "}
-                <span style={{ color: "var(--gold-glow)", fontWeight: 600 }}>
-                  raise the target to {formatMoney(worst!.current)}
-                </span>{" "}
-                to match your actual pace, or{" "}
-                <span style={{ color: "var(--gold-glow)", fontWeight: 600 }}>
-                  let the next paycheck refill it
-                </span>{" "}
-                and stay the course.
-              </p>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  marginTop: 20,
-                  fontFamily: "var(--font-cinzel), serif",
-                  fontSize: 10,
-                  letterSpacing: "0.22em",
-                  textTransform: "uppercase",
-                }}
-              >
-                <a
-                  href="#"
-                  style={{
-                    color: "var(--gold)",
-                    fontWeight: 600,
-                    textDecoration: "none",
-                    padding: "8px 16px",
-                    border: "1px solid var(--gold-soft)",
-                    borderRadius: 2,
-                  }}
-                >
-                  Raise target to {formatMoney(worst!.current)}
-                </a>
-                <a
-                  href="#"
-                  style={{
-                    color: "var(--ink-2)",
-                    fontWeight: 500,
-                    textDecoration: "none",
-                    padding: "8px 16px",
-                    border: "1px solid var(--line)",
-                    borderRadius: 2,
-                  }}
-                >
-                  See transactions
-                </a>
-              </div>
-            </>
-          )}
+        <div>
+          <div
+            style={{
+              fontFamily: "var(--font-sora)",
+              fontSize: 15,
+              fontWeight: 600,
+              color: "var(--ink)",
+              marginBottom: 2,
+            }}
+          >
+            All envelopes are within target.
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--font-sora)",
+              fontSize: 13,
+              color: "var(--ink-2)",
+            }}
+          >
+            {onTrack} of {totalEnvelopes} on track. Next paycheck will top up the ones that need it.
+          </div>
         </div>
+      </section>
+    );
+  }
+
+  const worst = overLimit[0];
+  if (!worst) return null;
+  const overage = worst.current - worst.target;
+  return (
+    <section
+      style={{
+        background: "var(--cosmos-2)",
+        border: "1px solid var(--line)",
+        borderLeft: "2px solid var(--neg)",
+        borderRadius: 4,
+        padding: "24px 28px",
+      }}
+    >
+      <div
+        style={{
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 9.5,
+          fontWeight: 600,
+          color: "var(--neg)",
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          marginBottom: 8,
+        }}
+      >
+        <span style={{ color: "var(--ink-4)" }}>//</span> [WARN] {overLimit.length}{" "}
+        {overLimit.length === 1 ? "envelope" : "envelopes"} need attention
+      </div>
+      <div
+        style={{
+          fontFamily: "var(--font-sora)",
+          fontSize: 15,
+          color: "var(--ink-2)",
+          lineHeight: 1.5,
+        }}
+      >
+        <b style={{ color: "var(--neg)", fontWeight: 600 }}>{worst.name}</b> is over by{" "}
+        <span
+          style={{
+            fontFamily: "var(--font-jetbrains), monospace",
+            color: "var(--neg)",
+            fontFeatureSettings: '"tnum" 1',
+          }}
+        >
+          {formatMoney(overage)}
+        </span>
+        . Consider raising the target to{" "}
+        <span
+          style={{
+            fontFamily: "var(--font-jetbrains), monospace",
+            color: "var(--ink)",
+            fontFeatureSettings: '"tnum" 1',
+          }}
+        >
+          {formatMoney(worst.current + Math.round(overage * 0.1))}
+        </span>{" "}
+        next period, or trim the spending.
       </div>
     </section>
   );

@@ -9,9 +9,11 @@ export const dynamic = "force-dynamic";
 
 /**
  * Allocation Plan — articulated deep page.
- * The user picks a strategy, sees the active distribution, and arms
- * auto-allocate. Once armed, every paycheck transaction is silently
- * distributed (D12 — no confirm modal).
+ *
+ * Component Oracle Terminal treatment: Sora titles, JetBrains Mono
+ * for amounts, mono caps headers with // prefix. The active strategy
+ * card highlighted with teal left rail + glow. Sankey (re-skinned
+ * in 2.0.3b) sits below as the Automation Map.
  */
 export default function AllocationPage() {
   const ENVELOPES = liveEnvelopes();
@@ -23,34 +25,35 @@ export default function AllocationPage() {
   return (
     <div>
       <PageHead
-        eyebrow="Plan · Allocation"
+        eyebrow="// plan · allocation"
         title="The Allocation Plan"
         em="how each paycheck is divided."
-        accent="gold"
+        accent="cyan"
         actions={
           <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
             <div
               style={{
-                fontFamily: "var(--font-cinzel), serif",
+                fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 9.5,
-                color: isArmed ? "var(--mercury)" : "var(--ink-3)",
-                letterSpacing: "0.22em",
+                fontWeight: 700,
+                color: isArmed ? "var(--ok)" : "var(--ink-3)",
+                letterSpacing: "0.18em",
                 textTransform: "uppercase",
               }}
             >
-              {isArmed ? "● Auto-distillation armed" : "○ Paused"}
+              {isArmed ? "[OK] ● Auto-distillation armed" : "○ Paused"}
             </div>
             <button
               type="button"
               style={{
-                fontFamily: "var(--font-cinzel), serif",
-                background: isArmed ? "var(--surface)" : "var(--gold)",
-                color: isArmed ? "var(--mercury)" : "var(--void)",
-                border: isArmed ? "1px solid var(--mercury)" : 0,
+                fontFamily: "var(--font-jetbrains), monospace",
+                background: isArmed ? "var(--surface)" : "var(--terminal-cyan)",
+                color: isArmed ? "var(--ok)" : "var(--void)",
+                border: isArmed ? "1px solid var(--ok)" : 0,
                 borderRadius: 2,
                 padding: "10px 18px",
                 fontSize: 10.5,
-                fontWeight: 600,
+                fontWeight: 700,
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
                 cursor: "pointer",
@@ -69,7 +72,11 @@ export default function AllocationPage() {
 
       {/* Strategy picker */}
       <section style={{ marginBottom: 56 }}>
-        <SectionHeader title="Pick a strategy" em="start with a shape, customize later." />
+        <SectionHeader
+          title="Pick a strategy"
+          em="start with a shape, customize later."
+          accent="cyan"
+        />
         <div
           style={{
             display: "grid",
@@ -84,12 +91,13 @@ export default function AllocationPage() {
                 key={s.id}
                 style={{
                   background: "var(--surface)",
-                  border: `1px solid ${isActive ? "var(--gold)" : "var(--line)"}`,
+                  border: `1px solid ${isActive ? "var(--terminal-cyan)" : "var(--line)"}`,
+                  borderLeft: isActive ? "2px solid var(--terminal-cyan)" : undefined,
                   borderRadius: 4,
                   padding: "24px 28px",
                   position: "relative",
                   cursor: "pointer",
-                  boxShadow: isActive ? "0 0 24px rgba(212, 175, 82, 0.15)" : "none",
+                  boxShadow: isActive ? "0 0 24px rgba(45, 212, 191, 0.18)" : "none",
                 }}
               >
                 {isActive && (
@@ -98,10 +106,11 @@ export default function AllocationPage() {
                       position: "absolute",
                       top: 16,
                       right: 16,
-                      fontFamily: "var(--font-cinzel), serif",
+                      fontFamily: "var(--font-jetbrains), monospace",
                       fontSize: 9,
-                      color: "var(--gold)",
-                      letterSpacing: "0.25em",
+                      fontWeight: 700,
+                      color: "var(--terminal-cyan)",
+                      letterSpacing: "0.18em",
                       textTransform: "uppercase",
                     }}
                   >
@@ -110,28 +119,30 @@ export default function AllocationPage() {
                 )}
                 <h3
                   style={{
-                    fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                    fontSize: 24,
+                    fontFamily: "var(--font-sora)",
+                    fontSize: 22,
+                    fontWeight: 600,
                     margin: "0 0 4px",
                     color: "var(--ink)",
+                    letterSpacing: "-0.005em",
                   }}
                 >
                   {s.name}
                 </h3>
                 <div
                   style={{
-                    fontFamily: "var(--font-cormorant), serif",
-                    fontStyle: "italic",
+                    fontFamily: "var(--font-sora)",
                     fontSize: 14,
                     color: "var(--ink-3)",
                     marginBottom: 16,
+                    lineHeight: 1.4,
                   }}
                 >
                   {s.tagline}
                 </div>
                 <p
                   style={{
-                    fontFamily: "var(--font-cormorant), serif",
+                    fontFamily: "var(--font-sora)",
                     fontSize: 14,
                     color: "var(--ink-2)",
                     lineHeight: 1.5,
@@ -144,12 +155,14 @@ export default function AllocationPage() {
                   style={{
                     marginTop: 16,
                     display: "flex",
-                    gap: 12,
+                    gap: 8,
                     fontFamily: "var(--font-jetbrains), monospace",
-                    fontSize: 11,
+                    fontSize: 10.5,
                     color: "var(--ink-3)",
                     borderTop: "1px solid var(--line-soft)",
                     paddingTop: 12,
+                    letterSpacing: "0.04em",
+                    flexWrap: "wrap",
                   }}
                 >
                   {s.shape.map((p, i) => (
@@ -177,6 +190,7 @@ export default function AllocationPage() {
           title="The active distribution"
           em={`${ENVELOPES.length} vessels · ${formatMoneyCompact(SNAPSHOT.nextPaycheckCents)} per paycheck`}
           meta="Drag to adjust. Sum to 100%."
+          accent="cyan"
         />
         <div
           style={{
@@ -203,8 +217,9 @@ export default function AllocationPage() {
                 <VesselGlyph planet={e.planet} size={22} inCircle />
                 <div
                   style={{
-                    fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                    fontSize: 18,
+                    fontFamily: "var(--font-sora)",
+                    fontSize: 16,
+                    fontWeight: 500,
                     color: "var(--ink)",
                   }}
                 >
@@ -214,9 +229,10 @@ export default function AllocationPage() {
                   style={{
                     fontFamily: "var(--font-jetbrains), monospace",
                     fontSize: 14,
+                    fontWeight: 600,
                     color: "var(--ink)",
                     textAlign: "center",
-                    fontFeatureSettings: '"tnum" 1',
+                    fontFeatureSettings: '"tnum" 1, "zero" 1',
                   }}
                 >
                   {pct}%
@@ -245,7 +261,7 @@ export default function AllocationPage() {
                     fontSize: 13,
                     color: "var(--ink-2)",
                     textAlign: "right",
-                    fontFeatureSettings: '"tnum" 1',
+                    fontFeatureSettings: '"tnum" 1, "zero" 1',
                   }}
                 >
                   {formatMoney((SNAPSHOT.nextPaycheckCents * pct) / 100)}
@@ -256,14 +272,13 @@ export default function AllocationPage() {
         </div>
       </section>
 
-      {/* The Automation Map — same flow the simulator animates after
-          a real paycheck, but here it's a static reference of the
-          active plan at the next paycheck size. */}
+      {/* The Automation Map */}
       <section style={{ marginBottom: 56 }}>
         <SectionHeader
           title="The Automation Map"
           em="a paycheck, fanning out to its vessels."
           meta={`Plan preview · ${formatMoneyCompact(SNAPSHOT.nextPaycheckCents)} paycheck`}
+          accent="gold"
         />
         <SankeyFlow
           nodes={ENVELOPES.map(
@@ -288,30 +303,30 @@ export default function AllocationPage() {
       <section>
         <div
           style={{
-            background:
-              "radial-gradient(ellipse at 100% 50%, rgba(138, 192, 184, 0.08) 0%, transparent 60%), var(--surface)",
+            background: "var(--surface)",
             border: "1px solid var(--line)",
-            borderLeft: "3px solid var(--mercury)",
+            borderLeft: "2px solid var(--mercury)",
             borderRadius: 4,
             padding: "32px 36px",
           }}
         >
           <div
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 9.5,
+              fontWeight: 600,
               color: "var(--mercury)",
-              letterSpacing: "0.28em",
+              letterSpacing: "0.18em",
               textTransform: "uppercase",
               marginBottom: 12,
             }}
           >
-            How auto-distillation works
+            <span style={{ color: "var(--ink-4)" }}>//</span> How auto-distillation works
           </div>
           <p
             style={{
-              fontFamily: "var(--font-cormorant), serif",
-              fontSize: 17,
+              fontFamily: "var(--font-sora)",
+              fontSize: 16,
               lineHeight: 1.55,
               color: "var(--ink-2)",
               margin: "0 0 16px",
@@ -321,12 +336,12 @@ export default function AllocationPage() {
           </p>
           <p
             style={{
-              fontFamily: "var(--font-cormorant), serif",
-              fontSize: 15,
-              lineHeight: 1.55,
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 11,
+              lineHeight: 1.5,
               color: "var(--ink-3)",
               margin: 0,
-              fontStyle: "italic",
+              letterSpacing: "0.02em",
             }}
           >
             To stop: edit the plan, pause the plan, or delete a rule. The change takes effect on the next paycheck, not retroactively.
@@ -372,11 +387,19 @@ function SectionHeader({
   title,
   em,
   meta,
+  accent = "cyan",
 }: {
   title: string;
   em?: string;
   meta?: string;
+  accent?: "cyan" | "gold" | "neg";
 }) {
+  const accentColor =
+    accent === "gold"
+      ? "var(--gold)"
+      : accent === "neg"
+      ? "var(--neg)"
+      : "var(--terminal-cyan)";
   return (
     <div
       style={{
@@ -389,38 +412,51 @@ function SectionHeader({
         position: "relative",
       }}
     >
-      <h2
-        style={{
-          fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-          fontWeight: 400,
-          fontSize: 30,
-          letterSpacing: "0.005em",
-          margin: 0,
-          color: "var(--ink)",
-        }}
-      >
-        {title}
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+        <span
+          style={{
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 9.5,
+            fontWeight: 600,
+            color: accentColor,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+          }}
+        >
+          <span style={{ color: "var(--ink-4)" }}>//</span>
+        </span>
+        <h2
+          style={{
+            fontFamily: "var(--font-sora)",
+            fontWeight: 600,
+            fontSize: 26,
+            letterSpacing: "-0.01em",
+            margin: 0,
+            color: "var(--ink)",
+          }}
+        >
+          {title}
+        </h2>
         {em && (
-          <em
+          <span
             style={{
-              fontFamily: "var(--font-cormorant), serif",
-              fontStyle: "italic",
+              fontFamily: "var(--font-sora)",
+              fontWeight: 400,
+              fontSize: 16,
               color: "var(--ink-3)",
-              fontWeight: 500,
-              marginLeft: 8,
             }}
           >
             {em}
-          </em>
+          </span>
         )}
-      </h2>
+      </div>
       {meta && (
         <div
           style={{
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 10,
             color: "var(--ink-3)",
-            letterSpacing: "0.22em",
+            letterSpacing: "0.10em",
             textTransform: "uppercase",
             maxWidth: 380,
             textAlign: "right",
@@ -437,8 +473,8 @@ function SectionHeader({
           left: 0,
           width: 80,
           height: 1,
-          background: "var(--gold)",
-          boxShadow: "0 0 8px var(--gold)",
+          background: accentColor,
+          boxShadow: `0 0 8px ${accentColor}`,
         }}
       />
     </div>

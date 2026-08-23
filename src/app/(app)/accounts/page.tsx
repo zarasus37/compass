@@ -5,12 +5,19 @@ import { liveAccount } from "@/lib/mock";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Accounts — articulated deep page.
+ *
+ * Component Oracle Terminal treatment: Sora title, JetBrains Mono
+ * for amounts, mono caps labels. Mercury (planet) accent for the
+ * account card border (semantic).
+ */
 export default function AccountsPage() {
   const ACCOUNT = liveAccount();
   return (
     <div>
       <PageHead
-        eyebrow="Money · Accounts"
+        eyebrow="// money · accounts"
         title="Accounts"
         em="where your money lives."
         accent="mercury"
@@ -18,17 +25,18 @@ export default function AccountsPage() {
           <button
             type="button"
             style={{
-              fontFamily: "var(--font-cinzel), serif",
-              background: "var(--gold)",
+              fontFamily: "var(--font-jetbrains), monospace",
+              background: "var(--terminal-cyan)",
               color: "var(--void)",
               border: 0,
               borderRadius: 2,
               padding: "12px 22px",
-              fontSize: 11,
-              fontWeight: 600,
+              fontSize: 10.5,
+              fontWeight: 700,
               letterSpacing: "0.18em",
               textTransform: "uppercase",
               cursor: "pointer",
+              boxShadow: "0 0 16px rgba(45, 212, 191, 0.3)",
             }}
           >
             + Connect account
@@ -45,6 +53,7 @@ export default function AccountsPage() {
         style={{
           background: "var(--surface)",
           border: "1px solid var(--line)",
+          borderLeft: "2px solid var(--mercury)",
           borderRadius: 4,
           padding: 32,
           display: "grid",
@@ -57,11 +66,11 @@ export default function AccountsPage() {
           style={{
             width: 56,
             height: 56,
-            borderRadius: 8,
+            borderRadius: 2,
             display: "grid",
             placeItems: "center",
             background: "var(--cosmos)",
-            border: "1px solid var(--line)",
+            border: "1px solid var(--mercury)",
             fontSize: 22,
             color: "var(--mercury)",
           }}
@@ -71,19 +80,22 @@ export default function AccountsPage() {
         <div>
           <div
             style={{
-              fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-              fontSize: 22,
+              fontFamily: "var(--font-sora)",
+              fontSize: 20,
+              fontWeight: 600,
               color: "var(--ink)",
+              letterSpacing: "-0.005em",
             }}
           >
             {ACCOUNT.name}
           </div>
           <div
             style={{
-              fontFamily: "var(--font-cormorant), serif",
-              fontStyle: "italic",
-              fontSize: 13,
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 11,
               color: "var(--ink-3)",
+              marginTop: 4,
+              letterSpacing: "0.04em",
             }}
           >
             {ACCOUNT.institution} · •••• {ACCOUNT.mask}
@@ -92,19 +104,20 @@ export default function AccountsPage() {
         <div>
           <div
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 9.5,
+              fontWeight: 600,
               color: "var(--ink-3)",
-              letterSpacing: "0.22em",
+              letterSpacing: "0.18em",
               textTransform: "uppercase",
               marginBottom: 4,
             }}
           >
-            Type
+            <span style={{ color: "var(--ink-4)" }}>//</span> Type
           </div>
           <div
             style={{
-              fontFamily: "var(--font-cormorant), serif",
+              fontFamily: "var(--font-sora)",
               fontSize: 15,
               color: "var(--ink-2)",
               textTransform: "capitalize",
@@ -116,21 +129,24 @@ export default function AccountsPage() {
         <div>
           <div
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 9.5,
+              fontWeight: 600,
               color: "var(--ink-3)",
-              letterSpacing: "0.22em",
+              letterSpacing: "0.18em",
               textTransform: "uppercase",
               marginBottom: 4,
             }}
           >
-            Current balance
+            <span style={{ color: "var(--ink-4)" }}>//</span> Balance
           </div>
           <div
             style={{
-              fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 22,
+              fontWeight: 600,
               color: "var(--ink)",
+              fontFeatureSettings: '"tnum" 1, "zero" 1',
             }}
           >
             {formatMoney(2_400_00)}
@@ -138,10 +154,11 @@ export default function AccountsPage() {
         </div>
         <div
           style={{
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 9.5,
+            fontWeight: 600,
             color: "var(--ink-3)",
-            letterSpacing: "0.22em",
+            letterSpacing: "0.18em",
             textTransform: "uppercase",
             textAlign: "right",
           }}

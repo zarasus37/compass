@@ -10,6 +10,15 @@ import { formatShortDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Goals — articulated deep page.
+ *
+ * Component Oracle Terminal treatment: Sora section titles, JetBrains
+ * Mono for amounts and labels, mono caps headers with // prefix.
+ * Top-priority ring in jupiter (planet color, semantic), primary
+ * CTA in terminal-cyan. GoalTrajectory and GoalSparkline unchanged
+ * (pure SVG, no text styling).
+ */
 export default function GoalsPage() {
   const GOALS = liveGoals();
   const goalTrajectories: GoalTrajectoryInput[] = GOALS.map((g) => ({
@@ -25,7 +34,7 @@ export default function GoalsPage() {
   return (
     <div>
       <PageHead
-        eyebrow="Plan · Goals"
+        eyebrow="// plan · goals"
         title="Your Goals"
         em="where your money is heading."
         accent="jupiter"
@@ -33,17 +42,18 @@ export default function GoalsPage() {
           <Link
             href="/goals/new"
             style={{
-              fontFamily: "var(--font-cinzel), serif",
-              background: "var(--gold)",
+              fontFamily: "var(--font-jetbrains), monospace",
+              background: "var(--terminal-cyan)",
               color: "var(--void)",
               border: 0,
               borderRadius: 2,
               padding: "12px 22px",
-              fontSize: 11,
-              fontWeight: 600,
+              fontSize: 10.5,
+              fontWeight: 700,
               letterSpacing: "0.18em",
               textTransform: "uppercase",
               textDecoration: "none",
+              boxShadow: "0 0 16px rgba(45, 212, 191, 0.3)",
             }}
           >
             + New goal
@@ -62,30 +72,36 @@ export default function GoalsPage() {
       <section style={{ marginBottom: 56 }}>
         <div
           style={{
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 10.5,
+            fontWeight: 600,
             color: "var(--jupiter)",
-            letterSpacing: "0.28em",
+            letterSpacing: "0.18em",
             textTransform: "uppercase",
             marginBottom: 8,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
           }}
         >
-          The Trajectory
+          <span style={{ color: "var(--ink-4)" }}>//</span>
+          <span>The Trajectory</span>
         </div>
         <h3
           style={{
-            fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-            fontSize: 28,
-            fontWeight: 400,
+            fontFamily: "var(--font-sora)",
+            fontSize: 26,
+            fontWeight: 600,
             margin: "0 0 12px",
             color: "var(--ink)",
+            letterSpacing: "-0.01em",
           }}
         >
-          Each goal, climbing <em style={{ fontFamily: "var(--font-cormorant), serif", fontStyle: "italic", color: "var(--ink-3)" }}>at this pace.</em>
+          Each goal, climbing <span style={{ color: "var(--ink-3)", fontWeight: 400 }}>at this pace.</span>
         </h3>
         <p
           style={{
-            fontFamily: "var(--font-cormorant), serif",
+            fontFamily: "var(--font-sora)",
             fontSize: 15,
             lineHeight: 1.55,
             color: "var(--ink-2)",
@@ -108,6 +124,7 @@ export default function GoalsPage() {
                 style={{
                   background: "var(--surface)",
                   border: `1px solid ${g.isPrimary ? "var(--jupiter)" : "var(--line)"}`,
+                  borderLeft: g.isPrimary ? "2px solid var(--jupiter)" : undefined,
                   borderRadius: 4,
                   padding: "28px 32px",
                   display: "grid",
@@ -121,7 +138,7 @@ export default function GoalsPage() {
                   style={{
                     width: 60,
                     height: 60,
-                    borderRadius: "50%",
+                    borderRadius: 2,
                     display: "grid",
                     placeItems: "center",
                     background: "var(--cosmos)",
@@ -134,26 +151,29 @@ export default function GoalsPage() {
                   {g.isPrimary && (
                     <div
                       style={{
-                        fontFamily: "var(--font-cinzel), serif",
+                        fontFamily: "var(--font-jetbrains), monospace",
                         fontSize: 9,
+                        fontWeight: 700,
                         color: "var(--jupiter)",
-                        letterSpacing: "0.25em",
+                        letterSpacing: "0.18em",
                         textTransform: "uppercase",
                         marginBottom: 4,
                       }}
                     >
-                      ● Top priority
+                      <span style={{ color: "var(--jupiter)" }}>●</span> Top priority
                     </div>
                   )}
                   <Link
                     href={`/goals/${g.id}`}
                     style={{
-                      fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                      fontSize: 24,
+                      fontFamily: "var(--font-sora)",
+                      fontSize: 22,
+                      fontWeight: 600,
                       color: "var(--ink)",
                       marginBottom: 4,
                       textDecoration: "none",
                       display: "inline-block",
+                      letterSpacing: "-0.005em",
                     }}
                     className="goal-name-link"
                   >
@@ -161,10 +181,10 @@ export default function GoalsPage() {
                   </Link>
                   <div
                     style={{
-                      fontFamily: "var(--font-cormorant), serif",
-                      fontStyle: "italic",
-                      fontSize: 14,
+                      fontFamily: "var(--font-sora)",
+                      fontSize: 13.5,
                       color: "var(--ink-3)",
+                      lineHeight: 1.45,
                     }}
                   >
                     {g.description}
@@ -173,25 +193,28 @@ export default function GoalsPage() {
                 <div>
                   <div
                     style={{
-                      fontFamily: "var(--font-cinzel), serif",
+                      fontFamily: "var(--font-jetbrains), monospace",
                       fontSize: 9.5,
+                      fontWeight: 600,
                       color: "var(--ink-3)",
-                      letterSpacing: "0.22em",
+                      letterSpacing: "0.18em",
                       textTransform: "uppercase",
                       marginBottom: 6,
                     }}
                   >
-                    Progress
+                    <span style={{ color: "var(--ink-4)" }}>//</span> Progress
                   </div>
                   <div
                     style={{
-                      fontFamily: "var(--jetbrains), monospace, sans-serif".replace("var(--jetbrains), monospace, sans-serif", "var(--font-jetbrains), monospace"),
+                      fontFamily: "var(--font-jetbrains), monospace",
                       fontSize: 22,
+                      fontWeight: 600,
                       color: "var(--ink)",
                       marginBottom: 6,
+                      fontFeatureSettings: '"tnum" 1, "zero" 1',
                     }}
                   >
-                    {formatMoney(g.currentCents)} / {formatMoney(g.targetCents)}
+                    {formatMoney(g.currentCents)} <span style={{ color: "var(--ink-4)" }}>/</span> {formatMoney(g.targetCents)}
                   </div>
                   <div
                     style={{
@@ -218,15 +241,16 @@ export default function GoalsPage() {
                 <div>
                   <div
                     style={{
-                      fontFamily: "var(--font-cinzel), serif",
+                      fontFamily: "var(--font-jetbrains), monospace",
                       fontSize: 9.5,
+                      fontWeight: 600,
                       color: "var(--ink-3)",
-                      letterSpacing: "0.22em",
+                      letterSpacing: "0.18em",
                       textTransform: "uppercase",
                       marginBottom: 8,
                     }}
                   >
-                    Trajectory
+                    <span style={{ color: "var(--ink-4)" }}>//</span> Trajectory
                   </div>
                   <div
                     style={{
@@ -256,9 +280,9 @@ export default function GoalsPage() {
                       }}
                     >
                       {g.currentCents >= g.targetCents
-                        ? "Reached"
+                        ? "[OK] Reached"
                         : g.perPaycheckCents <= 0
-                        ? "Not moving"
+                        ? "[WARN] Not moving"
                         : (() => {
                             const need = g.targetCents - g.currentCents;
                             const checks = Math.ceil(need / g.perPaycheckCents);
@@ -271,20 +295,23 @@ export default function GoalsPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
                   <div
                     style={{
-                      fontFamily: "var(--font-cinzel), serif",
+                      fontFamily: "var(--font-jetbrains), monospace",
                       fontSize: 9.5,
+                      fontWeight: 600,
                       color: "var(--ink-3)",
-                      letterSpacing: "0.22em",
+                      letterSpacing: "0.18em",
                       textTransform: "uppercase",
                     }}
                   >
-                    Target date
+                    <span style={{ color: "var(--ink-4)" }}>//</span> Target
                   </div>
                   <div
                     style={{
-                      fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                      fontSize: 18,
+                      fontFamily: "var(--font-jetbrains), monospace",
+                      fontSize: 16,
                       color: "var(--ink)",
+                      fontFeatureSettings: '"tnum" 1',
+                      fontWeight: 500,
                     }}
                   >
                     {formatShortDate(g.targetDate)}
@@ -294,15 +321,15 @@ export default function GoalsPage() {
                       <button
                         type="button"
                         style={{
-                          fontFamily: "var(--font-cinzel), serif",
+                          fontFamily: "var(--font-jetbrains), monospace",
                           background: "transparent",
-                          color: "var(--gold)",
-                          border: "1px solid var(--gold-soft)",
+                          color: "var(--jupiter)",
+                          border: "1px solid var(--jupiter)",
                           borderRadius: 2,
                           padding: "6px 12px",
                           fontSize: 9.5,
-                          fontWeight: 600,
-                          letterSpacing: "0.18em",
+                          fontWeight: 700,
+                          letterSpacing: "0.14em",
                           textTransform: "uppercase",
                           cursor: "pointer",
                         }}
@@ -313,15 +340,15 @@ export default function GoalsPage() {
                     <button
                       type="button"
                       style={{
-                        fontFamily: "var(--font-cinzel), serif",
+                        fontFamily: "var(--font-jetbrains), monospace",
                         background: "transparent",
                         color: "var(--ink-2)",
                         border: "1px solid var(--line)",
                         borderRadius: 2,
                         padding: "6px 12px",
                         fontSize: 9.5,
-                        fontWeight: 500,
-                        letterSpacing: "0.18em",
+                        fontWeight: 600,
+                        letterSpacing: "0.14em",
                         textTransform: "uppercase",
                         cursor: "pointer",
                       }}

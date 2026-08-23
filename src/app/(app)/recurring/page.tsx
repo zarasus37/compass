@@ -15,7 +15,7 @@ import { formatShortDate } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 /**
- * Recurring bills — articulated deep page (Cluster 1.8).
+ * Recurring bills — articulated deep page.
  *
  * Live data: each bill is in the in-memory store. The page reads the
  * current set on every render and bins them into the active pay period
@@ -24,9 +24,10 @@ export const dynamic = "force-dynamic";
  * store, the page re-renders, and the calendar + Plan-My-Next-Check
  * panels on the dashboard both pick up the new state.
  *
- * In Cluster 1.6 the "+ Add bill" button gets a real form modal that
- * appends to the bill list; for 1.8 we surface the seed data so the
- * Plan My Next Check + calendar warnings have something to consume.
+ * Component Oracle Terminal treatment: mono caps section headers
+ * with // prefix, JetBrains Mono for amounts and labels, Sora for
+ * section titles. Primary "Add" CTA in terminal-cyan. Status accents
+ * (paid = ok green, due = warn amber) preserved.
  */
 export default function RecurringPage() {
   const BILLS = liveBills();
@@ -51,25 +52,26 @@ export default function RecurringPage() {
   return (
     <div>
       <PageHead
-        eyebrow="Plan · Recurring bills"
+        eyebrow="// plan · recurring"
         title="Recurring Bills"
         em="the charges that show up every month."
-        accent="mercury"
+        accent="cyan"
         actions={
           <Link
             href="/recurring/new"
             style={{
-              fontFamily: "var(--font-cinzel), serif",
-              background: "var(--gold)",
+              fontFamily: "var(--font-jetbrains), monospace",
+              background: "var(--terminal-cyan)",
               color: "var(--void)",
               border: 0,
               borderRadius: 2,
               padding: "12px 22px",
-              fontSize: 11,
-              fontWeight: 600,
+              fontSize: 10.5,
+              fontWeight: 700,
               letterSpacing: "0.18em",
               textTransform: "uppercase",
               textDecoration: "none",
+              boxShadow: "0 0 16px rgba(45, 212, 191, 0.3)",
             }}
           >
             + Add bill
@@ -77,7 +79,7 @@ export default function RecurringPage() {
         }
         explanation={
           <>
-            The bills that show up on a schedule — rent, internet, subscriptions, debt payments. Compass turns each one into a recurring transaction that lands in the right vessel. The total here is the predictable part of your month. The rest is up to you.
+            The bills that show up on a schedule — rent, internet, subscriptions, debt payments. Compass turns each one into a recurring transaction that lands in the right envelope. The total here is the predictable part of the month. The rest is up to you.
           </>
         }
       />
@@ -99,23 +101,23 @@ export default function RecurringPage() {
         }}
       >
         <SummaryCell
-          label="Total recurring"
+          label="total recurring"
           value={formatMoney(total)}
           sub={`${BILLS.length} bills`}
         />
         <SummaryCell
-          label="Due this period"
+          label="due this period"
           value={formatMoney(dueCentsThisPeriod + paidCentsThisPeriod)}
           sub={`${dueThisPeriod.length} unpaid · ${paidThisPeriod.length} paid`}
           accent={dueThisPeriod.length > 0 ? "warn" : "ok"}
         />
         <SummaryCell
-          label="Period coverage"
+          label="period coverage"
           value={`${due.length} of ${BILLS.length}`}
           sub="bills hit this period"
         />
         <SummaryCell
-          label="Autopay"
+          label="autopay"
           value={`${BILLS.filter((b) => b.autopay).length} of ${BILLS.length}`}
           sub="set to auto-draft"
         />
@@ -125,7 +127,7 @@ export default function RecurringPage() {
       {dueThisPeriod.length > 0 && (
         <BillSection
           title="Due this period"
-          em="before your next paycheck."
+          em="before your next check."
           accent="warn"
           bills={dueThisPeriod.map((d) => d.bill)}
           dueDates={Object.fromEntries(dueThisPeriod.map((d) => [d.bill.id, d.dueDate]))}
@@ -189,28 +191,42 @@ function BillSection({
           borderBottom: "1px solid var(--line)",
         }}
       >
-        <h2
-          style={{
-            fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-            fontWeight: 400,
-            fontSize: 26,
-            margin: 0,
-            color: "var(--ink)",
-          }}
-        >
-          {title}
-          <em
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+          <span
             style={{
-              fontFamily: "var(--font-cormorant), serif",
-              fontStyle: "italic",
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 9.5,
+              fontWeight: 600,
+              color: accentColor,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+            }}
+          >
+            <span style={{ color: "var(--ink-4)" }}>//</span>
+          </span>
+          <h2
+            style={{
+              fontFamily: "var(--font-sora)",
+              fontWeight: 600,
+              fontSize: 24,
+              margin: 0,
+              color: "var(--ink)",
+              letterSpacing: "-0.01em",
+            }}
+          >
+            {title}
+          </h2>
+          <span
+            style={{
+              fontFamily: "var(--font-sora)",
+              fontWeight: 400,
+              fontSize: 15,
               color: "var(--ink-3)",
-              fontWeight: 500,
-              marginLeft: 8,
             }}
           >
             {em}
-          </em>
-        </h2>
+          </span>
+        </div>
         <span
           aria-hidden
           style={{
@@ -246,60 +262,66 @@ function BillSection({
             <div>
               <div
                 style={{
-                  fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                  fontSize: 18,
+                  fontFamily: "var(--font-sora)",
+                  fontSize: 16,
+                  fontWeight: 500,
                   color: "var(--ink)",
-                  lineHeight: 1.1,
+                  lineHeight: 1.2,
                 }}
               >
                 {b.name}
               </div>
               <div
                 style={{
-                  fontFamily: "var(--font-cormorant), serif",
-                  fontStyle: "italic",
-                  fontSize: 13,
+                  fontFamily: "var(--font-jetbrains), monospace",
+                  fontSize: 11,
                   color: "var(--ink-3)",
                   marginTop: 4,
+                  letterSpacing: "0.04em",
                 }}
               >
-                {b.autopay ? "Autopay on" : "Manual pay"} · Due day {b.dueDay}
+                {b.autopay ? "AUTOPAY" : "MANUAL"} · DAY {b.dueDay}
                 {dueDates[b.id] && ` · ${formatShortDate(dueDates[b.id]!)}`}
               </div>
             </div>
             <div
               style={{
                 fontFamily: "var(--font-jetbrains), monospace",
-                fontSize: 13,
-                color: "var(--ink-3)",
+                fontSize: 12,
+                fontWeight: 600,
+                letterSpacing: "0.10em",
+                textTransform: "uppercase",
+                color: b.paidAt ? "var(--ok)" : "var(--ink-2)",
               }}
             >
-              {b.paidAt ? "Paid" : "Unpaid"}
+              {b.paidAt ? "[OK] Paid" : "Unpaid"}
             </div>
             <div
               style={{
-                fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                fontSize: 18,
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 16,
                 color: "var(--ink)",
                 textAlign: "right",
-                fontFeatureSettings: '"tnum" 1',
+                fontFeatureSettings: '"tnum" 1, "zero" 1',
+                fontWeight: 500,
               }}
             >
               {formatMoney(b.amountCents)}
             </div>
             <div
               style={{
-                fontFamily: "var(--font-cinzel), serif",
-                fontSize: 9.5,
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 10,
+                fontWeight: 600,
                 color: accentColor,
-                letterSpacing: "0.18em",
+                letterSpacing: "0.14em",
                 textTransform: "uppercase",
                 textAlign: "right",
               }}
             >
               {b.paidAt
                 ? formatShortDate(new Date(b.paidAt))
-                : `Day ${b.dueDay}`}
+                : `DAY ${b.dueDay}`}
             </div>
             <div style={{ textAlign: "right" }}>
               <BillPaidToggle billId={b.id} initialPaid={b.paidAt !== null} />
@@ -331,20 +353,21 @@ function SummaryCell({
     >
       <div
         style={{
-          fontFamily: "var(--font-cinzel), serif",
+          fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 9.5,
+          fontWeight: 600,
           color: "var(--ink-3)",
-          letterSpacing: "0.22em",
+          letterSpacing: "0.18em",
           textTransform: "uppercase",
           marginBottom: 10,
         }}
       >
-        {label}
+        <span style={{ color: "var(--ink-4)" }}>//</span> {label}
       </div>
       <div
         style={{
-          fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-          fontSize: 26,
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 22,
           lineHeight: 1,
           color:
             accent === "warn"
@@ -352,18 +375,19 @@ function SummaryCell({
               : accent === "ok"
               ? "var(--ok)"
               : "var(--ink)",
-          fontFeatureSettings: '"tnum" 1',
+          fontFeatureSettings: '"tnum" 1, "zero" 1',
+          fontWeight: 600,
         }}
       >
         {value}
       </div>
       <div
         style={{
-          fontFamily: "var(--font-cormorant), serif",
-          fontStyle: "italic",
-          fontSize: 12.5,
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 10.5,
           color: "var(--ink-3)",
           marginTop: 6,
+          letterSpacing: "0.04em",
         }}
       >
         {sub}
@@ -406,21 +430,22 @@ function BillsTimeline({ bills }: { bills: ReturnType<typeof liveBills> }) {
       >
         <div
           style={{
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 10,
-            color: "var(--ink-3)",
-            letterSpacing: "0.28em",
+            fontWeight: 600,
+            color: "var(--terminal-cyan)",
+            letterSpacing: "0.18em",
             textTransform: "uppercase",
           }}
         >
-          Due day, month at a glance
+          <span style={{ color: "var(--ink-4)" }}>//</span> Due day, month at a glance
         </div>
         <div
           style={{
-            fontFamily: "var(--font-cormorant), serif",
-            fontStyle: "italic",
-            fontSize: 12,
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 11,
             color: "var(--ink-3)",
+            letterSpacing: "0.02em",
           }}
         >
           Each dot is a bill, sized by amount. Gold tick = today.
@@ -457,7 +482,7 @@ function BillsTimeline({ bills }: { bills: ReturnType<typeof liveBills> }) {
                   x={x}
                   y={78}
                   textAnchor="middle"
-                  fontFamily="var(--font-cinzel), serif"
+                  fontFamily="var(--font-jetbrains), monospace"
                   fontSize={7.5}
                   fill="var(--ink-3)"
                   letterSpacing={0.5}
@@ -483,7 +508,7 @@ function BillsTimeline({ bills }: { bills: ReturnType<typeof liveBills> }) {
           x={20 + ((TODAY.getDate() - 1) * (580 / 30))}
           y={14}
           textAnchor="middle"
-          fontFamily="var(--font-cinzel), serif"
+          fontFamily="var(--font-jetbrains), monospace"
           fontSize={7}
           fill="var(--gold)"
           letterSpacing={1}
@@ -504,7 +529,7 @@ function BillsTimeline({ bills }: { bills: ReturnType<typeof liveBills> }) {
                 r={r}
                 fill={isPaid ? "var(--ok)" : "var(--mercury)"}
                 opacity={isPaid ? 0.7 : 0.95}
-                stroke={isPaid ? "var(--ok)" : "var(--gold-soft)"}
+                stroke={isPaid ? "var(--ok)" : "var(--terminal-cyan-dim)"}
                 strokeWidth={0.5}
               />
               <title>

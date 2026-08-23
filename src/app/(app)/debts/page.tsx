@@ -10,7 +10,7 @@ import {
   PERIOD_START,
   PERIOD_END,
 } from "@/lib/mock";
-import { billsDueInPeriod, paycheckBreakdown } from "@/lib/store";
+import { paycheckBreakdown } from "@/lib/store";
 import { DebtPayoffSimulator } from "@/components/debts/DebtPayoffSimulator";
 import { DebtSparkline } from "@/components/viz/DebtSparkline";
 import { liveBills, liveSnapshot } from "@/lib/mock";
@@ -18,20 +18,12 @@ import { liveBills, liveSnapshot } from "@/lib/mock";
 export const dynamic = "force-dynamic";
 
 /**
- * Debts — articulated deep page (Cluster 1.9).
+ * Debts — articulated deep page.
  *
- * Live data: each debt is in the in-memory store. The page reads
- * the current set on every render and shows:
- *
- *  1. The list (live) — name, APR, balance, paid %, min payment
- *  2. The DebtPayoffSimulator — the 3-up "current / with-extra / saved"
- *     card + the "What if?" slider + the "Apply extra" action. The
- *     "available" amount is fed from the dashboard's Plan My Next
- *     Check "Free" value (the unallocatedCents from paycheckBreakdown).
- *
- * The apply action calls the `applyExtraToDebt` server action, which
- * reduces the debt's balance, writes an audit entry, and revalidates
- * the page. When a debt hits $0, the celebration overlay fires.
+ * Component Oracle Terminal treatment: Sora section titles, JetBrains
+ * Mono for amounts and labels, mono caps headers with // prefix.
+ * Saturn planet color preserved for the debt-specific accent (semantic).
+ * Primary CTA in terminal-cyan.
  */
 export default function DebtsPage() {
   const DEBTS = liveDebts();
@@ -54,7 +46,7 @@ export default function DebtsPage() {
   return (
     <div>
       <PageHead
-        eyebrow="Money · Debts"
+        eyebrow="// money · debts"
         title="Debts"
         em="one line per debt."
         accent="saturn"
@@ -62,17 +54,18 @@ export default function DebtsPage() {
           <Link
             href="/debts/new"
             style={{
-              fontFamily: "var(--font-cinzel), serif",
-              background: "var(--gold)",
+              fontFamily: "var(--font-jetbrains), monospace",
+              background: "var(--terminal-cyan)",
               color: "var(--void)",
               border: 0,
               borderRadius: 2,
               padding: "12px 22px",
-              fontSize: 11,
-              fontWeight: 600,
+              fontSize: 10.5,
+              fontWeight: 700,
               letterSpacing: "0.18em",
               textTransform: "uppercase",
               textDecoration: "none",
+              boxShadow: "0 0 16px rgba(45, 212, 191, 0.3)",
             }}
           >
             + Add debt
@@ -91,6 +84,7 @@ export default function DebtsPage() {
           title="Your debts"
           em="with the path to zero."
           meta={`${DEBTS.length} ${DEBTS.length === 1 ? "debt" : "debts"} tracked`}
+          accent="saturn"
         />
         <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
           {DEBTS.map((d) => {
@@ -110,6 +104,7 @@ export default function DebtsPage() {
                 style={{
                   background: "var(--surface)",
                   border: "1px solid var(--line)",
+                  borderLeft: "2px solid var(--saturn)",
                   borderRadius: 4,
                   padding: "20px 24px",
                   display: "grid",
@@ -121,44 +116,49 @@ export default function DebtsPage() {
                 <div>
                   <div
                     style={{
-                      fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                      fontSize: 22,
+                      fontFamily: "var(--font-sora)",
+                      fontSize: 20,
+                      fontWeight: 600,
                       color: "var(--ink)",
+                      letterSpacing: "-0.005em",
                     }}
                   >
                     {d.name}
                   </div>
                   <div
                     style={{
-                      fontFamily: "var(--font-cormorant), serif",
-                      fontStyle: "italic",
-                      fontSize: 13,
+                      fontFamily: "var(--font-jetbrains), monospace",
+                      fontSize: 11,
                       color: "var(--ink-3)",
                       marginTop: 2,
+                      letterSpacing: "0.04em",
                     }}
                   >
                     {(d.aprBps / 100).toFixed(2)}% APR ·{" "}
-                    {isPaidOff ? "Paid off" : `Due day ${d.dueDay}`}
+                    {isPaidOff ? "[OK] Paid off" : `Due day ${d.dueDay}`}
                   </div>
                 </div>
                 <div>
                   <div
                     style={{
-                      fontFamily: "var(--font-cinzel), serif",
+                      fontFamily: "var(--font-jetbrains), monospace",
                       fontSize: 9,
+                      fontWeight: 600,
                       color: "var(--ink-3)",
-                      letterSpacing: "0.22em",
+                      letterSpacing: "0.18em",
                       textTransform: "uppercase",
                       marginBottom: 4,
                     }}
                   >
-                    Balance
+                    <span style={{ color: "var(--ink-4)" }}>//</span> Balance
                   </div>
                   <div
                     style={{
-                      fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+                      fontFamily: "var(--font-jetbrains), monospace",
                       fontSize: 22,
+                      fontWeight: 600,
                       color: isPaidOff ? "var(--ok)" : "var(--ink)",
+                      fontFeatureSettings: '"tnum" 1, "zero" 1',
                     }}
                   >
                     {formatMoney(d.balanceCents)}
@@ -167,35 +167,36 @@ export default function DebtsPage() {
                 <div>
                   <div
                     style={{
-                      fontFamily: "var(--font-cinzel), serif",
+                      fontFamily: "var(--font-jetbrains), monospace",
                       fontSize: 9,
+                      fontWeight: 600,
                       color: "var(--ink-3)",
-                      letterSpacing: "0.22em",
+                      letterSpacing: "0.18em",
                       textTransform: "uppercase",
                       marginBottom: 4,
                     }}
                   >
-                    Min payment
+                    <span style={{ color: "var(--ink-4)" }}>//</span> Min pay
                   </div>
                   <div
                     style={{
-                      fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+                      fontFamily: "var(--font-jetbrains), monospace",
                       fontSize: 18,
                       color: "var(--ink-2)",
+                      fontFeatureSettings: '"tnum" 1',
                     }}
                   >
                     {d.minPaymentCents > 0 ? formatMoney(d.minPaymentCents) : "—"}
                   </div>
                 </div>
                 <div>
-                  {/* The progress bar — paid vs original (the data the
-                      bar visualizes) */}
                   <div
                     style={{
-                      fontFamily: "var(--font-cinzel), serif",
+                      fontFamily: "var(--font-jetbrains), monospace",
                       fontSize: 9,
+                      fontWeight: 600,
                       color: "var(--ink-3)",
-                      letterSpacing: "0.22em",
+                      letterSpacing: "0.18em",
                       textTransform: "uppercase",
                       marginBottom: 4,
                       display: "flex",
@@ -203,7 +204,7 @@ export default function DebtsPage() {
                       alignItems: "baseline",
                     }}
                   >
-                    <span>Progress</span>
+                    <span>// Progress</span>
                     <span
                       style={{
                         fontFamily: "var(--font-jetbrains), monospace",
@@ -211,6 +212,7 @@ export default function DebtsPage() {
                         color: "var(--ok)",
                         textTransform: "none",
                         letterSpacing: "0.01em",
+                        fontFeatureSettings: '"tnum" 1',
                       }}
                     >
                       {formatMoney(d.originalBalanceCents - d.balanceCents)} of {formatMoney(d.originalBalanceCents)}
@@ -250,26 +252,28 @@ export default function DebtsPage() {
                   >
                     <span
                       style={{
-                        fontFamily: "var(--font-cinzel), serif",
+                        fontFamily: "var(--font-jetbrains), monospace",
                         fontSize: 9,
+                        fontWeight: 600,
                         color: "var(--ink-3)",
-                        letterSpacing: "0.22em",
+                        letterSpacing: "0.18em",
                         textTransform: "uppercase",
                         flexShrink: 0,
                       }}
                     >
-                      Payoff
+                      // Payoff
                     </span>
                     {isPaidOff ? (
                       <span
                         style={{
-                          fontFamily: "var(--font-cormorant), serif",
-                          fontStyle: "italic",
-                          fontSize: 13,
+                          fontFamily: "var(--font-jetbrains), monospace",
+                          fontSize: 11,
                           color: "var(--ok)",
+                          letterSpacing: "0.10em",
+                          textTransform: "uppercase",
                         }}
                       >
-                        Paid off ✦
+                        [OK] Paid off
                       </span>
                     ) : (
                       <>
@@ -294,7 +298,6 @@ export default function DebtsPage() {
                           }}
                         >
                           {(() => {
-                            // Closed-form: months to payoff at min only
                             const r = d.aprBps / 120000;
                             if (r === 0) {
                               if (d.minPaymentCents <= 0) return "No min";
@@ -302,7 +305,7 @@ export default function DebtsPage() {
                               return `~${mo}mo at min`;
                             }
                             const monthlyInterest = d.balanceCents * r;
-                            if (d.minPaymentCents <= monthlyInterest) return "Min < interest";
+                            if (d.minPaymentCents <= monthlyInterest) return "[WARN] Min < interest";
                             const N =
                               -Math.log(1 - monthlyInterest / d.minPaymentCents) / Math.log(1 + r);
                             return `~${Math.ceil(N)}mo at min`;
@@ -332,11 +335,21 @@ function SectionHeader({
   title,
   em,
   meta,
+  accent = "cyan",
 }: {
   title: string;
   em?: string;
   meta?: string;
+  accent?: "cyan" | "saturn" | "neg" | "jupiter";
 }) {
+  const accentColor =
+    accent === "saturn"
+      ? "var(--saturn)"
+      : accent === "neg"
+      ? "var(--neg)"
+      : accent === "jupiter"
+      ? "var(--jupiter)"
+      : "var(--terminal-cyan)";
   return (
     <div
       style={{
@@ -349,37 +362,51 @@ function SectionHeader({
         position: "relative",
       }}
     >
-      <h2
-        style={{
-          fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-          fontWeight: 400,
-          fontSize: 30,
-          margin: 0,
-          color: "var(--ink)",
-        }}
-      >
-        {title}
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+        <span
+          style={{
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 9.5,
+            fontWeight: 600,
+            color: accentColor,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+          }}
+        >
+          <span style={{ color: "var(--ink-4)" }}>//</span>
+        </span>
+        <h2
+          style={{
+            fontFamily: "var(--font-sora)",
+            fontWeight: 600,
+            fontSize: 26,
+            letterSpacing: "-0.01em",
+            margin: 0,
+            color: "var(--ink)",
+          }}
+        >
+          {title}
+        </h2>
         {em && (
-          <em
+          <span
             style={{
-              fontFamily: "var(--font-cormorant), serif",
-              fontStyle: "italic",
+              fontFamily: "var(--font-sora)",
+              fontWeight: 400,
+              fontSize: 16,
               color: "var(--ink-3)",
-              fontWeight: 500,
-              marginLeft: 8,
             }}
           >
             {em}
-          </em>
+          </span>
         )}
-      </h2>
+      </div>
       {meta && (
         <div
           style={{
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 10,
             color: "var(--ink-3)",
-            letterSpacing: "0.22em",
+            letterSpacing: "0.10em",
             textTransform: "uppercase",
             maxWidth: 380,
             textAlign: "right",
@@ -396,8 +423,8 @@ function SectionHeader({
           left: 0,
           width: 80,
           height: 1,
-          background: "var(--saturn)",
-          boxShadow: "0 0 8px var(--saturn)",
+          background: accentColor,
+          boxShadow: `0 0 8px ${accentColor}`,
         }}
       />
     </div>

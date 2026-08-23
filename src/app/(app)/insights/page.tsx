@@ -1,15 +1,17 @@
 import * as React from "react";
 import { PageHead } from "@/components/alchemy/PageHead";
-import { liveEnvelopes, liveSnapshot, liveTransactions, liveGoals, TODAY } from "@/lib/mock";
+import { liveEnvelopes, liveSnapshot } from "@/lib/mock";
 import { formatMoney, formatMoneyCompact } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Insights — articulated deep page.
- * Charts. The Ouroboros (allocation), the Trajectory (projection),
- * and a couple of summary stats. In Cluster 2 this gets Recharts
- * for interactive tooling; for v1, SVG charts ship in.
+ *
+ * Component Oracle Terminal treatment: Sora titles, JetBrains Mono
+ * for amounts and labels, mono caps headers with // prefix. The
+ * Ouroboros donut and Trajectory chart preserved as-is (pure SVG);
+ * the summary stats grid restyled in terminal voice.
  */
 export default function InsightsPage() {
   const ENVELOPES = liveEnvelopes();
@@ -19,10 +21,10 @@ export default function InsightsPage() {
   return (
     <div>
       <PageHead
-        eyebrow="Overview · Insights"
+        eyebrow="// overview · insights"
         title="The Patterns"
         em="what your money is telling you."
-        accent="gold"
+        accent="cyan"
         explanation={
           <>
             The patterns in your money, at a glance. The Ouroboros shows where each paycheck goes by vessel; the Trajectory shows the next 12 months of net worth projected at this pace. For per-envelope and per-goal detail, see the corresponding pages — those charts now live next to the data they visualize.
@@ -42,32 +44,36 @@ export default function InsightsPage() {
         >
           <div
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 10.5,
+              fontWeight: 600,
               color: "var(--gold)",
-              letterSpacing: "0.28em",
+              letterSpacing: "0.18em",
               textTransform: "uppercase",
               marginBottom: 8,
             }}
           >
-            The Ouroboros
+            <span style={{ color: "var(--ink-4)" }}>//</span> The Ouroboros
           </div>
           <h3
             style={{
-              fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-              fontSize: 24,
-              fontWeight: 400,
+              fontFamily: "var(--font-sora)",
+              fontSize: 22,
+              fontWeight: 600,
               margin: "0 0 8px",
+              color: "var(--ink)",
+              letterSpacing: "-0.005em",
             }}
           >
             Allocation, by envelope
           </h3>
           <p
             style={{
-              fontFamily: "var(--font-cormorant), serif",
-              fontSize: 14,
+              fontFamily: "var(--font-sora)",
+              fontSize: 13.5,
               color: "var(--ink-3)",
               marginBottom: 20,
+              lineHeight: 1.5,
             }}
           >
             Where each paycheck goes, by percentage of the total envelope target.
@@ -105,13 +111,38 @@ export default function InsightsPage() {
                   <>
                     {arcs}
                     <circle cx="100" cy="100" r="38" fill="var(--cosmos)" stroke="var(--gold-soft)" strokeWidth="0.5" />
-                    <text x="100" y="92" textAnchor="middle" fontFamily="Cinzel, serif" fontSize="6.5" fill="var(--gold)" letterSpacing="1.5" fontWeight="600">
+                    <text
+                      x="100"
+                      y="92"
+                      textAnchor="middle"
+                      fontFamily="var(--font-jetbrains), monospace"
+                      fontSize={6.5}
+                      fill="var(--gold)"
+                      letterSpacing={1.5}
+                      fontWeight={700}
+                    >
                       TOTAL
                     </text>
-                    <text x="100" y="108" textAnchor="middle" fontFamily="Italiana, serif" fontSize="16" fill="var(--gold-glow)">
+                    <text
+                      x="100"
+                      y="108"
+                      textAnchor="middle"
+                      fontFamily="var(--font-jetbrains), monospace"
+                      fontSize={14}
+                      fill="var(--gold-glow)"
+                      fontWeight={600}
+                    >
                       {formatMoneyCompact(SNAPSHOT.nextPaycheckCents)}
                     </text>
-                    <text x="100" y="120" textAnchor="middle" fontFamily="Cinzel, serif" fontSize="5.5" fill="var(--ink-3)" letterSpacing="1">
+                    <text
+                      x="100"
+                      y="120"
+                      textAnchor="middle"
+                      fontFamily="var(--font-jetbrains), monospace"
+                      fontSize={5.5}
+                      fill="var(--ink-3)"
+                      letterSpacing={1}
+                    >
                       PER PAYCHECK
                     </text>
                   </>
@@ -142,7 +173,13 @@ export default function InsightsPage() {
                         borderRadius: 2,
                       }}
                     />
-                    <span style={{ fontFamily: "var(--font-cormorant), serif", color: "var(--ink-2)" }}>
+                    <span
+                      style={{
+                        fontFamily: "var(--font-sora)",
+                        color: "var(--ink-2)",
+                        fontSize: 13,
+                      }}
+                    >
                       {e.name}
                     </span>
                     <span
@@ -150,7 +187,8 @@ export default function InsightsPage() {
                         fontFamily: "var(--font-jetbrains), monospace",
                         fontSize: 12,
                         color: "var(--ink)",
-                        fontFeatureSettings: '"tnum" 1',
+                        fontFeatureSettings: '"tnum" 1, "zero" 1',
+                        fontWeight: 600,
                       }}
                     >
                       {pct}%
@@ -173,32 +211,36 @@ export default function InsightsPage() {
         >
           <div
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 10.5,
+              fontWeight: 600,
               color: "var(--jupiter)",
-              letterSpacing: "0.28em",
+              letterSpacing: "0.18em",
               textTransform: "uppercase",
               marginBottom: 8,
             }}
           >
-            The Trajectory
+            <span style={{ color: "var(--ink-4)" }}>//</span> The Trajectory
           </div>
           <h3
             style={{
-              fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-              fontSize: 24,
-              fontWeight: 400,
+              fontFamily: "var(--font-sora)",
+              fontSize: 22,
+              fontWeight: 600,
               margin: "0 0 8px",
+              color: "var(--ink)",
+              letterSpacing: "-0.005em",
             }}
           >
             Net worth, 12 months
           </h3>
           <p
             style={{
-              fontFamily: "var(--font-cormorant), serif",
-              fontSize: 14,
+              fontFamily: "var(--font-sora)",
+              fontSize: 13.5,
               color: "var(--ink-3)",
               marginBottom: 20,
+              lineHeight: 1.5,
             }}
           >
             Projected at current pace, with paychecks, allocations, and debt payoff.
@@ -237,8 +279,17 @@ export default function InsightsPage() {
             <circle cx="30" cy="124" r="6" fill="none" stroke="var(--gold)" strokeWidth="0.5" opacity="0.5" />
             <circle cx="280" cy="40" r="4" fill="none" stroke="var(--jupiter)" strokeWidth="0.6" />
             <circle cx="280" cy="40" r="1.5" fill="var(--jupiter)" />
-            <text x="280" y="155" textAnchor="middle" fontFamily="Cinzel, serif" fontSize="6" fill="var(--jupiter)" letterSpacing="0.5">
-              $20k EMERGENCY
+            <text
+              x="280"
+              y="155"
+              textAnchor="middle"
+              fontFamily="var(--font-jetbrains), monospace"
+              fontSize={6}
+              fill="var(--jupiter)"
+              letterSpacing={0.5}
+              fontWeight={700}
+            >
+              $20K EMERGENCY
             </text>
           </svg>
           <div
@@ -246,24 +297,18 @@ export default function InsightsPage() {
               display: "flex",
               justifyContent: "space-between",
               marginTop: 8,
-              fontFamily: "var(--font-cormorant), serif",
-              fontStyle: "italic",
-              fontSize: 12.5,
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 11,
               color: "var(--ink-3)",
+              letterSpacing: "0.04em",
             }}
           >
             <span>
-              <b style={{ fontFamily: "var(--font-jetbrains), monospace", fontStyle: "normal", color: "var(--gold)", fontWeight: 500 }}>
-                Now
-              </b>{" "}
-              · {formatMoneyCompact(SNAPSHOT.netWorthCents)}
+              <b style={{ color: "var(--gold)", fontWeight: 700 }}>Now</b> · {formatMoneyCompact(SNAPSHOT.netWorthCents)}
             </span>
-            <span>Debt payoff · May '26</span>
+            <span style={{ color: "var(--ink-3)" }}>Debt payoff · May '26</span>
             <span>
-              <b style={{ fontFamily: "var(--font-jetbrains), monospace", fontStyle: "normal", color: "var(--jupiter)", fontWeight: 500 }}>
-                $20k
-              </b>{" "}
-              · Feb '26
+              <b style={{ color: "var(--jupiter)", fontWeight: 700 }}>$20K</b> · Feb '26
             </span>
           </div>
         </section>
@@ -280,10 +325,10 @@ export default function InsightsPage() {
         }}
       >
         {[
-          { label: "Net worth", value: formatMoney(SNAPSHOT.netWorthCents), sub: "+$1,612 this period" },
-          { label: "This period", value: "$+2,400", sub: "1 income, 6 expenses" },
-          { label: "On track", value: "5/7", sub: "envelopes within target" },
-          { label: "Pace", value: "+1.9%/wk", sub: "net worth growth" },
+          { label: "net worth", value: formatMoney(SNAPSHOT.netWorthCents), sub: "+$1,612 this period" },
+          { label: "this period", value: "$+2,400", sub: "1 income · 6 expenses" },
+          { label: "on track", value: "5 / 7", sub: "envelopes within target" },
+          { label: "pace", value: "+1.9% / wk", sub: "net worth growth" },
         ].map((s, i) => (
           <div
             key={i}
@@ -294,32 +339,35 @@ export default function InsightsPage() {
           >
             <div
               style={{
-                fontFamily: "var(--font-cinzel), serif",
+                fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 9.5,
+                fontWeight: 600,
                 color: "var(--ink-3)",
-                letterSpacing: "0.22em",
+                letterSpacing: "0.18em",
                 textTransform: "uppercase",
                 marginBottom: 8,
               }}
             >
-              {s.label}
+              <span style={{ color: "var(--ink-4)" }}>//</span> {s.label}
             </div>
             <div
               style={{
-                fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                fontSize: 26,
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 24,
+                fontWeight: 600,
                 color: "var(--ink)",
+                fontFeatureSettings: '"tnum" 1, "zero" 1',
               }}
             >
               {s.value}
             </div>
             <div
               style={{
-                fontFamily: "var(--font-cormorant), serif",
-                fontStyle: "italic",
-                fontSize: 12,
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 10.5,
                 color: "var(--ink-3)",
                 marginTop: 4,
+                letterSpacing: "0.04em",
               }}
             >
               {s.sub}
@@ -327,23 +375,16 @@ export default function InsightsPage() {
           </div>
         ))}
       </div>
-
-      {/* Budget vs Actual — Cluster 1.7. MOVED to /envelopes
-          (next to the per-envelope data it visualizes). Removed
-          here per the chart-next-to-data principle. */}
-      {/* Goal Trajectory — Cluster 1.7. MOVED to /goals (next to the
-          per-goal data it visualizes). Removed here per the
-          chart-next-to-data principle. */}
     </div>
   );
 }
 
 const PLANET_COLOR: Record<string, string> = {
-  sol: "#f0c14a",
-  luna: "#b8c8e0",
-  mars: "#c45a3a",
-  mercury: "#8ac0b8",
-  jupiter: "#9a7ac0",
-  venus: "#d4a578",
-  saturn: "#a8b0c8",
+  sol: "#FCD34D",
+  luna: "#CBD5E1",
+  mars: "#FB923C",
+  mercury: "#67E8F9",
+  jupiter: "#C4B5FD",
+  venus: "#FCA5A5",
+  saturn: "#94A3B8",
 };

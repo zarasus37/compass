@@ -6,7 +6,7 @@ export default function InvestPage() {
   return (
     <div>
       <PageHead
-        eyebrow="Plan · Investment goal"
+        eyebrow="// plan · investment goal"
         title="Investment Goal"
         em="long-horizon growth."
         accent="jupiter"
@@ -14,17 +14,18 @@ export default function InvestPage() {
           <button
             type="button"
             style={{
-              fontFamily: "var(--font-cinzel), serif",
-              background: "var(--gold)",
+              fontFamily: "var(--font-jetbrains), monospace",
+              background: "var(--terminal-cyan)",
               color: "var(--void)",
               border: 0,
               borderRadius: 2,
               padding: "12px 22px",
-              fontSize: 11,
-              fontWeight: 600,
+              fontSize: 10.5,
+              fontWeight: 700,
               letterSpacing: "0.18em",
               textTransform: "uppercase",
               cursor: "pointer",
+              boxShadow: "0 0 16px rgba(45, 212, 191, 0.3)",
             }}
           >
             Adjust target
@@ -41,6 +42,7 @@ export default function InvestPage() {
         style={{
           background: "var(--surface)",
           border: "1px solid var(--line)",
+          borderLeft: "2px solid var(--jupiter)",
           borderRadius: 4,
           padding: 48,
           textAlign: "center",
@@ -48,34 +50,37 @@ export default function InvestPage() {
       >
         <div
           style={{
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 10,
+            fontWeight: 600,
             color: "var(--ink-3)",
-            letterSpacing: "0.22em",
+            letterSpacing: "0.18em",
             textTransform: "uppercase",
             marginBottom: 12,
           }}
         >
-          Target at age 65
+          <span style={{ color: "var(--ink-4)" }}>//</span> Target at age 65
         </div>
         <div
           style={{
-            fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-            fontSize: 64,
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 56,
+            fontWeight: 700,
             color: "var(--ink)",
             marginBottom: 8,
             letterSpacing: "-0.01em",
+            fontFeatureSettings: '"tnum" 1, "zero" 1',
           }}
         >
           {formatMoney(1_200_000_00)}
         </div>
         <div
           style={{
-            fontFamily: "var(--font-cormorant), serif",
-            fontStyle: "italic",
-            fontSize: 16,
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 13,
             color: "var(--ink-3)",
             marginBottom: 32,
+            letterSpacing: "0.04em",
           }}
         >
           from {formatMoney(50_800_00)} today · {formatMoney(400_00)} / month for 22 years
@@ -105,8 +110,11 @@ export default function InvestPage() {
           style={{
             fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 11,
-            color: "var(--ink-3)",
+            color: "var(--terminal-cyan)",
             marginTop: 8,
+            letterSpacing: "0.10em",
+            textTransform: "uppercase",
+            fontWeight: 600,
           }}
         >
           4.2% of the way

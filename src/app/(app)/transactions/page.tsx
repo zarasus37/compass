@@ -1,22 +1,22 @@
 import * as React from "react";
 import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
-import { VesselGlyph, type PlanetId } from "@/components/alchemy/VesselGlyph";
+import { VesselGlyph } from "@/components/alchemy/VesselGlyph";
 import { liveEnvelopes, liveTransactions, TODAY } from "@/lib/mock";
-import { formatMoney, formatMoneySigned } from "@/lib/money";
-import { formatLongDate, formatShortDate, addDays, formatRelativeDate } from "@/lib/format";
+import { formatMoneySigned } from "@/lib/money";
+import { formatShortDate, formatRelativeDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Transactions — articulated deep page.
- * The full record. Grouped by day. Each row tagged with its vessel.
+ *
+ * Component Oracle Terminal treatment: Sora title, JetBrains Mono
+ * for amounts/dates, mono caps labels. Primary CTA in terminal-cyan.
  */
 export default function TransactionsPage() {
-  // Live reads
   const TRANSACTIONS = liveTransactions();
   const ENVELOPES = liveEnvelopes();
-  // Group by date
   const grouped = new Map<string, typeof TRANSACTIONS>();
   for (const t of TRANSACTIONS) {
     const key = t.date.toDateString();
@@ -30,26 +30,26 @@ export default function TransactionsPage() {
   return (
     <div>
       <PageHead
-        eyebrow="Money · Transactions"
+        eyebrow="// money · transactions"
         title="The Record"
         em="every dollar in, every dollar out."
-        accent="gold"
+        accent="cyan"
         actions={
           <Link
             href="/transactions/new"
             style={{
-              fontFamily: "var(--font-cinzel), serif",
-              background: "var(--gold)",
+              fontFamily: "var(--font-jetbrains), monospace",
+              background: "var(--terminal-cyan)",
               color: "var(--void)",
               border: 0,
               borderRadius: 2,
               padding: "12px 22px",
-              fontSize: 11,
-              fontWeight: 600,
+              fontSize: 10.5,
+              fontWeight: 700,
               letterSpacing: "0.18em",
               textTransform: "uppercase",
               textDecoration: "none",
-              boxShadow: "0 0 18px rgba(212, 175, 82, 0.35)",
+              boxShadow: "0 0 16px rgba(45, 212, 191, 0.3)",
             }}
           >
             + Log a transaction
@@ -62,7 +62,6 @@ export default function TransactionsPage() {
         }
       />
 
-      {/* Search + filter strip */}
       <section
         style={{
           display: "flex",
@@ -79,8 +78,8 @@ export default function TransactionsPage() {
             border: "1px solid var(--line)",
             borderRadius: 2,
             padding: "12px 16px",
-            fontFamily: "var(--font-cormorant), serif",
-            fontSize: 15,
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 13,
             color: "var(--ink)",
             outline: "none",
           }}
@@ -91,10 +90,10 @@ export default function TransactionsPage() {
             border: "1px solid var(--line)",
             borderRadius: 2,
             padding: "12px 16px",
-            fontFamily: "var(--font-cinzel), serif",
-            fontSize: 10.5,
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 11,
             color: "var(--ink-2)",
-            letterSpacing: "0.18em",
+            letterSpacing: "0.10em",
             textTransform: "uppercase",
           }}
           defaultValue="all"
@@ -106,27 +105,26 @@ export default function TransactionsPage() {
             </option>
           ))}
         </select>
-        <button
-          type="button"
+        <Link
+          href="/transactions/new"
           style={{
-            fontFamily: "var(--font-cinzel), serif",
-            background: "var(--gold)",
+            fontFamily: "var(--font-jetbrains), monospace",
+            background: "var(--terminal-cyan)",
             color: "var(--void)",
             border: 0,
             borderRadius: 2,
             padding: "10px 18px",
             fontSize: 10.5,
-            fontWeight: 600,
+            fontWeight: 700,
             letterSpacing: "0.18em",
             textTransform: "uppercase",
-            cursor: "pointer",
+            textDecoration: "none",
           }}
         >
           + Add transaction
-        </button>
+        </Link>
       </section>
 
-      {/* Day groups */}
       <section>
         {dayKeys.map((dateKey) => {
           const txs = grouped.get(dateKey)!;
@@ -145,17 +143,12 @@ export default function TransactionsPage() {
                   marginBottom: 0,
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "baseline",
-                    gap: 16,
-                  }}
-                >
+                <div style={{ display: "flex", alignItems: "baseline", gap: 16 }}>
                   <span
                     style={{
-                      fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                      fontSize: 20,
+                      fontFamily: "var(--font-sora)",
+                      fontSize: 18,
+                      fontWeight: 600,
                       color: "var(--ink)",
                     }}
                   >
@@ -163,10 +156,10 @@ export default function TransactionsPage() {
                   </span>
                   <span
                     style={{
-                      fontFamily: "var(--font-cormorant), serif",
-                      fontStyle: "italic",
-                      fontSize: 14,
+                      fontFamily: "var(--font-jetbrains), monospace",
+                      fontSize: 11,
                       color: "var(--ink-3)",
+                      letterSpacing: "0.04em",
                     }}
                   >
                     {formatRelativeDate(date, TODAY)}
@@ -177,7 +170,8 @@ export default function TransactionsPage() {
                     fontFamily: "var(--font-jetbrains), monospace",
                     fontSize: 13,
                     color: total > 0 ? "var(--ok)" : "var(--ink-3)",
-                    fontFeatureSettings: '"tnum" 1',
+                    fontFeatureSettings: '"tnum" 1, "zero" 1',
+                    fontWeight: 500,
                   }}
                 >
                   {formatMoneySigned(total)} · {txs.length} {txs.length === 1 ? "entry" : "entries"}
@@ -209,19 +203,19 @@ export default function TransactionsPage() {
                         style={{
                           width: 36,
                           height: 36,
-                          borderRadius: "50%",
+                          borderRadius: 2,
                           display: "grid",
                           placeItems: "center",
                           background: "var(--cosmos)",
                           border: "1px solid var(--line-soft)",
                         }}
                       >
-                        {env ? <VesselGlyph planet={env.planet} size={16} /> : <span style={{ fontSize: 16 }}>↑</span>}
+                        {env ? <VesselGlyph planet={env.planet} size={16} /> : <span style={{ fontSize: 16, color: "var(--terminal-cyan)" }}>↑</span>}
                       </div>
                       <div>
                         <div
                           style={{
-                            fontFamily: "var(--font-cormorant), serif",
+                            fontFamily: "var(--font-sora)",
                             color: "var(--ink)",
                             fontSize: 15,
                             fontWeight: 500,
@@ -235,19 +229,21 @@ export default function TransactionsPage() {
                             fontSize: 10.5,
                             color: "var(--ink-3)",
                             marginTop: 2,
+                            letterSpacing: "0.04em",
                           }}
                         >
                           {env?.name ?? (t.isIncome ? "Income" : "Uncategorized")} ·{" "}
-                          {t.isAuto ? "auto · " : ""}
+                          {t.isAuto ? "AUTO · " : ""}
                           {t.isIncome ? "income" : "expense"}
                         </div>
                       </div>
                       <div
                         style={{
-                          fontFamily: "var(--font-cinzel), serif",
+                          fontFamily: "var(--font-jetbrains), monospace",
                           fontSize: 9.5,
+                          fontWeight: 600,
                           color: "var(--ink-3)",
-                          letterSpacing: "0.22em",
+                          letterSpacing: "0.18em",
                           textTransform: "uppercase",
                         }}
                       >
@@ -257,9 +253,9 @@ export default function TransactionsPage() {
                         style={{
                           fontFamily: "var(--font-jetbrains), monospace",
                           fontSize: 14,
-                          color: t.amountCents > 0 ? "var(--gold)" : "var(--ink)",
+                          color: t.amountCents > 0 ? "var(--ok)" : "var(--ink)",
                           textAlign: "right",
-                          fontFeatureSettings: '"tnum" 1',
+                          fontFeatureSettings: '"tnum" 1, "zero" 1',
                           fontWeight: 500,
                         }}
                       >
