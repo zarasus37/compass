@@ -538,46 +538,33 @@ Per xKryptic's "push all deep pages now" directive, the entire app — not just 
 - **First-run setup**: when the next session wants to test from scratch, the smoke test (`node tests/smoke-auth.mjs`) resets the DB to empty and re-creates the mom user (`mom@compass.local` / `correct-horse-battery-staple`). That's the canonical "first user" for now. The first time a real human sets up the app, they go to `/welcome` and create the real account.
 - **Don't reinstall `@prisma/client` from npm directly.** The generated client lives at `src/generated/prisma`; you import from there. Re-generating (after schema changes) is `npx prisma generate`. The `prisma` CLI handles the rest.
 
-### Next session: Cluster 1.6 — form actions + onboarding
+### Next session: pick from the handoff menu below
 
-The visual audit is **done** (commit `3da5716`). **Cluster 1.8 is also done** (commit `999ff37`) — see the Cluster 1.8 section above for the per-issue resolution (Biweekly period locked, /recurring wired to live data, Plan My Next Check on the dashboard, calendar warnings). The next push is **Cluster 1.6 — form actions + onboarding**.
+**Cluster 1.6 form actions + onboarding is now DONE** (folded into Cluster 1.10 — drill-downs + form actions: New envelope / New bill / New debt / New goal / New transaction + edit forms for goals / envelopes / target). See the "Cluster 1.10 follow-up" commit history. The form pattern (dollars in, cents on the server, Zod validate, revalidate path, inline error) is established and the 8 form components are wired.
 
-**Scope (per 00-DESIGN.md §9 and the v4 cluster ordering):**
+The "Next session" pointer has been retired. The next session should:
 
-1. **Form actions** — wire the existing visual-only buttons to real mutations:
-   - "New envelope" on `/envelopes` → form action that appends to the live store, revalidates the page.
-   - "New transaction" on `/transactions` → form action; envelope dropdown; amount in dollars → cents conversion; updates envelope balance.
-   - "New goal" on `/goals` → form action; envelope target association; per-paycheck contribution.
-   - "New bill" on `/recurring` → form action; name, amount, dueDay, autopay, envelopeId. (Bills are live as of 1.8; only the form to add/edit is missing.)
-2. **Onboarding flow** — the first-run experience when no user has set up yet:
-   - Pay schedule picker (weekly / biweekly / monthly / custom) — **biweekly is the default per D17**
-   - Seed 7 default envelopes (the planetary defaults, from `00-DESIGN.md` D14)
-   - Arm the first Allocation Plan (default to "Envelope" strategy)
-   - Land on the dashboard with everything wired
-3. **Form patterns** — shared components for the form-action idiom:
-   - "use server" actions in `src/app/actions/`
-   - Zod-validated input schemas
-   - Inline error rendering with `useActionState` (same pattern as the auth pages)
-   - Success path: revalidate the page, scroll to the new entry
+1. **Read this COORDINATION.md top-to-bottom** (it's the contract)
+2. **Read `00-DESIGN.md` v4.0** (the design spec — note v4.0 = alchemical, but the **v5.0 Component Oracle Terminal re-skin is the live visual language** as of 2026-08-23; treat the design spec as canonical for *what* to build and the Cluster 2.0.3 section as canonical for *how it looks*)
+3. **Pick a cluster from the handoff menu below** and ship it. If xKryptic gives a directive, follow that.
 
-**The paycheck simulator (Cluster 1.5) is the gold standard** for form actions — same `useActionState` + `revalidatePath` pattern, dollar→cents conversion at the boundary, no client-side mutation. The `toggleBillPaid` action added in 1.8 is also a clean reference: minimal payload (just billId + paid flag), revalidates 3 pages.
+**Handoff menu — next-up clusters (all scoped, not started):**
 
-**Form-action contract (apply to every new action):**
-- Reads the form input as **dollars** (the human-readable unit)
-- Converts to **cents** on the server: `Math.round(parseFloat(input) * 100)`
-- Zod-validates the cents value (non-negative, finite, etc.)
-- Calls a pure mutator on the live store
-- Calls `revalidatePath('/envelopes')` (or wherever) so the next render re-reads
-- Returns `{ ok: true }` or `{ ok: false, reason }` for inline error rendering
+- **Cluster 2.1 — Alchemical voice microcopy sweep** (low effort, high polish) — `src/components/dashboard/catalog.ts` em strings still have alchemical flavor ("vessels needing attention", "the one thing to fix"). Replace with terminal voice. ~20 strings. Also review the few leftover alchemical words in pages.
+- **Cluster 2.2 — ⌘K command palette** (medium effort, high visible-UI) — global search/navigation drawer; jumps to any of 28 routes + any envelope/goal/debt/bill. Mom will love this on payday.
+- **Cluster 2.3 — Onboarding flow (D2 of 1.6 was actually never built)** — pay schedule picker → seed 7 envelopes → arm plan → land on dashboard. Critical for any real second user; smoke test exercises this path.
+- **Cluster 2.4 — Bill reminders** (Tier 1 AI) — "Spectrum Internet due in 3 days, $75 from Chase Checking." In-app banner first.
+- **Cluster 2.5 — Variable income mode** — toggle in PaycheckSimulator that routes irregular checks to Buffer instead of auto-distribute.
+- **Cluster 2.6 — Period close (D18)** — at `TODAY > PERIOD_END`, write a `PeriodClose` row, snapshot balances, roll unallocated Buffer / over-limit deltas, audit.
+- **Cluster 2.7 — Responsive polish** (small effort) — `/envelopes` section header meta wraps on narrow viewports; `/period` right column overflows at 938px. `flex-wrap` + `min-width: 0` fixes. Test at 768 / 938 / 1280 / 1440.
+- **Cluster 3.x — Layout customization system (D3, structural)** — widget registry, slot system, drag-drop, saveable views. The big one.
+- **Cluster 4 — Plaid sandbox / L2 routing** (real money).
 
-**Acceptance for Cluster 1.6:**
-- [ ] `New envelope` form appends to the live store; the bar chart, over-limit summary, and NextStep section all reflect the new envelope.
-- [ ] `New transaction` form updates the envelope balance; the bar chart and recent activity both reflect it.
-- [ ] `New goal` form creates a goal with per-paycheck contribution; the dashboard top-priority hero + GoalTrajectory reflect it.
-- [ ] `New debt` form creates a debt with balance + APR; the `/debts` list reflects it.
-- [ ] `New bill` form creates a recurring bill with name, amount, dueDay, autopay; the Recurring page and the Plan My Next Check card on the dashboard both reflect it.
-- [ ] Onboarding flow: clear the DB, hit `/welcome` → first user → pay schedule (biweekly default) → seed 7 envelopes → arm plan → land on dashboard with everything wired.
-- [ ] `tsc --noEmit` clean; `pnpm build` clean; smoke test still passes.
+**Open issues (not yet promoted to clusters):**
+
+- **pnpm build EPERM** — Turbopack build fails on the OneDrive-synced `.next` folder. Not blocking because dev server works for visual verification. Workarounds: (a) build only when dev server isn't running; (b) move `.next` outside the OneDrive sync; (c) accept dev-only verification. Decide when the next ship needs a real build artifact.
+- **Catalog em strings** — see Cluster 2.1.
+- **Narrow-viewport wrap** — see Cluster 2.7.
 
 ---
 
@@ -666,14 +653,19 @@ These touch the auto-allocate engine + the AI provider layer. Schedule for after
 - **Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory)**: ✅ 2026-08-22, commit `cda8972`
 - **Cluster 1.7 visual audit (7 chart/banner issues + /envelopes cleanup)**: ✅ 2026-08-22, commit `3da5716`
 - **Cluster 1.8 (Bill organizer + Plan My Next Check + calendar warnings)**: ✅ 2026-08-22, commit `999ff37`
-- **Cluster 1.6 (form actions + onboarding)**: ⏳ next
-- **Cluster 1.9 (Debt payoff + projections)**: ⏳ scoped, not started
-- **Cluster 2.x (Smart bills + variable income)**: ⏳ scoped, not started
+- **Cluster 1.6 (form actions + onboarding)**: ✅ shipped inside Cluster 1.10 (form pages + drill-downs)
+- **Cluster 1.9 (Debt payoff + projections)**: ✅ 2026-08-23, commits `feb50e3` + `801525c` + `0ffb439`
+- **Cluster 2.0 (customizable card dashboard)**: ✅ 2026-08-23, commit `e648ef5`
+- **Cluster 2.0.1 (visual-first data cards)**: ✅ 2026-08-23, commit `af0b8d3`
+- **Cluster 2.0.2 (full-month calendar)**: ✅ 2026-08-23, commit `34f3928`
+- **Cluster 2.0.3 (Component Oracle Terminal re-skin — full app)**: ✅ 2026-08-23, commits `884fe70` + `29dcd02` + `396e7e9` + `76e1284` + `72f2cec`
+- **Cluster 2.x (Smart bills + variable income)**: ⏳ scoped, not started (see "Handoff menu" above)
 - **Handed off (design)**: 2026-08-21
 - **Handed off (scaffold)**: 2026-08-22
 - **Handed off (auth)**: 2026-08-22
 - **Handed off (Cluster 1)**: 2026-08-22
+- **Handed off (Cluster 1.8 + 1.9 + 2.0 + 2.0.1 + 2.0.2 + 2.0.3)**: 2026-08-23
 - **From session**: `mvs_77706038b3dc41f0818e43d1aca029bd` (design)
 - **From session**: `mvs_0ca37adfb53b4de188d584afc12df309` (scaffold + auth + Cluster 1 + Cluster 1.5 + Cluster 1.7)
-- **From session**: `mvs_4d1dd62520784d9c9f0c7511fdeaee6d` (Cluster 1.7 visual audit + display fixes + Cluster 1.8 bill organizer + Plan My Next Check + calendar warnings + handoff scoping for 1.9 / 2.x)
-- **Handed to**: next session (TBD) — start with **Cluster 1.6 (form actions + onboarding)**, then Cluster 1.9 (debt payoff). Full handoff for both in the "Cluster 1.9 + 2.x handoff" section below.
+- **From session**: `mvs_4d1dd62520784d9c9f0c7511fdeaee6d` (1.7 visual audit → 1.8 bill organizer → 1.9 debt payoff → 2.0 customizable dashboard → 2.0.1 visual-first → 2.0.2 full-month calendar → 2.0.3 Component Oracle Terminal re-skin of the full app)
+- **Handed to**: next session (TBD) — start by reading this file + `00-DESIGN.md`, then pick from the **Handoff menu** (Cluster 2.1 microcopy sweep, 2.2 ⌘K palette, 2.3 onboarding, 2.4 bill reminders, 2.5 variable income, 2.6 period close, 2.7 responsive polish, or 3.x layout system). The form-action pattern is established (see Cluster 1.10). The terminal voice is the canonical visual language. `tsc --noEmit` is clean; dev server on 127.0.0.1:3000 is the verification path until the EPERM `pnpm build` issue is resolved.
