@@ -83,7 +83,7 @@ export function BudgetVsActual({ rows, height = 320 }: BudgetVsActualProps) {
             dataKey="name"
             tick={{
               fill: "var(--ink-2)",
-              fontFamily: "var(--font-cormorant), serif",
+              fontFamily: "var(--font-sora)",
               fontSize: 13,
               fontWeight: 500,
             }}
@@ -116,13 +116,13 @@ export function BudgetVsActual({ rows, height = 320 }: BudgetVsActualProps) {
                     borderRadius: 2,
                     padding: "10px 14px",
                     boxShadow: "0 0 16px rgba(0,0,0,0.4)",
-                    fontFamily: "var(--font-cormorant), serif",
+                    fontFamily: "var(--font-sora)",
                     color: "var(--ink)",
                   }}
                 >
                   <div
                     style={{
-                      fontFamily: "var(--font-italiana), serif",
+                      fontFamily: "var(--font-sora)",
                       fontSize: 16,
                       marginBottom: 6,
                       color: row?.planet ? PLANET_COLORS[row.planet] : "var(--gold)",
@@ -171,7 +171,7 @@ export function BudgetVsActual({ rows, height = 320 }: BudgetVsActualProps) {
           alignItems: "center",
           gap: 28,
           paddingTop: 4,
-          fontFamily: "var(--font-cinzel), serif",
+          fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 9.5,
           color: "var(--ink-3)",
           letterSpacing: "0.22em",
@@ -185,7 +185,7 @@ export function BudgetVsActual({ rows, height = 320 }: BudgetVsActualProps) {
               display: "inline-block",
               width: 10,
               height: 8,
-              background: "var(--gold)",
+              background: "var(--terminal-cyan)",
               borderRadius: 1,
               boxShadow: "0 0 6px var(--gold)",
             }}

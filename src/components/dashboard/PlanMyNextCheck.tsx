@@ -105,7 +105,7 @@ export function PlanMyNextCheck({
             display: "flex",
             alignItems: "center",
             gap: 12,
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 10.5,
             fontWeight: 600,
             color: "var(--gold)",
@@ -118,10 +118,9 @@ export function PlanMyNextCheck({
         </div>
         <span
           style={{
-            fontFamily: "var(--font-cormorant), serif",
+            fontFamily: "var(--font-sora)",
             fontSize: 13,
-            fontStyle: "italic",
-            color: "var(--ink-3)",
+                        color: "var(--ink-3)",
           }}
         >
           Live preview · the next paycheck, already split
@@ -143,7 +142,7 @@ export function PlanMyNextCheck({
         <div>
           <div
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 9.5,
               color: "var(--ink-3)",
               letterSpacing: "0.22em",
@@ -155,7 +154,7 @@ export function PlanMyNextCheck({
           </div>
           <div
             style={{
-              fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+              fontFamily: "var(--font-sora)",
               fontSize: 40,
               lineHeight: 1,
               color: "var(--ink)",
@@ -168,7 +167,7 @@ export function PlanMyNextCheck({
         <div>
           <div
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 9.5,
               color: "var(--ink-3)",
               letterSpacing: "0.22em",
@@ -180,7 +179,7 @@ export function PlanMyNextCheck({
           </div>
           <div
             style={{
-              fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+              fontFamily: "var(--font-sora)",
               fontSize: 40,
               lineHeight: 1,
               color:
@@ -202,7 +201,7 @@ export function PlanMyNextCheck({
         <div>
           <div
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 9.5,
               color: "var(--ink-3)",
               letterSpacing: "0.22em",
@@ -214,7 +213,7 @@ export function PlanMyNextCheck({
           </div>
           <div
             style={{
-              fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+              fontFamily: "var(--font-sora)",
               fontSize: 40,
               lineHeight: 1,
               color: breakdown.billsExceedPaycheck ? "var(--neg)" : "var(--ink)",
@@ -244,7 +243,7 @@ export function PlanMyNextCheck({
           <span style={{ color: "var(--neg)", fontSize: 18 }}>!</span>
           <span
             style={{
-              fontFamily: "var(--font-cormorant), serif",
+              fontFamily: "var(--font-sora)",
               fontSize: 15,
               color: "var(--ink)",
             }}
@@ -274,7 +273,7 @@ export function PlanMyNextCheck({
           <span style={{ color: "var(--warn)", fontSize: 18 }}>!</span>
           <span
             style={{
-              fontFamily: "var(--font-cormorant), serif",
+              fontFamily: "var(--font-sora)",
               fontSize: 15,
               color: "var(--ink)",
             }}
@@ -344,7 +343,7 @@ export function PlanMyNextCheck({
             />
             <span
               style={{
-                fontFamily: "var(--font-cinzel), serif",
+                fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 10,
                 color: s.cents > 0 ? "var(--ink-2)" : "var(--ink-4)",
                 letterSpacing: "0.22em",
@@ -371,11 +370,10 @@ export function PlanMyNextCheck({
       {unpaidCount > 0 && (
         <p
           style={{
-            fontFamily: "var(--font-cormorant), serif",
+            fontFamily: "var(--font-sora)",
             fontSize: 13,
             color: "var(--ink-3)",
-            fontStyle: "italic",
-            marginTop: 16,
+                        marginTop: 16,
             marginBottom: 0,
           }}
         >

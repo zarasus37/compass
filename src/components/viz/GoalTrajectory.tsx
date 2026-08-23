@@ -150,7 +150,7 @@ export function GoalTrajectory({ goals, height = 360 }: { goals: GoalTrajectoryI
               dataKey="label"
               tick={{
                 fill: "var(--ink-3)",
-                fontFamily: "var(--font-cormorant), serif",
+                fontFamily: "var(--font-sora)",
                 fontSize: 12,
               }}
               axisLine={{ stroke: "var(--line)" }}
@@ -181,13 +181,13 @@ export function GoalTrajectory({ goals, height = 360 }: { goals: GoalTrajectoryI
                       borderRadius: 2,
                       padding: "10px 14px",
                       boxShadow: "0 0 16px rgba(0,0,0,0.4)",
-                      fontFamily: "var(--font-cormorant), serif",
+                      fontFamily: "var(--font-sora)",
                       color: "var(--ink)",
                     }}
                   >
                     <div
                       style={{
-                        fontFamily: "var(--font-cinzel), serif",
+                        fontFamily: "var(--font-jetbrains), monospace",
                         fontSize: 10.5,
                         color: "var(--ink-3)",
                         letterSpacing: "0.22em",
@@ -285,7 +285,7 @@ export function GoalTrajectory({ goals, height = 360 }: { goals: GoalTrajectoryI
           paddingLeft: 8,
           paddingRight: 8,
           borderTop: "1px solid var(--line-soft)",
-          fontFamily: "var(--font-cinzel), serif",
+          fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 9.5,
           color: "var(--ink-3)",
           letterSpacing: "0.18em",
@@ -337,9 +337,8 @@ export function GoalTrajectory({ goals, height = 360 }: { goals: GoalTrajectoryI
               {g.name}
               <span
                 style={{
-                  fontFamily: "var(--font-cormorant), serif",
-                  fontStyle: "italic",
-                  textTransform: "none",
+                  fontFamily: "var(--font-sora)",
+                                    textTransform: "none",
                   letterSpacing: "0.01em",
                   color: flat ? "var(--neg)" : "var(--ink-3)",
                 }}

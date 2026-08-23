@@ -89,7 +89,7 @@ export function PaycheckSimulator() {
             display: "flex",
             alignItems: "center",
             gap: 12,
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 10.5,
             fontWeight: 600,
             color: "var(--gold)",
@@ -102,10 +102,9 @@ export function PaycheckSimulator() {
         </div>
         <span
           style={{
-            fontFamily: "var(--font-cormorant), serif",
+            fontFamily: "var(--font-sora)",
             fontSize: 13,
-            fontStyle: "italic",
-            color: "var(--ink-3)",
+                        color: "var(--ink-3)",
           }}
         >
           What needs to come out, and what&apos;s left to spend.
@@ -116,7 +115,7 @@ export function PaycheckSimulator() {
         <div>
           <h2
             style={{
-              fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+              fontFamily: "var(--font-sora)",
               fontWeight: 400,
               fontSize: 38,
               lineHeight: 1.05,
@@ -129,7 +128,7 @@ export function PaycheckSimulator() {
           </h2>
           <p
             style={{
-              fontFamily: "var(--font-cormorant), serif",
+              fontFamily: "var(--font-sora)",
               fontSize: 17,
               lineHeight: 1.5,
               color: "var(--ink-2)",
@@ -155,7 +154,7 @@ export function PaycheckSimulator() {
             >
               <span
                 style={{
-                  fontFamily: "var(--font-cinzel), serif",
+                  fontFamily: "var(--font-jetbrains), monospace",
                   fontSize: 9.5,
                   color: "var(--ink-3)",
                   letterSpacing: "0.22em",
@@ -171,7 +170,7 @@ export function PaycheckSimulator() {
                     top: "50%",
                     left: 14,
                     transform: "translateY(-50%)",
-                    fontFamily: "var(--font-italiana), serif",
+                    fontFamily: "var(--font-sora)",
                     fontSize: 22,
                     color: "var(--ink-3)",
                   }}
@@ -192,7 +191,7 @@ export function PaycheckSimulator() {
                     borderRadius: 2,
                     padding: "12px 14px 12px 30px",
                     color: "var(--ink)",
-                    fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+                    fontFamily: "var(--font-sora)",
                     fontSize: 22,
                     fontWeight: 500,
                     outline: "none",
@@ -208,7 +207,7 @@ export function PaycheckSimulator() {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 10,
-                fontFamily: "var(--font-cinzel), serif",
+                fontFamily: "var(--font-jetbrains), monospace",
                 background: isPending ? "var(--ink-3)" : "var(--gold)",
                 color: "var(--void)",
                 border: 0,
@@ -233,9 +232,8 @@ export function PaycheckSimulator() {
           {state.ok === false && (
             <p
               style={{
-                fontFamily: "var(--font-cormorant), serif",
-                fontStyle: "italic",
-                fontSize: 14,
+                fontFamily: "var(--font-sora)",
+                                fontSize: 14,
                 color: "var(--neg)",
                 marginTop: 12,
               }}
@@ -257,7 +255,7 @@ export function PaycheckSimulator() {
         >
           <div
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 9.5,
               color: "var(--ink-3)",
               letterSpacing: "0.22em",
@@ -277,7 +275,7 @@ export function PaycheckSimulator() {
           >
             <span
               style={{
-                fontFamily: "var(--font-italiana), serif",
+                fontFamily: "var(--font-sora)",
                 fontSize: 26,
                 color: "var(--ink)",
                 lineHeight: 1,
@@ -287,10 +285,9 @@ export function PaycheckSimulator() {
             </span>
             <span
               style={{
-                fontFamily: "var(--font-cormorant), serif",
+                fontFamily: "var(--font-sora)",
                 fontSize: 14,
-                fontStyle: "italic",
-                color: "var(--ink-3)",
+                                color: "var(--ink-3)",
               }}
             >
               proportional split
@@ -301,7 +298,7 @@ export function PaycheckSimulator() {
               display: "flex",
               alignItems: "center",
               gap: 6,
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 10,
               color: "var(--ok)",
               letterSpacing: "0.22em",
@@ -325,7 +322,7 @@ export function PaycheckSimulator() {
                 key={g.planet}
                 style={{
                   textAlign: "center",
-                  fontFamily: "var(--font-italiana), serif",
+                  fontFamily: "var(--font-sora)",
                   fontSize: 22,
                   color: g.color,
                   lineHeight: 1,
@@ -344,11 +341,10 @@ export function PaycheckSimulator() {
             style={{
               display: "flex",
               justifyContent: "space-between",
-              fontFamily: "var(--font-cormorant), serif",
+              fontFamily: "var(--font-sora)",
               fontSize: 12.5,
               color: "var(--ink-3)",
-              fontStyle: "italic",
-            }}
+                          }}
           >
             <span>Rent · Utilities · Groceries</span>
             <span>Joy · Savings · Debt · Buffer</span>
@@ -383,7 +379,7 @@ export function PaycheckSimulator() {
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
-                fontFamily: "var(--font-cinzel), serif",
+                fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 10.5,
                 color: "var(--gold)",
                 letterSpacing: "0.24em",
@@ -395,7 +391,7 @@ export function PaycheckSimulator() {
             </div>
             <div
               style={{
-                fontFamily: "var(--font-italiana), serif",
+                fontFamily: "var(--font-sora)",
                 fontSize: 18,
                 color: "var(--ink)",
               }}
@@ -403,9 +399,8 @@ export function PaycheckSimulator() {
               {formatMoney(state.run.paycheckCents)}{" "}
               <span
                 style={{
-                  fontFamily: "var(--font-cormorant), serif",
-                  fontStyle: "italic",
-                  color: "var(--ink-3)",
+                  fontFamily: "var(--font-sora)",
+                                    color: "var(--ink-3)",
                   fontSize: 14,
                 }}
               >
@@ -455,11 +450,10 @@ export function PaycheckSimulator() {
           {state.run.unallocatedCents > 0 && (
             <p
               style={{
-                fontFamily: "var(--font-cormorant), serif",
+                fontFamily: "var(--font-sora)",
                 fontSize: 13,
                 color: "var(--ink-3)",
-                fontStyle: "italic",
-                marginTop: 14,
+                                marginTop: 14,
                 marginBottom: 0,
               }}
             >
@@ -498,7 +492,7 @@ function AllocationRow({
       </span>
       <span
         style={{
-          fontFamily: "var(--font-italiana), serif",
+          fontFamily: "var(--font-sora)",
           color: "var(--ink)",
           fontSize: 15,
           flex: 1,
@@ -518,9 +512,8 @@ function AllocationRow({
       </span>
       <span
         style={{
-          fontFamily: "var(--font-cormorant), serif",
-          fontStyle: "italic",
-          color: "var(--ink-3)",
+          fontFamily: "var(--font-sora)",
+                    color: "var(--ink-3)",
           fontSize: 11.5,
         }}
       >

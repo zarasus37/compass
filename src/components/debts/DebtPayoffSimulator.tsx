@@ -130,7 +130,7 @@ export function DebtPayoffSimulator({
             display: "flex",
             alignItems: "center",
             gap: 12,
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 10.5,
             fontWeight: 600,
             color: "var(--saturn)",
@@ -143,10 +143,9 @@ export function DebtPayoffSimulator({
         </div>
         <span
           style={{
-            fontFamily: "var(--font-cormorant), serif",
+            fontFamily: "var(--font-sora)",
             fontSize: 13,
-            fontStyle: "italic",
-            color: "var(--ink-3)",
+                        color: "var(--ink-3)",
           }}
         >
           Free {formatMoney(Math.round(availableDollars * 100))} this period — see what it does.
@@ -196,7 +195,7 @@ export function DebtPayoffSimulator({
           <label
             htmlFor="debt-extra"
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 9.5,
               color: "var(--ink-3)",
               letterSpacing: "0.22em",
@@ -207,7 +206,7 @@ export function DebtPayoffSimulator({
           </label>
           <div
             style={{
-              fontFamily: "var(--font-italiana), serif",
+              fontFamily: "var(--font-sora)",
               fontSize: 26,
               color: "var(--gold-glow)",
               lineHeight: 1,
@@ -216,9 +215,8 @@ export function DebtPayoffSimulator({
             {formatMoney(Math.round(extraDollars * 100))}
             <span
               style={{
-                fontFamily: "var(--font-cormorant), serif",
-                fontStyle: "italic",
-                fontSize: 13,
+                fontFamily: "var(--font-sora)",
+                                fontSize: 13,
                 color: "var(--ink-3)",
                 marginLeft: 8,
               }}
@@ -305,7 +303,7 @@ export function DebtPayoffSimulator({
           <div style={{ flex: 1 }}>
             <div
               style={{
-                fontFamily: "var(--font-cormorant), serif",
+                fontFamily: "var(--font-sora)",
                 fontSize: 16,
                 color: "var(--ink)",
                 lineHeight: 1.5,
@@ -336,7 +334,7 @@ export function DebtPayoffSimulator({
               display: "inline-flex",
               alignItems: "center",
               gap: 8,
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               background: isPending ? "var(--ink-3)" : "var(--saturn)",
               color: "var(--ink)",
               border: 0,
@@ -361,9 +359,8 @@ export function DebtPayoffSimulator({
       {error && (
         <p
           style={{
-            fontFamily: "var(--font-cormorant), serif",
-            fontStyle: "italic",
-            fontSize: 14,
+            fontFamily: "var(--font-sora)",
+                        fontSize: 14,
             color: "var(--neg)",
             marginTop: 4,
           }}
@@ -397,7 +394,7 @@ export function DebtPayoffSimulator({
           <span style={{ color: "var(--neg)", fontSize: 18 }}>!</span>
           <span
             style={{
-              fontFamily: "var(--font-cormorant), serif",
+              fontFamily: "var(--font-sora)",
               fontSize: 14,
               color: "var(--ink)",
             }}
@@ -438,7 +435,7 @@ function MethodPill({
     >
       <div
         style={{
-          fontFamily: "var(--font-cinzel), serif",
+          fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 11,
           fontWeight: 600,
           color: active ? "var(--saturn)" : "var(--ink-2)",
@@ -450,9 +447,8 @@ function MethodPill({
       </div>
       <div
         style={{
-          fontFamily: "var(--font-cormorant), serif",
-          fontStyle: "italic",
-          fontSize: 12,
+          fontFamily: "var(--font-sora)",
+                    fontSize: 12,
           color: "var(--ink-3)",
           marginTop: 2,
         }}
@@ -501,7 +497,7 @@ function ProjectionCard({
     >
       <div
         style={{
-          fontFamily: "var(--font-cinzel), serif",
+          fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 9.5,
           color: highlight ? "var(--ok)" : "var(--ink-3)",
           letterSpacing: "0.22em",
@@ -513,9 +509,8 @@ function ProjectionCard({
       </div>
       <div
         style={{
-          fontFamily: "var(--font-cormorant), serif",
-          fontStyle: "italic",
-          fontSize: 12,
+          fontFamily: "var(--font-sora)",
+                    fontSize: 12,
           color: "var(--ink-3)",
           marginBottom: 12,
         }}
@@ -524,7 +519,7 @@ function ProjectionCard({
       </div>
       <div
         style={{
-          fontFamily: "var(--font-italiana), serif",
+          fontFamily: "var(--font-sora)",
           fontSize: 32,
           color: accentColor,
           lineHeight: 1,
@@ -607,7 +602,7 @@ function PaidOffCelebration({
         </div>
         <div
           style={{
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 14,
             color: "var(--gold)",
             letterSpacing: "0.4em",
@@ -619,7 +614,7 @@ function PaidOffCelebration({
         </div>
         <h2
           style={{
-            fontFamily: "var(--font-italiana), serif",
+            fontFamily: "var(--font-sora)",
             fontSize: 56,
             color: "var(--ink)",
             margin: 0,
@@ -631,9 +626,8 @@ function PaidOffCelebration({
         </h2>
         <p
           style={{
-            fontFamily: "var(--font-cormorant), serif",
-            fontStyle: "italic",
-            fontSize: 18,
+            fontFamily: "var(--font-sora)",
+                        fontSize: 18,
             color: "var(--ink-2)",
             margin: "0 0 24px",
           }}
@@ -647,8 +641,8 @@ function PaidOffCelebration({
             display: "inline-flex",
             alignItems: "center",
             gap: 8,
-            fontFamily: "var(--font-cinzel), serif",
-            background: "var(--gold)",
+            fontFamily: "var(--font-jetbrains), monospace",
+            background: "var(--terminal-cyan)",
             color: "var(--void)",
             border: 0,
             borderRadius: 2,
