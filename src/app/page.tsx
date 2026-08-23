@@ -428,93 +428,7 @@ export default async function Dashboard() {
         </section>
 
         {/* ============== NEXT STEP ============== */}
-        <section style={{ marginBottom: 0 }}>
-          <div
-            style={{
-              background: "var(--surface)",
-              border: "1px solid var(--line)",
-              borderLeft: "3px solid var(--neg)",
-              borderRadius: 4,
-              padding: "28px 36px",
-              display: "flex",
-              alignItems: "center",
-              gap: 28,
-            }}
-          >
-            <div
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: "50%",
-                display: "grid",
-                placeItems: "center",
-                fontSize: 26,
-                background: "rgba(196, 90, 58, 0.1)",
-                color: "var(--neg)",
-                border: "1px solid var(--neg)",
-                flexShrink: 0,
-              }}
-            >
-              !
-            </div>
-            <div style={{ flex: 1 }}>
-              <div
-                style={{
-                  fontFamily: "var(--font-cinzel), serif",
-                  fontSize: 9.5,
-                  color: "var(--neg)",
-                  letterSpacing: "0.25em",
-                  textTransform: "uppercase",
-                  marginBottom: 6,
-                }}
-              >
-                Your next step
-              </div>
-              <h3
-                style={{
-                  fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                  fontSize: 22,
-                  color: "var(--ink)",
-                  margin: "0 0 4px",
-                }}
-              >
-                Two envelopes are over limit — see what happened.
-              </h3>
-              <p
-                style={{
-                  fontFamily: "var(--font-cormorant), serif",
-                  fontSize: 15,
-                  color: "var(--ink-2)",
-                }}
-              >
-                Groceries is at {formatMoney(61_200)} of {formatMoney(40_000)}, Buffer is at {formatMoney(9_600)} of {formatMoney(9_600)}. Open Envelopes to see where the overage came from.
-              </p>
-            </div>
-            <a
-              href="/envelopes"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                fontFamily: "var(--font-cinzel), serif",
-                background: "var(--ink)",
-                color: "var(--cosmos)",
-                border: 0,
-                borderRadius: 2,
-                padding: "12px 22px",
-                fontSize: 11,
-                fontWeight: 600,
-                cursor: "pointer",
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
-                flexShrink: 0,
-                textDecoration: "none",
-              }}
-            >
-              Open Envelopes →
-            </a>
-          </div>
-        </section>
+        <NextStep envelopes={ENVELOPES} />
 
         {/* ============== COLOPHON ============== */}
         <footer
@@ -890,5 +804,195 @@ function ExploreCard({
         </span>
       </div>
     </a>
+  );
+}
+
+/**
+ * NextStep — the live attention rail at the bottom of the dashboard.
+ *
+ * Reads the live envelope state and surfaces the urgent thing in plain
+ * English. Two states:
+ *  - overLimit.length > 0 → "N envelopes are over limit" with a per-envelope
+ *    breakdown (name, current of target, $over). Coral wash on the surface
+ *    to set the urgency without sacrificing contrast — body text is full
+ *    ink (--ink on --surface passes WCAG AA at 7.4:1), over-limit names
+ *    are iron-red bold, the icon stays a clean iron-red ring.
+ *  - overLimit.length === 0 → "All envelopes within target" in a calm
+ *    jade accent, so the rail is always present, always meaningful.
+ *
+ * Per v1 locked contract (D16): envelopes enforce, not just display.
+ * This is the enforcement surfaced as a sentence, not a warning icon.
+ */
+function NextStep({
+  envelopes,
+}: {
+  envelopes: ReturnType<typeof liveEnvelopes>;
+}) {
+  const overLimit = envelopes
+    .filter((e) => e.target > 0 && e.current > e.target)
+    .sort((a, b) => b.current - b.current - (b.target - a.target));
+
+  const count = overLimit.length;
+  const allCalm = count === 0;
+
+  return (
+    <section style={{ marginBottom: 0 }}>
+      <div
+        style={{
+          background: allCalm
+            ? "radial-gradient(ellipse at 0% 50%, rgba(106, 176, 136, 0.10) 0%, transparent 60%), var(--surface)"
+            : "radial-gradient(ellipse at 0% 50%, rgba(196, 90, 58, 0.16) 0%, transparent 60%), var(--surface)",
+          border: "1px solid var(--line)",
+          borderLeft: `3px solid ${allCalm ? "var(--ok)" : "var(--neg)"}`,
+          borderRadius: 4,
+          padding: "28px 36px",
+          display: "flex",
+          alignItems: "center",
+          gap: 28,
+        }}
+      >
+        <div
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: "50%",
+            display: "grid",
+            placeItems: "center",
+            fontSize: 26,
+            background: allCalm ? "rgba(106, 176, 136, 0.12)" : "rgba(196, 90, 58, 0.14)",
+            color: allCalm ? "var(--ok)" : "var(--neg)",
+            border: `1px solid ${allCalm ? "var(--ok)" : "var(--neg)"}`,
+            flexShrink: 0,
+            lineHeight: 1,
+          }}
+        >
+          {allCalm ? "✓" : "!"}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontFamily: "var(--font-cinzel), serif",
+              fontSize: 9.5,
+              color: allCalm ? "var(--ok)" : "var(--neg)",
+              letterSpacing: "0.25em",
+              textTransform: "uppercase",
+              marginBottom: 6,
+            }}
+          >
+            Your next step
+          </div>
+          {allCalm ? (
+            <>
+              <h3
+                style={{
+                  fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+                  fontSize: 22,
+                  color: "var(--ink)",
+                  margin: "0 0 4px",
+                }}
+              >
+                All envelopes are within target.
+              </h3>
+              <p
+                style={{
+                  fontFamily: "var(--font-cormorant), serif",
+                  fontSize: 15,
+                  color: "var(--ink-2)",
+                  margin: 0,
+                }}
+              >
+                Nice pace. Keep going, and the next paycheck will top up the ones that need it.
+              </p>
+            </>
+          ) : (
+            <>
+              <h3
+                style={{
+                  fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+                  fontSize: 22,
+                  color: "var(--ink)",
+                  margin: "0 0 4px",
+                }}
+              >
+                {count === 1
+                  ? "One envelope is over limit — see what happened."
+                  : `${count} envelopes are over limit — see what happened.`}
+              </h3>
+              <p
+                style={{
+                  fontFamily: "var(--font-cormorant), serif",
+                  fontSize: 15,
+                  color: "var(--ink)",
+                  margin: 0,
+                  lineHeight: 1.55,
+                }}
+              >
+                {overLimit.map((e, i) => {
+                  const overage = e.current - e.target;
+                  const sep =
+                    i === 0
+                      ? ""
+                      : i === overLimit.length - 1
+                      ? " and "
+                      : ", ";
+                  return (
+                    <span key={e.id}>
+                      {sep}
+                      <b style={{ color: "var(--neg)", fontWeight: 600 }}>{e.name}</b>{" "}
+                      is at{" "}
+                      <span
+                        style={{
+                          fontFamily: "var(--font-jetbrains), monospace",
+                          color: "var(--ink)",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {formatMoney(e.current)}
+                      </span>{" "}
+                      of {formatMoney(e.target)}{" "}
+                      <span
+                        style={{
+                          fontStyle: "italic",
+                          color: "var(--ink-3)",
+                        }}
+                      >
+                        (+{formatMoney(overage)})
+                      </span>
+                    </span>
+                  );
+                })}
+                . Open Envelopes to see where the overage came from.
+              </p>
+            </>
+          )}
+        </div>
+        {!allCalm && (
+          <a
+            href="/envelopes"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              fontFamily: "var(--font-cinzel), serif",
+              background: "var(--ink)",
+              color: "var(--cosmos)",
+              border: 0,
+              borderRadius: 2,
+              padding: "12px 22px",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: "pointer",
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              flexShrink: 0,
+              textDecoration: "none",
+              boxShadow: "0 0 16px rgba(236, 230, 211, 0.12)",
+            }}
+          >
+            Review →
+          </a>
+        )}
+      </div>
+    </section>
   );
 }

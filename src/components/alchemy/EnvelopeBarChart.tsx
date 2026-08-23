@@ -147,16 +147,31 @@ export function EnvelopeBarChart({ envelopes, pacing, className }: EnvelopeBarCh
                   aria-hidden
                   style={{
                     position: "absolute",
-                    top: -4,
-                    bottom: -4,
-                    left: `calc(${pacingPct}% - 1px)`,
-                    width: 2,
+                    top: -6,
+                    bottom: -6,
+                    left: `calc(${pacingPct}% - 2px)`,
+                    width: 4,
                     background: "var(--gold)",
-                    boxShadow: "0 0 6px var(--gold)",
+                    boxShadow: "0 0 10px var(--gold), 0 0 2px var(--gold-glow)",
                     zIndex: 2,
                     pointerEvents: "none",
                   }}
-                />
+                >
+                  {/* Diamond cap on top — small rotated square to
+                      catch the eye at a glance. */}
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: -2,
+                      left: "50%",
+                      transform: "translateX(-50%) rotate(45deg)",
+                      width: 7,
+                      height: 7,
+                      background: "var(--gold-glow)",
+                      boxShadow: "0 0 6px var(--gold)",
+                    }}
+                  />
+                </div>
               )}
               {isOver && (
                 <div

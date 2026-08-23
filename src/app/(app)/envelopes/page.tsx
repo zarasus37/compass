@@ -115,7 +115,11 @@ export default function EnvelopesPage() {
         <section style={{ marginBottom: 64 }}>
           <SectionHeader
             title="Over limit"
-            em="two envelopes need attention."
+            em={
+              overLimit.length === 1
+                ? "one envelope needs attention."
+                : `${overLimit.length} envelopes need attention.`
+            }
             accent="mars"
             meta="These spent more than the target. Open the envelope to see recent activity."
           />
@@ -127,117 +131,102 @@ export default function EnvelopesPage() {
         </section>
       )}
 
-      {/* All envelopes — expanded detail */}
+      {/* All envelopes — compact summary row
+          (replaces the old 7-card detail grid, which duplicated the bar
+          chart above and added vertical mass without much new signal).
+          The bar chart shows fill; this row shows the headline numbers
+          so the user can scan balance/target/pct without a card stack. */}
       <section style={{ marginBottom: 64 }}>
         <SectionHeader
           title="Every envelope"
-          em="with its own story."
-          meta="Tap any envelope to see its recent activity, target, and history."
+          em="at a glance."
+          meta="Full recent activity lives on each envelope's detail page (coming in Cluster 2)."
         />
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-          {ENVELOPES.map((e) => (
-            <EnvelopeDetail key={e.id} envelope={e} transactions={TRANSACTIONS} compact />
-          ))}
+        <div
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--line)",
+            borderRadius: 4,
+            overflow: "hidden",
+          }}
+        >
+          {ENVELOPES.map((e, i) => {
+            const pct = e.target > 0 ? Math.min((e.current / e.target) * 100, 100) : 0;
+            const isOver = e.current > e.target && e.target > 0;
+            return (
+              <div
+                key={e.id}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "32px 1fr auto auto auto",
+                  alignItems: "center",
+                  gap: 20,
+                  padding: "14px 24px",
+                  borderBottom: i < ENVELOPES.length - 1 ? "1px solid var(--line-soft)" : "none",
+                  fontSize: 14,
+                }}
+              >
+                <span style={{ fontSize: 18, lineHeight: 1, color: e.planet ? `var(--${e.planet})` : "var(--ink-2)" }}>
+                  <VesselGlyph planet={e.planet} size={18} />
+                </span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+                    fontSize: 17,
+                    color: "var(--ink)",
+                  }}
+                >
+                  {e.name}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-jetbrains), monospace",
+                    fontSize: 13,
+                    color: "var(--ink)",
+                    fontFeatureSettings: '"tnum" 1',
+                    minWidth: 80,
+                    textAlign: "right",
+                  }}
+                >
+                  {formatMoney(e.current)}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-jetbrains), monospace",
+                    fontSize: 12,
+                    color: "var(--ink-3)",
+                    minWidth: 80,
+                    textAlign: "right",
+                  }}
+                >
+                  of {formatMoney(e.target)}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-cinzel), serif",
+                    fontSize: 10,
+                    color: isOver ? "var(--neg)" : pct >= 0.85 ? "var(--warn)" : "var(--ok)",
+                    letterSpacing: "0.18em",
+                    minWidth: 48,
+                    textAlign: "right",
+                  }}
+                >
+                  {Math.round(pct)}%
+                </span>
+              </div>
+            );
+          })}
         </div>
       </section>
 
-      {/* Insight at the bottom */}
-      <section style={{ marginBottom: 0 }}>
-        <div
-          style={{
-            background:
-              "radial-gradient(ellipse at 0% 50%, rgba(196, 90, 58, 0.08) 0%, transparent 60%), var(--surface)",
-            border: "1px solid var(--line)",
-            borderLeft: "3px solid var(--mars)",
-            borderRadius: 4,
-            padding: "32px 36px",
-            display: "flex",
-            alignItems: "center",
-            gap: 24,
-          }}
-        >
-          <div
-            style={{
-              fontFamily: "var(--font-cinzel), serif",
-              fontSize: 9.5,
-              color: "var(--mars)",
-              letterSpacing: "0.28em",
-              textTransform: "uppercase",
-              writingMode: "vertical-rl",
-              transform: "rotate(180deg)",
-              padding: "8px 0",
-              borderRight: "1px solid var(--line-soft)",
-              paddingRight: 18,
-              marginRight: 4,
-            }}
-          >
-            Insight
-          </div>
-          <div style={{ flex: 1 }}>
-            <p
-              style={{
-                fontFamily: "var(--font-cormorant), serif",
-                fontSize: 18,
-                lineHeight: 1.55,
-                color: "var(--ink-2)",
-                margin: 0,
-              }}
-            >
-              <span
-                style={{
-                  color: "var(--ink)",
-                  fontWeight: 600,
-                }}
-              >
-                Groceries is at 153%
-              </span>{" "}
-              — over by {formatMoney(21_200)}. The last 3 weeks of H-E-B transactions averaged $190 per week, so your target of $400 may be set too low. Either{" "}
-              <span style={{ color: "var(--gold-glow)", fontWeight: 600 }}>raise the target to $560</span>{" "}
-              to match your actual pace, or{" "}
-              <span style={{ color: "var(--gold-glow)", fontWeight: 600 }}>tighten spending for the next 5 days</span>{" "}
-              and let next paycheck refill it.
-            </p>
-            <div
-              style={{
-                display: "flex",
-                gap: 12,
-                marginTop: 20,
-                fontFamily: "var(--font-cinzel), serif",
-                fontSize: 10,
-                letterSpacing: "0.22em",
-                textTransform: "uppercase",
-              }}
-            >
-              <a
-                href="#"
-                style={{
-                  color: "var(--gold)",
-                  fontWeight: 600,
-                  textDecoration: "none",
-                  padding: "8px 16px",
-                  border: "1px solid var(--gold-soft)",
-                  borderRadius: 2,
-                }}
-              >
-                Raise target to $560
-              </a>
-              <a
-                href="#"
-                style={{
-                  color: "var(--ink-2)",
-                  fontWeight: 500,
-                  textDecoration: "none",
-                  padding: "8px 16px",
-                  border: "1px solid var(--line)",
-                  borderRadius: 2,
-                }}
-              >
-                See transactions
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Insight at the bottom — dynamic. Surfaces the worst over-limit
+          envelope from live state and offers two paths forward. When all
+          envelopes are within target, shows a calm positive insight. */}
+      <EnvelopesInsight
+        overLimit={overLimit}
+        onTrack={onTrack.length}
+        totalEnvelopes={ENVELOPES.length}
+      />
     </div>
   );
 }
@@ -640,4 +629,143 @@ function planetName(planet: PlanetId | null): string {
     default:
       return "custom envelope";
   }
+}
+
+/**
+ * EnvelopesInsight — the dynamic "Insight" rail at the bottom of
+ * /envelopes. Surfaces the worst over-limit envelope in plain English
+ * with a recommendation, or a calm positive insight when everything is
+ * within target. AI Tier 2 will eventually generate this; for v1 the
+ * pattern is deterministic from the live store.
+ */
+function EnvelopesInsight({
+  overLimit,
+  onTrack,
+  totalEnvelopes,
+}: {
+  overLimit: ReturnType<typeof liveEnvelopes>;
+  onTrack: number;
+  totalEnvelopes: number;
+}) {
+  const worst = overLimit[0]; // already sorted by the page in display order; pick first
+  const calm = overLimit.length === 0 || !worst;
+
+  return (
+    <section style={{ marginBottom: 0 }}>
+      <div
+        style={{
+          background: calm
+            ? "radial-gradient(ellipse at 0% 50%, rgba(106, 176, 136, 0.08) 0%, transparent 60%), var(--surface)"
+            : "radial-gradient(ellipse at 0% 50%, rgba(196, 90, 58, 0.08) 0%, transparent 60%), var(--surface)",
+          border: "1px solid var(--line)",
+          borderLeft: `3px solid ${calm ? "var(--ok)" : "var(--mars)"}`,
+          borderRadius: 4,
+          padding: "32px 36px",
+          display: "flex",
+          alignItems: "center",
+          gap: 24,
+        }}
+      >
+        <div
+          style={{
+            fontFamily: "var(--font-cinzel), serif",
+            fontSize: 9.5,
+            color: calm ? "var(--ok)" : "var(--mars)",
+            letterSpacing: "0.28em",
+            textTransform: "uppercase",
+            writingMode: "vertical-rl",
+            transform: "rotate(180deg)",
+            padding: "8px 0",
+            borderRight: "1px solid var(--line-soft)",
+            paddingRight: 18,
+            marginRight: 4,
+          }}
+        >
+          Insight
+        </div>
+        <div style={{ flex: 1 }}>
+          {calm ? (
+            <p
+              style={{
+                fontFamily: "var(--font-cormorant), serif",
+                fontSize: 18,
+                lineHeight: 1.55,
+                color: "var(--ink-2)",
+                margin: 0,
+              }}
+            >
+              <span style={{ color: "var(--ink)", fontWeight: 600 }}>
+                {onTrack} of {totalEnvelopes} envelopes are within target.
+              </span>{" "}
+              The plan is doing its job. Keep the rhythm; the next paycheck will refill the ones that need it.
+            </p>
+          ) : (
+            <>
+              <p
+                style={{
+                  fontFamily: "var(--font-cormorant), serif",
+                  fontSize: 18,
+                  lineHeight: 1.55,
+                  color: "var(--ink-2)",
+                  margin: 0,
+                }}
+              >
+                <span style={{ color: "var(--ink)", fontWeight: 600 }}>
+                  {worst!.name} is at{" "}
+                  {Math.round((worst!.current / worst!.target) * 100)}%
+                </span>{" "}
+                — over by {formatMoney(worst!.current - worst!.target)}. The target may be set too low for the way this period is going. Either{" "}
+                <span style={{ color: "var(--gold-glow)", fontWeight: 600 }}>
+                  raise the target to {formatMoney(worst!.current)}
+                </span>{" "}
+                to match your actual pace, or{" "}
+                <span style={{ color: "var(--gold-glow)", fontWeight: 600 }}>
+                  let the next paycheck refill it
+                </span>{" "}
+                and stay the course.
+              </p>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  marginTop: 20,
+                  fontFamily: "var(--font-cinzel), serif",
+                  fontSize: 10,
+                  letterSpacing: "0.22em",
+                  textTransform: "uppercase",
+                }}
+              >
+                <a
+                  href="#"
+                  style={{
+                    color: "var(--gold)",
+                    fontWeight: 600,
+                    textDecoration: "none",
+                    padding: "8px 16px",
+                    border: "1px solid var(--gold-soft)",
+                    borderRadius: 2,
+                  }}
+                >
+                  Raise target to {formatMoney(worst!.current)}
+                </a>
+                <a
+                  href="#"
+                  style={{
+                    color: "var(--ink-2)",
+                    fontWeight: 500,
+                    textDecoration: "none",
+                    padding: "8px 16px",
+                    border: "1px solid var(--line)",
+                    borderRadius: 2,
+                  }}
+                >
+                  See transactions
+                </a>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </section>
+  );
 }

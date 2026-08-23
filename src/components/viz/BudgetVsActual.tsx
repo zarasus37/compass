@@ -168,6 +168,7 @@ export function BudgetVsActual({ rows, height = 320 }: BudgetVsActualProps) {
         style={{
           display: "flex",
           justifyContent: "center",
+          alignItems: "center",
           gap: 28,
           paddingTop: 4,
           fontFamily: "var(--font-cinzel), serif",
@@ -177,11 +178,53 @@ export function BudgetVsActual({ rows, height = 320 }: BudgetVsActualProps) {
           textTransform: "uppercase",
         }}
       >
-        <span>
-          <span style={{ color: "var(--gold)" }}>●</span> Plan
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <span
+            aria-hidden
+            style={{
+              display: "inline-block",
+              width: 10,
+              height: 8,
+              background: "var(--gold)",
+              borderRadius: 1,
+              boxShadow: "0 0 6px var(--gold)",
+            }}
+          />
+          Plan
         </span>
-        <span>
-          <span style={{ color: "var(--jupiter)" }}>●</span> Actual
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          {/* Each envelope's Actual bar uses its own planet color, so the
+              legend dot is a neutral pair of bars — one per row's color. */}
+          <span aria-hidden style={{ display: "inline-flex", gap: 2 }}>
+            <span
+              style={{
+                display: "inline-block",
+                width: 4,
+                height: 8,
+                background: PLANET_COLORS.sol,
+                borderRadius: 1,
+              }}
+            />
+            <span
+              style={{
+                display: "inline-block",
+                width: 4,
+                height: 8,
+                background: PLANET_COLORS.jupiter,
+                borderRadius: 1,
+              }}
+            />
+            <span
+              style={{
+                display: "inline-block",
+                width: 4,
+                height: 8,
+                background: PLANET_COLORS.venus,
+                borderRadius: 1,
+              }}
+            />
+          </span>
+          Actual · per envelope
         </span>
       </div>
     </div>

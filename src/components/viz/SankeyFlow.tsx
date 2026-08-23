@@ -92,16 +92,70 @@ export function SankeyFlow({
       style={{
         position: "relative",
         width: "100%",
-        height,
         background: "var(--cosmos)",
         border: "1px solid var(--line)",
         borderRadius: 4,
-        padding: 12,
+        padding: "12px 12px 8px",
       }}
     >
-      <ResponsiveSankey
-        data={data}
-        margin={{ top: 16, right: 168, bottom: 16, left: 168 }}
+      {/* Source header — guarantees the "Paycheck · $X" label is
+          always visible regardless of chart width. The in-chart source
+          node keeps its `outside` label so both reads agree. */}
+      {showSource && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            justifyContent: "space-between",
+            marginBottom: 6,
+            padding: "0 4px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              gap: 8,
+            }}
+          >
+            <span
+              style={{
+                fontFamily: "var(--font-cinzel), serif",
+                fontSize: 9.5,
+                color: "var(--ink-3)",
+                letterSpacing: "0.22em",
+                textTransform: "uppercase",
+              }}
+            >
+              From
+            </span>
+            <span
+              style={{
+                fontFamily: "var(--font-italiana), serif",
+                fontSize: 18,
+                color: "var(--gold-glow)",
+                lineHeight: 1,
+              }}
+            >
+              {sourceLabel}
+            </span>
+          </div>
+          <span
+            style={{
+              fontFamily: "var(--font-cormorant), serif",
+              fontSize: 12,
+              fontStyle: "italic",
+              color: "var(--ink-3)",
+            }}
+          >
+            7 vessels · auto-distributed
+          </span>
+        </div>
+      )}
+      <div style={{ position: "relative", width: "100%", height }}>
+        <ResponsiveSankey
+          data={data}
+          margin={{ top: 12, right: 200, bottom: 12, left: 60 }}
         align="justify"
         sort="input"
         colors={colorFor as never}
@@ -119,7 +173,7 @@ export function SankeyFlow({
         enableLinkGradient
         labelPosition="outside"
         labelOrientation="horizontal"
-        labelPadding={14}
+        labelPadding={16}
         labelTextColor={{ from: "color", modifiers: [["brighter", 1.1]] }}
         valueFormat={(v) => formatMoney(Math.round(v))}
         layers={["links", "nodes", "labels"]}
@@ -207,6 +261,7 @@ export function SankeyFlow({
           );
         }}
       />
+      </div>
     </div>
   );
 }
