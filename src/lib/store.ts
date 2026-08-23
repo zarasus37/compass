@@ -707,13 +707,20 @@ export function payoffProjection(
   // of extra as a per-check amount, but the simulation runs monthly.
   const extraPerMonth = Math.round(monthlyExtraCents * paychecksPerMonth);
 
+  // Total minimums across ALL originally-active debts. Once a debt
+  // is paid off, its minimum is "freed" and cascades into the head.
+  // The minimums of still-active debts are NOT freed (we just applied
+  // them in step 2).
+  const originalTotalMins = active.reduce((s, d) => s + d.minPaymentCents, 0);
+
   const MAX_MONTHS = 360;
   for (let m = 1; m <= MAX_MONTHS; m += 1) {
     if (active.length === 0) break;
 
     // 1. Accrue interest on every active debt.
+    //    aprBps is ANNUAL rate in basis points. Monthly rate = annual / 12.
     for (const d of active) {
-      const r = d.aprBps / 10000; // monthly rate in decimal
+      const r = d.aprBps / 120000; // annual% / 12 → monthly decimal
       const interest = Math.round(d.balanceCents * r);
       d.balanceCents += interest;
       perDebtInterest.set(d.id, (perDebtInterest.get(d.id) ?? 0) + interest);
@@ -727,20 +734,15 @@ export function payoffProjection(
 
     // 3. Cascade freed minimums + extra into the highest-priority
     //    active debt. Highest priority = lowest in `active` array
-    //    (already sorted by method).
+    //    (already sorted by method). The "freed" amount is the sum
+    //    of minimums of debts that have been paid off in this
+    //    simulation (not the OTHER active debts — those mins were
+    //    already applied in step 2 and we'd be double-counting).
     const head = active[0]!;
     if (head.balanceCents > 0) {
-      // Sum the minimums of all OTHER active debts that are now
-      // depleted enough that paying them more wouldn't help, plus
-      // the extra. Simpler: just add the extra + the min of the
-      // *other* debts to the head.
-      let cascade = extraPerMonth;
-      for (let i = 1; i < active.length; i += 1) {
-        // Their minimum was already applied; the freed amount
-        // is whatever they were paying. For a closed form, the
-        // safest approximation: add their min to the cascade.
-        cascade += active[i]!.minPaymentCents;
-      }
+      const activeMins = active.reduce((s, d) => s + d.minPaymentCents, 0);
+      const freedMins = originalTotalMins - activeMins;
+      const cascade = extraPerMonth + freedMins;
       const apply = Math.min(cascade, head.balanceCents);
       head.balanceCents -= apply;
     }
@@ -750,7 +752,7 @@ export function payoffProjection(
       perDebtMonths.set(d.id, m);
     }
 
-    // 5. Mark paid-off debts, check for unpayable.
+    // 5. Mark paid-off debts.
     const stillActive: typeof active = [];
     for (const d of active) {
       if (d.balanceCents <= 0) {
@@ -758,17 +760,21 @@ export function payoffProjection(
         paidOffAt.set(d.id, m);
       } else {
         stillActive.push(d);
-        // Detect "never pays off": balance still ≥ original
-        // starting balance (or the interest accrued this month
-        // exceeded the min payment on this debt).
-        const r = d.aprBps / 10000;
-        const startBal = perDebtStart.get(d.id) ?? 0;
-        if (m % 6 === 0 && d.balanceCents >= startBal && r > 0) {
-          unpayable.add(d.id);
-        }
       }
     }
     active = stillActive;
+  }
+
+  // Unpayable = a debt that is still active at the end of the
+  // simulation AND its balance grew from its starting balance.
+  // (If the balance shrank, the debt is paying down — even if it
+  // didn't reach zero in 360 months, the user is on the right path
+  // and the "you'll pay it off eventually" signal is appropriate.)
+  for (const d of active) {
+    const startBal = perDebtStart.get(d.id) ?? 0;
+    if (d.balanceCents >= startBal && d.aprBps > 0) {
+      unpayable.add(d.id);
+    }
   }
 
   const totalMonths = perDebtMonths.size > 0
