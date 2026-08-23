@@ -42,7 +42,7 @@ export default async function NewTransactionPage({
           <Link
             href="/transactions"
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               background: "transparent",
               color: "var(--ink-2)",
               border: "1px solid var(--line)",

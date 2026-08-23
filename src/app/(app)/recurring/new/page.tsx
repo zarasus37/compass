@@ -31,7 +31,7 @@ export default function NewBillPage() {
           <Link
             href="/recurring"
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               background: "transparent",
               color: "var(--ink-2)",
               border: "1px solid var(--line)",

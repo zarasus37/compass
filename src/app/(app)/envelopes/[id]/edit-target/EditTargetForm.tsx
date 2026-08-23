@@ -65,7 +65,7 @@ export function EditTargetForm({ envelope }: { envelope: EnvelopeInput }) {
         <div>
           <div
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 9.5,
               color: "var(--ink-3)",
               letterSpacing: "0.22em",
@@ -89,7 +89,7 @@ export function EditTargetForm({ envelope }: { envelope: EnvelopeInput }) {
           >
             <span
               style={{
-                fontFamily: "var(--font-italiana), serif",
+                fontFamily: "var(--font-sora)",
                 fontSize: 48,
                 color: "var(--gold-glow)",
                 lineHeight: 1,
@@ -105,7 +105,7 @@ export function EditTargetForm({ envelope }: { envelope: EnvelopeInput }) {
               required
               autoFocus
               style={{
-                fontFamily: "var(--font-italiana), serif",
+                fontFamily: "var(--font-sora)",
                 fontSize: 48,
                 color: "var(--ink)",
                 background: "transparent",
@@ -119,9 +119,8 @@ export function EditTargetForm({ envelope }: { envelope: EnvelopeInput }) {
           </div>
           <div
             style={{
-              fontFamily: "var(--font-cormorant), serif",
-              fontStyle: "italic",
-              fontSize: 12,
+              fontFamily: "var(--font-sora)",
+                            fontSize: 12,
               color: "var(--ink-3)",
               marginTop: 6,
             }}
@@ -142,7 +141,7 @@ export function EditTargetForm({ envelope }: { envelope: EnvelopeInput }) {
         <Link
           href={`/envelopes/${envelope.id}`}
           style={{
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             background: "transparent",
             color: "var(--ink-2)",
             border: "1px solid var(--line)",
@@ -168,7 +167,7 @@ export function EditTargetForm({ envelope }: { envelope: EnvelopeInput }) {
             borderRadius: 2,
             padding: "12px 18px",
             color: "var(--ink)",
-            fontFamily: "var(--font-cormorant), serif",
+            fontFamily: "var(--font-sora)",
             fontSize: 14,
             lineHeight: 1.5,
           }}
@@ -184,7 +183,7 @@ export function EditTargetForm({ envelope }: { envelope: EnvelopeInput }) {
             borderRadius: 2,
             padding: "12px 18px",
             color: "var(--ink)",
-            fontFamily: "var(--font-cormorant), serif",
+            fontFamily: "var(--font-sora)",
             fontSize: 14,
             lineHeight: 1.5,
           }}
@@ -211,7 +210,7 @@ function Cell({
     <div>
       <div
         style={{
-          fontFamily: "var(--font-cinzel), serif",
+          fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 9.5,
           color: "var(--ink-3)",
           letterSpacing: "0.22em",
@@ -223,7 +222,7 @@ function Cell({
       </div>
       <div
         style={{
-          fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+          fontFamily: "var(--font-sora)",
           fontSize: 24,
           color: muted
             ? "var(--ink-3)"
@@ -246,7 +245,7 @@ function SubmitButton() {
       type="submit"
       disabled={pending}
       style={{
-        fontFamily: "var(--font-cinzel), serif",
+        fontFamily: "var(--font-jetbrains), monospace",
         background: pending ? "var(--ink-3)" : "var(--gold)",
         color: "var(--void)",
         border: 0,

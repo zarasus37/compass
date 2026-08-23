@@ -13,18 +13,10 @@ export const dynamic = "force-dynamic";
 /**
  * Goal detail — Cluster 1.10.
  *
- * The drill-down view for a single goal. The full GoalTrajectory chart
- * is right next to the goal's data (current / target / per-paycheck /
- * months-to-target) per the chart-next-to-data principle. The page
- * also shows:
- *   - the same data inline as stat cells
- *   - a "what if" section: change per-paycheck and see the new target date
- *   - a contribution history (the per-paycheck plan; the live store
- *     doesn't track per-contribution history yet, so this is the plan
- *     forward rather than a log)
- *
- * The page reuses the trajectory pattern from /goals, but only for the
- * one goal so it's a single line, focused, and easy to read.
+ * Component Oracle Terminal treatment: Sora title, JetBrains Mono
+ * for amounts, mono caps labels. Jupiter planet color preserved
+ * as the goal semantic. "What if" scenarios in terminal voice
+ * with [OK]/[WARN] markers and per-scenario mono numbers.
  */
 export default function GoalDetailPage({
   params,
@@ -41,7 +33,7 @@ export default function GoalDetailPage({
 
   const pct = Math.min((goal.currentCents / goal.targetCents) * 100, 100);
   const remaining = Math.max(0, goal.targetCents - goal.currentCents);
-  const monthlyRate = goal.perPaycheckCents * 2; // biweekly → monthly
+  const monthlyRate = goal.perPaycheckCents * 2;
   const monthsToTarget =
     goal.perPaycheckCents > 0 && remaining > 0
       ? Math.ceil(remaining / (goal.perPaycheckCents * 2))
@@ -49,7 +41,6 @@ export default function GoalDetailPage({
       ? 0
       : null;
 
-  // For the "what if" — show three scenarios stacked
   const scenarios = [0.5, 1, 1.5, 2].map((mult) => {
     const per = Math.round(goal.perPaycheckCents * mult);
     const mo =
@@ -75,7 +66,7 @@ export default function GoalDetailPage({
   return (
     <div>
       <PageHead
-        eyebrow={`Plan · Goals · ${goal.name}`}
+        eyebrow={`// plan · goals · ${goal.name.toLowerCase()}`}
         title={goal.name}
         em="one goal, in full."
         accent="jupiter"
@@ -83,15 +74,15 @@ export default function GoalDetailPage({
           <Link
             href="/goals"
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               background: "transparent",
               color: "var(--ink-2)",
               border: "1px solid var(--line)",
               borderRadius: 2,
               padding: "10px 16px",
               fontSize: 10.5,
-              fontWeight: 500,
-              letterSpacing: "0.18em",
+              fontWeight: 600,
+              letterSpacing: "0.16em",
               textTransform: "uppercase",
               textDecoration: "none",
             }}
@@ -102,7 +93,7 @@ export default function GoalDetailPage({
         explanation={
           <>
             The single trajectory for this goal — where it is, where it's heading, and what changes the arrival time. The vessel for this goal is the{" "}
-            <b style={{ color: `var(--${goal.planet ?? "jupiter"})` }}>
+            <b style={{ color: `var(--${goal.planet ?? "jupiter"})`, fontWeight: 600 }}>
               {goal.planet === "jupiter" ? "Jupiter · Savings" : `${goal.planet} vessel`}
             </b>{" "}
             envelope — money that lands there goes straight to this balance on every paycheck.
@@ -110,7 +101,6 @@ export default function GoalDetailPage({
         }
       />
 
-      {/* Stat strip — current / target / per-paycheck / months to 100% */}
       <section
         style={{
           display: "grid",
@@ -122,34 +112,34 @@ export default function GoalDetailPage({
         }}
       >
         <Stat
-          label="Current"
+          label="current"
           value={formatMoney(goal.currentCents)}
           sub={`${Math.round(pct)}% of target`}
         />
         <Stat
-          label="Target"
+          label="target"
           value={formatMoney(goal.targetCents)}
           sub={`by ${formatShortDate(goal.targetDate)}`}
         />
         <Stat
-          label="Per paycheck"
+          label="per paycheck"
           value={formatMoney(goal.perPaycheckCents)}
           sub={`${formatMoney(monthlyRate)} / month`}
         />
         <Stat
-          label={monthsToTarget === 0 ? "Status" : "Months to 100%"}
+          label={monthsToTarget === 0 ? "status" : "months to 100%"}
           value={
             monthsToTarget === 0
-              ? "Reached"
+              ? "[OK] Reached"
               : monthsToTarget === null
               ? "—"
               : `${monthsToTarget}mo`
           }
           sub={
             monthsToTarget === 0
-              ? "✦"
+              ? "[OK] ✦"
               : monthsToTarget === null
-              ? "Plan not moving it"
+              ? "[WARN] Plan not moving it"
               : `≈ ${formatShortDate(
                   new Date(
                     TODAY.getTime() + monthsToTarget * 30 * 24 * 60 * 60 * 1000,
@@ -160,7 +150,6 @@ export default function GoalDetailPage({
         />
       </section>
 
-      {/* The trajectory chart — directly next to the goal's data. */}
       <section style={{ marginBottom: 48 }}>
         <SectionHeader
           title="The trajectory"
@@ -170,7 +159,6 @@ export default function GoalDetailPage({
         <GoalTrajectory goals={trajectory} height={320} />
       </section>
 
-      {/* What if — change the per-paycheck amount and see the new arrival */}
       <section style={{ marginBottom: 48 }}>
         <SectionHeader
           title="What if I add more?"
@@ -213,14 +201,16 @@ export default function GoalDetailPage({
                 )}
                 <div
                   style={{
-                    fontFamily: "var(--font-cinzel), serif",
+                    fontFamily: "var(--font-jetbrains), monospace",
                     fontSize: 9.5,
-                    color: "var(--ink-3)",
-                    letterSpacing: "0.22em",
+                    fontWeight: 600,
+                    color: isCurrent ? `var(--${goal.planet ?? "jupiter"})` : "var(--ink-3)",
+                    letterSpacing: "0.18em",
                     textTransform: "uppercase",
                     marginBottom: 8,
                   }}
                 >
+                  <span style={{ color: "var(--ink-4)" }}>//</span>{" "}
                   {s.mult === 1
                     ? "Current"
                     : s.mult === 0.5
@@ -231,24 +221,26 @@ export default function GoalDetailPage({
                 </div>
                 <div
                   style={{
-                    fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+                    fontFamily: "var(--font-jetbrains), monospace",
                     fontSize: 22,
+                    fontWeight: 600,
                     color: isCurrent ? `var(--${goal.planet ?? "jupiter"})` : "var(--ink)",
                     marginBottom: 4,
-                    fontFeatureSettings: '"tnum" 1',
+                    fontFeatureSettings: '"tnum" 1, "zero" 1',
                   }}
                 >
                   {formatMoney(s.perPaycheckCents)}
                 </div>
                 <div
                   style={{
-                    fontFamily: "var(--font-cormorant), serif",
-                    fontStyle: "italic",
-                    fontSize: 12,
+                    fontFamily: "var(--font-jetbrains), monospace",
+                    fontSize: 10.5,
                     color: "var(--ink-3)",
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
                   }}
                 >
-                  per paycheck → {s.months === 0 ? "reached" : `${s.months}mo`}
+                  per check → {s.months === 0 ? "[OK] reached" : `${s.months}mo`}
                 </div>
               </div>
             );
@@ -256,12 +248,12 @@ export default function GoalDetailPage({
         </div>
       </section>
 
-      {/* Goal description + actions */}
       <section>
         <div
           style={{
             background: "var(--surface)",
             border: "1px solid var(--line)",
+            borderLeft: `2px solid var(--${goal.planet ?? "jupiter"})`,
             borderRadius: 4,
             padding: "28px 32px",
             display: "flex",
@@ -273,7 +265,7 @@ export default function GoalDetailPage({
             style={{
               width: 64,
               height: 64,
-              borderRadius: "50%",
+              borderRadius: 2,
               display: "grid",
               placeItems: "center",
               background: "var(--cosmos)",
@@ -286,12 +278,11 @@ export default function GoalDetailPage({
           <div style={{ flex: 1 }}>
             <p
               style={{
-                fontFamily: "var(--font-cormorant), serif",
-                fontStyle: "italic",
-                fontSize: 16,
+                fontFamily: "var(--font-sora)",
+                fontSize: 15,
                 color: "var(--ink-2)",
                 margin: 0,
-                lineHeight: 1.5,
+                lineHeight: 1.55,
               }}
             >
               {goal.description}
@@ -302,15 +293,15 @@ export default function GoalDetailPage({
               <button
                 type="button"
                 style={{
-                  fontFamily: "var(--font-cinzel), serif",
+                  fontFamily: "var(--font-jetbrains), monospace",
                   background: "transparent",
-                  color: "var(--gold)",
-                  border: "1px solid var(--gold-soft)",
+                  color: "var(--jupiter)",
+                  border: "1px solid var(--jupiter)",
                   borderRadius: 2,
                   padding: "10px 16px",
                   fontSize: 10,
-                  fontWeight: 600,
-                  letterSpacing: "0.18em",
+                  fontWeight: 700,
+                  letterSpacing: "0.14em",
                   textTransform: "uppercase",
                   cursor: "pointer",
                 }}
@@ -321,17 +312,18 @@ export default function GoalDetailPage({
             <Link
               href={`/goals/${goal.id}/edit`}
               style={{
-                fontFamily: "var(--font-cinzel), serif",
-                background: "var(--gold)",
+                fontFamily: "var(--font-jetbrains), monospace",
+                background: "var(--terminal-cyan)",
                 color: "var(--void)",
                 border: 0,
                 borderRadius: 2,
                 padding: "10px 18px",
                 fontSize: 10,
-                fontWeight: 600,
+                fontWeight: 700,
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
                 textDecoration: "none",
+                boxShadow: "0 0 16px rgba(45, 212, 191, 0.3)",
               }}
             >
               Edit goal →
@@ -363,34 +355,36 @@ function Stat({
     >
       <div
         style={{
-          fontFamily: "var(--font-cinzel), serif",
+          fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 9.5,
+          fontWeight: 600,
           color: "var(--ink-3)",
-          letterSpacing: "0.22em",
+          letterSpacing: "0.18em",
           textTransform: "uppercase",
           marginBottom: 10,
         }}
       >
-        {label}
+        <span style={{ color: "var(--ink-4)" }}>//</span> {label}
       </div>
       <div
         style={{
-          fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-          fontSize: 24,
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 22,
+          fontWeight: 600,
           lineHeight: 1,
-          color: accent === "warn" ? "var(--warn)" : "var(--ink)",
-          fontFeatureSettings: '"tnum" 1',
+          color: accent === "warn" ? "var(--warn)" : accent === "ok" ? "var(--ok)" : "var(--ink)",
+          fontFeatureSettings: '"tnum" 1, "zero" 1',
         }}
       >
         {value}
       </div>
       <div
         style={{
-          fontFamily: "var(--font-cormorant), serif",
-          fontStyle: "italic",
-          fontSize: 12.5,
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 10.5,
           color: "var(--ink-3)",
           marginTop: 6,
+          letterSpacing: "0.04em",
         }}
       >
         {sub}
@@ -419,37 +413,52 @@ function SectionHeader({
         borderBottom: "1px solid var(--line)",
       }}
     >
-      <h2
-        style={{
-          fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-          fontWeight: 400,
-          fontSize: 26,
-          margin: 0,
-          color: "var(--ink)",
-        }}
-      >
-        {title}
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+        <span
+          style={{
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 9.5,
+            fontWeight: 600,
+            color: "var(--jupiter)",
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+          }}
+        >
+          <span style={{ color: "var(--ink-4)" }}>//</span>
+        </span>
+        <h2
+          style={{
+            fontFamily: "var(--font-sora)",
+            fontWeight: 600,
+            fontSize: 22,
+            letterSpacing: "-0.01em",
+            margin: 0,
+            color: "var(--ink)",
+          }}
+        >
+          {title}
+        </h2>
         {em && (
-          <em
+          <span
             style={{
-              fontFamily: "var(--font-cormorant), serif",
-              fontStyle: "italic",
+              fontFamily: "var(--font-sora)",
+              fontWeight: 400,
+              fontSize: 15,
               color: "var(--ink-3)",
-              fontWeight: 500,
-              marginLeft: 8,
             }}
           >
             {em}
-          </em>
+          </span>
         )}
-      </h2>
+      </div>
       {meta && (
         <div
           style={{
-            fontFamily: "var(--font-cormorant), serif",
-            fontStyle: "italic",
-            fontSize: 12.5,
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 10,
             color: "var(--ink-3)",
+            letterSpacing: "0.10em",
+            textTransform: "uppercase",
           }}
         >
           {meta}

@@ -41,7 +41,7 @@ export function NewDebtForm() {
               required
               autoFocus
               style={{
-                fontFamily: "var(--font-italiana), serif",
+                fontFamily: "var(--font-sora)",
                 fontSize: 22,
                 color: "var(--ink)",
                 background: "var(--cosmos)",
@@ -82,7 +82,7 @@ export function NewDebtForm() {
                 placeholder="24.99"
                 required
                 style={{
-                  fontFamily: "var(--font-italiana), serif",
+                  fontFamily: "var(--font-sora)",
                   fontSize: 24,
                   color: "var(--ink)",
                   background: "transparent",
@@ -95,7 +95,7 @@ export function NewDebtForm() {
               />
               <span
                 style={{
-                  fontFamily: "var(--font-cinzel), serif",
+                  fontFamily: "var(--font-jetbrains), monospace",
                   fontSize: 14,
                   color: "var(--ink-3)",
                   letterSpacing: "0.18em",
@@ -147,7 +147,7 @@ export function NewDebtForm() {
         >
           <div
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 10.5,
               color: "var(--saturn)",
               letterSpacing: "0.28em",
@@ -158,9 +158,8 @@ export function NewDebtForm() {
           </div>
           <p
             style={{
-              fontFamily: "var(--font-cormorant), serif",
-              fontStyle: "italic",
-              fontSize: 14,
+              fontFamily: "var(--font-sora)",
+                            fontSize: 14,
               color: "var(--ink-2)",
               lineHeight: 1.5,
             }}
@@ -169,9 +168,8 @@ export function NewDebtForm() {
           </p>
           <p
             style={{
-              fontFamily: "var(--font-cormorant), serif",
-              fontStyle: "italic",
-              fontSize: 13,
+              fontFamily: "var(--font-sora)",
+                            fontSize: 13,
               color: "var(--ink-3)",
               lineHeight: 1.5,
             }}
@@ -192,7 +190,7 @@ export function NewDebtForm() {
         <Link
           href="/debts"
           style={{
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             background: "transparent",
             color: "var(--ink-2)",
             border: "1px solid var(--line)",
@@ -218,7 +216,7 @@ export function NewDebtForm() {
             borderRadius: 2,
             padding: "12px 18px",
             color: "var(--ink)",
-            fontFamily: "var(--font-cormorant), serif",
+            fontFamily: "var(--font-sora)",
             fontSize: 14,
             lineHeight: 1.5,
           }}
@@ -234,7 +232,7 @@ export function NewDebtForm() {
             borderRadius: 2,
             padding: "12px 18px",
             color: "var(--ink)",
-            fontFamily: "var(--font-cormorant), serif",
+            fontFamily: "var(--font-sora)",
             fontSize: 14,
             lineHeight: 1.5,
           }}
@@ -253,7 +251,7 @@ function SubmitButton() {
       type="submit"
       disabled={pending}
       style={{
-        fontFamily: "var(--font-cinzel), serif",
+        fontFamily: "var(--font-jetbrains), monospace",
         background: pending ? "var(--ink-3)" : "var(--gold)",
         color: "var(--void)",
         border: 0,
@@ -285,7 +283,7 @@ function Field({
     <div>
       <div
         style={{
-          fontFamily: "var(--font-cinzel), serif",
+          fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 9.5,
           color: "var(--ink-3)",
           letterSpacing: "0.22em",
@@ -299,9 +297,8 @@ function Field({
       {hint && (
         <div
           style={{
-            fontFamily: "var(--font-cormorant), serif",
-            fontStyle: "italic",
-            fontSize: 12,
+            fontFamily: "var(--font-sora)",
+                        fontSize: 12,
             color: "var(--ink-3)",
             marginTop: 6,
           }}
@@ -337,7 +334,7 @@ function MoneyInput({
     >
       <span
         style={{
-          fontFamily: "var(--font-italiana), serif",
+          fontFamily: "var(--font-sora)",
           fontSize: 24,
           color: "var(--gold-glow)",
           lineHeight: 1,
@@ -352,7 +349,7 @@ function MoneyInput({
         placeholder={placeholder}
         required={required}
         style={{
-          fontFamily: "var(--font-italiana), serif",
+          fontFamily: "var(--font-sora)",
           fontSize: 24,
           color: "var(--ink)",
           background: "transparent",

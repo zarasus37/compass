@@ -66,7 +66,7 @@ export function NewGoalForm({
               placeholder="Emergency Fund"
               required
               autoFocus
-              style={inputStyle(18, "var(--font-italiana), serif")}
+              style={inputStyle(18, "var(--font-sora)")}
             />
           </Field>
 
@@ -76,9 +76,8 @@ export function NewGoalForm({
               placeholder="Three months of expenses, ready when life surprises you."
               rows={3}
               style={{
-                ...inputStyle(14, "var(--font-cormorant), serif"),
-                fontStyle: "italic",
-                resize: "vertical",
+                ...inputStyle(14, "var(--font-sora)"),
+                                resize: "vertical",
                 minHeight: 80,
               }}
             />
@@ -108,7 +107,7 @@ export function NewGoalForm({
             <select
               name="envelopeId"
               defaultValue=""
-              style={inputStyle(14, "var(--font-italiana), serif", "100%")}
+              style={inputStyle(14, "var(--font-sora)", "100%")}
             >
               <option value="">No vessel (general savings)</option>
               {envelopes.map((e) => (
@@ -124,7 +123,7 @@ export function NewGoalForm({
               display: "flex",
               alignItems: "center",
               gap: 10,
-              fontFamily: "var(--font-cormorant), serif",
+              fontFamily: "var(--font-sora)",
               fontSize: 14,
               color: "var(--ink-2)",
               cursor: "pointer",
@@ -146,7 +145,7 @@ export function NewGoalForm({
         <div>
           <div
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 9.5,
               color: "var(--ink-3)",
               letterSpacing: "0.22em",
@@ -206,7 +205,7 @@ export function NewGoalForm({
                 <div style={{ minWidth: 0 }}>
                   <div
                     style={{
-                      fontFamily: "var(--font-italiana), serif",
+                      fontFamily: "var(--font-sora)",
                       fontSize: 14,
                       color: "var(--ink)",
                       lineHeight: 1.1,
@@ -216,9 +215,8 @@ export function NewGoalForm({
                   </div>
                   <div
                     style={{
-                      fontFamily: "var(--font-cormorant), serif",
-                      fontStyle: "italic",
-                      fontSize: 11,
+                      fontFamily: "var(--font-sora)",
+                                            fontSize: 11,
                       color: "var(--ink-3)",
                     }}
                   >
@@ -242,7 +240,7 @@ export function NewGoalForm({
         <Link
           href="/goals"
           style={{
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             background: "transparent",
             color: "var(--ink-2)",
             border: "1px solid var(--line)",
@@ -268,7 +266,7 @@ export function NewGoalForm({
             borderRadius: 2,
             padding: "12px 18px",
             color: "var(--ink)",
-            fontFamily: "var(--font-cormorant), serif",
+            fontFamily: "var(--font-sora)",
             fontSize: 14,
             lineHeight: 1.5,
           }}
@@ -284,7 +282,7 @@ export function NewGoalForm({
             borderRadius: 2,
             padding: "12px 18px",
             color: "var(--ink)",
-            fontFamily: "var(--font-cormorant), serif",
+            fontFamily: "var(--font-sora)",
             fontSize: 14,
             lineHeight: 1.5,
           }}
@@ -303,7 +301,7 @@ function SubmitButton() {
       type="submit"
       disabled={pending}
       style={{
-        fontFamily: "var(--font-cinzel), serif",
+        fontFamily: "var(--font-jetbrains), monospace",
         background: pending ? "var(--ink-3)" : "var(--gold)",
         color: "var(--void)",
         border: 0,
@@ -335,7 +333,7 @@ function Field({
     <div>
       <div
         style={{
-          fontFamily: "var(--font-cinzel), serif",
+          fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 9.5,
           color: "var(--ink-3)",
           letterSpacing: "0.22em",
@@ -349,9 +347,8 @@ function Field({
       {hint && (
         <div
           style={{
-            fontFamily: "var(--font-cormorant), serif",
-            fontStyle: "italic",
-            fontSize: 12,
+            fontFamily: "var(--font-sora)",
+                        fontSize: 12,
             color: "var(--ink-3)",
             marginTop: 6,
           }}
@@ -387,7 +384,7 @@ function MoneyInput({
     >
       <span
         style={{
-          fontFamily: "var(--font-italiana), serif",
+          fontFamily: "var(--font-sora)",
           fontSize: 24,
           color: "var(--gold-glow)",
           lineHeight: 1,
@@ -402,7 +399,7 @@ function MoneyInput({
         placeholder={placeholder}
         required={required}
         style={{
-          fontFamily: "var(--font-italiana), serif",
+          fontFamily: "var(--font-sora)",
           fontSize: 24,
           color: "var(--ink)",
           background: "transparent",

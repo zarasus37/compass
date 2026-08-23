@@ -49,7 +49,7 @@ export function NewBillForm({ envelopes }: { envelopes: EnvelopeOption[] }) {
               required
               autoFocus
               style={{
-                fontFamily: "var(--font-italiana), serif",
+                fontFamily: "var(--font-sora)",
                 fontSize: 22,
                 color: "var(--ink)",
                 background: "var(--cosmos)",
@@ -77,7 +77,7 @@ export function NewBillForm({ envelopes }: { envelopes: EnvelopeOption[] }) {
             >
               <span
                 style={{
-                  fontFamily: "var(--font-italiana), serif",
+                  fontFamily: "var(--font-sora)",
                   fontSize: 24,
                   color: "var(--gold-glow)",
                   lineHeight: 1,
@@ -92,7 +92,7 @@ export function NewBillForm({ envelopes }: { envelopes: EnvelopeOption[] }) {
                 placeholder="75.00"
                 required
                 style={{
-                  fontFamily: "var(--font-italiana), serif",
+                  fontFamily: "var(--font-sora)",
                   fontSize: 24,
                   color: "var(--ink)",
                   background: "transparent",
@@ -134,7 +134,7 @@ export function NewBillForm({ envelopes }: { envelopes: EnvelopeOption[] }) {
               display: "flex",
               alignItems: "center",
               gap: 10,
-              fontFamily: "var(--font-cormorant), serif",
+              fontFamily: "var(--font-sora)",
               fontSize: 14,
               color: "var(--ink-2)",
               cursor: "pointer",
@@ -157,7 +157,7 @@ export function NewBillForm({ envelopes }: { envelopes: EnvelopeOption[] }) {
         <div>
           <div
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 9.5,
               color: "var(--ink-3)",
               letterSpacing: "0.22em",
@@ -215,7 +215,7 @@ export function NewBillForm({ envelopes }: { envelopes: EnvelopeOption[] }) {
                 </div>
                 <div
                   style={{
-                    fontFamily: "var(--font-italiana), serif",
+                    fontFamily: "var(--font-sora)",
                     fontSize: 14,
                     color: "var(--ink)",
                     lineHeight: 1.1,
@@ -243,7 +243,7 @@ export function NewBillForm({ envelopes }: { envelopes: EnvelopeOption[] }) {
         <Link
           href="/recurring"
           style={{
-            fontFamily: "var(--font-cinzel), serif",
+            fontFamily: "var(--font-jetbrains), monospace",
             background: "transparent",
             color: "var(--ink-2)",
             border: "1px solid var(--line)",
@@ -269,7 +269,7 @@ export function NewBillForm({ envelopes }: { envelopes: EnvelopeOption[] }) {
             borderRadius: 2,
             padding: "12px 18px",
             color: "var(--ink)",
-            fontFamily: "var(--font-cormorant), serif",
+            fontFamily: "var(--font-sora)",
             fontSize: 14,
             lineHeight: 1.5,
           }}
@@ -285,7 +285,7 @@ export function NewBillForm({ envelopes }: { envelopes: EnvelopeOption[] }) {
             borderRadius: 2,
             padding: "12px 18px",
             color: "var(--ink)",
-            fontFamily: "var(--font-cormorant), serif",
+            fontFamily: "var(--font-sora)",
             fontSize: 14,
             lineHeight: 1.5,
           }}
@@ -304,7 +304,7 @@ function SubmitButton() {
       type="submit"
       disabled={pending}
       style={{
-        fontFamily: "var(--font-cinzel), serif",
+        fontFamily: "var(--font-jetbrains), monospace",
         background: pending ? "var(--ink-3)" : "var(--gold)",
         color: "var(--void)",
         border: 0,
@@ -336,7 +336,7 @@ function Field({
     <div>
       <div
         style={{
-          fontFamily: "var(--font-cinzel), serif",
+          fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 9.5,
           color: "var(--ink-3)",
           letterSpacing: "0.22em",
@@ -350,9 +350,8 @@ function Field({
       {hint && (
         <div
           style={{
-            fontFamily: "var(--font-cormorant), serif",
-            fontStyle: "italic",
-            fontSize: 12,
+            fontFamily: "var(--font-sora)",
+                        fontSize: 12,
             color: "var(--ink-3)",
             marginTop: 6,
           }}

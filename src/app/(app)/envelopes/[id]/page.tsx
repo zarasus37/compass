@@ -19,15 +19,11 @@ export const dynamic = "force-dynamic";
 /**
  * Envelope detail — Cluster 1.10.
  *
- * The drill-down view for a single envelope. Shows the live data
- * (current / target / per-period / pace) plus the per-envelope
- * transaction list, so the visual (the bar) and the data (the rows)
- * are right next to each other.
- *
- * The pacing line tells the user at a glance whether they're
- * "ahead of pace" (gold tick is left of where the bar fills) or
- * "behind" (right of). The transaction list shows what came in
- * (allocations) and what went out (spends) in the current period.
+ * Component Oracle Terminal treatment: Sora title, JetBrains Mono for
+ * amounts and dates, mono caps labels with // prefix, primary CTA in
+ * terminal-cyan. The big bar with the gold pacing tick is preserved
+ * (semantic — pacing is a key datum). The vessel-glyph big circle
+ * gets a 2px planet-color left rail.
  */
 export default function EnvelopeDetailPage({
   params,
@@ -56,9 +52,7 @@ export default function EnvelopeDetailPage({
   const onTrack = e.current <= expectedAtPace;
   const diff = e.current - expectedAtPace;
 
-  // Filter transactions for this envelope
   const txForEnv = TRANSACTIONS.filter((t) => t.envelope === e.id);
-  // Compute totals
   const totalIn = txForEnv
     .filter((t) => t.amountCents > 0)
     .reduce((s, t) => s + t.amountCents, 0);
@@ -70,23 +64,23 @@ export default function EnvelopeDetailPage({
   return (
     <div>
       <PageHead
-        eyebrow={`Money · Envelopes · ${e.name}`}
+        eyebrow={`// money · envelopes · ${e.name.toLowerCase()}`}
         title={e.name}
         em="one vessel, in full."
-        accent="jupiter"
+        accent={e.planet ? "jupiter" : "cyan"}
         actions={
           <Link
             href="/envelopes"
             style={{
-              fontFamily: "var(--font-cinzel), serif",
+              fontFamily: "var(--font-jetbrains), monospace",
               background: "transparent",
               color: "var(--ink-2)",
               border: "1px solid var(--line)",
               borderRadius: 2,
               padding: "10px 16px",
               fontSize: 10.5,
-              fontWeight: 500,
-              letterSpacing: "0.18em",
+              fontWeight: 600,
+              letterSpacing: "0.16em",
               textTransform: "uppercase",
               textDecoration: "none",
             }}
@@ -101,7 +95,6 @@ export default function EnvelopeDetailPage({
         }
       />
 
-      {/* Stat strip */}
       <section
         style={{
           display: "grid",
@@ -113,23 +106,19 @@ export default function EnvelopeDetailPage({
         }}
       >
         <Stat
-          label="Current"
+          label="current"
           value={formatMoney(e.current)}
           sub={`${Math.round(pct)}% of target`}
           accent={isOver ? "neg" : undefined}
         />
+        <Stat label="target" value={formatMoney(e.target)} sub="this period" />
         <Stat
-          label="Target"
-          value={formatMoney(e.target)}
-          sub={`this period`}
-        />
-        <Stat
-          label="Expected now"
+          label="expected now"
           value={formatMoney(Math.round(expectedAtPace))}
           sub={`pacing day ${pacing.day} of ${pacing.total}`}
         />
         <Stat
-          label={onTrack ? "On pace" : isOver ? "Over" : "Ahead of pace"}
+          label={onTrack ? "on pace" : isOver ? "over" : "ahead of pace"}
           value={
             isOver
               ? `+${formatMoney(overage)}`
@@ -146,7 +135,6 @@ export default function EnvelopeDetailPage({
         />
       </section>
 
-      {/* The big bar — chart next to data. */}
       <section style={{ marginBottom: 48 }}>
         <SectionHeader
           title="The vessel"
@@ -157,6 +145,7 @@ export default function EnvelopeDetailPage({
           style={{
             background: "var(--surface)",
             border: "1px solid var(--line)",
+            borderLeft: `2px solid var(--${e.planet ?? "ink-2"})`,
             borderRadius: 4,
             padding: "32px 36px",
           }}
@@ -174,7 +163,7 @@ export default function EnvelopeDetailPage({
               style={{
                 width: 60,
                 height: 60,
-                borderRadius: "50%",
+                borderRadius: 2,
                 display: "grid",
                 placeItems: "center",
                 background: "var(--cosmos)",
@@ -187,22 +176,25 @@ export default function EnvelopeDetailPage({
             <div>
               <div
                 style={{
-                  fontFamily: "var(--font-cinzel), serif",
+                  fontFamily: "var(--font-jetbrains), monospace",
                   fontSize: 10.5,
+                  fontWeight: 600,
                   color: `var(--${e.planet ?? "ink-3"})`,
-                  letterSpacing: "0.28em",
+                  letterSpacing: "0.18em",
                   textTransform: "uppercase",
                   marginBottom: 4,
                 }}
               >
-                {planetName(e.planet)} · {e.target > 0 ? "funding target" : "no target"}
+                <span style={{ color: "var(--ink-4)" }}>//</span> {planetName(e.planet)} · {e.target > 0 ? "FUNDING TARGET" : "NO TARGET"}
               </div>
               <div
                 style={{
-                  fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                  fontSize: 36,
+                  fontFamily: "var(--font-jetbrains), monospace",
+                  fontSize: 32,
+                  fontWeight: 600,
                   color: isOver ? "var(--neg)" : "var(--ink)",
                   lineHeight: 1,
+                  fontFeatureSettings: '"tnum" 1, "zero" 1',
                 }}
               >
                 {formatMoney(e.current)}
@@ -242,7 +234,7 @@ export default function EnvelopeDetailPage({
                 bottom: -4,
                 left: `${Math.min(100, pacingPct)}%`,
                 width: 3,
-                background: "var(--gold)",
+                background: "var(--terminal-cyan)",
                 boxShadow: "0 0 8px var(--gold)",
               }}
             />
@@ -266,25 +258,26 @@ export default function EnvelopeDetailPage({
               justifyContent: "space-between",
               fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 10,
+              fontWeight: 600,
               color: "var(--ink-3)",
               marginTop: 10,
+              letterSpacing: "0.10em",
+              textTransform: "uppercase",
             }}
           >
             <span>$0</span>
             <span style={{ color: "var(--gold)" }}>
-              ◆ day {pacing.day} of {pacing.total} (pace)
+              ◆ DAY {pacing.day} / {pacing.total} (PACE)
             </span>
             <span>{formatMoney(e.target)}</span>
           </div>
         </div>
       </section>
 
-      {/* Transaction list — chart next to data, the rows ARE the data
-          the bar visualizes. */}
       <section style={{ marginBottom: 48 }}>
         <SectionHeader
           title="Activity"
-          em={`this period.`}
+          em="this period."
           meta={`${txCount} transaction${txCount === 1 ? "" : "s"} · ${formatMoney(totalIn)} in, ${formatMoney(totalOut)} out`}
         />
         {txForEnv.length === 0 ? (
@@ -295,10 +288,10 @@ export default function EnvelopeDetailPage({
               borderRadius: 4,
               padding: "40px 32px",
               textAlign: "center",
-              fontFamily: "var(--font-cormorant), serif",
-              fontStyle: "italic",
-              fontSize: 15,
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 13,
               color: "var(--ink-3)",
+              letterSpacing: "0.04em",
             }}
           >
             Nothing has hit this vessel yet this period.
@@ -333,8 +326,9 @@ export default function EnvelopeDetailPage({
                 <div>
                   <div
                     style={{
-                      fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                      fontSize: 16,
+                      fontFamily: "var(--font-sora)",
+                      fontSize: 15,
+                      fontWeight: 500,
                       color: "var(--ink)",
                       lineHeight: 1.2,
                     }}
@@ -343,38 +337,40 @@ export default function EnvelopeDetailPage({
                   </div>
                   <div
                     style={{
-                      fontFamily: "var(--font-cormorant), serif",
-                      fontStyle: "italic",
-                      fontSize: 12.5,
+                      fontFamily: "var(--font-jetbrains), monospace",
+                      fontSize: 11,
                       color: "var(--ink-3)",
                       marginTop: 4,
+                      letterSpacing: "0.04em",
                     }}
                   >
-                    {kind} · {formatShortDate(t.date)}
+                    {kind.toUpperCase()} · {formatShortDate(t.date)}
                   </div>
                 </div>
                 <div
                   style={{
-                    fontFamily: "var(--font-cinzel), serif",
-                    fontSize: 9.5,
+                    fontFamily: "var(--font-jetbrains), monospace",
+                    fontSize: 10,
+                    fontWeight: 700,
                     color:
                       t.amountCents > 0
                         ? "var(--ok)"
                         : "var(--ink-3)",
-                    letterSpacing: "0.22em",
+                    letterSpacing: "0.18em",
                     textTransform: "uppercase",
                     textAlign: "right",
                   }}
                 >
-                  {t.amountCents > 0 ? "in" : "out"}
+                  {t.amountCents > 0 ? "[+] IN" : "[−] OUT"}
                 </div>
                 <div
                   style={{
-                    fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                    fontSize: 18,
+                    fontFamily: "var(--font-jetbrains), monospace",
+                    fontSize: 16,
+                    fontWeight: 500,
                     color: t.amountCents > 0 ? "var(--ok)" : "var(--ink)",
                     textAlign: "right",
-                    fontFeatureSettings: '"tnum" 1',
+                    fontFeatureSettings: '"tnum" 1, "zero" 1',
                   }}
                 >
                   {formatMoneySigned(t.amountCents)}
@@ -386,7 +382,6 @@ export default function EnvelopeDetailPage({
         )}
       </section>
 
-      {/* Edit / actions */}
       <section>
         <div
           style={{
@@ -402,9 +397,8 @@ export default function EnvelopeDetailPage({
           <div style={{ flex: 1 }}>
             <p
               style={{
-                fontFamily: "var(--font-cormorant), serif",
-                fontStyle: "italic",
-                fontSize: 15,
+                fontFamily: "var(--font-sora)",
+                fontSize: 14,
                 color: "var(--ink-2)",
                 margin: 0,
                 lineHeight: 1.5,
@@ -417,17 +411,18 @@ export default function EnvelopeDetailPage({
             <Link
               href="/transactions/new"
               style={{
-                fontFamily: "var(--font-cinzel), serif",
-                background: "var(--gold)",
+                fontFamily: "var(--font-jetbrains), monospace",
+                background: "var(--terminal-cyan)",
                 color: "var(--void)",
                 border: 0,
                 borderRadius: 2,
                 padding: "10px 18px",
                 fontSize: 10,
-                fontWeight: 600,
+                fontWeight: 700,
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
                 textDecoration: "none",
+                boxShadow: "0 0 16px rgba(45, 212, 191, 0.3)",
               }}
             >
               + Log a transaction
@@ -435,14 +430,14 @@ export default function EnvelopeDetailPage({
             <Link
               href={`/envelopes/${e.id}/edit`}
               style={{
-                fontFamily: "var(--font-cinzel), serif",
+                fontFamily: "var(--font-jetbrains), monospace",
                 background: "transparent",
                 color: "var(--ink-2)",
                 border: "1px solid var(--line)",
                 borderRadius: 2,
                 padding: "10px 18px",
                 fontSize: 10,
-                fontWeight: 500,
+                fontWeight: 600,
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
                 textDecoration: "none",
@@ -453,14 +448,14 @@ export default function EnvelopeDetailPage({
             <Link
               href={`/envelopes/${e.id}/edit-target`}
               style={{
-                fontFamily: "var(--font-cinzel), serif",
+                fontFamily: "var(--font-jetbrains), monospace",
                 background: "transparent",
                 color: "var(--ink-2)",
                 border: "1px solid var(--line)",
                 borderRadius: 2,
                 padding: "10px 18px",
                 fontSize: 10,
-                fontWeight: 500,
+                fontWeight: 600,
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
                 textDecoration: "none",
@@ -503,34 +498,36 @@ function Stat({
     >
       <div
         style={{
-          fontFamily: "var(--font-cinzel), serif",
+          fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 9.5,
+          fontWeight: 600,
           color: "var(--ink-3)",
-          letterSpacing: "0.22em",
+          letterSpacing: "0.18em",
           textTransform: "uppercase",
           marginBottom: 10,
         }}
       >
-        {label}
+        <span style={{ color: "var(--ink-4)" }}>//</span> {label}
       </div>
       <div
         style={{
-          fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+          fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 22,
+          fontWeight: 600,
           lineHeight: 1,
           color,
-          fontFeatureSettings: '"tnum" 1',
+          fontFeatureSettings: '"tnum" 1, "zero" 1',
         }}
       >
         {value}
       </div>
       <div
         style={{
-          fontFamily: "var(--font-cormorant), serif",
-          fontStyle: "italic",
-          fontSize: 12.5,
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 10.5,
           color: "var(--ink-3)",
           marginTop: 6,
+          letterSpacing: "0.04em",
         }}
       >
         {sub}
@@ -559,37 +556,52 @@ function SectionHeader({
         borderBottom: "1px solid var(--line)",
       }}
     >
-      <h2
-        style={{
-          fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-          fontWeight: 400,
-          fontSize: 26,
-          margin: 0,
-          color: "var(--ink)",
-        }}
-      >
-        {title}
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+        <span
+          style={{
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 9.5,
+            fontWeight: 600,
+            color: "var(--terminal-cyan)",
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+          }}
+        >
+          <span style={{ color: "var(--ink-4)" }}>//</span>
+        </span>
+        <h2
+          style={{
+            fontFamily: "var(--font-sora)",
+            fontWeight: 600,
+            fontSize: 22,
+            letterSpacing: "-0.01em",
+            margin: 0,
+            color: "var(--ink)",
+          }}
+        >
+          {title}
+        </h2>
         {em && (
-          <em
+          <span
             style={{
-              fontFamily: "var(--font-cormorant), serif",
-              fontStyle: "italic",
+              fontFamily: "var(--font-sora)",
+              fontWeight: 400,
+              fontSize: 15,
               color: "var(--ink-3)",
-              fontWeight: 500,
-              marginLeft: 8,
             }}
           >
             {em}
-          </em>
+          </span>
         )}
-      </h2>
+      </div>
       {meta && (
         <div
           style={{
-            fontFamily: "var(--font-cormorant), serif",
-            fontStyle: "italic",
-            fontSize: 12.5,
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 10,
             color: "var(--ink-3)",
+            letterSpacing: "0.10em",
+            textTransform: "uppercase",
           }}
         >
           {meta}
