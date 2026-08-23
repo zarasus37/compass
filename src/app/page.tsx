@@ -84,25 +84,31 @@ export default async function Dashboard() {
     PERIOD_END,
   );
   const safeCents = safeToSpend(breakdown);
-  const todaySpentCents = TRANSACTIONS.filter(
-    (t) =>
-      !t.isIncome &&
-      t.date.getFullYear() === TODAY.getFullYear() &&
-      t.date.getMonth() === TODAY.getMonth() &&
-      t.date.getDate() === TODAY.getDate(),
-  ).reduce((s, t) => s + Math.abs(t.amountCents), 0);
-  // 7-day rolling avg: sum of negative-amount txns in the last 7 days / 7
-  const sevenDaysAgo = new Date(TODAY.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const last7Spend = TRANSACTIONS.filter(
-    (t) => !t.isIncome && t.date >= sevenDaysAgo,
-  ).reduce((s, t) => s + Math.abs(t.amountCents), 0);
-  const weeklyAvgPerDayCents = Math.round(last7Spend / 7);
+  // 7-day window: oldest first, today last.
+  // Used by the Weekly Health sparkline (Daily Tracking card).
+  const last7Days: Date[] = [];
+  for (let i = 6; i >= 0; i -= 1) {
+    const d = new Date(TODAY);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - i);
+    last7Days.push(d);
+  }
+  const dailySpendCents: number[] = last7Days.map((day) => {
+    const start = day.getTime();
+    const end = start + 24 * 60 * 60 * 1000;
+    return TRANSACTIONS.filter(
+      (t) => !t.isIncome && t.date.getTime() >= start && t.date.getTime() < end,
+    ).reduce((s, t) => s + Math.abs(t.amountCents), 0);
+  });
+  const todaySpentCents = dailySpendCents[6] ?? 0;
+  const weeklyAvgPerDayCents = Math.round(
+    dailySpendCents.reduce((s, v) => s + v, 0) / 7,
+  );
 
   // --- CRITICAL TIMELINE ---
   const due = billsDueInPeriod(BILLS, PERIOD_START, PERIOD_END);
   const unpaid = due.filter((d) => !d.paidThisPeriod);
-  // Build the next 14 days of upcoming unpaid bills (this period +
-  // next period preview). Sort by date asc.
+  // For the list: 3 most-imminent unpaid bills.
   const allUpcomingUnpaid = unpaid
     .map((d) => {
       const env = d.bill.envelopeId
@@ -116,13 +122,60 @@ export default async function Dashboard() {
         isPaid: d.paidThisPeriod,
         autopay: d.bill.autopay,
         envelopeName: env?.name ?? null,
+        planet: env?.planet ?? null,
       };
     })
     .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
     .slice(0, 3);
+  // For the strip: every bill due in the period (paid + unpaid),
+  // with the day-of-period index so the strip can place dots.
+  const allDueThisPeriod = due
+    .map((d) => {
+      const env = d.bill.envelopeId
+        ? ENVELOPES.find((e) => e.id === d.bill.envelopeId)
+        : null;
+      const dayIndex = Math.max(
+        0,
+        Math.min(
+          13,
+          Math.floor(
+            (d.dueDate.getTime() - PERIOD_START.getTime()) /
+              (1000 * 60 * 60 * 24),
+          ),
+        ),
+      );
+      return {
+        id: d.bill.id,
+        name: d.bill.name,
+        amountCents: d.bill.amountCents,
+        dueDate: d.dueDate,
+        isPaid: d.paidThisPeriod,
+        autopay: d.bill.autopay,
+        envelopeName: env?.name ?? null,
+        planet: env?.planet ?? "mercury",
+        dayIndex,
+      };
+    })
+    .sort((a, b) => a.dayIndex - b.dayIndex);
 
   // --- ENVELOPE STATUS ---
   type EnvelopeStatusKind = "over" | "watch" | "calm";
+  // Per-envelope per-day spend for the last 7 days (oldest first).
+  // Drives the per-row burn sparkline.
+  const spendByEnvelope: Record<string, number[]> = {};
+  for (const e of ENVELOPES) {
+    spendByEnvelope[e.id] = last7Days.map((day) => {
+      const start = day.getTime();
+      const end = start + 24 * 60 * 60 * 1000;
+      return TRANSACTIONS.filter(
+        (t) =>
+          t.envelopeId === e.id &&
+          !t.isIncome &&
+          t.date.getTime() >= start &&
+          t.date.getTime() < end,
+      ).reduce((s, t) => s + Math.abs(t.amountCents), 0);
+    });
+  }
   const envelopesRanked = ENVELOPES.map((e): {
     id: string;
     name: string;
@@ -130,6 +183,7 @@ export default async function Dashboard() {
     currentCents: number;
     targetCents: number;
     status: EnvelopeStatusKind;
+    burnCents: number[]; // 7-element per-day spend for the sparkline
   } => {
     const status: EnvelopeStatusKind =
       e.target > 0 && e.current > e.target
@@ -144,6 +198,7 @@ export default async function Dashboard() {
       currentCents: e.current,
       targetCents: e.target,
       status,
+      burnCents: spendByEnvelope[e.id] ?? new Array(7).fill(0),
     };
   })
     .sort((a, b) => {
@@ -195,6 +250,8 @@ export default async function Dashboard() {
             safeToSpendCents: safeCents,
             todaySpentCents,
             weeklyAvgPerDayCents,
+            dailySpendCents,
+            last7Days,
             periodStart: PERIOD_START,
             periodEnd: PERIOD_END,
             breakdown,
@@ -211,7 +268,15 @@ export default async function Dashboard() {
         em={ct.em}
         accent={ct.accent}
       >
-        <CriticalTimelineCard data={{ rows: allUpcomingUnpaid }} />
+        <CriticalTimelineCard
+          data={{
+            listRows: allUpcomingUnpaid,
+            stripRows: allDueThisPeriod,
+            periodStart: PERIOD_START,
+            periodEnd: PERIOD_END,
+            today: TODAY,
+          }}
+        />
       </DashboardCard>
     ),
     "envelope-status": (

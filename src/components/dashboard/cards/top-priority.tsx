@@ -2,10 +2,14 @@
  * TopPriorityCard — the "Your top priority" goal hero, card-sized.
  *
  * Condensed version of the full hero on the previous dashboard
- * (Cluster 1): just the headline + the bar + the per-paycheck
- * contribution. The vessel glyph, description, and target-date
- * copy are dropped — the deep-dive on /goals/[id] has all of that
- * with the full chart.
+ * (Cluster 1): the headline + the bar + the **GoalSparkline** (NEW)
+ * showing the goal's projected trajectory to 100% target. The
+ * sparkline reuses the existing /goals GoalSparkline component, so
+ * the visual language stays consistent across the deep page and
+ * the dashboard.
+ *
+ * The vessel glyph, description, and target-date copy are dropped —
+ * the deep-dive on /goals/[id] has all of that with the full chart.
  *
  * Tap-through → /goals/[id].
  */
@@ -14,6 +18,7 @@ import * as React from "react";
 import { formatMoney } from "@/lib/money";
 import { formatShortDate } from "@/lib/format";
 import { TODAY } from "@/lib/mock";
+import { GoalSparkline } from "@/components/viz/GoalSparkline";
 
 export interface TopPriorityCardData {
   id: string;
@@ -47,20 +52,22 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
   );
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 24, alignItems: "center" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Row 1: numbers + bar + caption (full width) */}
       <div>
         <div
           style={{
             display: "flex",
             alignItems: "baseline",
-            gap: 16,
-            marginBottom: 14,
+            gap: 14,
+            marginBottom: 12,
+            flexWrap: "wrap",
           }}
         >
           <span
             style={{
               fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-              fontSize: 34,
+              fontSize: 32,
               lineHeight: 1,
               color: "var(--jupiter)",
               fontFeatureSettings: '"tnum" 1',
@@ -71,7 +78,7 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
           <span
             style={{
               fontFamily: "var(--font-cormorant), serif",
-              fontSize: 18,
+              fontSize: 16,
               color: "var(--ink-3)",
             }}
           >
@@ -80,7 +87,7 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
           <span
             style={{
               fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-              fontSize: 22,
+              fontSize: 20,
               lineHeight: 1,
               color: "var(--ink-3)",
               fontFeatureSettings: '"tnum" 1',
@@ -91,7 +98,7 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
           <span
             style={{
               fontFamily: "var(--font-jetbrains), monospace",
-              fontSize: 13,
+              fontSize: 12,
               color: "var(--jupiter)",
               fontWeight: 500,
             }}
@@ -102,11 +109,11 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
         <div
           style={{
             position: "relative",
-            height: 6,
+            height: 5,
             background: "var(--cosmos)",
             border: "1px solid var(--line-soft)",
             overflow: "hidden",
-            marginBottom: 12,
+            marginBottom: 10,
           }}
         >
           <span
@@ -115,7 +122,7 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
               inset: "0 auto 0 0",
               width: `${pct}%`,
               background: "linear-gradient(90deg, var(--jupiter), var(--venus))",
-              boxShadow: "0 0 10px var(--jupiter)",
+              boxShadow: "0 0 8px var(--jupiter)",
             }}
           />
         </div>
@@ -123,8 +130,11 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
           style={{
             display: "flex",
             justifyContent: "space-between",
+            alignItems: "baseline",
+            flexWrap: "wrap",
+            gap: 8,
             fontFamily: "var(--font-cormorant), serif",
-            fontSize: 13.5,
+            fontSize: 13,
             color: "var(--ink-2)",
           }}
         >
@@ -133,7 +143,7 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
             <b
               style={{
                 fontFamily: "var(--font-jetbrains), monospace",
-                fontSize: 12.5,
+                fontSize: 12,
                 color: "var(--ink)",
                 fontWeight: 500,
               }}
@@ -146,7 +156,7 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
             <b
               style={{
                 fontFamily: "var(--font-jetbrains), monospace",
-                fontSize: 12.5,
+                fontSize: 12,
                 color: "var(--jupiter)",
                 fontWeight: 500,
               }}
@@ -157,17 +167,66 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
           </span>
         </div>
       </div>
+
+      {/* Row 2: trajectory sparkline (NEW) — shows the projected
+          path from "now" to 100% target over the next 18 months.
+          End dot is the projection at the horizon. */}
       <div
         style={{
-          textAlign: "right",
-          fontFamily: "var(--font-cinzel), serif",
-          fontSize: 9.5,
-          letterSpacing: "0.22em",
-          textTransform: "uppercase",
-          color: "var(--ink-3)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "stretch",
+          gap: 6,
+          padding: "10px 16px 12px",
+          background: "rgba(154, 122, 192, 0.06)",
+          border: "1px solid var(--line-soft)",
+          borderRadius: 3,
         }}
       >
-        {data.name}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            fontFamily: "var(--font-cinzel), serif",
+            fontSize: 9,
+            fontWeight: 600,
+            color: "var(--ink-3)",
+            letterSpacing: "0.22em",
+            textTransform: "uppercase",
+          }}
+        >
+          <span>18-month projection</span>
+          <span
+            style={{
+              fontFamily: "var(--font-cormorant), serif",
+              fontStyle: "italic",
+              fontSize: 12,
+              color: "var(--ink-2)",
+              textTransform: "none",
+              letterSpacing: "0.01em",
+            }}
+          >
+            {data.perPaycheckCents <= 0
+              ? "Plan isn't moving this goal"
+              : data.currentCents >= data.targetCents
+              ? "Goal reached"
+              : `+${formatMoney(data.perPaycheckCents)}/check`}
+          </span>
+        </div>
+        <div style={{ width: "100%" }}>
+          <GoalSparkline
+            planet={data.planet as Parameters<typeof GoalSparkline>[0]["planet"]}
+            currentCents={data.currentCents}
+            targetCents={data.targetCents}
+            perPaycheckCents={data.perPaycheckCents}
+            anchor={TODAY}
+            horizonMonths={18}
+            paychecksPerMonth={2}
+            width={400}
+            height={48}
+          />
+        </div>
       </div>
     </div>
   );

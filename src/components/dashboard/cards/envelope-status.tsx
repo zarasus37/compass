@@ -5,10 +5,15 @@
  *   1. Over-limit envelopes first, sorted by overage
  *   2. Then highest utilization (current / target) for the rest
  *
- * Each row surfaces the envelope's name, the ratio bar, and a
- * status badge (Over / Watch / Calm). The badge color tracks the
- * badge text — iron-red for Over (with the ink text rule from the
- * locked lessons: red on the badge bg, ink text inside the bar).
+ * Each row surfaces:
+ *   - planet dot
+ *   - envelope name + ratio bar
+ *   - **7-day burn sparkline** (NEW) — the shape of the last week's
+ *     spend on this envelope, sitting directly above the ratio bar.
+ *     A flat line = steady. A spike midweek = one big charge. A
+ *     rising line = accelerating toward the cap.
+ *   - percentage of target
+ *   - status badge (Over / Watch / Calm)
  *
  * If everything is calm, the card shows the jade "All within target"
  * summary so the user can scroll past it confidently.
@@ -19,7 +24,7 @@
 
 import * as React from "react";
 import { formatMoney } from "@/lib/money";
-import type { PlanetId } from "@/lib/store";
+import { PLANET_COLORS, type PlanetId } from "@/components/alchemy/VesselGlyph";
 
 export interface EnvelopeStatusRow {
   id: string;
@@ -29,22 +34,14 @@ export interface EnvelopeStatusRow {
   targetCents: number;
   /** "over" = over target; "watch" = 80%+; "calm" = under 80%. */
   status: "over" | "watch" | "calm";
+  /** 7-element per-day spend, oldest first. Drives the burn sparkline. */
+  burnCents: number[];
 }
 
 export interface EnvelopeStatusCardData {
   rows: EnvelopeStatusRow[];
   totalOver: number;
 }
-
-const PLANET_VAR: Record<PlanetId, string> = {
-  sol: "var(--sol)",
-  luna: "var(--luna)",
-  mars: "var(--mars)",
-  mercury: "var(--mercury)",
-  jupiter: "var(--jupiter)",
-  venus: "var(--venus)",
-  saturn: "var(--saturn)",
-};
 
 const STATUS_META: Record<
   EnvelopeStatusRow["status"],
@@ -131,17 +128,17 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
                     0.5,
                   )
                 : 0;
-            const planetColor = PLANET_VAR[row.planet];
+            const planetColor = PLANET_COLORS[row.planet];
             return (
               <li
                 key={row.id}
                 style={{
-                  padding: "16px 22px",
+                  padding: "14px 22px",
                   borderTop: i === 0 ? "0" : "1px solid var(--line-soft)",
                   display: "grid",
                   gridTemplateColumns: "auto 1fr auto auto",
                   alignItems: "center",
-                  gap: 16,
+                  gap: 14,
                 }}
               >
                 {/* Planet dot — the visual identifier */}
@@ -156,20 +153,20 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
                     flexShrink: 0,
                   }}
                 />
-                {/* Name + ratio bar */}
+                {/* Name + sparkline + ratio bar */}
                 <div style={{ minWidth: 0 }}>
                   <div
                     style={{
                       display: "flex",
                       alignItems: "baseline",
                       gap: 10,
-                      marginBottom: 6,
+                      marginBottom: 4,
                     }}
                   >
                     <span
                       style={{
                         fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                        fontSize: 17,
+                        fontSize: 16,
                         color: "var(--ink)",
                         lineHeight: 1.1,
                         whiteSpace: "nowrap",
@@ -182,7 +179,7 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
                     <span
                       style={{
                         fontFamily: "var(--font-jetbrains), monospace",
-                        fontSize: 12,
+                        fontSize: 11,
                         color: "var(--ink-3)",
                         fontFeatureSettings: '"tnum" 1',
                       }}
@@ -192,14 +189,22 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
                       {formatMoney(row.targetCents)}
                     </span>
                   </div>
+                  {/* Burn sparkline — 7-day shape, sits directly above the bar */}
+                  <BurnSparkline
+                    cents={row.burnCents}
+                    accent={meta.ratioColor}
+                    planetColor={planetColor}
+                  />
+                  {/* Ratio bar */}
                   <div
                     style={{
                       position: "relative",
-                      height: 4,
+                      height: 3,
                       background: "var(--cosmos)",
                       border: "1px solid var(--line-soft)",
-                      borderRadius: 2,
+                      borderRadius: 1,
                       overflow: "hidden",
+                      marginTop: 4,
                     }}
                   >
                     <span
@@ -209,7 +214,6 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
                         inset: "0 auto 0 0",
                         width: `${ratio * 100}%`,
                         background: meta.ratioColor,
-                        boxShadow: row.status === "over" ? "none" : `0 0 4px ${meta.ratioColor}`,
                       }}
                     />
                     {row.status === "over" && (
@@ -219,7 +223,8 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
                           position: "absolute",
                           inset: "0 auto 0 100%",
                           width: `${overflowRatio * 100}%`,
-                          background: "repeating-linear-gradient(45deg, var(--neg), var(--neg) 4px, rgba(196, 90, 58, 0.3) 4px, rgba(196, 90, 58, 0.3) 8px)",
+                          background:
+                            "repeating-linear-gradient(45deg, var(--neg), var(--neg) 3px, rgba(196, 90, 58, 0.3) 3px, rgba(196, 90, 58, 0.3) 6px)",
                         }}
                       />
                     )}
@@ -229,10 +234,10 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
                 <span
                   style={{
                     fontFamily: "var(--font-jetbrains), monospace",
-                    fontSize: 12,
+                    fontSize: 11,
                     color: "var(--ink-2)",
                     fontFeatureSettings: '"tnum" 1',
-                    minWidth: 36,
+                    minWidth: 32,
                     textAlign: "right",
                   }}
                 >
@@ -242,7 +247,7 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
                 <span
                   style={{
                     fontFamily: "var(--font-cinzel), serif",
-                    fontSize: 9.5,
+                    fontSize: 9,
                     fontWeight: 600,
                     letterSpacing: "0.22em",
                     textTransform: "uppercase",
@@ -253,7 +258,7 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
                         : "transparent",
                     border: `1px solid ${meta.accent}`,
                     borderRadius: 2,
-                    padding: "5px 10px",
+                    padding: "4px 8px",
                     whiteSpace: "nowrap",
                     flexShrink: 0,
                   }}
@@ -266,5 +271,94 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
         </ul>
       )}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Burn sparkline — 7-day per-envelope spend, sitting directly above
+// the ratio bar. The shape tells the user the trajectory:
+//   - flat line = steady pace
+//   - spike = one big charge midweek
+//   - rising = accelerating toward the cap
+// Today is the rightmost column, marked with a small filled dot.
+// ---------------------------------------------------------------------------
+
+function BurnSparkline({
+  cents,
+  accent,
+  planetColor,
+}: {
+  cents: number[];
+  accent: string;
+  planetColor: string;
+}) {
+  const W = 160;
+  const H = 16;
+  const padX = 1;
+  const padY = 2;
+  const innerW = W - padX * 2;
+  const innerH = H - padY * 2;
+
+  const max = Math.max(1, ...cents);
+  const yMax = max * 1.1;
+  const todayIdx = cents.length - 1;
+  const x = (i: number) => padX + (i / Math.max(1, cents.length - 1)) * innerW;
+  const y = (v: number) => padY + (1 - v / yMax) * innerH;
+
+  const path = cents
+    .map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(v).toFixed(1)}`)
+    .join(" ");
+  const hasSpend = cents.some((v) => v > 0);
+
+  return (
+    <svg
+      width={W}
+      height={H}
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      role="img"
+      aria-label="7-day burn rate"
+      style={{ display: "block", width: "100%", maxWidth: 200, height: 14 }}
+    >
+      {!hasSpend ? (
+        <line
+          x1={padX}
+          x2={W - padX}
+          y1={H - padY}
+          y2={H - padY}
+          stroke="var(--ink-5)"
+          strokeWidth={0.5}
+          strokeDasharray="1 2"
+          opacity={0.6}
+        />
+      ) : (
+        <>
+          <path
+            d={path}
+            fill="none"
+            stroke={planetColor}
+            strokeWidth={1}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.75}
+          />
+          {/* Area fill below the line, very subtle */}
+          <path
+            d={`${path} L${x(todayIdx).toFixed(1)},${(H - padY).toFixed(1)} L${x(0).toFixed(1)},${(H - padY).toFixed(1)} Z`}
+            fill={planetColor}
+            opacity={0.08}
+          />
+          {/* Today dot, accent-colored by status */}
+          <circle
+            cx={x(todayIdx)}
+            cy={y(cents[todayIdx] ?? 0)}
+            r={1.8}
+            fill={accent}
+            stroke="var(--cosmos-2)"
+            strokeWidth={0.6}
+          />
+        </>
+      )}
+    </svg>
   );
 }

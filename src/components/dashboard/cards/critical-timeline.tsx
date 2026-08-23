@@ -1,30 +1,28 @@
 /**
  * CriticalTimelineCard — the mid-fold "what's coming up" card.
  *
- * Shows the next 2-3 unpaid bills ordered by proximity. Each row
- * surfaces the bill's name + amount and a color-coded time-remaining
- * badge. The badge palette:
- *   - "Overdue" → iron-red, urgent
- *   - "Today"   → gold (action now)
- *   - "Tomorrow" → warn yellow
- *   - "In N days" → neutral ink, weighted darker as N shrinks
- *   - "Next period" → ink-3 (further out, less urgent)
+ * Two-tier surface (visual-first, per xKryptic directive 2026-08-23):
+ *  1. **14-day calendar strip** (top) — a horizontal timeline of the
+ *     pay period. Each day is a column. Bills are dots positioned at
+ *     their due day. Color = planet. Opacity = paid? (35% vs 100%).
+ *     Overdue bills get an iron-red border ring. Today is a gold
+ *     vertical tick with a "TODAY" label. The strip answers "when?"
+ *     at a glance — no text parsing required.
+ *  2. **3-row list** (bottom) — the 3 most-imminent unpaid bills with
+ *     name + amount + color-coded time-remaining badge. The list
+ *     answers "what?" with the precise name and cents.
  *
- * Tap-through → /recurring, where the user can flip Paid, see the
- * full timeline strip, and add new bills.
- *
- * If the period is fully paid (no unpaid bills in the next 14 days),
- * the card calms to a jade summary so the user can scan past it
- * quickly. This matches the iron-red ≠ iron-red button rule: the
- * calm state is intentional, not absent.
+ * Tap-through → /recurring, where the full timeline strip + paid
+ * toggles + add-bill form live.
  */
 
 import * as React from "react";
 import { formatMoney } from "@/lib/money";
 import { formatShortDate } from "@/lib/format";
-import { TODAY, NEXT_PAY_DATE } from "@/lib/mock";
+import { NEXT_PAY_DATE } from "@/lib/mock";
+import { PLANET_COLORS, type PlanetId } from "@/components/alchemy/VesselGlyph";
 
-export interface CriticalTimelineRow {
+export interface CriticalTimelineListRow {
   id: string;
   name: string;
   amountCents: number;
@@ -32,10 +30,20 @@ export interface CriticalTimelineRow {
   isPaid: boolean;
   autopay: boolean;
   envelopeName: string | null;
+  planet: PlanetId | null;
+}
+
+export interface CriticalTimelineStripRow extends CriticalTimelineListRow {
+  /** 0-13 day-of-period index for strip placement. */
+  dayIndex: number;
 }
 
 export interface CriticalTimelineCardData {
-  rows: CriticalTimelineRow[];
+  listRows: CriticalTimelineListRow[];
+  stripRows: CriticalTimelineStripRow[];
+  periodStart: Date;
+  periodEnd: Date;
+  today: Date;
 }
 
 const DAY = 1000 * 60 * 60 * 24;
@@ -46,19 +54,19 @@ function diffDays(target: Date, now: Date): number {
 }
 
 export function CriticalTimelineCard({ data }: { data: CriticalTimelineCardData }) {
-  const { rows } = data;
-  const calm = rows.length === 0;
+  const { listRows, stripRows, periodStart, periodEnd, today } = data;
+  const listCalm = listRows.length === 0 && stripRows.length === 0;
 
-  return (
-    <div
-      style={{
-        background: calm ? "var(--cosmos-2)" : "var(--cosmos-2)",
-        border: "1px solid var(--line-soft)",
-        borderRadius: 3,
-        overflow: "hidden",
-      }}
-    >
-      {calm ? (
+  if (listCalm) {
+    return (
+      <div
+        style={{
+          background: "var(--cosmos-2)",
+          border: "1px solid var(--line-soft)",
+          borderRadius: 3,
+          overflow: "hidden",
+        }}
+      >
         <div
           style={{
             padding: "26px 24px",
@@ -93,7 +101,7 @@ export function CriticalTimelineCard({ data }: { data: CriticalTimelineCardData 
                 marginBottom: 2,
               }}
             >
-              Nothing due in the next 14 days.
+              Nothing due in this period.
             </div>
             <div
               style={{
@@ -106,28 +114,53 @@ export function CriticalTimelineCard({ data }: { data: CriticalTimelineCardData 
             </div>
           </div>
         </div>
-      ) : (
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <CalendarStrip
+        periodStart={periodStart}
+        periodEnd={periodEnd}
+        today={today}
+        rows={stripRows}
+      />
+      {listRows.length > 0 && (
         <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-          {rows.slice(0, 3).map((row, i) => {
-            const diff = diffDays(row.dueDate, TODAY);
+          {listRows.slice(0, 3).map((row, i) => {
+            const diff = diffDays(row.dueDate, today);
             const badge = timeBadge(diff, row.isPaid);
+            const planetColor = row.planet ? PLANET_COLORS[row.planet] : "var(--ink-3)";
             return (
               <li
                 key={row.id}
                 style={{
-                  padding: "16px 22px",
-                  borderTop: i === 0 ? "0" : "1px solid var(--line-soft)",
+                  padding: "12px 18px",
+                  borderTop: i === 0 ? "1px solid var(--line-soft)" : "1px solid var(--line-soft)",
+                  background: "var(--cosmos-2)",
                   display: "grid",
-                  gridTemplateColumns: "1fr auto auto",
+                  gridTemplateColumns: "auto 1fr auto auto",
                   alignItems: "center",
-                  gap: 18,
+                  gap: 14,
                 }}
               >
+                <span
+                  aria-hidden
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background: planetColor,
+                    boxShadow: `0 0 6px ${planetColor}`,
+                    flexShrink: 0,
+                  }}
+                />
                 <div style={{ minWidth: 0 }}>
                   <div
                     style={{
                       fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-                      fontSize: 18,
+                      fontSize: 16,
                       color: "var(--ink)",
                       lineHeight: 1.1,
                       whiteSpace: "nowrap",
@@ -140,49 +173,19 @@ export function CriticalTimelineCard({ data }: { data: CriticalTimelineCardData 
                   <div
                     style={{
                       fontFamily: "var(--font-cormorant), serif",
-                      fontSize: 12.5,
+                      fontSize: 11.5,
                       color: "var(--ink-3)",
-                      marginTop: 4,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
+                      marginTop: 3,
                     }}
                   >
-                    <span>due {formatShortDate(row.dueDate)}</span>
-                    {row.autopay && (
-                      <>
-                        <span
-                          aria-hidden
-                          style={{
-                            width: 3,
-                            height: 3,
-                            borderRadius: "50%",
-                            background: "var(--ink-4)",
-                          }}
-                        />
-                        <span>autopay</span>
-                      </>
-                    )}
-                    {row.envelopeName && (
-                      <>
-                        <span
-                          aria-hidden
-                          style={{
-                            width: 3,
-                            height: 3,
-                            borderRadius: "50%",
-                            background: "var(--ink-4)",
-                          }}
-                        />
-                        <span>{row.envelopeName}</span>
-                      </>
-                    )}
+                    due {formatShortDate(row.dueDate)}
+                    {row.autopay ? " · autopay" : ""}
                   </div>
                 </div>
                 <div
                   style={{
                     fontFamily: "var(--font-jetbrains), monospace",
-                    fontSize: 15,
+                    fontSize: 14,
                     color: "var(--ink)",
                     fontFeatureSettings: '"tnum" 1',
                   }}
@@ -193,24 +196,217 @@ export function CriticalTimelineCard({ data }: { data: CriticalTimelineCardData 
               </li>
             );
           })}
-          {rows.length > 3 && (
-            <li
-              style={{
-                padding: "12px 22px",
-                borderTop: "1px solid var(--line-soft)",
-                fontFamily: "var(--font-cinzel), serif",
-                fontSize: 10,
-                color: "var(--ink-3)",
-                letterSpacing: "0.20em",
-                textTransform: "uppercase",
-                textAlign: "right",
-              }}
-            >
-              + {rows.length - 3} more in the queue
-            </li>
-          )}
         </ul>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 14-day calendar strip
+// ---------------------------------------------------------------------------
+
+function CalendarStrip({
+  periodStart,
+  periodEnd,
+  today,
+  rows,
+}: {
+  periodStart: Date;
+  periodEnd: Date;
+  today: Date;
+  rows: CriticalTimelineStripRow[];
+}) {
+  const periodLen = Math.max(
+    1,
+    Math.round((periodEnd.getTime() - periodStart.getTime()) / DAY),
+  );
+  const todayIdx = Math.max(
+    0,
+    Math.min(periodLen - 1, Math.floor((today.getTime() - periodStart.getTime()) / DAY)),
+  );
+
+  // SVG geometry
+  const padX = 8;
+  const padTop = 22; // for day-of-month labels
+  const padBottom = 16; // for "TODAY" / period label
+  const dotR = 4;
+  const dotGap = 3;
+  const innerH = 44; // space for stacked dots
+
+  // Width is responsive: use 100% via viewBox; render via width="100%".
+  // We use a fixed viewBox of 1000×100 and let the SVG scale.
+  const W = 1000;
+  const H = padTop + innerH + padBottom;
+  const innerW = W - padX * 2;
+  const colW = innerW / periodLen;
+  const colX = (i: number) => padX + colW * (i + 0.5);
+
+  // Bucket bills by dayIndex so we can stack multiple dots.
+  const byDay: CriticalTimelineStripRow[][] = Array.from(
+    { length: periodLen },
+    () => [],
+  );
+  for (const r of rows) {
+    const idx = Math.max(0, Math.min(periodLen - 1, r.dayIndex));
+    (byDay[idx] ??= []).push(r);
+  }
+
+  // Y position for each dot in a stack
+  const dotY = (stackIdx: number) =>
+    padTop + innerH - 6 - (stackIdx * (dotR * 2 + dotGap));
+
+  // First day + last day labels (e.g. "AUG 22" / "SEP 5")
+  const monthFmt = new Intl.DateTimeFormat("en-US", { month: "short" });
+  const fmt = (d: Date) => `${monthFmt.format(d).toUpperCase()} ${d.getDate()}`;
+
+  return (
+    <div
+      style={{
+        background: "var(--cosmos-2)",
+        border: "1px solid var(--line-soft)",
+        borderRadius: 3,
+        padding: "12px 4px 8px",
+      }}
+    >
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        width="100%"
+        height={H}
+        style={{ display: "block" }}
+        role="img"
+        aria-label={`14-day bill timeline. ${rows.length} bill${rows.length === 1 ? "" : "s"} due this period.`}
+      >
+        {/* Day-of-month labels along the bottom edge */}
+        {Array.from({ length: periodLen }, (_, i) => {
+          const day = new Date(periodStart);
+          day.setDate(day.getDate() + i);
+          const x = colX(i);
+          const isToday = i === todayIdx;
+          return (
+            <text
+              key={`d${i}`}
+              x={x}
+              y={H - 4}
+              textAnchor="middle"
+              fontSize={9}
+              fill={isToday ? "var(--gold)" : "var(--ink-3)"}
+              fontFamily="var(--font-jetbrains), monospace"
+              fontWeight={isToday ? 600 : 400}
+              opacity={isToday ? 1 : 0.7}
+            >
+              {day.getDate()}
+            </text>
+          );
+        })}
+
+        {/* Subtle grid: vertical line at each day boundary */}
+        {Array.from({ length: periodLen + 1 }, (_, i) => {
+          const x = padX + colW * i;
+          return (
+            <line
+              key={`g${i}`}
+              x1={x}
+              x2={x}
+              y1={padTop}
+              y2={padTop + innerH}
+              stroke="var(--line-soft)"
+              strokeWidth={0.5}
+              opacity={i === 0 || i === periodLen ? 0.3 : 0.6}
+            />
+          );
+        })}
+
+        {/* Today column highlight + vertical gold tick */}
+        {todayIdx >= 0 && todayIdx < periodLen && (
+          <>
+            <rect
+              x={padX + colW * todayIdx}
+              y={padTop - 4}
+              width={colW}
+              height={innerH + 8}
+              fill="rgba(212, 175, 82, 0.10)"
+            />
+            <line
+              x1={colX(todayIdx)}
+              x2={colX(todayIdx)}
+              y1={padTop - 6}
+              y2={padTop + innerH + 4}
+              stroke="var(--gold)"
+              strokeWidth={1.5}
+              opacity={0.9}
+            />
+            <text
+              x={colX(todayIdx)}
+              y={padTop - 10}
+              textAnchor="middle"
+              fontSize={8}
+              letterSpacing="0.18em"
+              fill="var(--gold)"
+              fontFamily="var(--font-cinzel), serif"
+              fontWeight={600}
+            >
+              TODAY
+            </text>
+          </>
+        )}
+
+        {/* Bill dots — stacked when multiple bills on the same day */}
+        {byDay.map((stack, dayIdx) => {
+          if (stack.length === 0) return null;
+          return stack.map((bill, stackIdx) => {
+            const isOverdue = !bill.isPaid && bill.dueDate < today;
+            const isPaid = bill.isPaid;
+            const color = bill.planet
+              ? PLANET_COLORS[bill.planet]
+              : "var(--ink-3)";
+            const cy = dotY(stackIdx);
+            return (
+              <g key={bill.id}>
+                {/* Outer iron-red ring for overdue */}
+                {isOverdue && (
+                  <circle
+                    cx={colX(dayIdx)}
+                    cy={cy}
+                    r={dotR + 1.5}
+                    fill="none"
+                    stroke="var(--neg)"
+                    strokeWidth={1.2}
+                    opacity={0.85}
+                  />
+                )}
+                <circle
+                  cx={colX(dayIdx)}
+                  cy={cy}
+                  r={dotR}
+                  fill={color}
+                  opacity={isPaid ? 0.35 : 1}
+                  stroke={isPaid ? color : "transparent"}
+                  strokeWidth={0.5}
+                />
+              </g>
+            );
+          });
+        })}
+      </svg>
+
+      {/* Range labels above the strip */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          fontFamily: "var(--font-cinzel), serif",
+          fontSize: 9,
+          letterSpacing: "0.22em",
+          color: "var(--ink-3)",
+          textTransform: "uppercase",
+          padding: "0 12px 4px",
+        }}
+      >
+        <span>{fmt(periodStart)}</span>
+        <span>{fmt(periodEnd)}</span>
+      </div>
     </div>
   );
 }
@@ -228,15 +424,15 @@ function TimeBadge({
     <span
       style={{
         fontFamily: "var(--font-cinzel), serif",
-        fontSize: 9.5,
+        fontSize: 9,
         fontWeight: 600,
-        letterSpacing: "0.22em",
+        letterSpacing: "0.20em",
         textTransform: "uppercase",
         color: accent,
         background: outline ? "transparent" : hexA(accent, 0.12),
         border: `1px solid ${accent}`,
         borderRadius: 2,
-        padding: "5px 10px",
+        padding: "4px 8px",
         whiteSpace: "nowrap",
         flexShrink: 0,
       }}
@@ -259,7 +455,6 @@ function timeBadge(
   return { label: "Next period", accent: "var(--ink-3)", outline: true };
 }
 
-/** rgba(hex, alpha) — minimal helper to give a soft tint for badges. */
 function hexA(hex: string, alpha: number): string {
   if (!hex.startsWith("#") || hex.length < 7) return "transparent";
   const r = parseInt(hex.slice(1, 3), 16);

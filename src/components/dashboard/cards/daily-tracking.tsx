@@ -2,14 +2,12 @@
  * DailyTrackingCard — the top-fold "Safe-Spend" + today's pace card.
  *
  * Surfaces the three numbers a user wants to see first thing:
- *  - SAFE TO SPEND: the unallocated cents from Plan My Next Check —
- *    how much discretionary money is left in this period after bills,
- *    spending envelopes, debt, and savings are funded.
- *  - TODAY'S SPEND: cents logged today (sum of negative transactions
- *    whose date == TODAY). Calm green if under 1/14 of the week's
- *    average; warn yellow if over.
- *  - WEEKLY HEALTH: the 7-day rolling average spend, as a sentence
- *    in the corner. "Spending $42/day on average" — orienting.
+ *  - SAFE TO SPEND: the unallocated cents from Plan My Next Check.
+ *  - TODAY: cents logged today with the pace label (under / on / above).
+ *  - WEEKLY HEALTH: the 7-day rolling average + a 7-day sparkline
+ *    showing the daily shape. The line tells the story the average
+ *    hides — a flat line = steady, a midweek spike = one big charge,
+ *    a falling line = slowing down.
  *
  * Tap-through → /transactions, where the full record lives.
  */
@@ -23,6 +21,9 @@ export interface DailyTrackingCardData {
   safeToSpendCents: number;
   todaySpentCents: number;
   weeklyAvgPerDayCents: number;
+  /** 7-element array of cents per day, oldest first. */
+  dailySpendCents: number[];
+  last7Days: Date[];
   periodStart: Date;
   periodEnd: Date;
   breakdown: PaycheckBreakdown;
@@ -33,11 +34,11 @@ export function DailyTrackingCard({ data }: { data: DailyTrackingCardData }) {
     safeToSpendCents,
     todaySpentCents,
     weeklyAvgPerDayCents,
+    dailySpendCents,
     breakdown,
   } = data;
 
   // Spend pressure: today's spend vs. expected daily budget.
-  // Expected daily = (envelope spending + unallocated) / period length.
   const periodLen = Math.max(
     1,
     Math.round(
@@ -48,7 +49,6 @@ export function DailyTrackingCard({ data }: { data: DailyTrackingCardData }) {
     (breakdown.spendingCents + breakdown.unallocatedCents) / periodLen,
   );
   const pace = expectedDailyCents > 0 ? todaySpentCents / expectedDailyCents : 0;
-  const pacePct = Math.round(pace * 100);
   const paceLabel =
     pace === 0
       ? "calm"
@@ -108,49 +108,9 @@ export function DailyTrackingCard({ data }: { data: DailyTrackingCardData }) {
         }
       />
 
-      {/* TODAY'S PACE */}
+      {/* TODAY'S PACE — number, pace label moves to the sub line */}
       <Cell
         eyebrow="Today"
-        borderLeft
-        align="left"
-        accent="var(--ink)"
-        main={
-          <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-            <span
-              style={{
-                fontFamily: "var(--font-jetbrains), monospace",
-                fontSize: 22,
-                lineHeight: 1,
-                color: "var(--ink)",
-                fontFeatureSettings: '"tnum" 1',
-              }}
-            >
-              {formatMoneySigned(todaySpentCents)}
-            </span>
-            <span
-              style={{
-                fontFamily: "var(--font-cormorant), serif",
-                fontStyle: "italic",
-                fontSize: 13,
-                color: paceAccent,
-              }}
-            >
-              {paceLabel}
-            </span>
-          </div>
-        }
-        sub={
-          <span style={{ color: "var(--ink-3)" }}>
-            {expectedDailyCents > 0
-              ? `of ~${formatMoney(expectedDailyCents)} expected`
-              : "no daily target set"}
-          </span>
-        }
-      />
-
-      {/* WEEKLY HEALTH */}
-      <Cell
-        eyebrow="Weekly health"
         borderLeft
         align="left"
         accent="var(--ink)"
@@ -158,42 +118,185 @@ export function DailyTrackingCard({ data }: { data: DailyTrackingCardData }) {
           <span
             style={{
               fontFamily: "var(--font-jetbrains), monospace",
-              fontSize: 18,
+              fontSize: 22,
               lineHeight: 1,
               color: "var(--ink)",
               fontFeatureSettings: '"tnum" 1',
             }}
           >
-            {formatMoney(weeklyAvgPerDayCents)}
-            <span
-              style={{
-                fontFamily: "var(--font-cormorant), serif",
-                fontStyle: "italic",
-                fontSize: 13,
-                color: "var(--ink-3)",
-                marginLeft: 4,
-              }}
-            >
-              / day
-            </span>
+            {formatMoneySigned(todaySpentCents)}
           </span>
         }
         sub={
-          <span style={{ color: "var(--ink-3)" }}>
-            7-day rolling average
+          <span style={{ color: paceAccent }}>
+            {paceLabel}
+            {expectedDailyCents > 0 ? (
+              <span style={{ color: "var(--ink-3)" }}>
+                {" "}
+                · of ~{formatMoney(expectedDailyCents)}
+              </span>
+            ) : null}
           </span>
+        }
+      />
+
+      {/* WEEKLY HEALTH — number + 7-day sparkline */}
+      <Cell
+        eyebrow="Weekly health"
+        borderLeft
+        align="left"
+        accent="var(--ink)"
+        main={
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              minWidth: 0,
+            }}
+          >
+            <div style={{ flex: "0 0 auto", minWidth: 0 }}>
+              <span
+                style={{
+                  fontFamily: "var(--font-jetbrains), monospace",
+                  fontSize: 18,
+                  lineHeight: 1,
+                  color: "var(--ink)",
+                  fontFeatureSettings: '"tnum" 1',
+                }}
+              >
+                {formatMoney(weeklyAvgPerDayCents)}
+              </span>
+              <span
+                style={{
+                  fontFamily: "var(--font-cormorant), serif",
+                  fontStyle: "italic",
+                  fontSize: 12,
+                  color: "var(--ink-3)",
+                  marginLeft: 3,
+                }}
+              >
+                / day
+              </span>
+            </div>
+            <div
+              style={{
+                flex: "1 1 auto",
+                minWidth: 0,
+                display: "flex",
+                justifyContent: "flex-end",
+              }}
+            >
+              <WeekSparkline
+                dailyCents={dailySpendCents}
+                averageCents={weeklyAvgPerDayCents}
+                todayIdx={dailySpendCents.length - 1}
+                todayAccent={paceAccent}
+              />
+            </div>
+          </div>
+        }
+        sub={
+          <span style={{ color: "var(--ink-3)" }}>7-day shape</span>
         }
       />
     </div>
   );
+}
 
-  function paceHintFor(percent: number): string {
-    if (percent < 50) return "Well under";
-    if (percent < 100) return "Under";
-    if (percent < 150) return "On pace";
-    if (percent < 200) return "Above";
-    return "Well above";
-  }
+// ---------------------------------------------------------------------------
+// 7-day sparkline — pure SVG, fits inside the Weekly Health cell.
+// Y axis: cents. Today is the rightmost column, with a gold dot +
+// the pace-accent line through it. Dashed horizontal line = average.
+// ---------------------------------------------------------------------------
+
+function WeekSparkline({
+  dailyCents,
+  averageCents,
+  todayIdx,
+  todayAccent,
+}: {
+  dailyCents: number[];
+  averageCents: number;
+  todayIdx: number;
+  todayAccent: string;
+}) {
+  const W = 110;
+  const H = 28;
+  const padX = 3;
+  const padY = 4;
+  const innerW = W - padX * 2;
+  const innerH = H - padY * 2;
+
+  const max = Math.max(1, ...dailyCents, averageCents);
+  const yMax = max * 1.15; // small headroom
+
+  const x = (i: number) => padX + (i / Math.max(1, dailyCents.length - 1)) * innerW;
+  const y = (v: number) => padY + (1 - v / yMax) * innerH;
+
+  const path = dailyCents
+    .map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(v).toFixed(1)}`)
+    .join(" ");
+
+  // Spike detection: any day ≥ 2× the average gets a small gold ring
+  const spikes = dailyCents
+    .map((v, i) => ({ v, i }))
+    .filter(({ v }) => v >= averageCents * 2 && v > 0);
+
+  return (
+    <svg
+      width={W}
+      height={H}
+      viewBox={`0 0 ${W} ${H}`}
+      role="img"
+      aria-label="7-day spending shape"
+      style={{ display: "block", flexShrink: 0 }}
+    >
+      {/* Average dashed line */}
+      <line
+        x1={padX}
+        x2={W - padX}
+        y1={y(averageCents)}
+        y2={y(averageCents)}
+        stroke="var(--ink-4)"
+        strokeWidth={0.5}
+        strokeDasharray="2 2"
+        opacity={0.7}
+      />
+      {/* The line */}
+      <path
+        d={path}
+        fill="none"
+        stroke="var(--ink-2)"
+        strokeWidth={1.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity={0.85}
+      />
+      {/* Today dot — colored by pace */}
+      <circle
+        cx={x(todayIdx)}
+        cy={y(dailyCents[todayIdx] ?? 0)}
+        r={2.5}
+        fill={todayAccent}
+        stroke="var(--cosmos-2)"
+        strokeWidth={1}
+      />
+      {/* Spike rings */}
+      {spikes.map(({ i }) => (
+        <circle
+          key={`s${i}`}
+          cx={x(i)}
+          cy={y(dailyCents[i] ?? 0)}
+          r={3.5}
+          fill="none"
+          stroke="var(--gold)"
+          strokeWidth={0.8}
+          opacity={0.7}
+        />
+      ))}
+    </svg>
+  );
 }
 
 function Cell({
