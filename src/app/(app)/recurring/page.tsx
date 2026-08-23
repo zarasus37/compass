@@ -81,6 +81,11 @@ export default function RecurringPage() {
         }
       />
 
+      {/* Due-day timeline — a small strip showing the next 31 days
+          with a dot on each bill's due day. The visual sits right
+          next to the bill list below it. */}
+      <BillsTimeline bills={BILLS} />
+
       {/* Period summary strip */}
       <div
         style={{
@@ -363,5 +368,152 @@ function SummaryCell({
         {sub}
       </div>
     </div>
+  );
+}
+
+/**
+ * BillsTimeline — a 31-day strip with a dot on each bill's due
+ * day. Pure SVG so it's cheap. The dots are sized by bill amount
+ * (radius ∝ √amount) so big bills are visually heavier.
+ *
+ * Sits right above the period summary so the visual is next to
+ * the bill list below. Helps the user see at a glance which days
+ * of the month are heaviest and which are quiet.
+ */
+function BillsTimeline({ bills }: { bills: ReturnType<typeof liveBills> }) {
+  const maxAmount = Math.max(...bills.map((b) => b.amountCents), 1);
+  const minR = 4;
+  const maxR = 12;
+
+  return (
+    <section
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--line)",
+        borderRadius: 4,
+        padding: "20px 24px 16px",
+        marginBottom: 32,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+          marginBottom: 12,
+        }}
+      >
+        <div
+          style={{
+            fontFamily: "var(--font-cinzel), serif",
+            fontSize: 10,
+            color: "var(--ink-3)",
+            letterSpacing: "0.28em",
+            textTransform: "uppercase",
+          }}
+        >
+          Due day, month at a glance
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--font-cormorant), serif",
+            fontStyle: "italic",
+            fontSize: 12,
+            color: "var(--ink-3)",
+          }}
+        >
+          Each dot is a bill, sized by amount. Gold tick = today.
+        </div>
+      </div>
+      <svg
+        viewBox="0 0 620 80"
+        width="100%"
+        height="80"
+        style={{ display: "block" }}
+        role="img"
+        aria-label="Bills by due day, sized by amount"
+      >
+        {/* Day numbers + faint vertical grid */}
+        {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => {
+          const x = 20 + ((d - 1) * (580 / 30));
+          const isFirst = d === 1;
+          const isMid = d === 15;
+          const isLast = d === 31;
+          const showLabel = isFirst || isMid || isLast || d % 5 === 0;
+          return (
+            <g key={d}>
+              <line
+                x1={x}
+                x2={x}
+                y1={28}
+                y2={66}
+                stroke="var(--line-soft)"
+                strokeWidth={0.5}
+                opacity={0.6}
+              />
+              {showLabel && (
+                <text
+                  x={x}
+                  y={78}
+                  textAnchor="middle"
+                  fontFamily="var(--font-cinzel), serif"
+                  fontSize={7.5}
+                  fill="var(--ink-3)"
+                  letterSpacing={0.5}
+                >
+                  {d}
+                </text>
+              )}
+            </g>
+          );
+        })}
+        {/* Today tick (gold) */}
+        <line
+          x1={20 + ((TODAY.getDate() - 1) * (580 / 30))}
+          x2={20 + ((TODAY.getDate() - 1) * (580 / 30))}
+          y1={20}
+          y2={70}
+          stroke="var(--gold)"
+          strokeWidth={1.2}
+          strokeDasharray="2 2"
+          opacity={0.7}
+        />
+        <text
+          x={20 + ((TODAY.getDate() - 1) * (580 / 30))}
+          y={14}
+          textAnchor="middle"
+          fontFamily="var(--font-cinzel), serif"
+          fontSize={7}
+          fill="var(--gold)"
+          letterSpacing={1}
+        >
+          NOW
+        </text>
+        {/* Bill dots */}
+        {bills.map((b) => {
+          const day = Math.min(31, Math.max(1, b.dueDay));
+          const x = 20 + ((day - 1) * (580 / 30));
+          const r = minR + (maxR - minR) * Math.sqrt(b.amountCents / maxAmount);
+          const isPaid = b.paidAt !== null;
+          return (
+            <g key={b.id}>
+              <circle
+                cx={x}
+                cy={46}
+                r={r}
+                fill={isPaid ? "var(--ok)" : "var(--mercury)"}
+                opacity={isPaid ? 0.7 : 0.95}
+                stroke={isPaid ? "var(--ok)" : "var(--gold-soft)"}
+                strokeWidth={0.5}
+              />
+              <title>
+                {b.name} · day {b.dueDay} · {formatMoney(b.amountCents)}
+                {isPaid ? " · paid" : ""}
+              </title>
+            </g>
+          );
+        })}
+      </svg>
+    </section>
   );
 }

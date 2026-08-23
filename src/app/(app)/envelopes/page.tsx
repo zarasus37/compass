@@ -2,6 +2,8 @@ import * as React from "react";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { EnvelopeBarChart } from "@/components/alchemy/EnvelopeBarChart";
 import { VesselGlyph, type PlanetId } from "@/components/alchemy/VesselGlyph";
+import { EnvelopeMiniBar } from "@/components/viz/EnvelopeMiniBar";
+import { BudgetVsActual, type BudgetVsActualRow } from "@/components/viz/BudgetVsActual";
 import { liveEnvelopes, liveTransactions, TODAY, PERIOD_START, PERIOD_END } from "@/lib/mock";
 import { formatMoney, formatMoneySigned } from "@/lib/money";
 import { formatShortDate, addDays, daysBetween, dayOfPeriod, periodLength } from "@/lib/format";
@@ -97,17 +99,33 @@ export default function EnvelopesPage() {
         />
       </div>
 
-      {/* The bar chart — same as dashboard, full-width here */}
+      {/* The bar chart moved INTO the "Every envelope" row below —
+          each envelope row carries its own mini bar so the visual
+          sits directly next to the data. The big chart at the top
+          was duplicating that info without any new signal, so it
+          was removed. The full EnvelopeBarChart is still on the
+          dashboard. */}
       <section style={{ marginBottom: 64 }}>
         <SectionHeader
-          title="All envelopes"
-          em="at a glance."
-          meta="Each bar fills to the target. Red hatched = over limit."
+          title="Budget vs actual"
+          em="this period."
+          meta="Gold = plan per paycheck, planetary = what's actually happened so far."
         />
-        <EnvelopeBarChart
-          envelopes={ENVELOPES}
-          pacing={{ day: dayOfPeriod(TODAY, PERIOD_START, PERIOD_END), total: periodLength(PERIOD_START, PERIOD_END) }}
-        />
+        <BudgetVsActual rows={ENVELOPES.map((e) => {
+          // Plan per paycheck (target share per period). We don't have
+          // a direct per-period target, so use the envelope's target as
+          // the "plan" amount. Actual is currentCents (the spent so
+          // far this period, exposed via current/target semantics).
+          const plan = e.target;
+          const actual = e.current;
+          return {
+            id: e.id,
+            name: e.name,
+            planet: e.planet,
+            planCents: plan,
+            actualCents: actual,
+          } satisfies BudgetVsActualRow;
+        })} />
       </section>
 
       {/* Needs attention — over limit envelopes in full detail */}
@@ -140,7 +158,7 @@ export default function EnvelopesPage() {
         <SectionHeader
           title="Every envelope"
           em="at a glance."
-          meta="Full recent activity lives on each envelope's detail page (coming in Cluster 2)."
+          meta="Each row carries its own bar — the visual sits right next to the data."
         />
         <div
           style={{
@@ -158,10 +176,10 @@ export default function EnvelopesPage() {
                 key={e.id}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "32px 1fr auto auto auto",
+                  gridTemplateColumns: "32px 1fr 80px 80px 160px 56px",
                   alignItems: "center",
                   gap: 20,
-                  padding: "14px 24px",
+                  padding: "16px 24px",
                   borderBottom: i < ENVELOPES.length - 1 ? "1px solid var(--line-soft)" : "none",
                   fontSize: 14,
                 }}
@@ -184,7 +202,6 @@ export default function EnvelopesPage() {
                     fontSize: 13,
                     color: "var(--ink)",
                     fontFeatureSettings: '"tnum" 1',
-                    minWidth: 80,
                     textAlign: "right",
                   }}
                 >
@@ -195,19 +212,28 @@ export default function EnvelopesPage() {
                     fontFamily: "var(--font-jetbrains), monospace",
                     fontSize: 12,
                     color: "var(--ink-3)",
-                    minWidth: 80,
                     textAlign: "right",
                   }}
                 >
                   of {formatMoney(e.target)}
                 </span>
+                {/* The per-envelope mini bar — directly next to the
+                    current/target numbers it visualizes. */}
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <EnvelopeMiniBar
+                    planet={e.planet}
+                    currentCents={e.current}
+                    targetCents={e.target}
+                    width={140}
+                    height={8}
+                  />
+                </div>
                 <span
                   style={{
                     fontFamily: "var(--font-cinzel), serif",
                     fontSize: 10,
                     color: isOver ? "var(--neg)" : pct >= 0.85 ? "var(--warn)" : "var(--ok)",
                     letterSpacing: "0.18em",
-                    minWidth: 48,
                     textAlign: "right",
                   }}
                 >

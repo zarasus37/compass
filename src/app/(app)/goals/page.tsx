@@ -2,6 +2,7 @@ import * as React from "react";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { VesselGlyph, type PlanetId } from "@/components/alchemy/VesselGlyph";
 import { GoalTrajectory, type GoalTrajectoryInput } from "@/components/viz/GoalTrajectory";
+import { GoalSparkline } from "@/components/viz/GoalSparkline";
 import { liveGoals, TODAY } from "@/lib/mock";
 import { formatMoney } from "@/lib/money";
 import { formatShortDate } from "@/lib/format";
@@ -54,6 +55,48 @@ export default function GoalsPage() {
         }
       />
 
+      {/* Trajectory — Cluster 1.7. Moved to the TOP so the chart sits
+          right next to the goal data below it (mom-grade principle:
+          charts belong next to the information they visualize). */}
+      <section style={{ marginBottom: 56 }}>
+        <div
+          style={{
+            fontFamily: "var(--font-cinzel), serif",
+            fontSize: 10.5,
+            color: "var(--jupiter)",
+            letterSpacing: "0.28em",
+            textTransform: "uppercase",
+            marginBottom: 8,
+          }}
+        >
+          The Trajectory
+        </div>
+        <h3
+          style={{
+            fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
+            fontSize: 28,
+            fontWeight: 400,
+            margin: "0 0 12px",
+            color: "var(--ink)",
+          }}
+        >
+          Each goal, climbing <em style={{ fontFamily: "var(--font-cormorant), serif", fontStyle: "italic", color: "var(--ink-3)" }}>at this pace.</em>
+        </h3>
+        <p
+          style={{
+            fontFamily: "var(--font-cormorant), serif",
+            fontSize: 15,
+            lineHeight: 1.55,
+            color: "var(--ink-2)",
+            margin: "0 0 24px",
+            maxWidth: 720,
+          }}
+        >
+          The lines below show your goals projected forward at the rate your current paychecks are contributing. The dashed line is each goal's target. A flat line means the plan isn't moving it.
+        </p>
+        <GoalTrajectory goals={goalTrajectories} />
+      </section>
+
       <section>
         <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
           {GOALS.map((g) => {
@@ -67,8 +110,8 @@ export default function GoalsPage() {
                   borderRadius: 4,
                   padding: "28px 32px",
                   display: "grid",
-                  gridTemplateColumns: "60px 1fr 220px 200px",
-                  gap: 32,
+                  gridTemplateColumns: "60px 1fr 220px 160px 180px",
+                  gap: 28,
                   alignItems: "center",
                   position: "relative",
                 }}
@@ -164,6 +207,62 @@ export default function GoalsPage() {
                     />
                   </div>
                 </div>
+                {/* Per-goal mini trajectory — the chart sits directly
+                    next to the goal's progress data so the visual and
+                    the source are associated. */}
+                <div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-cinzel), serif",
+                      fontSize: 9.5,
+                      color: "var(--ink-3)",
+                      letterSpacing: "0.22em",
+                      textTransform: "uppercase",
+                      marginBottom: 8,
+                    }}
+                  >
+                    Trajectory
+                  </div>
+                  <div
+                    style={{
+                      background: "var(--cosmos)",
+                      border: "1px solid var(--line-soft)",
+                      borderRadius: 2,
+                      padding: "8px 10px",
+                    }}
+                  >
+                    <GoalSparkline
+                      planet={g.planet}
+                      currentCents={g.currentCents}
+                      targetCents={g.targetCents}
+                      perPaycheckCents={g.perPaycheckCents}
+                      anchor={TODAY}
+                      width={140}
+                      height={42}
+                    />
+                    <div
+                      style={{
+                        fontFamily: "var(--font-jetbrains), monospace",
+                        fontSize: 9.5,
+                        color: "var(--ink-3)",
+                        marginTop: 4,
+                        textAlign: "right",
+                        fontFeatureSettings: '"tnum" 1',
+                      }}
+                    >
+                      {g.currentCents >= g.targetCents
+                        ? "Reached"
+                        : g.perPaycheckCents <= 0
+                        ? "Not moving"
+                        : (() => {
+                            const need = g.targetCents - g.currentCents;
+                            const checks = Math.ceil(need / g.perPaycheckCents);
+                            const mo = Math.round(checks / 2);
+                            return `+${mo}mo → 100%`;
+                          })()}
+                    </div>
+                  </div>
+                </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
                   <div
                     style={{
@@ -230,46 +329,6 @@ export default function GoalsPage() {
             );
           })}
         </div>
-      </section>
-
-      {/* Trajectory — Cluster 1.7 */}
-      <section style={{ marginTop: 56 }}>
-        <div
-          style={{
-            fontFamily: "var(--font-cinzel), serif",
-            fontSize: 10.5,
-            color: "var(--jupiter)",
-            letterSpacing: "0.28em",
-            textTransform: "uppercase",
-            marginBottom: 8,
-          }}
-        >
-          The Trajectory
-        </div>
-        <h3
-          style={{
-            fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-            fontSize: 28,
-            fontWeight: 400,
-            margin: "0 0 12px",
-            color: "var(--ink)",
-          }}
-        >
-          Each goal, climbing <em style={{ fontFamily: "var(--font-cormorant), serif", fontStyle: "italic", color: "var(--ink-3)" }}>at this pace.</em>
-        </h3>
-        <p
-          style={{
-            fontFamily: "var(--font-cormorant), serif",
-            fontSize: 15,
-            lineHeight: 1.55,
-            color: "var(--ink-2)",
-            margin: "0 0 24px",
-            maxWidth: 720,
-          }}
-        >
-          The lines below show your goals projected forward at the rate your current paychecks are contributing. The dashed line is each goal's target. A flat line means the plan isn't moving it.
-        </p>
-        <GoalTrajectory goals={goalTrajectories} />
       </section>
     </div>
   );

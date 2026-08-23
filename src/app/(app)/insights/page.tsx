@@ -1,8 +1,6 @@
 import * as React from "react";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { liveEnvelopes, liveSnapshot, liveTransactions, liveGoals, TODAY } from "@/lib/mock";
-import { BudgetVsActual, type BudgetVsActualRow } from "@/components/viz/BudgetVsActual";
-import { GoalTrajectory, type GoalTrajectoryInput } from "@/components/viz/GoalTrajectory";
 import { formatMoney, formatMoneyCompact } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
@@ -16,47 +14,7 @@ export const dynamic = "force-dynamic";
 export default function InsightsPage() {
   const ENVELOPES = liveEnvelopes();
   const SNAPSHOT = liveSnapshot();
-  const TRANSACTIONS = liveTransactions();
-  const GOALS = liveGoals();
   const total = ENVELOPES.reduce((s, e) => s + e.target, 0);
-
-  const goalTrajectories: GoalTrajectoryInput[] = GOALS.map((g) => ({
-    id: g.id,
-    name: g.name,
-    planet: g.planet,
-    currentCents: g.currentCents,
-    targetCents: g.targetCents,
-    perPaycheckCents: g.perPaycheckCents,
-    targetDate: g.targetDate.toISOString(),
-    anchorDate: TODAY,
-  }));
-
-  // Per-envelope plan vs actual. Plan = per-paycheck allocation target.
-  // Actual = cumulative spend this period (sum of negative transactions
-  // on that envelope, flipped to a positive number for the chart).
-  const planPct: Record<string, number> = {
-    "env-rent": 0.33,
-    "env-utilities": 0.08,
-    "env-groceries": 0.17,
-    "env-dining": 0.04,
-    "env-savings": 0.18,
-    "env-debt": 0.15,
-    "env-buffer": 0.05,
-  };
-  const payroll = SNAPSHOT.nextPaycheckCents;
-  const budgetRows: BudgetVsActualRow[] = ENVELOPES.map((e) => {
-    const planCents = Math.round(payroll * (planPct[e.id] ?? 0));
-    const actualSpent = TRANSACTIONS
-      .filter((t) => t.envelope === e.id && t.amountCents < 0)
-      .reduce((sum, t) => sum + Math.abs(t.amountCents), 0);
-    return {
-      id: e.id,
-      name: e.name,
-      planet: e.planet,
-      planCents,
-      actualCents: actualSpent,
-    };
-  });
 
   return (
     <div>
@@ -370,85 +328,12 @@ export default function InsightsPage() {
         ))}
       </div>
 
-      {/* Budget vs Actual — Cluster 1.7 */}
-      <section style={{ marginTop: 56 }}>
-        <div
-          style={{
-            fontFamily: "var(--font-cinzel), serif",
-            fontSize: 10.5,
-            color: "var(--gold)",
-            letterSpacing: "0.28em",
-            textTransform: "uppercase",
-            marginBottom: 8,
-          }}
-        >
-          Budget vs Actual
-        </div>
-        <h3
-          style={{
-            fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-            fontSize: 28,
-            fontWeight: 400,
-            margin: "0 0 8px",
-            color: "var(--ink)",
-          }}
-        >
-          What the plan said <em style={{ fontFamily: "var(--font-cormorant), serif", fontStyle: "italic", color: "var(--ink-3)" }}>vs what you actually spent.</em>
-        </h3>
-        <p
-          style={{
-            fontFamily: "var(--font-cormorant), serif",
-            fontSize: 15,
-            lineHeight: 1.5,
-            color: "var(--ink-2)",
-            margin: "0 0 24px",
-            maxWidth: 720,
-          }}
-        >
-          Each envelope gets a per-paycheck allocation target. The bars show that target (gold) next to what you actually spent this period (planetary). A taller gold bar means the plan expected more; a taller actual bar means life happened.
-        </p>
-        <BudgetVsActual rows={budgetRows} />
-      </section>
-
-      {/* Goal Trajectory — Cluster 1.7 */}
-      <section style={{ marginTop: 56 }}>
-        <div
-          style={{
-            fontFamily: "var(--font-cinzel), serif",
-            fontSize: 10.5,
-            color: "var(--gold)",
-            letterSpacing: "0.28em",
-            textTransform: "uppercase",
-            marginBottom: 8,
-          }}
-        >
-          Goal Trajectory
-        </div>
-        <h3
-          style={{
-            fontFamily: "var(--font-italiana), var(--font-cinzel), serif",
-            fontSize: 28,
-            fontWeight: 400,
-            margin: "0 0 8px",
-            color: "var(--ink)",
-          }}
-        >
-          Where your goals are <em style={{ fontFamily: "var(--font-cormorant), serif", fontStyle: "italic", color: "var(--ink-3)" }}>heading at this pace.</em>
-        </h3>
-        <p
-          style={{
-            fontFamily: "var(--font-cormorant), serif",
-            fontSize: 15,
-            lineHeight: 1.5,
-            color: "var(--ink-2)",
-            margin: "0 0 24px",
-            maxWidth: 720,
-          }}
-        >
-          A line for each goal, climbing at the rate your paychecks currently contribute. The dashed line is the target. If a line is flat, the plan isn't moving it — raise the per-paycheck amount or extend the target date.
-        </p>
-        <GoalTrajectory goals={goalTrajectories} />
-      </section>
+      {/* Budget vs Actual — Cluster 1.7. MOVED to /envelopes
+          (next to the per-envelope data it visualizes). Removed
+          here per the chart-next-to-data principle. */}
+      {/* Goal Trajectory — Cluster 1.7. MOVED to /goals (next to the
+          per-goal data it visualizes). Removed here per the
+          chart-next-to-data principle. */}
     </div>
   );
 }
