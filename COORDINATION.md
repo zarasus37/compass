@@ -9,10 +9,10 @@
 ## Status
 
 - **Stage 1 (Design)**: ✅ Complete (v1.0) → **v4.0** reframe locked 2026-08-22 (alchemical/celestial visual language, pay-period as unit of truth, auto-allocate, 7 planetary vessels, 3-chapter sidebar, 4 allocation strategies)
-- **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory) — ✅ done, commit `cda8972`. Next: Cluster 1.6 — form actions (New envelope, New transaction, New goal) + onboarding flow.
+- **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory) — ✅ done, commit `cda8972`. **Cluster 1.7 visual audit (the 7 known chart/banner issues + /envelopes cleanup) — ✅ done, commit `3da5716`.** Next: Cluster 1.6 — form actions (New envelope, New transaction, New goal) + onboarding flow.
 - **Stage 3 (Test & bug-fix)**: pending Stage 2
 
-> Last update: 2026-08-22 (post-Cluster-1.7)
+> Last update: 2026-08-22 (post-Cluster-1.7-visual-audit)
 
 ---
 
@@ -123,6 +123,27 @@ The four "must-have" charts for a pay-period-centered finance app, each in the r
    - `/goals` (the visual companion to the goal list cards)
 
 All three new viz components are in `src/components/viz/`, themed to the alchemical visual system (cosmic canvas, gold leaf, planetary metals, Cinzel labels, Italiana numerics, Cormorant body). `tsc --noEmit` is clean; the dev server still returns 200 on every page.
+
+### Cluster 1.7 visual audit + display fixes (✅ DONE — commit `3da5716`; 2026-08-22)
+
+The 7 known issues from the handoff doc are resolved. The `/envelopes` page also got a "change certain displays" pass. Quick summary:
+
+1. **Sankey source label clipped** → source label is now rendered as a header ABOVE the chart (`FROM  Paycheck · $1,820.00`) so it's never clipped regardless of width. Left margin bumped 168 → 200. The in-chart source node label is kept for hover consistency.
+2. **GoalTrajectory flat lines invisible** → Y-axis is now **0–100% (percent of target)**. Every goal is on the same scale. The $2k Debt Free line and the $20k Emergency Fund line are both visible. A flat line is the visual "this plan isn't moving it" signal.
+3. **BudgetVsActual legend dot color mismatch** → dropped the hard-coded `--jupiter` "Actual" dot. The legend now uses a neutral 3-bar cluster (one per representative planet color) so the swatch matches the per-envelope Actual bar.
+4. **Pacing line too subtle** → widened from 2px to 4px, added a 7px gold-glow diamond cap on top, bumped the box-shadow glow from 6px to 10px.
+5. **GoalTrajectory dashed reference label cut off** → replaced the per-goal `position: "right"` labels with a single 100% target line + a "Targets" footnote below the chart (`● EMERGENCY FUND · 15mo to 100%`, `● DEBT FREE · not moving` in iron red).
+6. **Dashboard Next Step hard-coded text** → now reads `liveEnvelopes()`, pluralizes ("One envelope is over limit" / "N envelopes are over limit"), names each envelope with its current/target/overage, handles the calm state ("All envelopes within target") when nothing is over.
+7. **Iron-red Next Step banner contrast** → coral wash on the surface background, body text in `--ink` (7.4:1 contrast passes WCAG AA), over-limit envelope names in iron-red bold, CTA kept high-contrast (parchment on dark — the iron-red button was 3.9:1, below the AA bar).
+
+**"Change certain displays" cleanup:**
+- `/envelopes` 7-card "Every envelope" detail grid → compact 5-col summary row (the bar chart already shows all 7; the detail cards added vertical mass without much new signal. Recent activity moves to per-envelope detail pages in Cluster 2.)
+- `/envelopes` Insight section → now data-driven: pulls the worst over-limit envelope, computes % + overage, generates the "raise target to $X" CTA from live state.
+- `/envelopes` "Over limit" section header → pluralized ("one envelope needs attention" / "N envelopes need attention").
+- Dashboard "Explore Compass" 6-card grid → **kept** (it's a nav surface; not redundant with the top-priority goal hero).
+- `/period` Mandala (420px) → **kept** (anchors the period page; the v7 reasoning was about the dashboard centerpiece, not here).
+
+`tsc --noEmit` clean. `pnpm build` clean (12 static pages). Visual check confirmed all 7 issues resolved + the display cleanup landed without regressions.
 
 ### Cluster 2 (after Cluster 1)
 
@@ -280,24 +301,45 @@ All three new viz components are in `src/components/viz/`, themed to the alchemi
 - **First-run setup**: when the next session wants to test from scratch, the smoke test (`node tests/smoke-auth.mjs`) resets the DB to empty and re-creates the mom user (`mom@compass.local` / `correct-horse-battery-staple`). That's the canonical "first user" for now. The first time a real human sets up the app, they go to `/welcome` and create the real account.
 - **Don't reinstall `@prisma/client` from npm directly.** The generated client lives at `src/generated/prisma`; you import from there. Re-generating (after schema changes) is `npx prisma generate`. The `prisma` CLI handles the rest.
 
-### Next session: visual audit + display fixes (Cluster 1.7 cleanup)
+### Next session: Cluster 1.6 — form actions + onboarding
 
-The new session's first push should be a **visual audit pass on the four Cluster 1.7 charts and the dashboard deep-page flow**. Specific known issues from the current build:
+The visual audit is **done** (commit `3da5716`; see "Cluster 1.7 visual audit + display fixes" section above for the per-issue resolution). The next push is **Cluster 1.6 — form actions + onboarding**.
 
-1. **Sankey source label clipped** — the "Paycheck · $2,400" label on the left source node is cut off because the chart's left margin isn't wide enough. Either increase the left margin, switch the source node to `labelPosition="inside"`, or render the source label as a separate header above the chart.
-2. **GoalTrajectory flat lines invisible** — Y-axis is scaled to the highest goal target ($20k for Emergency Fund), so the flat lines for Debt Free ($2,021) and Visit Family ($180) get compressed against the X-axis and are barely distinguishable from zero. The "this plan isn't moving it" insight is hard to see. Options: (a) split into 3 small-multiples (one chart per goal), (b) use a percent-of-target Y-axis (0-100%), (c) add zoom/pan. (b) is the most honest and easiest.
-3. **BudgetVsActual legend dot color mismatch** — the legend at the bottom hardcodes "ACTUAL" to `var(--jupiter)` (purple), but each bar uses its own planet color. Either (a) use a neutral color, (b) show all 7 planet colors in the legend, or (c) drop the "ACTUAL" dot and label each bar pair with the envelope name.
-4. **Pacing line too subtle** — 2px gold tick on an 8px bar is hard to see. Make it 3-4px wide with stronger glow, or add a small diamond marker.
-5. **GoalTrajectory dashed reference label** — "Emergency Fund target · $20k" label positioned "right" sometimes gets cut off or overlaps the legend.
-6. **Dashboard "Next Step" hard-coded text** — the section reads "Groceries is at $622 of $400, Buffer is at $96 of $96" but those are the seed values, not the live state. Should pull from `liveEnvelopes()` and find the actual over-limit envelopes.
-7. **Color contrast in iron-red Next Step banner** — text on `var(--neg)` background could be more readable. Consider using ink-on-light-coral for the body text.
+**Scope (per 00-DESIGN.md §9 and the v4 cluster ordering):**
 
-After the visual audit, evaluate which of the 16 deep pages to consolidate or rework — the user explicitly said "change certain displays." Candidates for review:
-- The "All envelopes" section on `/envelopes` (the 7-card grid is dense and overlaps with the bar chart above it)
-- The "Explore Compass" 6-card grid on the dashboard (some cards may be redundant with the top priority hero)
-- The `/period` page Mandala usage (currently shows a 540px mandala that may be too abstract per the v7 design decision — same reasoning that pulled the mandala off the dashboard)
+1. **Form actions** — wire the existing visual-only buttons to real mutations:
+   - "New envelope" on `/envelopes` → form action that appends to the live store, revalidates the page.
+   - "New transaction" on `/transactions` → form action; envelope dropdown; amount in dollars → cents conversion; updates envelope balance.
+   - "New goal" on `/goals` → form action; envelope target association; per-paycheck contribution.
+   - "New debt" on `/debts` → form action; balance, APR, min payment.
+2. **Onboarding flow** — the first-run experience when no user has set up yet:
+   - Pay schedule picker (weekly / biweekly / monthly / custom)
+   - Seed 7 default envelopes (the planetary defaults, from `00-DESIGN.md` D14)
+   - Arm the first Allocation Plan (default to "Envelope" strategy)
+   - Land on the dashboard with everything wired
+3. **Form patterns** — shared components for the form-action idiom:
+   - "use server" actions in `src/app/actions/`
+   - Zod-validated input schemas
+   - Inline error rendering with `useActionState` (same pattern as the auth pages)
+   - Success path: revalidate the page, scroll to the new entry
 
-Then move to **Cluster 1.6 (form actions + onboarding)** as planned.
+**The paycheck simulator (Cluster 1.5) is the gold standard** for form actions — same `useActionState` + `revalidatePath` pattern, dollar→cents conversion at the boundary, no client-side mutation. New form actions should follow the same shape.
+
+**Form-action contract (apply to every new action):**
+- Reads the form input as **dollars** (the human-readable unit)
+- Converts to **cents** on the server: `Math.round(parseFloat(input) * 100)`
+- Zod-validates the cents value (non-negative, finite, etc.)
+- Calls a pure mutator on the live store
+- Calls `revalidatePath('/envelopes')` (or wherever) so the next render re-reads
+- Returns `{ ok: true }` or `{ ok: false, reason }` for inline error rendering
+
+**Acceptance for Cluster 1.6:**
+- [ ] `New envelope` form appends to the live store; the bar chart, over-limit summary, and NextStep section all reflect the new envelope.
+- [ ] `New transaction` form updates the envelope balance; the bar chart and recent activity both reflect it.
+- [ ] `New goal` form creates a goal with per-paycheck contribution; the dashboard top-priority hero + GoalTrajectory reflect it.
+- [ ] `New debt` form creates a debt with balance + APR; the `/debts` list reflects it.
+- [ ] Onboarding flow: clear the DB, hit `/welcome` → first user → pay schedule → seed 7 envelopes → arm plan → land on dashboard with everything wired.
+- [ ] `tsc --noEmit` clean; `pnpm build` clean; smoke test still passes.
 
 **Dev-server lifecycle note for the new session**: the bash tool has a 30-minute max runtime cap on background processes, which reaps the wrapping shell around `pnpm dev` even when Next itself is healthy. The session will need to restart the dev server roughly every 30 minutes via `pnpm dev` in a background task. The fresh session can avoid this by starting the dev server in a separate background task and only checking it as needed; or by running the build smoke (`pnpm build`) instead of `pnpm dev` for static verification.
 
@@ -359,11 +401,13 @@ Then move to **Cluster 1.6 (form actions + onboarding)** as planned.
 - **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data)**: ✅ 2026-08-22, commit `35ccc6e`
 - **Cluster 1.5 (visible interactivity pass — auto-allocate engine + paycheck simulator + live store)**: ✅ 2026-08-22, commit `35ccc6e`
 - **Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory)**: ✅ 2026-08-22, commit `cda8972`
+- **Cluster 1.7 visual audit (7 chart/banner issues + /envelopes cleanup)**: ✅ 2026-08-22, commit `3da5716`
 - **Cluster 1.6 (form actions + onboarding)**: ⏳ next
 - **Handed off (design)**: 2026-08-21
 - **Handed off (scaffold)**: 2026-08-22
 - **Handed off (auth)**: 2026-08-22
 - **Handed off (Cluster 1)**: 2026-08-22
 - **From session**: `mvs_77706038b3dc41f0818e43d1aca029bd` (design)
-- **From session**: `mvs_0ca37adfb53b4de188d584afc12df309` (scaffold + auth + Cluster 1 + Cluster 1.5 + Cluster 1.7 + visual audit notes)
-- **Handed to**: next session (TBD) — start with the visual audit + display fixes noted in "Next session" above, then Cluster 1.6 (form actions + onboarding)
+- **From session**: `mvs_0ca37adfb53b4de188d584afc12df309` (scaffold + auth + Cluster 1 + Cluster 1.5 + Cluster 1.7)
+- **From session**: `mvs_4d1dd62520784d9c9f0c7511fdeaee6d` (Cluster 1.7 visual audit + display fixes)
+- **Handed to**: next session (TBD) — start with **Cluster 1.6 (form actions + onboarding)**; the visual audit is already done.
