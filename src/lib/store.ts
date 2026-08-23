@@ -325,6 +325,66 @@ export function applyExtraDebtPayment(
 }
 
 /**
+ * Add a new goal to the live store. Used by the "+ New goal" form
+ * (Cluster 1.10). If the new goal is marked `isPrimary`, demote
+ * any current primary goal to `isPrimary: false` (only one goal
+ * can be the top-priority hero on the dashboard).
+ */
+export function addGoal(input: {
+  name: string;
+  description: string;
+  planet: PlanetId;
+  targetCents: number;
+  currentCents: number;
+  targetDate: Date;
+  envelopeId: string | null;
+  perPaycheckCents: number;
+  isPrimary: boolean;
+}): { ok: boolean; reason?: string; goal?: Goal } {
+  if (!input.name || input.name.trim().length === 0) {
+    return { ok: false, reason: "Name is required." };
+  }
+  if (!Number.isFinite(input.targetCents) || input.targetCents <= 0) {
+    return { ok: false, reason: "Target must be greater than $0." };
+  }
+  if (!Number.isFinite(input.perPaycheckCents) || input.perPaycheckCents < 0) {
+    return { ok: false, reason: "Per-paycheck amount must be $0 or more." };
+  }
+  const s = getState();
+
+  // If the new goal is primary, demote any current primary
+  if (input.isPrimary) {
+    for (const g of s.goals) {
+      g.isPrimary = false;
+    }
+  }
+
+  const goal: Goal = {
+    id: nextId("goal"),
+    name: input.name.trim(),
+    description: input.description.trim(),
+    planet: input.planet,
+    targetCents: Math.round(input.targetCents),
+    currentCents: Math.max(0, Math.round(input.currentCents)),
+    targetDate: input.targetDate,
+    envelopeId: input.envelopeId,
+    perPaycheckCents: Math.max(0, Math.round(input.perPaycheckCents)),
+    isPrimary: input.isPrimary,
+  };
+  s.goals.push(goal);
+
+  s.audit.unshift({
+    id: nextId("aud-goal"),
+    at: new Date(),
+    kind: "manual-adjust",
+    summary: `Added goal "${goal.name}" (target $${(goal.targetCents / 100).toFixed(2)}).`,
+    meta: { goalId: goal.id, targetCents: goal.targetCents },
+  });
+
+  return { ok: true, goal };
+}
+
+/**
  * Add a new transaction to the live store and, if the transaction
  * reduces an envelope's balance, decrement that envelope's current
  * cents accordingly. Used by the "+ Log a transaction" form on

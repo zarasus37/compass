@@ -30,8 +30,8 @@ export default function GoalsPage() {
         em="where your money is heading."
         accent="jupiter"
         actions={
-          <button
-            type="button"
+          <Link
+            href="/goals/new"
             style={{
               fontFamily: "var(--font-cinzel), serif",
               background: "var(--gold)",
@@ -43,11 +43,11 @@ export default function GoalsPage() {
               fontWeight: 600,
               letterSpacing: "0.18em",
               textTransform: "uppercase",
-              cursor: "pointer",
+              textDecoration: "none",
             }}
           >
             + New goal
-          </button>
+          </Link>
         }
         explanation={
           <>
