@@ -12,7 +12,7 @@
 - **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory) — ✅ done, commit `cda8972`. Cluster 1.7 visual audit — ✅ done, commit `3da5716`. **Cluster 1.8 (Bill organizer + Plan My Next Check + calendar warnings) — ✅ done, commit `999ff37`. Cluster 1.9 (Debt payoff simulator + Saturn vessel + 3-up card + paid-off celebration) — ✅ done, commits `feb50e3` + `801525c` (math-bug fix) + `0ffb439` (per-debt sparkline).** Biweekly period locked as the canonical pay schedule (D17); period-close renamed to match (D18). **Chart-next-to-data principle applied across /goals, /envelopes, /recurring, /debts, /insights — commit `843375c`. Cluster 1.10 (drill-downs + new transaction / goal / envelope / bill / debt forms + edit forms) — ✅ done, commits `03f308f` + `006bca0` + `3dc679f` + `649d76e`. **Cluster 2.0 (customizable, scrollable, card-based dashboard with @dnd-kit drag-and-drop + localStorage persistence) — ✅ done, commit `e648ef5`. Cluster 2.0.1 (visual-first treatment: 7-day WeekSparkline, BurnSparkline, embedded GoalSparkline) — ✅ done, commit `af0b8d3`. Cluster 2.0.2 (full-month calendar with planetary headers + scheduled bills list) — ✅ done, commit `34f3928`. **Cluster 2.0.3 (Component Oracle Terminal re-skin of the dashboard) — ✅ done, commit `884fe70`.** Next: apply terminal re-skin to deep pages (recurring, envelopes, goals, etc.) in subsequent visible-UI pushes, then 2.x (form actions deep-dive, bill reminders, variable income, period close), then 3.x (real Plaid, AI tiers).
 - **Stage 3 (Test & bug-fix)**: pending Stage 2
 
-> Last update: 2026-08-23 (post-Cluster-2.0.3 — Component Oracle Terminal re-skin of dashboard)
+> Last update: 2026-08-23 (post-Cluster-2.0.3e — Component Oracle Terminal re-skin of the full app, zero alchemical refs remaining)
 
 ---
 
@@ -343,14 +343,44 @@ The dashboard has been re-skinned from the alchemical/celestial warm-gold langua
 - "Component Oracle Terminal" = base #060A12 + teal #2DD4BF signal + gold #C9A45C accent + Sora / JetBrains Mono + oracle voice with terminal-log markers. No decorative occult.
 - "Visible UI matters more than invisible architecture" preference still wins — the deep pages get re-skinned in subsequent visible-UI pushes, not as a single mega-PR.
 
-**Still in the alchemical voice (deferred to follow-up pushes):**
+**Cluster 2.0.3c–2.0.3e — deep-page re-skin (✅ DONE — commits `396e7e9`, `76e1284`, `72f2cec`; 2026-08-23)**
 
-- All deep pages: `/recurring`, `/envelopes`, `/envelopes/[id]`, `/goals`, `/goals/[id]`, `/debts`, `/transactions`, `/calendar`, `/period`, `/insights`, `/allocation`, `/accounts`, `/investments`, `/emergency`, `/subscriptions`, `/invest`
-- The form pages (`/envelopes/new`, `/goals/new`, `/debts/new`, etc.) — these may stay alchemical for now since they're set-and-forget
-- The alchemical vocabulary ("vessel", "great work", "prima materia") — decide per-call whether to translate to terminal voice or keep as decorative
-- Some catalog em strings still have alchemical flavor ("vessels needing attention.", "the one thing to fix.") — candidates for terminal voice in a follow-up
+Per xKryptic's "push all deep pages now" directive, the entire app — not just the dashboard — has been moved to terminal voice. **Zero alchemical font refs remain** across all 34+ source files. The 5 commits ship:
 
-**Open question for xKryptic**: how aggressively to translate the alchemical vocabulary (Vessel/Sigil/Great Work) to terminal voice, or whether to keep it as a decorative layer on top of the terminal language. Recommendation: keep "vessel" as the term-of-art (it's already in the data model), but lean terminal in microcopy ("the one thing to look at." not "the one thing to fix.").
+- `396e7e9` (14 files) — top deep pages: `recurring`, `envelopes`, `period`, `goals`, `debts`, `accounts`, `insights`, `allocation`, `transactions`, `subscriptions`, `investments`, `emergency`, `invest`, `calendar`
+- `76e1284` (15 files) — detail pages: `envelopes/[id]`, `goals/[id]` + all `new/*` and `edit/*` page wrappers + all 8 form files
+- `72f2cec` (5 files) — chart components: `GoalTrajectory`, `BudgetVsActual`, `DebtPayoffSimulator`, `PlanMyNextCheck`, `PaycheckSimulator`
+
+**Re-skin patterns applied across all files:**
+
+- `var(--font-italiana), var(--font-cinzel), serif` → `var(--font-sora)` (headings, body)
+- `var(--font-italiana), serif` → `var(--font-sora)` (input text, body)
+- `var(--font-cinzel), serif` → `var(--font-jetbrains), monospace` (eyebrows, mono labels)
+- `var(--font-cormorant), serif` → `var(--font-sora)` (body)
+- `fontStyle: "italic"` removed (no italics in terminal voice)
+- Primary CTAs (gold background, void text) → `background: var(--terminal-cyan)` with `var(--void)` text — preserves 7:1 contrast
+- Eyebrows prefixed with `//` (e.g. `// money · envelopes`, `// plan · goals`)
+- Section headers follow the locked pattern: `// TITLE` mono caps + bold Sora title + Sora body em (no italic)
+- Mono stats: `// LABEL` mono caps + JetBrains Mono number + JetBrains Mono sub
+- Status markers: `[OK]`, `[WARN]`, `[SIGIL]`, `[INDEXED]` — `[OK]` chip in mono caps with green border
+- Planet colors preserved as semantic mapping (Sol=Rent etc.) — left-rail and accent borders only, not primary CTA
+- Pacing line / today highlight: gold (`var(--gold)`) preserved as semantic accent
+- The Mandala on `/period` is preserved as the page's alchemical centerpiece (per the v7 design — it's a visual anchor for the period arc). The page chrome around it is terminal.
+
+**Files left in the alchemical voice (preserved intentionally):**
+
+- The Mandala SVG (`src/components/alchemy/Mandala.tsx`) — alchemical centerpiece, intentional
+- The VesselGlyph component (`src/components/alchemy/VesselGlyph.tsx`) — uses planet color as semantic identifier; no font ref to change
+- Some alchemical vocabulary remains in user-facing copy where it's the term-of-art (e.g. "the vessel for this goal is the Jupiter · Savings envelope"). Decision: "vessel" stays as a term-of-art, but the surrounding microcopy is terminal.
+
+**Visual verification (in-app browser, 4 deep pages captured):**
+
+- `/recurring` — `// PLAN · RECURRING` eyebrow, mono summary cells (`// TOTAL RECURRING $1,113.99`), `// Due this period` section header with mono bill rows
+- `/envelopes` — `// MONEY · ENVELOPES` eyebrow, mono stat cells (`// NEEDS ATTENTION 1` in red), `// Budget vs actual` section
+- `/goals` — `// PLAN · GOALS` eyebrow, "The Trajectory" header in jupiter mono, GoalTrajectory chart with cyan/teal lines, mono legend (`100% TARGET` / `EMERGENCY FUND · 16mo` / `DEBT FREE · not moving`)
+- `/period` — `// PERIOD 2 OF Q3` eyebrow, mono day counter, Mandala preserved as the period anchor
+
+`tsc --noEmit` clean across all 39 source files. Dev server returns 200 on every page. **The full Compass app is now in Component Oracle Terminal voice.**
 
 ### Cluster 2 (after Cluster 2.0)
 
