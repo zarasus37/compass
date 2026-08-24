@@ -5,6 +5,7 @@ import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { DashboardGrid } from "@/components/dashboard/DashboardGrid";
 import { MustHaveToolsStrip } from "@/components/dashboard/MustHaveToolsStrip";
 import { DailyTrackingCard } from "@/components/dashboard/cards/daily-tracking";
+import { SafeToSpendHero, type SafeToSpendHeroData } from "@/components/dashboard/cards/safe-to-spend-hero";
 import { CriticalTimelineCard } from "@/components/dashboard/cards/critical-timeline";
 import { EnvelopeStatusCard } from "@/components/dashboard/cards/envelope-status";
 import { TopPriorityCard } from "@/components/dashboard/cards/top-priority";
@@ -623,6 +624,28 @@ export default async function Dashboard() {
             </span>
           </div>
         </header>
+
+        {/* ============== DAILY TELEMETRY — SAFE TO SPEND HERO ==============
+            Lifted above the spend ring on 2026-08-23. The cents-remaining
+            figure is the single most important daily number, so it lives
+            ABOVE every other card, with a "period fuel gauge" visual +
+            7-day burn sparkline next to the headline number. The
+            DailyTrackingCard stays in the dashboard grid for the compact
+            variant, but it's no longer the default-on card. */}
+        <SafeToSpendHero
+          data={{
+            safeToSpendCents: safeCents,
+            todaySpentCents,
+            weeklyAvgPerDayCents,
+            dailySpendCents,
+            last7Days,
+            periodStart: PERIOD_START,
+            periodEnd: PERIOD_END,
+            day,
+            totalDays,
+            breakdown,
+          } satisfies SafeToSpendHeroData}
+        />
 
         {/* ============== TOP 30% — PROGRESS RING + HORIZON LINE ============== */}
         <section

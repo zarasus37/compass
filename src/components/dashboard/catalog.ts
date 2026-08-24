@@ -53,7 +53,7 @@ export const CARD_CATALOG: CardMeta[] = [
     accent: "cyan",
     href: "/transactions",
     span: "full",
-    defaultOn: true,
+    defaultOn: false,
     description:
       "Safe-to-spend, today's pace vs. expected, and the 7-day average. Tap to see the full transaction record.",
   },
