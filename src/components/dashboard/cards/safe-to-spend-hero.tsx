@@ -7,17 +7,23 @@
  * `DailyTrackingCard` still lives in the dashboard grid for users
  * who want the compact 3-cell variant.
  *
- * Layout (2-col):
- *   LEFT  — the headline number + sub + days/dollars
- *   RIGHT — the "period fuel gauge" — a horizontal bar where the
- *           teal fill = days elapsed, today is a gold vertical
- *           tick, days remaining are dim. A 7-day burn sparkline
- *           sits below the bar so the user can see the actual
- *           daily spend shape.
+ * Pushed further on 2026-08-23: the visual is now a single rich
+ * SVG "burn curve" — the actual cumulative spend trajectory over
+ * the period, overlaid with the expected linear pace (dashed gold),
+ * the today marker, and a quantified gap annotation. The user can
+ * see at a glance: "I've spent $X so far, expected was $Y, I'm
+ * $Z under pace." That's the actionable insight — better than
+ * any single number.
+ *
+ * Layout (top-to-bottom):
+ *   1. Eyebrow row (`// DAILY TELEMETRY · SAFE TO SPEND`) + pace pill
+ *   2. Headline: huge number + sub (left) | days-left & per-day (right)
+ *   3. The burn curve — full-width SVG, 160px tall
+ *   4. Bottom metrics row: today / 7-day avg / vs. pace gap
  *
  * Component Oracle Terminal treatment: mono caps eyebrows with //
  * prefix, big numbers in JetBrains Mono, body in Sora, status
- * markers [OK]/[WARN]/[SIGIL] in mono caps.
+ * markers [OK]/[WARN] in mono caps.
  */
 
 import * as React from "react";
@@ -53,17 +59,34 @@ export function SafeToSpendHero({ data }: { data: SafeToSpendHeroData }) {
   } = data;
 
   const daysLeft = Math.max(0, totalDays - day);
-  // Per-day budget for the remaining cents, divided by days left.
-  // Floor at 1 to avoid divide-by-zero.
   const perDayCents =
     daysLeft > 0 ? Math.round(safeToSpendCents / daysLeft) : 0;
 
   // Expected daily budget for the WHOLE period (incl. already-spent).
-  const expectedDailyCents = Math.round(
-    (breakdown.spendingCents + breakdown.unallocatedCents) / Math.max(1, totalDays),
+  const expectedDailyCents = Math.max(
+    1,
+    Math.round(
+      (breakdown.spendingCents + breakdown.unallocatedCents) /
+        Math.max(1, totalDays),
+    ),
   );
+  const expectedTotalCents = expectedDailyCents * totalDays;
 
-  // Pace — how today's spend compares to the expected daily amount.
+  // Actual cumulative spend over the last 7 days. The "x" is the day-of-period.
+  // The "y" is the cumulative cents. Today is the rightmost point.
+  let actualCum = 0;
+  const actualPoints = dailySpendCents.map((c, i) => {
+    const d = day - (dailySpendCents.length - 1 - i);
+    actualCum += c;
+    return { x: d, y: actualCum };
+  });
+  const actualYToday = actualCum;
+  const expectedYToday = expectedDailyCents * day;
+  // Positive = under pace (good), negative = over pace (warn).
+  const gapCents = expectedYToday - actualYToday;
+  const underPace = gapCents >= 0;
+
+  // Pace label (legacy, kept for the eyebrow pill — distinct from "vs. pace").
   const pace = expectedDailyCents > 0 ? todaySpentCents / expectedDailyCents : 0;
   const paceLabel =
     pace === 0
@@ -77,18 +100,13 @@ export function SafeToSpendHero({ data }: { data: SafeToSpendHeroData }) {
             : pace < 2
               ? "[WARN] above"
               : "[WARN] well above";
-  const paceAccent = pace < 1 ? "var(--ok)" : pace < 1.5 ? "var(--ok)" : "var(--warn)";
+  const paceAccent = pace < 1.5 ? "var(--ok)" : "var(--warn)";
 
   // Safe-to-spend accent: cyan when positive, neg when over the line.
   const safeAccent =
     safeToSpendCents < 0 ? "var(--neg)" : "var(--terminal-cyan)";
 
-  // Fill ratio for the fuel gauge (0 → 1): days elapsed / total days.
-  const elapsedRatio = totalDays > 0 ? Math.min(1, day / totalDays) : 0;
-  // Ratio of the gauge that's still "fuel": days remaining / total days.
-  const remainingRatio = 1 - elapsedRatio;
-
-  // Bar status: when per-day budget < expected → tight (warn); > expected → ok.
+  // Tight threshold: when per-day budget < 70% of expected daily.
   const tight = perDayCents < expectedDailyCents * 0.7;
   const barAccent = tight ? "var(--warn)" : "var(--terminal-cyan)";
 
@@ -100,7 +118,7 @@ export function SafeToSpendHero({ data }: { data: SafeToSpendHeroData }) {
         border: "1px solid var(--line)",
         borderLeft: `2px solid ${barAccent}`,
         borderRadius: 4,
-        padding: "22px 26px 20px",
+        padding: "24px 28px 22px",
         marginBottom: 28,
         position: "relative",
         overflow: "hidden",
@@ -149,30 +167,27 @@ export function SafeToSpendHero({ data }: { data: SafeToSpendHeroData }) {
             color: paceAccent,
             letterSpacing: "0.18em",
             textTransform: "uppercase",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
           }}
         >
           {paceLabel}
         </div>
       </div>
 
-      {/* 2-col body: number (left) | fuel gauge (right) */}
+      {/* Headline row: number + sub (left) | days-left & per-day (right) */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(0, 1.05fr) minmax(0, 1fr)",
-          gap: 28,
+          gridTemplateColumns: "minmax(0, 1.3fr) minmax(0, 1fr)",
+          gap: 24,
           alignItems: "center",
+          marginBottom: 22,
         }}
       >
-        {/* LEFT — the headline number */}
         <div style={{ minWidth: 0 }}>
           <div
             style={{
               fontFamily: "var(--font-jetbrains), monospace",
-              fontSize: 56,
+              fontSize: 60,
               lineHeight: 0.95,
               color: safeAccent,
               fontFeatureSettings: '"tnum" 1, "zero" 1',
@@ -189,294 +204,431 @@ export function SafeToSpendHero({ data }: { data: SafeToSpendHeroData }) {
               fontSize: 14,
               color: "var(--ink-2)",
               lineHeight: 1.45,
-              marginBottom: 14,
             }}
           >
             {safeToSpendCents < 0
               ? "Over the line — pull back."
               : "After bills, debt, and savings."}
           </div>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 14,
-              paddingTop: 12,
-              borderTop: "1px solid var(--line-soft)",
-            }}
-          >
-            <Metric
-              label="days left"
-              value={`${daysLeft}`}
-              sub={daysLeft === 1 ? "day" : "days"}
-            />
-            <Sep />
-            <Metric
-              label="per day"
-              value={formatMoneyCompact(perDayCents)}
-              sub="to last"
-              accent={tight ? "var(--warn)" : "var(--ok)"}
-            />
-            <Sep />
-            <Metric
-              label="today"
-              value={formatMoneySigned(todaySpentCents)}
-              sub={`of ~${formatMoneyCompact(expectedDailyCents)}`}
-            />
-          </div>
         </div>
-
-        {/* RIGHT — the fuel gauge */}
-        <div style={{ minWidth: 0 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "baseline",
-              justifyContent: "space-between",
-              marginBottom: 10,
-            }}
-          >
-            <div
-              style={{
-                fontFamily: "var(--font-jetbrains), monospace",
-                fontSize: 9.5,
-                fontWeight: 600,
-                color: "var(--ink-3)",
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
-              }}
-            >
-              // period fuel gauge
-            </div>
-            <div
-              style={{
-                fontFamily: "var(--font-jetbrains), monospace",
-                fontSize: 9.5,
-                fontWeight: 600,
-                color: "var(--ink-3)",
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
-              }}
-            >
-              day {day} / {totalDays}
-            </div>
-          </div>
-
-          <FuelGauge
-            day={day}
-            totalDays={totalDays}
-            elapsedRatio={elapsedRatio}
-            remainingRatio={remainingRatio}
-            barAccent={barAccent}
-            safeAccent={safeAccent}
-            periodStart={periodStart}
-            periodEnd={periodEnd}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 16,
+            paddingLeft: 20,
+            borderLeft: "1px solid var(--line-soft)",
+          }}
+        >
+          <Metric
+            label="days left"
+            value={`${daysLeft}`}
+            sub={daysLeft === 1 ? "day" : "days"}
           />
-
-          {/* 7-day burn sparkline below the gauge */}
-          <div style={{ marginTop: 14 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 6,
-              }}
-            >
-              <div
-                style={{
-                  fontFamily: "var(--font-jetbrains), monospace",
-                  fontSize: 9.5,
-                  fontWeight: 600,
-                  color: "var(--ink-3)",
-                  letterSpacing: "0.18em",
-                  textTransform: "uppercase",
-                }}
-              >
-                // 7-day burn
-              </div>
-              <div
-                style={{
-                  fontFamily: "var(--font-jetbrains), monospace",
-                  fontSize: 9.5,
-                  fontWeight: 600,
-                  color: "var(--ink-3)",
-                  letterSpacing: "0.18em",
-                  textTransform: "uppercase",
-                }}
-              >
-                ~{formatMoneyCompact(weeklyAvgPerDayCents)} / day avg
-              </div>
-            </div>
-            <WeekSparkline
-              dailyCents={dailySpendCents}
-              averageCents={weeklyAvgPerDayCents}
-              todayIdx={dailySpendCents.length - 1}
-              todayAccent={paceAccent}
-            />
-          </div>
+          <Metric
+            label="per day"
+            value={formatMoneyCompact(perDayCents)}
+            sub="to last"
+            accent={tight ? "var(--warn)" : "var(--ok)"}
+          />
         </div>
+      </div>
+
+      {/* The burn curve — full-width SVG, the visual centerpiece */}
+      <BurnCurve
+        actualPoints={actualPoints}
+        day={day}
+        totalDays={totalDays}
+        actualYToday={actualYToday}
+        expectedYToday={expectedYToday}
+        expectedYTotal={expectedTotalCents}
+        gapCents={gapCents}
+        underPace={underPace}
+        periodStart={periodStart}
+        periodEnd={periodEnd}
+      />
+
+      {/* Bottom metrics row */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: 0,
+          marginTop: 18,
+          paddingTop: 16,
+          borderTop: "1px solid var(--line-soft)",
+        }}
+      >
+        <Metric
+          label="today"
+          value={formatMoneySigned(todaySpentCents)}
+          sub={`of ~${formatMoneyCompact(expectedDailyCents)}`}
+        />
+        <Metric
+          label="7-day avg"
+          value={formatMoneyCompact(weeklyAvgPerDayCents)}
+          sub="per day"
+          borderLeft
+        />
+        <Metric
+          label="vs. pace"
+          value={
+            underPace
+              ? `−${formatMoneyCompact(gapCents)}`
+              : `+${formatMoneyCompact(-gapCents)}`
+          }
+          sub={underPace ? "under" : "over"}
+          accent={underPace ? "var(--ok)" : "var(--warn)"}
+          borderLeft
+        />
       </div>
     </section>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Fuel gauge — a horizontal "tank" where the teal fill = days elapsed.
-// Today is a gold vertical tick + dot. Days remaining are dim.
-// Below the bar: start label, "today" label under the gold tick, EOP label.
+// BurnCurve — the centerpiece SVG.
+//
+// X-axis: days of the period (0 = start, totalDays = EOP)
+// Y-axis: cumulative cents spent (0 to expectedTotal * 1.1)
+//
+// Two lines:
+//   - Dashed gold: expected linear pace (0,0) → (totalDays, expectedTotal)
+//   - Solid teal-cyan (or warn-amber when over pace): actual cumulative
+//     spend, drawn from day (day-6) through today with a glow filter
+//
+// Today: vertical gold dashed line + two markers:
+//   - Hollow gold circle: expected cumulative by today
+//   - Solid teal/warn circle: actual cumulative by today
+// A short connector line between them, with the gap labeled.
+//
+// The filled area under the actual line is a vertical gradient
+// (teal/warn at top → transparent at bottom).
 // ---------------------------------------------------------------------------
 
-function FuelGauge({
+function BurnCurve({
+  actualPoints,
   day,
   totalDays,
-  elapsedRatio,
-  remainingRatio,
-  barAccent,
-  safeAccent,
+  actualYToday,
+  expectedYToday,
+  expectedYTotal,
+  gapCents,
+  underPace,
   periodStart,
   periodEnd,
 }: {
+  actualPoints: { x: number; y: number }[];
   day: number;
   totalDays: number;
-  elapsedRatio: number;
-  remainingRatio: number;
-  barAccent: string;
-  safeAccent: string;
+  actualYToday: number;
+  expectedYToday: number;
+  expectedYTotal: number;
+  gapCents: number;
+  underPace: boolean;
   periodStart: Date;
   periodEnd: Date;
 }) {
-  // Container: a wide rounded track. 38px tall to hold the today dot
-  // on top of the bar and the dashed line below.
-  return (
-    <div style={{ width: "100%" }}>
-      {/* The bar itself */}
-      <div
-        style={{
-          position: "relative",
-          width: "100%",
-          height: 38,
-          background: "var(--cosmos)",
-          border: "1px solid var(--line)",
-          borderRadius: 3,
-          overflow: "visible",
-        }}
-      >
-        {/* Days-elapsed fill (teal, grows from left to today's tick) */}
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            top: 0,
-            bottom: 0,
-            left: 0,
-            width: `${elapsedRatio * 100}%`,
-            background: `linear-gradient(90deg, var(--terminal-cyan-dim) 0%, ${barAccent} 100%)`,
-            opacity: 0.85,
-            transition: "width 240ms cubic-bezier(0.2, 0.7, 0.3, 1)",
-            borderRight: "1px solid var(--terminal-cyan-glow)",
-            boxShadow: `0 0 12px ${barAccent} inset`,
-          }}
-        />
-        {/* Faint "future" stripe pattern on the right side */}
-        {remainingRatio > 0 && (
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              top: 0,
-              bottom: 0,
-              left: `${elapsedRatio * 100}%`,
-              right: 0,
-              backgroundImage:
-                "repeating-linear-gradient(90deg, transparent 0 6px, rgba(40, 64, 76, 0.4) 6px 7px)",
-            }}
-          />
-        )}
-        {/* Gold "today" tick — a vertical bar that crosses the gauge */}
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            top: -6,
-            bottom: -6,
-            left: `calc(${elapsedRatio * 100}% - 1px)`,
-            width: 2,
-            background: "var(--gold)",
-            boxShadow: "0 0 6px var(--gold)",
-          }}
-        />
-        {/* Gold "today" dot — circles the tick at the top of the bar */}
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            top: -10,
-            left: `calc(${elapsedRatio * 100}% - 5px)`,
-            width: 12,
-            height: 12,
-            borderRadius: "50%",
-            background: "var(--gold)",
-            border: "2px solid var(--cosmos-2)",
-            boxShadow: "0 0 8px var(--gold)",
-          }}
-        />
-      </div>
+  // ViewBox dimensions — viewBox + width 100% so the curve scales
+  // to fit the panel.
+  const VBW = 800;
+  const VBH = 180;
+  const padL = 32;
+  const padR = 80; // extra right space for the gap label
+  const padT = 28;
+  const padB = 30;
+  const innerW = VBW - padL - padR;
+  const innerH = VBH - padT - padB;
 
-      {/* Label row under the bar */}
-      <div
-        style={{
-          position: "relative",
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          marginTop: 14,
-          height: 18,
-        }}
+  // Y-scale: max of expectedTotal and actualToday * 1.1, with a
+  // small headroom. Floor at 1 to avoid divide-by-zero.
+  const yDomainMax = Math.max(expectedYTotal, actualYToday, 1) * 1.15;
+
+  const xScale = (x: number) =>
+    padL + (x / Math.max(1, totalDays)) * innerW;
+  const yScale = (y: number) => VBH - padB - (y / yDomainMax) * innerH;
+
+  // Build the actual line path. If we have only 1 point (e.g. day 1),
+  // just plot the dot — no line.
+  const actualPath =
+    actualPoints.length >= 2
+      ? "M" +
+        actualPoints
+          .map((p) => `${xScale(p.x).toFixed(1)},${yScale(p.y).toFixed(1)}`)
+          .join(" L")
+      : "";
+  const firstPt = actualPoints.length >= 2 ? actualPoints[0]! : null;
+  const lastPt =
+    actualPoints.length >= 2 ? actualPoints[actualPoints.length - 1]! : null;
+  const baseY = VBH - padB;
+  const areaPath =
+    firstPt && lastPt
+      ? `${actualPath} L${xScale(lastPt.x).toFixed(1)},${baseY.toFixed(1)} L${xScale(firstPt.x).toFixed(1)},${baseY.toFixed(1)} Z`
+      : "";
+
+  // Expected line (full period, from 0 to totalDays).
+  const expectedPath = `M${xScale(0).toFixed(1)},${yScale(0).toFixed(1)} L${xScale(totalDays).toFixed(1)},${yScale(expectedYTotal).toFixed(1)}`;
+
+  // Today geometry
+  const todayX = xScale(day);
+  const todayYActual = yScale(actualYToday);
+  const todayYExpected = yScale(expectedYToday);
+
+  // Color the actual line + dots based on pace
+  const lineColor = underPace ? "var(--terminal-cyan)" : "var(--warn)";
+  const dotColor = underPace ? "var(--terminal-cyan)" : "var(--warn)";
+
+  // Gap label
+  const gapAbs = Math.abs(gapCents);
+  const gapLabel = (underPace ? "−" : "+") + formatMoneyCompact(gapAbs);
+  const gapColor = underPace ? "var(--ok)" : "var(--warn)";
+
+  // Position the gap label to the right of the today markers, mid-gap.
+  const gapMidY = (todayYActual + todayYExpected) / 2;
+  const gapLabelX = todayX + 14;
+  const gapLabelY = gapMidY + 4; // small visual nudge for text baseline
+
+  // Connector between expected and actual markers (vertical hairline)
+  const connX = todayX + 8;
+
+  // Filter ids (need to be unique if multiple instances on the page)
+  const idSuffix = "burnCurve";
+  const glowId = `burnCurveGlow-${idSuffix}`;
+  const areaGradId = `burnAreaGrad-${idSuffix}`;
+
+  return (
+    <svg
+      viewBox={`0 0 ${VBW} ${VBH}`}
+      width="100%"
+      height={VBH}
+      preserveAspectRatio="none"
+      role="img"
+      aria-label="Cumulative spend vs. expected pace"
+      style={{ display: "block" }}
+    >
+      <defs>
+        <filter id={glowId} x="-20%" y="-50%" width="140%" height="200%">
+          <feGaussianBlur stdDeviation="2.4" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        <linearGradient id={areaGradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={lineColor} stopOpacity="0.32" />
+          <stop offset="100%" stopColor={lineColor} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+
+      {/* Subtle horizontal grid line at expectedTotal — the "full pace" line */}
+      <line
+        x1={padL}
+        x2={VBW - padR}
+        y1={yScale(expectedYTotal)}
+        y2={yScale(expectedYTotal)}
+        stroke="var(--ink-5)"
+        strokeWidth={0.5}
+        strokeDasharray="2 4"
+        opacity={0.4}
+      />
+      <text
+        x={VBW - padR}
+        y={yScale(expectedYTotal) - 4}
+        fontSize={8.5}
+        fontWeight={600}
+        fill="var(--ink-4)"
+        fontFamily="var(--font-jetbrains), monospace"
+        letterSpacing="0.18em"
+        textAnchor="end"
       >
-        <DateLabel date={periodStart} align="left" />
-        {/* "Today" pin label — absolutely positioned under the gold tick */}
-        <div
-          style={{
-            position: "absolute",
-            left: `calc(${elapsedRatio * 100}% - 32px)`,
-            top: 0,
-            width: 64,
-            textAlign: "center",
-            fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 9.5,
-            fontWeight: 700,
-            color: "var(--gold)",
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-          }}
+        EXPECTED · EOP
+      </text>
+
+      {/* Filled area under actual line */}
+      {areaPath && <path d={areaPath} fill={`url(#${areaGradId})`} />}
+
+      {/* Expected line (dashed gold) — the "should-be" trajectory */}
+      <path
+        d={expectedPath}
+        fill="none"
+        stroke="var(--gold)"
+        strokeWidth={1.5}
+        strokeDasharray="4 3"
+        opacity={0.75}
+      />
+
+      {/* Actual line (solid, with glow) — the "is" trajectory */}
+      {actualPath && (
+        <path
+          d={actualPath}
+          fill="none"
+          stroke={lineColor}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          filter={`url(#${glowId})`}
+        />
+      )}
+
+      {/* Today vertical line (gold dashed) */}
+      <line
+        x1={todayX}
+        x2={todayX}
+        y1={padT - 4}
+        y2={baseY}
+        stroke="var(--gold)"
+        strokeWidth={1}
+        strokeDasharray="2 3"
+        opacity={0.55}
+      />
+
+      {/* Today label — above the curve */}
+      <text
+        x={todayX}
+        y={padT - 8}
+        fontSize={9}
+        fontWeight={700}
+        fill="var(--gold)"
+        fontFamily="var(--font-jetbrains), monospace"
+        letterSpacing="0.18em"
+        textAnchor="middle"
+      >
+        ↑ TODAY · DAY {day}/{totalDays}
+      </text>
+
+      {/* Expected dot at today (hollow gold) */}
+      <circle
+        cx={todayX}
+        cy={todayYExpected}
+        r={5}
+        fill="var(--cosmos-2)"
+        stroke="var(--gold)"
+        strokeWidth={1.5}
+      />
+
+      {/* Actual dot at today (solid teal/warn) */}
+      <circle
+        cx={todayX}
+        cy={todayYActual}
+        r={5}
+        fill={dotColor}
+        stroke="var(--cosmos-2)"
+        strokeWidth={2}
+      />
+
+      {/* Gap connector (short vertical hairline between the two today dots) */}
+      <line
+        x1={connX}
+        x2={connX}
+        y1={Math.min(todayYExpected, todayYActual)}
+        y2={Math.max(todayYExpected, todayYActual)}
+        stroke={gapColor}
+        strokeWidth={1.5}
+        opacity={0.7}
+      />
+
+      {/* Gap label — the actionable insight */}
+      <text
+        x={gapLabelX}
+        y={gapLabelY}
+        fontSize={11}
+        fontWeight={700}
+        fill={gapColor}
+        fontFamily="var(--font-jetbrains), monospace"
+        letterSpacing="0.10em"
+      >
+        {gapLabel}
+      </text>
+      <text
+        x={gapLabelX}
+        y={gapLabelY + 11}
+        fontSize={8.5}
+        fontWeight={600}
+        fill="var(--ink-3)"
+        fontFamily="var(--font-jetbrains), monospace"
+        letterSpacing="0.18em"
+      >
+        {underPace ? "UNDER PACE" : "OVER PACE"}
+      </text>
+
+      {/* Start date label (bottom-left) */}
+      <text
+        x={padL}
+        y={VBH - 10}
+        fontSize={9}
+        fontWeight={600}
+        fill="var(--ink-3)"
+        fontFamily="var(--font-jetbrains), monospace"
+        letterSpacing="0.18em"
+      >
+        {formatShortDate(periodStart)}
+      </text>
+
+      {/* EOP date label (bottom-right) */}
+      <text
+        x={VBW - padR}
+        y={VBH - 10}
+        fontSize={9}
+        fontWeight={600}
+        fill="var(--ink-3)"
+        fontFamily="var(--font-jetbrains), monospace"
+        letterSpacing="0.18em"
+        textAnchor="end"
+      >
+        {formatShortDate(periodEnd)}
+      </text>
+
+      {/* Legend (top-left) */}
+      <g transform={`translate(${padL}, 4)`}>
+        <line
+          x1={0}
+          x2={14}
+          y1={6}
+          y2={6}
+          stroke={lineColor}
+          strokeWidth={2}
+          strokeLinecap="round"
+        />
+        <text
+          x={18}
+          y={9}
+          fontSize={8.5}
+          fontWeight={600}
+          fill="var(--ink-3)"
+          fontFamily="var(--font-jetbrains), monospace"
+          letterSpacing="0.18em"
         >
-          ↑ today
-        </div>
-        <DateLabel date={periodEnd} align="right" />
-      </div>
-    </div>
+          ACTUAL
+        </text>
+        <line
+          x1={70}
+          x2={84}
+          y1={6}
+          y2={6}
+          stroke="var(--gold)"
+          strokeWidth={1.5}
+          strokeDasharray="3 2"
+        />
+        <text
+          x={88}
+          y={9}
+          fontSize={8.5}
+          fontWeight={600}
+          fill="var(--ink-3)"
+          fontFamily="var(--font-jetbrains), monospace"
+          letterSpacing="0.18em"
+        >
+          EXPECTED
+        </text>
+      </g>
+    </svg>
   );
 }
 
-function DateLabel({ date, align }: { date: Date; align: "left" | "right" }) {
-  return (
-    <div
-      style={{
-        textAlign: align,
-        fontFamily: "var(--font-jetbrains), monospace",
-        fontSize: 9.5,
-        fontWeight: 600,
-        color: "var(--ink-3)",
-        letterSpacing: "0.18em",
-        textTransform: "uppercase",
-      }}
-    >
-      {date
-        .toLocaleString("en-US", { month: "short", day: "numeric" })
-        .toUpperCase()}
-    </div>
-  );
+function formatShortDate(d: Date): string {
+  return d
+    .toLocaleString("en-US", { month: "short", day: "numeric" })
+    .toUpperCase();
 }
 
 function Metric({
@@ -484,18 +636,21 @@ function Metric({
   value,
   sub,
   accent,
+  borderLeft,
 }: {
   label: string;
   value: string;
   sub?: string;
   accent?: string;
+  borderLeft?: boolean;
 }) {
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 2,
+        gap: 4,
+        padding: borderLeft ? "0 0 0 18px" : 0,
         minWidth: 0,
       }}
     >
@@ -516,12 +671,13 @@ function Metric({
           display: "flex",
           alignItems: "baseline",
           gap: 4,
+          minWidth: 0,
         }}
       >
         <span
           style={{
             fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 18,
+            fontSize: 20,
             fontWeight: 700,
             color: accent ?? "var(--ink)",
             lineHeight: 1,
@@ -546,118 +702,5 @@ function Metric({
         )}
       </div>
     </div>
-  );
-}
-
-function Sep() {
-  return (
-    <div
-      aria-hidden
-      style={{
-        width: 1,
-        height: 28,
-        background: "var(--line-soft)",
-        alignSelf: "center",
-      }}
-    />
-  );
-}
-
-// ---------------------------------------------------------------------------
-// 7-day burn sparkline — pure SVG, matches the DailyTrackingCard's sparkline
-// so the visual language stays consistent.
-// ---------------------------------------------------------------------------
-
-function WeekSparkline({
-  dailyCents,
-  averageCents,
-  todayIdx,
-  todayAccent,
-}: {
-  dailyCents: number[];
-  averageCents: number;
-  todayIdx: number;
-  todayAccent: string;
-}) {
-  const W = 360;
-  const H = 40;
-  const padX = 4;
-  const padY = 6;
-  const innerW = W - padX * 2;
-  const innerH = H - padY * 2;
-
-  const max = Math.max(1, ...dailyCents, averageCents);
-  const yMax = max * 1.15;
-
-  const x = (i: number) => padX + (i / Math.max(1, dailyCents.length - 1)) * innerW;
-  const y = (v: number) => padY + (1 - v / yMax) * innerH;
-
-  const path = dailyCents
-    .map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(v).toFixed(1)}`)
-    .join(" ");
-
-  const areaPath = `${path} L${x(dailyCents.length - 1).toFixed(1)},${(H - padY).toFixed(1)} L${x(0).toFixed(1)},${(H - padY).toFixed(1)} Z`;
-
-  // Spike detection: any day ≥ 2× the average gets a small gold ring
-  const spikes = dailyCents
-    .map((v, i) => ({ v, i }))
-    .filter(({ v }) => v >= averageCents * 2 && v > 0);
-
-  return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      width="100%"
-      height={H}
-      preserveAspectRatio="none"
-      role="img"
-      aria-label="7-day spending shape"
-      style={{ display: "block" }}
-    >
-      {/* Average dashed line */}
-      <line
-        x1={padX}
-        x2={W - padX}
-        y1={y(averageCents)}
-        y2={y(averageCents)}
-        stroke="var(--ink-4)"
-        strokeWidth={0.5}
-        strokeDasharray="2 2"
-        opacity={0.7}
-      />
-      {/* Filled area under the line */}
-      <path d={areaPath} fill="var(--terminal-cyan)" opacity="0.12" />
-      {/* The line */}
-      <path
-        d={path}
-        fill="none"
-        stroke="var(--terminal-cyan)"
-        strokeWidth={1.4}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        opacity={0.95}
-      />
-      {/* Spike rings */}
-      {spikes.map(({ i }) => (
-        <circle
-          key={`s${i}`}
-          cx={x(i)}
-          cy={y(dailyCents[i] ?? 0)}
-          r={3.5}
-          fill="none"
-          stroke="var(--gold)"
-          strokeWidth={0.8}
-          opacity={0.7}
-        />
-      ))}
-      {/* Today dot — colored by pace */}
-      <circle
-        cx={x(todayIdx)}
-        cy={y(dailyCents[todayIdx] ?? 0)}
-        r={3}
-        fill={todayAccent}
-        stroke="var(--cosmos-2)"
-        strokeWidth={1}
-      />
-    </svg>
   );
 }
