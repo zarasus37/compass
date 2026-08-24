@@ -143,10 +143,10 @@ export const CARD_CATALOG: CardMeta[] = [
     glyph: "📈",
     accent: "jupiter",
     href: "/insights",
-    span: "full",
-    defaultOn: false,
+    span: "half",
+    defaultOn: true,
     description:
-      "Line graph of net worth projected at the current pace. Shaded area beneath the curve shows the compounding. Gold dashed reference line marks the emergency fund target.",
+      "Line graph of net worth projected at the current pace. Shaded area beneath the curve shows the compounding. Gold dashed reference line marks the emergency fund target. Pairs with the Cash Flow Funnel in the bottom zone — together they show where you are (growth) and where it's going (cash flow).",
   },
   {
     id: "pay-distribution",
@@ -156,10 +156,10 @@ export const CARD_CATALOG: CardMeta[] = [
     glyph: "⇉",
     accent: "gold",
     href: "/allocation",
-    span: "full",
-    defaultOn: false,
+    span: "half",
+    defaultOn: true,
     description:
-      "The paycheck fans out into the seven vessels, weighted by the plan. Each segment is a planet. Tap to see the full Sankey (the Automation Map) on /allocation.",
+      "The paycheck fans out into the seven vessels, weighted by the plan. Each segment is a planet. Tap to see the full Sankey (the Automation Map) on /allocation. Pairs with the Net Trajectory in the bottom zone — together they show where it's going (cash flow) and where you are (growth).",
   },
 ];
 
