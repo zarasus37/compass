@@ -70,7 +70,7 @@ export function SankeyFlow({
   // Build the chart data: optional source node + the envelope nodes.
   const data = useMemo(() => {
     const finalNodes = showSource
-      ? [{ id: "__source", label: sourceLabel, color: "var(--gold)" }, ...nodes]
+      ? [{ id: "__source", label: sourceLabel, color: "var(--gold-glow)" }, ...nodes]
       : nodes;
     const finalLinks = showSource
       ? links.map((l) => ({ ...l, source: "__source" }))
@@ -78,13 +78,14 @@ export function SankeyFlow({
     return { nodes: finalNodes, links: finalLinks };
   }, [nodes, links, showSource, sourceLabel]);
 
-  // The nivo color resolver: source → gold leaf; otherwise planetary.
+  // The nivo color resolver: source → bright gold leaf; otherwise the
+  // Sankey-specific palette (slightly brighter than the chip-tuned
+  // PLANET_COLORS so the blocks read on the dark cosmic canvas).
   const colorFor = (node: { id: string; color?: string }): string => {
     if (node.color) return node.color;
-    if (node.id === "__source") return "var(--gold)";
-    // Look up the node's planet by the envelope id
+    if (node.id === "__source") return "var(--gold-glow)";
     const planet = inferPlanet(node.id);
-    return planet ? PLANET_COLORS[planet] : "var(--gold)";
+    return planet ? SANKEY_PALETTE[planet] : "var(--gold-glow)";
   };
 
   return (
@@ -163,15 +164,16 @@ export function SankeyFlow({
         sort="input"
         colors={colorFor as never}
         nodeOpacity={1}
-        nodeHoverOpacity={0.85}
-        nodeHoverOthersOpacity={0.4}
-        nodeThickness={16}
+        nodeHoverOpacity={1}
+        nodeHoverOthersOpacity={0.55}
+        nodeThickness={18}
         nodeInnerPadding={3}
-        nodeSpacing={18}
-        nodeBorderWidth={0}
-        linkOpacity={0.42}
-        linkHoverOpacity={0.75}
-        linkHoverOthersOpacity={0.18}
+        nodeSpacing={20}
+        nodeBorderWidth={1}
+        nodeBorderColor={{ from: "color", modifiers: [["darker", 0.35]] }}
+        linkOpacity={0.62}
+        linkHoverOpacity={0.95}
+        linkHoverOthersOpacity={0.22}
         linkContract={3}
         enableLinkGradient
         labelPosition="outside"
@@ -254,7 +256,7 @@ export function SankeyFlow({
                   fontFamily: "var(--font-jetbrains), monospace",
                   fontSize: 12,
                   fontWeight: 600,
-                  color: target.label === sourceLabel ? "var(--gold)" : colorFor(target as never),
+                  color: target.label === sourceLabel ? "var(--gold-glow)" : colorFor(target as never),
                 }}
               >
                 {formatMoney(link.value)} → {target.label ?? target.id}
@@ -314,3 +316,28 @@ function inferPlanet(nodeId: string): PlanetId | null {
   if (nodeId.startsWith("env-debt")) return "saturn";
   return null;
 }
+
+// ---------------------------------------------------------------------------
+// Sankey-specific palettes
+// ---------------------------------------------------------------------------
+
+/**
+ * Block colors for the Sankey nodes. Slightly brighter + more saturated
+ * than the standard PLANET_COLORS (which are tuned for small chips and
+ * glyphs that need to read against varied backgrounds). At 16-20px node
+ * thickness on a dark cosmic canvas, the eye needs the extra contrast
+ * to distinguish Jupiter (purple) from Saturn (gray) and Mercury (teal)
+ * from Luna (pale blue).
+ *
+ * Pair with the nivo `nodeBorderColor` `darker 0.35` modifier to give
+ * each block a 1px edge for separation against neighbors.
+ */
+const SANKEY_PALETTE: Record<PlanetId, string> = {
+  sol:     "#F5C24A",  // warm gold (Rent)
+  luna:    "#9DC4E8",  // cool moon-blue (Groceries)
+  mars:    "#E06A4A",  // iron orange-red (Buffer)
+  mercury: "#5DD4C2",  // bright teal (Utilities)
+  jupiter: "#B794D4",  // royal purple (Growth)
+  venus:   "#E8A88A",  // warm rose (Joy)
+  saturn:  "#8FA0BD",  // cool slate (Debt)
+};
