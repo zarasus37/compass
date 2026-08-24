@@ -4,8 +4,8 @@ import { AppSidebar } from "@/components/sidebar/AppSidebar";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { DashboardGrid } from "@/components/dashboard/DashboardGrid";
 import { MustHaveToolsStrip } from "@/components/dashboard/MustHaveToolsStrip";
+import { SwipeableDashboardHeader } from "@/components/dashboard/SwipeableDashboardHeader";
 import { DailyTrackingCard } from "@/components/dashboard/cards/daily-tracking";
-import { SafeToSpendHero, type SafeToSpendHeroData } from "@/components/dashboard/cards/safe-to-spend-hero";
 import { CriticalTimelineCard } from "@/components/dashboard/cards/critical-timeline";
 import { EnvelopeStatusCard } from "@/components/dashboard/cards/envelope-status";
 import { TopPriorityCard } from "@/components/dashboard/cards/top-priority";
@@ -625,15 +625,16 @@ export default async function Dashboard() {
           </div>
         </header>
 
-        {/* ============== DAILY TELEMETRY — SAFE TO SPEND HERO ==============
-            Lifted above the spend ring on 2026-08-23. The cents-remaining
-            figure is the single most important daily number, so it lives
-            ABOVE every other card, with a "period fuel gauge" visual +
-            7-day burn sparkline next to the headline number. The
-            DailyTrackingCard stays in the dashboard grid for the compact
-            variant, but it's no longer the default-on card. */}
-        <SafeToSpendHero
-          data={{
+        {/* ============== SWIPEABLE TOP FOLD ==============
+            A 2-page carousel: Page 0 = Safe to Spend hero (burn
+            curve, today's spend, days-left, per-day, vs. pace);
+            Page 1 = Spend Ring + Critical Timeline side-by-side.
+            Swipe, click ‹/›, or press ←/→ when the container has
+            focus. Page-indicator dots below the scroll container
+            show which page is active. Replaces the two static
+            sections that used to live here. */}
+        <SwipeableDashboardHeader
+          safeToSpendData={{
             safeToSpendCents: safeCents,
             todaySpentCents,
             weeklyAvgPerDayCents,
@@ -644,61 +645,26 @@ export default async function Dashboard() {
             day,
             totalDays,
             breakdown,
-          } satisfies SafeToSpendHeroData}
-        />
-
-        {/* ============== TOP 30% — PROGRESS RING + HORIZON LINE ============== */}
-        <section
-          aria-label="Progress ring and horizon line"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.6fr)",
-            gap: 20,
-            marginBottom: 28,
           }}
-        >
-          <DashboardCard
-            cardId="spend-ring"
-            href={CARD_META["spend-ring"].href}
-            eyebrow={CARD_META["spend-ring"].eyebrow}
-            title={CARD_META["spend-ring"].title}
-            em={CARD_META["spend-ring"].em}
-            accent={CARD_META["spend-ring"].accent}
-          >
-            <SpendRingCard
-              data={{
-                perEnvelope: ENVELOPES.map((e) => ({
-                  id: e.id,
-                  name: e.name,
-                  planet: e.planet,
-                  currentCents: e.current,
-                  targetCents: e.target,
-                })),
-                totalSpentCents: burnSpent,
-                totalTargetCents,
-              }}
-            />
-          </DashboardCard>
-
-          <DashboardCard
-            cardId="critical-timeline"
-            href={CARD_META["critical-timeline"].href}
-            eyebrow={CARD_META["critical-timeline"].eyebrow}
-            title={CARD_META["critical-timeline"].title}
-            em={CARD_META["critical-timeline"].em}
-            accent={CARD_META["critical-timeline"].accent}
-          >
-            <CriticalTimelineCard
-              data={{
-                listRows: monthListRows,
-                calendarBills,
-                calendarGoals,
-                transactionDays,
-                today: TODAY,
-              }}
-            />
-          </DashboardCard>
-        </section>
+          spendRingData={{
+            perEnvelope: ENVELOPES.map((e) => ({
+              id: e.id,
+              name: e.name,
+              planet: e.planet,
+              currentCents: e.current,
+              targetCents: e.target,
+            })),
+            totalSpentCents: burnSpent,
+            totalTargetCents,
+          }}
+          criticalTimelineData={{
+            listRows: monthListRows,
+            calendarBills,
+            calendarGoals,
+            transactionDays,
+            today: TODAY,
+          }}
+        />
 
         {/* ============== MUST-HAVE TOOLS INDEX ============== */}
         <MustHaveToolsStrip />

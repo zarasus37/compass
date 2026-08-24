@@ -46,7 +46,16 @@ export interface SafeToSpendHeroData {
   breakdown: PaycheckBreakdown;
 }
 
-export function SafeToSpendHero({ data }: { data: SafeToSpendHeroData }) {
+export function SafeToSpendHero({
+  data,
+  embedded = false,
+}: {
+  data: SafeToSpendHeroData;
+  /** True when the hero is rendered inside a parent that already supplies
+   *  its own spacing (e.g. the swipeable dashboard header). Drops the
+   *  outer `marginBottom` so the carousel page packs flush. */
+  embedded?: boolean;
+}) {
   const {
     safeToSpendCents,
     todaySpentCents,
@@ -120,7 +129,7 @@ export function SafeToSpendHero({ data }: { data: SafeToSpendHeroData }) {
         borderLeft: `2px solid ${barAccent}`,
         borderRadius: 4,
         padding: "24px 28px 22px",
-        marginBottom: 28,
+        marginBottom: embedded ? 0 : 28,
         position: "relative",
         overflow: "hidden",
       }}
