@@ -18,6 +18,7 @@ import { PayDistributionCard } from "@/components/dashboard/cards/pay-distributi
 import { AllocationFeed, type AllocationRow } from "@/components/dashboard/AllocationFeed";
 import { BottomNav } from "@/components/shell/BottomNav";
 import { TopAppBar } from "@/components/shell/TopAppBar";
+import { RebalanceAlertBay } from "@/components/alerts/RebalanceAlertBay";
 import { CARD_META, type CardId } from "@/components/dashboard/catalog";
 import {
   liveEnvelopes,
@@ -315,11 +316,16 @@ export default async function Dashboard() {
     .slice(0, 3);
 
   // --- NEXT STEP ---
+  // Shared over-limit list used by both the NextStepCard (dashboard
+  // grid) and the RebalanceAlertBay (contextual alert banner). The
+  // shape is the alert-bay's: includes the planet for the vessel
+  // glyph + planet-color ring.
   const overLimit = ENVELOPES.filter(
     (e) => e.target > 0 && e.current > e.target,
   ).map((e) => ({
     id: e.id,
     name: e.name,
+    planet: e.planet,
     current: e.current,
     target: e.target,
   }));
@@ -616,6 +622,25 @@ export default async function Dashboard() {
         {/* Persistent top bar — branding, pay period, engine toggle. */}
         <TopAppBar />
         <div style={{ padding: "32px 80px 112px", maxWidth: 1480, position: "relative", flex: 1 }}>
+        {/* Contextual rebalance alert bay — only renders when an envelope
+            is over its target. Surfaces the worst overage with a
+            [ Balance Envelope ] button that opens a slide-in drawer. */}
+        <RebalanceAlertBay
+          envelopes={ENVELOPES.map((e) => ({
+            id: e.id,
+            name: e.name,
+            planet: e.planet,
+            currentCents: e.current,
+            targetCents: e.target,
+          }))}
+          overLimit={overLimit.map((e) => ({
+            id: e.id,
+            name: e.name,
+            planet: e.planet,
+            currentCents: e.current,
+            targetCents: e.target,
+          }))}
+        />
         {/* ============== HERO (compact) ============== */}
         <header
           style={{
