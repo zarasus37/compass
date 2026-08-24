@@ -1,6 +1,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
+import { ResetSeedButton } from "@/components/settings/ResetSeedButton";
 
 export const dynamic = "force-dynamic";
 
@@ -101,6 +102,8 @@ export default function SettingsPage() {
           caption="Add a partner or family member to the same Compass account. They see the same data with their own log-in. Schema is multi-user ready; UI lands in Cluster 4."
         />
       </div>
+
+      <ResetSeedButton />
     </div>
   );
 }

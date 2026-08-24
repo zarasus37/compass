@@ -1,20 +1,26 @@
 "use server";
 
 /**
- * Envelope rebalance server action.
+ * Envelope rebalance server action — Prisma cutover (Cluster 3.x).
  *
- * Powers the "Move $X from Y → Z" form on /envelopes. The client
- * sends a FormData payload (sourceEnvelopeId, destinationEnvelopeId,
- * transferCents as a dollar string like "50" for $50.00). We convert
- * to integer cents, call the in-memory engine, and revalidate the
- * dashboard and the envelopes page.
+ * Powers the "Move $X from Y → Z" form on /envelopes and the slide-in
+ * drawer in the rebalance alert bay. The client sends a FormData
+ * payload (sourceEnvelopeId, destinationEnvelopeId, amount as a dollar
+ * string like "50" for $50.00). We convert to integer cents, call
+ * the async Prisma-backed engine, then bust the global layout cache
+ * so every page (not just the explicitly-revalidated ones) re-reads
+ * the fresh envelope state.
  *
- * The action delegates to `rebalanceEnvelopes` in lib/store.ts which
- * holds the full validation pipeline (positive integer cents, source
- * ≠ destination, both envelopes exist, source has enough balance,
- * atomic mutation, audit log entry). The Prisma migration path is the
- * same function signature with a different mutation body — no UI
- * change required.
+ * The engine (`rebalanceEnvelopes` in lib/store.ts) holds the full
+ * validation pipeline and the Prisma `$transaction` — SELECT source +
+ * dest, validate balance, UPDATE both rows, INSERT audit log, all
+ * inside a single transaction that rolls back on any error.
+ *
+ * The `revalidatePath('/', 'layout')` call busts the root layout so
+ * every signed-in page (including the unlisted sub-pages like
+ * /goals, /recurring, /transactions, /accounts) re-reads envelope
+ * state on next render. This is the fix for the stale-bay bug
+ * across pages not in the original revalidatePath list.
  */
 
 import { revalidatePath } from "next/cache";
@@ -38,7 +44,7 @@ export async function rebalanceAction(
   _prev: RebalanceActionState | null,
   formData: FormData,
 ): Promise<RebalanceActionState> {
-  await requireUser();
+  const user = await requireUser();
 
   const sourceEnvelopeId = String(formData.get("sourceEnvelopeId") ?? "").trim();
   const destinationEnvelopeId = String(
@@ -63,7 +69,8 @@ export async function rebalanceAction(
   // Let the engine do the rest of the validation. It will reject
   // non-integer cents, same-envelope transfers, missing envelopes,
   // and insufficient source balance — with a human-readable reason.
-  const result = rebalanceEnvelopes(
+  const result = await rebalanceEnvelopes(
+    user.id,
     sourceEnvelopeId,
     destinationEnvelopeId,
     transferCents,
@@ -79,14 +86,11 @@ export async function rebalanceAction(
     };
   }
 
-  // Refresh everything that shows balance state. The dashboard hero
-  // (safe-to-spend) and the spend ring both depend on envelope balances,
-  // and the /envelopes page itself is the primary view.
-  revalidatePath("/");
-  revalidatePath("/envelopes");
-  revalidatePath("/period");
-  revalidatePath("/insights");
-  revalidatePath("/allocation");
+  // Bust the ROOT LAYOUT so every signed-in page re-reads envelope
+  // state on next render. This fixes the stale-bay bug across
+  // unlisted sub-pages (/goals, /recurring, /transactions, etc.)
+  // without enumerating every path.
+  revalidatePath("/", "layout");
 
   return {
     ok: true,

@@ -7,8 +7,17 @@
  * reset balances between dev hot-reloads. When the real DB is wired in
  * (Cluster 2), this module's reads/writes are the only call sites that
  * need to change — the rest of the app talks to it as a black box.
+ *
+ * Cluster 3.x Prisma cutover (2026-08-24): the atomic rebalance engine
+ * (`rebalanceEnvelopes`) is now backed by `prisma.$transaction` and writes
+ * its audit row to the `AuditLog` Prisma model. The rest of the store
+ * still uses the in-memory array; after each rebalance the engine
+ * mirrors the new balances into the in-memory state so reads stay
+ * consistent without a synchronous DB read. Reads will migrate to
+ * Prisma in a future cluster.
  */
 
+import { prisma } from "@/server/db";
 import {
   ENVELOPES_SEED,
   GOALS_SEED,
@@ -26,6 +35,48 @@ import {
   type BillSeed,
   type DebtSeed,
 } from "./mock-seed";
+
+/**
+ * Ensure the DB has the 7 default envelopes for the given user. Called
+ * by the rebalance engine on first use so the action always has rows
+ * to mutate. Idempotent — no-op if the user already has envelopes.
+ */
+export async function ensureUserEnvelopesSeeded(userId: string): Promise<void> {
+  const count = await prisma.envelope.count({ where: { userId } });
+  if (count > 0) return;
+  await prisma.envelope.createMany({
+    data: ENVELOPES_SEED.map((e) => ({
+      id: e.id,
+      userId,
+      name: e.name,
+      planet: e.planet,
+      currentBalance: e.currentCents,
+      targetBalance: e.targetCents,
+    })),
+  });
+}
+
+/**
+ * Drop all envelopes + audit logs for the user and re-insert the seed
+ * envelopes. Used by the /api/reset-seed admin endpoint when test
+ * drift corrupts the live state.
+ */
+export async function resetUserEnvelopesToSeed(userId: string): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.auditLog.deleteMany({ where: { userId } });
+    await tx.envelope.deleteMany({ where: { userId } });
+    await tx.envelope.createMany({
+      data: ENVELOPES_SEED.map((e) => ({
+        id: e.id,
+        userId,
+        name: e.name,
+        planet: e.planet,
+        currentBalance: e.currentCents,
+        targetBalance: e.targetCents,
+      })),
+    });
+  });
+}
 
 export type PlanetId =
   | "sol"
@@ -499,40 +550,41 @@ export function updateEnvelope(
 }
 
 /**
- * Atomic envelope rebalancing.
+ * Atomic envelope rebalancing — Prisma cutover.
  *
  * Move `transferCents` from `sourceEnvelopeId` to `destinationEnvelopeId`
  * in a single safe operation. The two balance mutations happen together
- * — if any check fails, neither is applied.
+ * inside a Prisma `$transaction` — if any check fails, the whole
+ * transaction rolls back and neither balance is applied.
  *
- * Mirrors the system-spec function (BEGIN TRANSACTION / SELECTs /
- * UPDATEs / status recompute / audit log insert / COMMIT, with
- * ROLLBACK on any error). For the in-memory store, "atomic" is
- * structural: every check happens before any mutation. When the
- * Prisma migration lands, this same call site becomes the wrapper
- * around `prisma.$transaction([...])` — the function signature
- * stays the same so the UI doesn't change.
+ * Cluster 3.x cutover (2026-08-24): the engine is now durable. The
+ * rebalance writes through to the `Envelope` table and drops a
+ * matching `AuditLog` row in the same transaction. After the
+ * transaction commits, the new balances are mirrored to the in-memory
+ * store so existing reads (which still go through the in-memory array)
+ * see the change immediately.
+ *
+ * The UI return shape is unchanged from the pre-Prisma version:
+ * `{ ok, reason?, source?, destination?, audit? }` where `source` /
+ * `destination` use the in-memory store's `currentCents` field name
+ * (mapped from the DB's `currentBalance`).
  *
  * Status state (OVER / WATCH / CALM) is derived from
- * `currentCents / targetCents` on the next read, not stored. So
- * the AllocationFeed and Status pill pick up the new state
- * automatically after a rebalance.
- *
- * Used by the "Move $X from Y → Z" form on /envelopes (Cluster 2.3,
- * not yet wired to the UI) and by the rebalance gesture on the
- * AllocationFeed rows.
+ * `currentBalance / targetBalance` on the next read, not stored. The
+ * AllocationFeed and Status pill pick up the new state automatically.
  */
-export function rebalanceEnvelopes(
+export async function rebalanceEnvelopes(
+  userId: string,
   sourceEnvelopeId: string,
   destinationEnvelopeId: string,
   transferCents: number,
-): {
+): Promise<{
   ok: boolean;
   reason?: string;
   source?: Envelope;
   destination?: Envelope;
   audit?: AuditLogEntry;
-} {
+}> {
   // 1. Validate input shape.
   if (!Number.isInteger(transferCents) || transferCents <= 0) {
     return { ok: false, reason: "Transfer amount must be a positive integer (cents)." };
@@ -541,54 +593,108 @@ export function rebalanceEnvelopes(
     return { ok: false, reason: "Source and destination must be different envelopes." };
   }
 
-  // 2. Fetch both envelopes (Prisma path: SELECT ... FROM envelopes
-  // WHERE id = ? — Prisma's $transaction gives snapshot isolation).
-  const s = getState();
-  const source = s.envelopes.find((e) => e.id === sourceEnvelopeId);
-  const dest = s.envelopes.find((e) => e.id === destinationEnvelopeId);
-  if (!source || !dest) {
-    return { ok: false, reason: "One or both envelopes were not found." };
+  // 2. Ensure the user has the 7 default envelopes in the DB.
+  // Idempotent — no-op once the user has any envelopes.
+  await ensureUserEnvelopesSeeded(userId);
+
+  // 3. Atomic Prisma transaction. The callback form (`$transaction
+  // (async (tx) => ...)`) gives snapshot isolation: any concurrent
+  // transaction that races against this one will be serialized, and
+  // if anything throws inside the callback, the whole transaction
+  // rolls back — neither envelope moves, no audit row is written.
+  const result = await prisma.$transaction(async (tx) => {
+    const source = await tx.envelope.findUnique({
+      where: { id: sourceEnvelopeId },
+    });
+    const dest = await tx.envelope.findUnique({
+      where: { id: destinationEnvelopeId },
+    });
+    if (!source || !dest) {
+      return { ok: false as const, reason: "One or both envelopes were not found." };
+    }
+    if (source.userId !== userId || dest.userId !== userId) {
+      return { ok: false as const, reason: "Envelopes do not belong to the current user." };
+    }
+    if (source.currentBalance < transferCents) {
+      return {
+        ok: false as const,
+        reason: "Source envelope has insufficient balance for the transfer.",
+      };
+    }
+
+    // 4. Mutate both balances. Prisma's increment/decrement helpers
+    // do the math in SQL — race-safe even under concurrent requests.
+    await tx.envelope.update({
+      where: { id: sourceEnvelopeId },
+      data: { currentBalance: { decrement: transferCents } },
+    });
+    await tx.envelope.update({
+      where: { id: destinationEnvelopeId },
+      data: { currentBalance: { increment: transferCents } },
+    });
+
+    // 5. Audit row in the same transaction. The Prisma schema uses
+    // `actionType` (string) and `payload` (JSON-encoded string, since
+    // SQLite has no JSONB). We serialize the transfer details so the
+    // audit log can be browsed later.
+    const auditRow = await tx.auditLog.create({
+      data: {
+        userId,
+        actionType: "envelope_rebalance",
+        payload: JSON.stringify({
+          sourceEnvelopeId,
+          destinationEnvelopeId,
+          transferCents,
+          sourceBalanceAfterCents: source.currentBalance - transferCents,
+          destinationBalanceAfterCents: dest.currentBalance + transferCents,
+          at: new Date().toISOString(),
+        }),
+        aiTierAtTime: 1,
+      },
+    });
+
+    return {
+      ok: true as const,
+      source: { ...source, currentBalance: source.currentBalance - transferCents },
+      dest: { ...dest, currentBalance: dest.currentBalance + transferCents },
+      audit: auditRow,
+    };
+  });
+
+  if (!result.ok) {
+    return { ok: false, reason: result.reason };
   }
 
-  // 3. Structural protection: source must have enough to cover the
-  // transfer. (Prisma path: re-check inside the transaction so we
-  // never race against a concurrent withdrawal.)
-  if (source.currentCents < transferCents) {
-    return { ok: false, reason: "Source envelope has insufficient balance for the transfer." };
-  }
+  // 6. Mirror to the in-memory store so the rest of the app (which
+  // still reads from the in-memory array) sees the new state on the
+  // next render. This is a one-line write per envelope — no read
+  // contention because rebalance is per-user.
+  const inMemory = getState();
+  const srcMem = inMemory.envelopes.find((e) => e.id === sourceEnvelopeId);
+  const dstMem = inMemory.envelopes.find((e) => e.id === destinationEnvelopeId);
+  if (srcMem) srcMem.currentCents = result.source.currentBalance;
+  if (dstMem) dstMem.currentCents = result.dest.currentBalance;
 
-  // 4. Mutate (Prisma path: UPDATE envelopes SET current_balance =
-  // current_balance - ? WHERE id = ? — Prisma will roll this back
-  // if any later step in the $transaction throws).
-  source.currentCents -= transferCents;
-  dest.currentCents += transferCents;
-
-  // 5. Status state (OVER / WATCH / CALM) is derived, not stored —
-  // nothing to UPDATE here. The next read of either envelope will
-  // recompute the new ratio.
-
-  // 6. Audit log (Prisma path: INSERT INTO AuditLog with actionType =
-  // "envelope_rebalance", payload = the transfer JSON). Here we
-  // append to the in-memory audit ring.
+  // 7. Build the AuditLogEntry shape the UI expects (a thin wrapper
+  // over the Prisma row so existing call sites keep working).
   const audit: AuditLogEntry = {
-    id: nextId("aud-rebal"),
-    at: new Date(),
+    id: result.audit.id,
+    at: result.audit.createdAt,
     kind: "manual-adjust",
-    summary: `Rebalanced ${formatCentsInline(transferCents)} from "${source.name}" → "${dest.name}".`,
+    summary: `Rebalanced ${formatCentsInline(transferCents)} from "${result.source.name}" → "${result.dest.name}".`,
     meta: {
-      sourceEnvelopeId: source.id,
-      destinationEnvelopeId: dest.id,
+      sourceEnvelopeId: result.source.id,
+      destinationEnvelopeId: result.dest.id,
       transferCents,
-      sourceBalanceAfterCents: source.currentCents,
-      destinationBalanceAfterCents: dest.currentCents,
+      sourceBalanceAfterCents: result.source.currentBalance,
+      destinationBalanceAfterCents: result.dest.currentBalance,
     },
   };
-  s.audit.unshift(audit);
 
   return {
     ok: true,
-    source: { ...source },
-    destination: { ...dest },
+    source: { ...srcMem!, currentCents: result.source.currentBalance },
+    destination: { ...dstMem!, currentCents: result.dest.currentBalance },
     audit,
   };
 }
