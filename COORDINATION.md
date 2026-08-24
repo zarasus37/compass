@@ -48,7 +48,7 @@ Key sections to load into context:
 - **D5** AI provider: **Mavis internal primary + Ollama local fallback**, swappable via plugin abstraction
 - **D6** Name: **Compass**
 - **D7** Auth: email + password (hashed), single-user, simple
-- **D8** Design vibe: ~~Airtable-meets-treasury~~ → ~~Alchemical / Celestial (v4)~~ → **Component Oracle Terminal (v5)** — locked 2026-08-23. Cool terminal canvas (`#060A12` base, teal `#2DD4BF` signal, antique gold `#C9A45C` accent, system green `#4ADE80`). Sora for headings, JetBrains Mono for data/labels. Square 4px corners, thin teal-gray borders. Oracle / protocol voice with terminal-log markers (`[OK]`, `[WARN]`, `[SIGIL]`, `[INDEXED]`). The 7 planetary vessels (D14) are preserved as a semantic mapping (calendar day-of-week headers) but the visual treatment is terminal — no decorative occult overload. Replaces v4 alchemical / celestial warm-gold language. See Cluster 2.0.3.
+- **D8** Design vibe: ~~Airtable-meets-treasury~~ → ~~Alchemical / Celestial (v4)~~ → ~~Component Oracle Terminal (v5)~~ → **Sovereign Monad / vessel (v6)** — pivoted 2026-08-24 (Cluster 3.0). Dark slate-purple canvas (`--vessel-dark: #16121e`), neon purple accent (`--vessel-accent: #a855f7`), warning orange (`--vessel-watch: #f97316`), over-limit neon red (`--vessel-over: #ef4444`). Sora for headings, JetBrains Mono for data. App wordmark is "Sovereign Monad" with a pulsing accent dot. The 7 planetary vessels (D14) are still preserved as data semantics. v5 (Component Oracle Terminal) tokens (`--cosmos`, `--terminal-cyan`, `--gold`) coexist additively for any component that hasn't been migrated yet; new shells consume vessel tokens directly.
 - **D9** Mobile: PWA-ready, native deferred
 - **D10** Stack: **Next.js 16 monolith + plugin architecture + API routes for external integrations**
 - **D11** **Unit of truth = pay period** (not month, not transaction)
@@ -437,6 +437,56 @@ Per xKryptic directive: "go through this list and integrate everything into the 
 
 **Verification:** `tsc --noEmit` clean across all 47 source files. Dev server returns 200 on every page (18 routes tested, all with correct content markers). Dashboard renders with: hero, Must-Have Tools strip, 4 defaultOn cards (Daily Tracking, Critical Timeline, Envelope Status, Next Step), and opt-in cards (Top Priority, Snapshot, Spend Ring, Net Trajectory, Pay Distribution) available via the + Add card sheet.
 
+### Cluster 3.0 — Vessel shell foundation — Sovereign Monad pivot (✅ DONE — commit `81e7c7c`; 2026-08-24)
+
+xKryptic's mid-session pivot: Compass re-themed from the Component Oracle Terminal (v5) to the **Sovereign Monad / vessel (v6)** design system. The new visual language is dark slate-purple canvas, neon purple accent, warning orange + over-limit neon red. The app wordmark is "Sovereign Monad" with a pulsing accent dot. The 7 planetary vessels (D14) are preserved as data semantics; only the visual treatment changes.
+
+**Phase 1 — Infrastructure:**
+- `prisma/schema.prisma`: added `model PayPeriod { id, startDate, endDate, isActive, createdAt, updatedAt }` with `@@index([isActive])` and `@@index([startDate, endDate])`. The `npx prisma generate` + `npx prisma db push` were applied to dev.db.
+- `src/lib/mock.ts`: added `getCurrentPayPeriod()` that reads from the `PayPeriod` table with a constants fallback (`PERIOD_START` / `PERIOD_END` in `src/lib/mock-seed.ts`). The fallback is intentional — the table starts empty and a future cluster can seed it. The TopAppBar's "CYCLE" chip looks the same regardless.
+- `src/app/(app)/settings/engine-actions.ts`: `toggleEngineAction` now returns `{ success: true, newLevel } | { success: false, error }` (was `Promise<void>`). The shape matches the spec's `useTransition` typed result envelope.
+- `src/app/globals.css`: added the vessel palette as **additive** CSS custom properties so the existing Component Oracle Terminal components keep working:
+  - `--vessel-dark: #16121e` (slate-purple canvas)
+  - `--vessel-surface: #1c1726` (elevated)
+  - `--vessel-border: #2d243d`
+  - `--vessel-accent: #a855f7` (neon purple)
+  - `--vessel-watch: #f97316` (warning orange)
+  - `--vessel-over: #ef4444` (over-limit neon red)
+  - `--vessel-accent-soft: rgba(168, 85, 247, 0.10)`
+  - `--vessel-neon-glow: 0 0 12px rgba(168, 85, 247, 0.4)`
+  - `--vessel-nav-shadow: 0 -4px 20px rgba(0, 0, 0, 0.6)`
+- Added `@keyframes vessel-pulse` for the brand dot's heartbeat, with a `prefers-reduced-motion` fallback.
+
+**Phase 2 — New shells:**
+- `src/components/shell/TopAppBar.tsx`: full rewrite on vessel styling. Three regions — brand (pulsing accent dot + "SOVEREIGN MONAD" Sora 900 wordmark, letter-spaced), CYCLE chip ("CYCLE: AUG 22 ↔ SEP 5" with a thin vessel-accent progress rail), and engine toggle + settings cog. Sticky top, vessel-dark background, vessel-border bottom, soft drop shadow.
+- `src/components/shell/EnginePillButton.tsx` (new): small client component for the toggle's pending state via `useFormStatus` (opacity 50% + cursor-wait during submission).
+- `src/components/shell/BottomNav.tsx`: full rewrite on vessel styling. 4 tabs in a 4-col grid; Quick Entry is the floating 56px center disc (vessel-accent ring + neon-glow, elevated with `margin-top: -22`). Quick Entry glyph changed `+` → `⊕` to read more clearly as a circle-with-plus. The 3 flat tabs use vessel-accent active state.
+- `src/app/(app)/layout.tsx` + `src/app/page.tsx`: read `getActiveEngineLevel()` + `getCurrentPayPeriod()` via `Promise.all` and pass them into TopAppBar as props. Force-dynamic so the bar reflects the latest engine level after `toggleEngineAction`.
+
+**Phase 2.5 — Smoke updates for the new branding:**
+- `tests/smoke-topbar.mjs`: 78 → 102 checks. Exercises the Sovereign Monad wordmark, pulsing accent dot, CYCLE chip (label + range + color + progress rail), engine pill label, vessel styling markers (vessel-dark bg + vessel-border).
+- `tests/smoke-bottom-dock.mjs`: 70 checks. Updated Quick Entry glyph `+` → `⊕`. The tabCount regex and the active-tab regex now allow the `bottom-nav-tab--center` modifier on the floating center button (the old strict regex required `class="bottom-nav-tab"` to end with a closing quote; the center tab also has `--center` in its class).
+- `tests/smoke-engine-toggle.mjs`: 7 checks. Reads the new label format "⚙ L1 RULES ENGINE" / "⚡ L2 AI ENGINE"; strips the leading glyph for stable equality.
+
+**All 8 smokes green at 241/241** (topbar 102, rebalance 5, horizon-strip 16, alert-bay 22, vessel-feed 11, bottom-dock 70, reset-seed 8, engine-toggle 7).
+
+**What is NOT yet migrated (the gap to Cluster 3.1):** the 5 body shells — `SafeToSpendHero`, `BurnCurve` (the cumulative-spend SVG), `HorizonStrip` (cards/horizon-strip.tsx), `VesselFeed` (AllocationFeed.tsx), and `RebalanceAlertBay + Drawer` — still use the Component Oracle Terminal palette (`var(--cosmos)`, `var(--terminal-cyan)`, `var(--gold)`, `var(--warn)`, `var(--neg)`). They render correctly today; the visual mismatch between the new vessel shell and the old terminal body is intentional. The recommended next cluster (3.1) replaces those tokens token-for-token with the vessel equivalents.
+
+**Token-mapping cheatsheet for Cluster 3.1:**
+| Old (Terminal) | New (Vessel) |
+| --- | --- |
+| `var(--cosmos)` | `var(--vessel-dark)` |
+| `var(--surface)` | `var(--vessel-surface)` |
+| `var(--line)` / `var(--line-soft)` | `var(--vessel-border)` |
+| `var(--terminal-cyan)` | `var(--vessel-accent)` |
+| `var(--terminal-cyan-dim)` | (no direct equiv — use `var(--vessel-accent-soft)` for 10% alpha, or opacity: 0.6 on accent) |
+| `var(--gold)` | `var(--vessel-accent)` (or a vessel-watch if it's a warning state) |
+| `var(--warn)` | `var(--vessel-watch)` |
+| `var(--neg)` | `var(--vessel-over)` |
+| `var(--ok)` | keep (system green is still semantically correct for "healthy" / "confirmed") |
+
+**Prisma client cache gotcha for Cluster 3.1:** any standalone `node -e` / `node _peek_*.mjs` script that imports `@prisma/client` from outside the Next.js dev server will fail with `Cannot find module '.prisma/client/default'` (the in-memory Prisma client is regenerated when `npx prisma generate` runs and the standalone node process has the old resolution). The dev server is fine. Workaround for the peek scripts: hit the dev server's HTTP endpoint instead (e.g. `GET /api/reset-seed` to read/write envelope state), or use `sqlite3` directly on dev.db.
+
 **Tidy-up pass still owed (per xKryptic's "fine tune where to place things more strickly"):**
 - Decide which of the 3 new viz cards should be `defaultOn: true` (right now all 3 are opt-in)
 - Decide if Settings belongs in the Overview chapter or its own `// Settings` chapter
@@ -612,6 +662,7 @@ The "Next session" pointer has been retired. The next session should:
 
 **Handoff menu — next-up clusters (all scoped, not started):**
 
+- **Cluster 3.1 — Vessel visual migration (RECOMMENDED NEXT)** — Migrate the remaining 5 body shells from the Component Oracle Terminal palette to the vessel tokens: `SafeToSpendHero` (cards/safe-to-spend-hero.tsx), `BurnCurve` (the cumulative-spend SVG in the dashboard), `HorizonStrip` (cards/horizon-strip.tsx), `VesselFeed` (AllocationFeed.tsx — the scrollable envelope list), and `RebalanceAlertBay + Drawer` (alerts/RebalanceAlertBay.tsx + RebalanceDrawer.tsx). All 5 currently use `var(--cosmos)`, `var(--terminal-cyan)`, `var(--gold)`, `var(--warn)`, `var(--neg)`. The new tokens are `var(--vessel-dark)`, `var(--vessel-surface)`, `var(--vessel-border)`, `var(--vessel-accent)`, `var(--vessel-watch)`, `var(--vessel-over)`. Additive pattern — replace token-for-token, don't mass-rename. Smokes should stay green; the shell smokes assert on topbar + bottom-dock, not body internals. (The 4 hidden .mjs scripts `_peek_db.mjs`/`_peek_db2.mjs`/`_peek_db3.mjs`/`_peek_payperiod.mjs` will fail in a fresh `node` process because the in-memory Prisma client is stale; run them via the dev server's HTTP endpoint or via `psql`/`sqlite3`, not directly through `node -e`.)
 - **Cluster 2.1 — Alchemical voice microcopy sweep** (low effort, high polish) — `src/components/dashboard/catalog.ts` em strings still have alchemical flavor ("vessels needing attention", "the one thing to fix"). Replace with terminal voice. ~20 strings. Also review the few leftover alchemical words in pages.
 - **Cluster 2.2 — ⌘K command palette** (medium effort, high visible-UI) — global search/navigation drawer; jumps to any of 28 routes + any envelope/goal/debt/bill. Mom will love this on payday.
 - **Cluster 2.3 — Onboarding flow (D2 of 1.6 was actually never built)** — pay schedule picker → seed 7 envelopes → arm plan → land on dashboard. Critical for any real second user; smoke test exercises this path.
@@ -723,13 +774,16 @@ These touch the auto-allocate engine + the AI provider layer. Schedule for after
 - **Cluster 2.0.3 (Component Oracle Terminal re-skin — full app)**: ✅ 2026-08-23, commits `884fe70` + `29dcd02` + `396e7e9` + `76e1284` + `72f2cec`
 - **Cluster 2.x (Smart bills + variable income)**: ⏳ scoped, not started (see "Handoff menu" above)
 - **Cluster 2.1 (Must-have viz + utility integration push)**: ✅ 2026-08-23, single working session — 5 viz wired (3 new dashboard cards + 2 already-shipped) + 6 utility surfaces under /settings + Must-Have Tools index strip on the dashboard + /subscriptions wired to live detection.
+- **Cluster 3.0 (Vessel shell foundation — Sovereign Monad pivot)**: ✅ 2026-08-24, commit `81e7c7c` — vessel palette added to globals.css, PayPeriod Prisma model + getCurrentPayPeriod() reader, toggleEngineAction typed result, new TopAppBar (Sovereign Monad wordmark + pulsing accent dot + CYCLE chip + engine pill), new BottomNav (4 tabs + floating Quick Entry disc), all 8 smokes green at 241/241. Old Component Oracle Terminal tokens preserved additively; body shells (SafeToSpendHero, BurnCurve, HorizonStrip, VesselFeed, RebalanceAlertBay) still use cosmos/teal/gold and migrate in Cluster 3.1.
 - **Handed off (design)**: 2026-08-21
 - **Handed off (scaffold)**: 2026-08-22
 - **Handed off (auth)**: 2026-08-22
 - **Handed off (Cluster 1)**: 2026-08-22
 - **Handed off (Cluster 1.8 + 1.9 + 2.0 + 2.0.1 + 2.0.2 + 2.0.3)**: 2026-08-23
 - **Handed off (Cluster 2.1 — must-have integration)**: 2026-08-23
+- **Handed off (Cluster 3.0 — vessel shell foundation)**: 2026-08-24
 - **From session**: `mvs_77706038b3dc41f0818e43d1aca029bd` (design)
 - **From session**: `mvs_0ca37adfb53b4de188d584afc12df309` (scaffold + auth + Cluster 1 + Cluster 1.5 + Cluster 1.7)
 - **From session**: `mvs_4d1dd62520784d9c9f0c7511fdeaee6d` (1.7 visual audit → 1.8 bill organizer → 1.9 debt payoff → 2.0 customizable dashboard → 2.0.1 visual-first → 2.0.2 full-month calendar → 2.0.3 Component Oracle Terminal re-skin of the full app)
-- **Handed to**: next session (TBD) — start by reading this file + `00-DESIGN.md`, then pick from the **Handoff menu** (Cluster 2.1 microcopy sweep, 2.2 ⌘K palette, 2.3 onboarding, 2.4 bill reminders, 2.5 variable income, 2.6 period close, 2.7 responsive polish, or 3.x layout system). The form-action pattern is established (see Cluster 1.10). The terminal voice is the canonical visual language. `tsc --noEmit` is clean; dev server on 127.0.0.1:3000 is the verification path until the EPERM `pnpm build` issue is resolved.
+- **From session**: `mvs_28714e5fc30a415aa7fe7b06b51246f5` (Q4–Q7: GoalKind enum + SystemSettings + engine toggle, commit `dbbdaec`; then Prisma cutover, then vessel shell foundation, commit `81e7c7c`)
+- **Handed to**: next session (TBD) — start by reading this file + `00-DESIGN.md`. The recommended next cluster is **3.1 — Vessel visual migration** (5 body shells: SafeToSpendHero, BurnCurve, HorizonStrip, VesselFeed, RebalanceAlertBay + Drawer). Vessel tokens already wired in `globals.css` (additive — don't mass-rename v5 tokens, just replace where each component is being touched). Other open items from the Handoff menu remain scoped but deprioritized: 2.1 microcopy sweep, 2.2 ⌘K palette, 2.3 onboarding, 2.4 bill reminders, 2.5 variable income, 2.6 period close, 2.7 responsive polish. The D8 design system is now **Sovereign Monad / vessel (v6)**, superseding Component Oracle Terminal. `tsc --noEmit` is clean; all 8 smokes green at 241/241; dev server on 127.0.0.1:3000.
