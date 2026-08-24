@@ -28,6 +28,7 @@
 
 import * as React from "react";
 import { formatMoney, formatMoneySigned, formatMoneyCompact } from "@/lib/money";
+import { formatShortDate } from "@/lib/format";
 import type { PaycheckBreakdown } from "@/lib/store";
 
 export interface SafeToSpendHeroData {
@@ -561,7 +562,7 @@ function BurnCurve({
         fontFamily="var(--font-jetbrains), monospace"
         letterSpacing="0.18em"
       >
-        {formatShortDate(periodStart)}
+        {formatShortDate(periodStart).toUpperCase()}
       </text>
 
       {/* EOP date label (bottom-right) */}
@@ -575,7 +576,7 @@ function BurnCurve({
         letterSpacing="0.18em"
         textAnchor="end"
       >
-        {formatShortDate(periodEnd)}
+        {formatShortDate(periodEnd).toUpperCase()}
       </text>
 
       {/* Legend (top-left) */}
@@ -623,12 +624,6 @@ function BurnCurve({
       </g>
     </svg>
   );
-}
-
-function formatShortDate(d: Date): string {
-  return d
-    .toLocaleString("en-US", { month: "short", day: "numeric" })
-    .toUpperCase();
 }
 
 function Metric({

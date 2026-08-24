@@ -66,9 +66,9 @@ export const CARD_CATALOG: CardMeta[] = [
     accent: "warn",
     href: "/recurring",
     span: "half",
-    defaultOn: true,
+    defaultOn: false,
     description:
-      "The next 2-3 unpaid bills with color-coded time-remaining badges. Tap to flip Paid or see the full timeline.",
+      "The next 2-3 unpaid bills with color-coded time-remaining badges. Tap to flip Paid or see the full timeline. (Lives in the Top 30% zone of the dashboard by default — add from the catalog to also pin a compact copy here.)",
   },
   {
     id: "envelope-status",
@@ -79,9 +79,9 @@ export const CARD_CATALOG: CardMeta[] = [
     accent: "neg",
     href: "/envelopes",
     span: "half",
-    defaultOn: true,
+    defaultOn: false,
     description:
-      "Top 3 envelopes ranked by attention needed — over-limit first, then highest utilization. Tap to see the full bar chart.",
+      "Top 3 envelopes ranked by attention needed — over-limit first, then highest utilization. Tap to see the full bar chart. (Lives in the Middle 40% Allocation Feed by default — add from the catalog to also pin a compact copy here.)",
   },
   {
     id: "next-step",

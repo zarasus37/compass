@@ -22,6 +22,7 @@
 
 import * as React from "react";
 import { formatMoney } from "@/lib/money";
+import { formatShortDate } from "@/lib/format";
 import { NEXT_PAY_DATE } from "@/lib/mock";
 import { PLANET_COLORS, type PlanetId } from "@/components/alchemy/VesselGlyph";
 import { MonthCalendar, type MonthCalendarBill, type MonthCalendarGoal } from "./month-calendar";
@@ -111,7 +112,7 @@ export function CriticalTimelineCard({ data }: { data: CriticalTimelineCardData 
                 color: "var(--ink-2)",
               }}
             >
-              Next paycheck on the {formatShortMonthDay(NEXT_PAY_DATE)}.
+              Next paycheck on the {formatShortDate(NEXT_PAY_DATE)}.
             </div>
           </div>
         </div>
@@ -130,10 +131,6 @@ export function CriticalTimelineCard({ data }: { data: CriticalTimelineCardData 
       {listRows.length > 0 && <ScheduledBillsList rows={listRows} />}
     </div>
   );
-}
-
-function formatShortMonthDay(d: Date): string {
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 // ---------------------------------------------------------------------------
