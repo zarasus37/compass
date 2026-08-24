@@ -76,9 +76,13 @@ export function SankeyFlow({
   linkSubtitle,
 }: SankeyFlowProps) {
   // Build the chart data: optional source node + the envelope nodes.
+  // The source's `label` is just the name (e.g. "Paycheck"); the full
+  // amount lives in the header above the chart, so it doesn't need to
+  // be repeated in the chart's in-node label (which would clip on
+  // the chart's left edge).
   const data = useMemo(() => {
     const finalNodes = showSource
-      ? [{ id: "__source", label: sourceLabel, color: "#FFD24A" }, ...nodes]
+      ? [{ id: "__source", label: "Paycheck", color: "#FFD24A" }, ...nodes]
       : nodes;
     const finalLinks = showSource
       ? links.map((l) => ({ ...l, source: "__source" }))
@@ -181,11 +185,11 @@ export function SankeyFlow({
         <ResponsiveSankey
           data={data}
           // Margins tuned so:
-          //   - 80px left fits the source value label ("$2,400.00")
-          //     without clipping at the chart's left edge
+          //   - 110px left fits the "Paycheck" source label (~70px
+          //     wide at 11px mono) + labelPadding, no left clip
           //   - 220px right fits the longest vessel label
           //     ("Dining & Joy") plus its value chip
-          margin={{ top: 8, right: 220, bottom: 8, left: 80 }}
+          margin={{ top: 8, right: 220, bottom: 8, left: 110 }}
           align="justify"
           sort="input"
           colors={colorFor as never}
