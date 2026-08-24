@@ -68,12 +68,23 @@ export function SankeyFlow({
   linkSubtitle,
 }: SankeyFlowProps) {
   // Build the chart data: optional source node + the envelope nodes.
+  // Each link gets a `color` field set to its target's planet color so
+  // nivo's link renderer uses the destination color (not the source's
+  // gold) — every band reads as a single solid vessel color.
   const data = useMemo(() => {
     const finalNodes = showSource
       ? [{ id: "__source", label: sourceLabel, color: "#FFD24A" }, ...nodes]
       : nodes;
     const finalLinks = showSource
-      ? links.map((l) => ({ ...l, source: "__source" }))
+      ? links.map((l) => {
+          // l.target is a string id (per our SankeyLink type)
+          const targetPlanet = inferPlanet(l.target);
+          return {
+            ...l,
+            source: "__source",
+            color: targetPlanet ? SANKEY_PALETTE[targetPlanet] : "#FFD24A",
+          };
+        })
       : links;
     return { nodes: finalNodes, links: finalLinks };
   }, [nodes, links, showSource, sourceLabel]);
@@ -165,17 +176,17 @@ export function SankeyFlow({
         colors={colorFor as never}
         nodeOpacity={1}
         nodeHoverOpacity={1}
-        nodeHoverOthersOpacity={0.45}
-        nodeThickness={22}
+        nodeHoverOthersOpacity={0.4}
+        nodeThickness={24}
         nodeInnerPadding={3}
-        nodeSpacing={22}
+        nodeSpacing={24}
         nodeBorderWidth={2}
-        nodeBorderColor={{ from: "color", modifiers: [["darker", 0.5]] }}
-        linkOpacity={0.88}
+        nodeBorderColor={{ from: "color", modifiers: [["darker", 0.55]] }}
+        linkOpacity={1}
         linkHoverOpacity={1}
-        linkHoverOthersOpacity={0.28}
+        linkHoverOthersOpacity={0.2}
         linkContract={3}
-        enableLinkGradient
+        enableLinkGradient={false}
         labelPosition="outside"
         labelOrientation="horizontal"
         labelPadding={16}
@@ -322,22 +333,18 @@ function inferPlanet(nodeId: string): PlanetId | null {
 // ---------------------------------------------------------------------------
 
 /**
- * Block colors for the Sankey nodes. Slightly brighter + more saturated
- * than the standard PLANET_COLORS (which are tuned for small chips and
- * glyphs that need to read against varied backgrounds). At 16-20px node
- * thickness on a dark cosmic canvas, the eye needs the extra contrast
- * to distinguish Jupiter (purple) from Saturn (gray) and Mercury (teal)
- * from Luna (pale blue).
- *
- * Pair with the nivo `nodeBorderColor` `darker 0.35` modifier to give
- * each block a 1px edge for separation against neighbors.
+ * Block + link colors for the Sankey. Maximally distinct neon-bright
+ * palette — every band reads as a single solid color (no gradient)
+ * so the eye can name the vessel by color in <100ms. Each planet
+ * gets a different HUE family so Jupiter (purple) / Saturn (blue)
+ * / Mercury (cyan) / Luna (green) don't run together.
  */
 const SANKEY_PALETTE: Record<PlanetId, string> = {
-  sol:     "#FFC93C",  // warm gold (Rent)
-  luna:    "#5BA8E0",  // cool moon-blue (Groceries) — more saturated
-  mars:    "#FF5C2E",  // iron orange-red (Buffer) — more saturated
-  mercury: "#1FE0C2",  // bright teal (Utilities)
-  jupiter: "#C77DFF",  // royal purple (Growth) — more saturated
-  venus:   "#FF8A65",  // warm rose (Joy) — more saturated
-  saturn:  "#7B8DB5",  // cool slate (Debt)
+  sol:     "#FFE600",  // electric yellow (Rent)
+  luna:    "#4ADE80",  // bright green (Groceries) — switched from blue
+  mars:    "#FF4D4D",  // pure red (Buffer)
+  mercury: "#22D3EE",  // bright cyan (Utilities)
+  jupiter: "#C084FC",  // bright purple (Growth)
+  venus:   "#F472B6",  // bright pink (Joy) — switched from peach
+  saturn:  "#60A5FA",  // bright blue (Debt) — switched from slate
 };
