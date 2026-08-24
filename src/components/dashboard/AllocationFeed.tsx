@@ -1,25 +1,37 @@
 "use client";
 
 /**
- * AllocationFeed — the Middle 40% of the dashboard per the
- * Front-End Architecture Layout Rules.
+ * AllocationFeed — the Middle 40% of the dashboard (Cluster 3.x
+ * Component 4 — "Scrollable Vessel Feed").
  *
- * A vertical scrolling list of one row per envelope. Each row is
- * highly scannable: vessel glyph, envelope name, last transaction,
- * bar with pacing tick, current/target, days left in period, and a
- * "+ log" quick-action button.
+ * Vertical scrolling list, one row per envelope. Each row is a
+ * self-contained functional unit with four distinct visual layers:
  *
- * Pattern (oracle terminal):
- *   - 1px teal-gray border per row, 4px corners
- *   - mono caps labels, Sora numerals
- *   - planet-color left rail (matches the vessel)
- *   - hover lifts the row + shows the chevron
- *   - "OVER" status pill when current > target, "WATCH" near 80%
- *   - per-row "burn sparkline" at the right edge (7-day per-envelope
- *     spend shape, chart-next-to-data)
+ *   1. Background sparkline (low-opacity, 14-day cadence)
+ *      A thin SVG line chart spans the full row width behind the
+ *      foreground content. It charts this envelope's daily spend
+ *      across the past 14 days, with the rightmost point (today)
+ *      slightly emphasized. Opacity 0.10 keeps it as context, not
+ *      noise.
  *
- * Tap a row to go to /envelopes/<id>. Tap "+ log" to pre-fill
- * /transactions/new?envelope=<id>.
+ *   2. Foreground: title (left) + numeric ledger (right)
+ *      Left: vessel glyph + name + last payee + status pill
+ *      Right: "$X.XX / $Y.YY" — the used-vs-maximum tracking pair
+ *
+ *   3. Linear gauge bar
+ *      Thick (12px), fills left-to-right. Color/state:
+ *        - CALM  (0-79%):  planet color (jupiter-violet by default;
+ *          reads as "deep purple" per the spec)
+ *        - WATCH (80-99%): var(--warn) — solid warning orange
+ *        - OVER  (100%+):  var(--neg) with vesselOverBlink keyframe
+ *          (1.4s opacity 1.0 ↔ 0.55). Brightness pulses, color stays.
+ *
+ *   4. Sub-line: last transaction payee + days left
+ *
+ * Component Oracle Terminal treatment: 1px line border, planet-color
+ * left rail, mono caps status pill, Sora envelope name, JetBrains
+ * Mono for the numeric ledger, square 4px corners, hover lifts the
+ * row forward 2px (existing pattern).
  */
 
 import * as React from "react";
@@ -35,25 +47,42 @@ export interface AllocationRow {
   targetCents: number;
   /** Last transaction payee (or null if no transactions yet). */
   lastPayee: string | null;
-  /** 7-element per-day spend, oldest first. */
+  /**
+   * 14-element per-day spend, oldest first. Today is the last element.
+   * The row's background sparkline uses this; an empty array renders
+   * a flat zero line.
+   */
   burnCents: number[];
   /** Days left in the current pay period. */
   daysLeft: number;
 }
 
-export function AllocationFeed({
-  rows,
-  periodStart,
-  periodEnd,
-}: {
-  rows: AllocationRow[];
-  periodStart: Date;
-  periodEnd: Date;
-}) {
+type RowStatus = "over" | "watch" | "calm";
+
+function getStatus(targetCents: number, currentCents: number): RowStatus {
+  if (targetCents <= 0) return "calm";
+  if (currentCents > targetCents) return "over";
+  if (currentCents / targetCents >= 0.8) return "watch";
+  return "calm";
+}
+
+/**
+ * Bar color per the spec.
+ *   CALM  → planet color (each row's vessel hue; jupiter reads as
+ *           "deep purple" for any vessel without an explicit color).
+ *   WATCH → var(--warn) (warning orange, the second-priority state).
+ *   OVER  → var(--neg) (neon red — the only state that blinks).
+ */
+function getBarColor(status: RowStatus, planet: PlanetId | null): string {
+  if (status === "over") return "var(--neg)";
+  if (status === "watch") return "var(--warn)";
+  if (planet) return PLANET_COLORS[planet];
+  return "var(--jupiter)";
+}
+
+export function AllocationFeed({ rows }: { rows: AllocationRow[] }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      {/* Header row — mono caps column titles, matches the row layout */}
-      <FeedHeader />
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {rows.length === 0 && (
         <div
           style={{
@@ -77,329 +106,340 @@ export function AllocationFeed({
         </div>
       )}
       {rows.map((r) => (
-        <AllocationRowItem
-          key={r.id}
-          row={r}
-          periodStart={periodStart}
-          periodEnd={periodEnd}
-        />
+        <AllocationRowItem key={r.id} row={r} />
       ))}
     </div>
   );
 }
 
-function FeedHeader() {
-  return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "32px 1.4fr 2fr 100px 100px 80px 32px",
-        alignItems: "center",
-        gap: 14,
-        padding: "8px 16px",
-        fontFamily: "var(--font-jetbrains), monospace",
-        fontSize: 9.5,
-        fontWeight: 600,
-        color: "var(--ink-4)",
-        letterSpacing: "0.18em",
-        textTransform: "uppercase",
-      }}
-    >
-      <span aria-hidden></span>
-      <span>// vessel</span>
-      <span>// burn</span>
-      <span style={{ textAlign: "right" }}>// now</span>
-      <span style={{ textAlign: "right" }}>// target</span>
-      <span style={{ textAlign: "right" }}>// days</span>
-      <span aria-hidden></span>
-    </div>
-  );
-}
+// ---------------------------------------------------------------------------
+// AllocationRowItem — one row, four visual layers.
+// ---------------------------------------------------------------------------
 
-function AllocationRowItem({
-  row,
-  periodStart,
-  periodEnd,
-}: {
-  row: AllocationRow;
-  periodStart: Date;
-  periodEnd: Date;
-}) {
-  const utilization = row.targetCents > 0 ? row.currentCents / row.targetCents : 0;
-  const status: "over" | "watch" | "calm" =
-    row.targetCents > 0 && row.currentCents > row.targetCents
-      ? "over"
-      : utilization >= 0.8
-      ? "watch"
-      : "calm";
+function AllocationRowItem({ row }: { row: AllocationRow }) {
+  const status = getStatus(row.targetCents, row.currentCents);
   const statusLabel = status === "over" ? "OVER" : status === "watch" ? "WATCH" : "CALM";
   const statusColor =
-    status === "over" ? "var(--neg)" : status === "watch" ? "var(--warn)" : "var(--ok)";
+    status === "over" ? "var(--neg)" : status === "watch" ? "var(--warn)" : "var(--jupiter)";
+  const barColor = getBarColor(status, row.planet);
   const planetColor = row.planet ? PLANET_COLORS[row.planet] : "var(--ink-3)";
+
+  // Fill width: clamped to 100% so the bar never overflows the track
+  // visually. The numeric ledger below shows the true ratio (so an
+  // envelope at 200% shows the bar full + "$800 / $400" + 200%).
+  const fillPct =
+    row.targetCents > 0
+      ? Math.min(100, (row.currentCents / row.targetCents) * 100)
+      : 0;
+
+  // True ratio for the numeric ledger (can exceed 100% — that's the
+  // whole point of the OVER state).
+  const ratio =
+    row.targetCents > 0 ? row.currentCents / row.targetCents : 0;
+  const ratioDisplay = Math.round(ratio * 100);
 
   return (
     <Link
       href={`/envelopes/${row.id}`}
       className="allocation-row"
       style={{
-        display: "grid",
-        gridTemplateColumns: "32px 1.4fr 2fr 100px 100px 80px 32px",
-        alignItems: "center",
-        gap: 14,
-        padding: "12px 16px",
+        position: "relative",
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        padding: "14px 18px 14px 22px",
         background: "var(--surface)",
         border: "1px solid var(--line)",
         borderLeft: `3px solid ${planetColor}`,
         borderRadius: 3,
         textDecoration: "none",
         color: "inherit",
+        overflow: "hidden",
         transition: "transform 120ms, background 120ms, border-color 120ms",
       }}
     >
-      {/* VESSEL — planet glyph */}
+      {/* ── LAYER 1: BACKGROUND SPARKLINE ──────────────────────────────
+          Full-width 14-day cadence chart at low opacity. Drawn behind
+          everything else via position: absolute. */}
+      <BackgroundSparkline burnCents={row.burnCents} barColor={barColor} />
+
+      {/* ── LAYER 2: FOREGROUND HEADER ROW (title + ledger) ──────────── */}
       <div
-        aria-hidden
         style={{
-          width: 28,
-          height: 28,
-          borderRadius: "50%",
+          position: "relative",
+          zIndex: 1,
           display: "grid",
-          placeItems: "center",
-          background: "var(--cosmos)",
-          border: `1px solid ${planetColor}`,
-          color: planetColor,
-          fontFamily: "var(--font-jetbrains), monospace",
-          fontSize: 13,
-          fontWeight: 700,
+          gridTemplateColumns: "auto 1fr auto",
+          alignItems: "center",
+          gap: 16,
         }}
       >
-        {row.planet === "sol" ? "☉" :
-         row.planet === "luna" ? "☽" :
-         row.planet === "mars" ? "♂" :
-         row.planet === "mercury" ? "☿" :
-         row.planet === "jupiter" ? "♃" :
-         row.planet === "venus" ? "♀" :
-         row.planet === "saturn" ? "♄" : "·"}
-      </div>
-
-      {/* VESSEL — name + last payee + status pill */}
-      <div style={{ minWidth: 0 }}>
+        {/* Vessel glyph */}
         <div
+          aria-hidden
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            marginBottom: 2,
+            width: 30,
+            height: 30,
+            borderRadius: "50%",
+            display: "grid",
+            placeItems: "center",
+            background: "var(--cosmos)",
+            border: `1px solid ${planetColor}`,
+            color: planetColor,
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 14,
+            fontWeight: 700,
+            boxShadow: `0 0 6px ${planetColor}`,
+            flexShrink: 0,
           }}
         >
-          <span
+          {planetGlyph(row.planet)}
+        </div>
+
+        {/* Title (name + status pill on the same line; last payee below) */}
+        <div style={{ minWidth: 0 }}>
+          <div
             style={{
-              fontFamily: "var(--font-sora)",
-              fontSize: 14.5,
-              fontWeight: 600,
-              color: "var(--ink)",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              marginBottom: 3,
+            }}
+          >
+            <span
+              style={{
+                fontFamily: "var(--font-sora)",
+                fontSize: 15,
+                fontWeight: 600,
+                color: "var(--ink)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {row.name}
+            </span>
+            <span
+              style={{
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 9,
+                fontWeight: 700,
+                color: statusColor,
+                letterSpacing: "0.14em",
+                padding: "2px 7px",
+                border: `1px solid ${statusColor}`,
+                borderRadius: 2,
+                flexShrink: 0,
+                textTransform: "uppercase",
+              }}
+            >
+              {statusLabel}
+            </span>
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 10.5,
+              color: "var(--ink-3)",
+              letterSpacing: "0.04em",
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
             }}
           >
-            {row.name}
-          </span>
-          <span
-            style={{
-              fontFamily: "var(--font-jetbrains), monospace",
-              fontSize: 9,
-              fontWeight: 700,
-              color: statusColor,
-              letterSpacing: "0.14em",
-              padding: "1px 6px",
-              border: `1px solid ${statusColor}`,
-              borderRadius: 2,
-              flexShrink: 0,
-            }}
-          >
-            {statusLabel}
-          </span>
+            {row.lastPayee ? `last: ${row.lastPayee}` : "no transactions yet"}
+          </div>
         </div>
+
+        {/* Numeric ledger — the "$X.XX / $Y.YY" tracking pair */}
         <div
           style={{
-            fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 10.5,
-            color: "var(--ink-3)",
-            letterSpacing: "0.04em",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
+            textAlign: "right",
+            minWidth: 0,
+            flexShrink: 0,
           }}
         >
-          {row.lastPayee ? `last: ${row.lastPayee}` : "no transactions yet"}
+          <div
+            style={{
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 15,
+              fontWeight: 700,
+              color: status === "over" ? "var(--neg)" : "var(--ink)",
+              fontFeatureSettings: '"tnum" 1, "zero" 1',
+              letterSpacing: "-0.005em",
+              lineHeight: 1.1,
+            }}
+          >
+            {formatMoney(row.currentCents)}
+            <span
+              style={{
+                color: "var(--ink-4)",
+                fontWeight: 500,
+                margin: "0 6px",
+              }}
+            >
+              /
+            </span>
+            <span style={{ color: "var(--ink-3)", fontWeight: 500 }}>
+              {row.targetCents > 0 ? formatMoney(row.targetCents) : "—"}
+            </span>
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 10,
+              color: status === "over" ? "var(--neg)" : status === "watch" ? "var(--warn)" : "var(--ink-3)",
+              letterSpacing: "0.14em",
+              fontWeight: 600,
+              marginTop: 3,
+            }}
+          >
+            {row.targetCents > 0 ? `${ratioDisplay}%` : "—"}
+            <span style={{ color: "var(--ink-5)", margin: "0 6px" }}>·</span>
+            {row.daysLeft > 0 ? `${row.daysLeft}d left` : "—"}
+          </div>
         </div>
       </div>
 
-      {/* BURN — mini bar with pacing tick + 7-day sparkline */}
-      <BarWithPacing row={row} status={status} />
-
-      {/* NOW */}
+      {/* ── LAYER 3: LINEAR GAUGE BAR ──────────────────────────────────
+          Thick (12px), fills left-to-right, with state colors. OVER
+          state adds the .vessel-feed-bar--over class for the blink
+          keyframe (defined in globals.css). */}
       <div
         style={{
-          fontFamily: "var(--font-jetbrains), monospace",
-          fontSize: 14,
-          fontWeight: 600,
-          color: status === "over" ? "var(--neg)" : "var(--ink)",
-          textAlign: "right",
-          fontFeatureSettings: '"tnum" 1, "zero" 1',
+          position: "relative",
+          zIndex: 1,
+          height: 12,
+          background: "var(--cosmos)",
+          border: "1px solid var(--line)",
+          borderRadius: 3,
+          overflow: "hidden",
         }}
+        aria-label={`${row.name} ${ratioDisplay}% of target`}
       >
-        {formatMoneyCompact(row.currentCents)}
-      </div>
-
-      {/* TARGET */}
-      <div
-        style={{
-          fontFamily: "var(--font-jetbrains), monospace",
-          fontSize: 12,
-          color: "var(--ink-3)",
-          textAlign: "right",
-          fontFeatureSettings: '"tnum" 1, "zero" 1',
-        }}
-      >
-        {row.targetCents > 0 ? formatMoneyCompact(row.targetCents) : "—"}
-      </div>
-
-      {/* DAYS */}
-      <div
-        style={{
-          fontFamily: "var(--font-jetbrains), monospace",
-          fontSize: 11,
-          color: "var(--ink-3)",
-          textAlign: "right",
-          letterSpacing: "0.06em",
-        }}
-      >
-        {row.daysLeft > 0 ? `${row.daysLeft}d` : "—"}
-      </div>
-
-      {/* CHEVRON */}
-      <div
-        aria-hidden
-        style={{
-          fontFamily: "var(--font-jetbrains), monospace",
-          fontSize: 16,
-          color: "var(--ink-4)",
-          textAlign: "right",
-        }}
-      >
-        ›
+        <div
+          className={
+            status === "over" ? "vessel-feed-bar--over" : undefined
+          }
+          style={{
+            height: "100%",
+            width: `${fillPct}%`,
+            background: barColor,
+            transition: "width 240ms",
+            ...(status === "watch"
+              ? { boxShadow: "0 0 8px var(--warn)" }
+              : status === "calm"
+                ? { boxShadow: `0 0 6px ${barColor}` }
+                : {}),
+          }}
+        />
+        {/* Pacing tick — where the user "should" be on day N of the
+            period (gold, fixed at the 50% mark of the bar's lifecycle
+            when half the period has elapsed). Skipped for now to keep
+            the row visually focused on the state color story; can be
+            wired back via a row prop in a future pass. */}
       </div>
     </Link>
   );
 }
 
-function BarWithPacing({
-  row,
-  status,
-}: {
-  row: AllocationRow;
-  status: "over" | "watch" | "calm";
-}) {
-  const max = Math.max(row.targetCents, 1);
-  const fillPct = row.targetCents > 0
-    ? Math.min(100, (row.currentCents / max) * 100)
-    : 0;
-  const barColor =
-    status === "over" ? "var(--neg)" :
-    status === "watch" ? "var(--warn)" :
-    row.planet ? PLANET_COLORS[row.planet] : "var(--terminal-cyan)";
+// ---------------------------------------------------------------------------
+// BackgroundSparkline — the low-opacity 14-day cadence chart embedded
+// behind the row. Uses the row's bar color so the OVER state's red
+// sparkline visually reads as "the bar is on fire".
+// ---------------------------------------------------------------------------
 
-  // Build the 7-day sparkline path. Oldest first, current day last.
-  const burn = row.burnCents;
-  const burnMax = Math.max(...burn, 1);
-  const sw = 120;
-  const sh = 26;
-  const swPad = 1;
-  const stepX = (sw - swPad * 2) / (burn.length - 1 || 1);
-  const points = burn.map((v, i) => {
-    const x = swPad + i * stepX;
-    const y = sh - (v / burnMax) * (sh - 2) - 1;
+function BackgroundSparkline({
+  burnCents,
+  barColor,
+}: {
+  burnCents: number[];
+  barColor: string;
+}) {
+  // Render a full-width sparkline that scales to the row's actual
+  // width (viewBox 0 0 1000 60, width 100%, height 100%). The
+  // `preserveAspectRatio="none"` lets it stretch.
+  const VBW = 1000;
+  const VBH = 60;
+  const padX = 4;
+  const padTop = 8;
+  const padBottom = 8;
+  const innerW = VBW - padX * 2;
+  const innerH = VBH - padTop - padBottom;
+
+  const n = Math.max(1, burnCents.length);
+  const max = Math.max(1, ...burnCents);
+  const stepX = innerW / (n - 1 || 1);
+  const points = burnCents.map((v, i) => {
+    const x = padX + i * stepX;
+    const y = VBH - padBottom - (v / max) * innerH;
     return [x, y] as [number, number];
   });
   const linePath = points
     .map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`)
     .join(" ");
-  const areaPath = points.length > 0
-    ? `${linePath} L${points[points.length - 1]![0].toFixed(1)},${sh} L${points[0]![0].toFixed(1)},${sh} Z`
-    : "";
+  const last = points[points.length - 1];
+  const first = points[0];
+  const areaPath =
+    points.length > 0
+      ? `${linePath} L${last![0].toFixed(1)},${VBH - padBottom} L${first![0].toFixed(1)},${VBH - padBottom} Z`
+      : "";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-      {/* Utilization bar with pacing tick (where you should be on day N) */}
-      <div
-        style={{
-          position: "relative",
-          height: 8,
-          background: "var(--cosmos)",
-          border: "1px solid var(--line)",
-          borderRadius: 2,
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            height: "100%",
-            width: `${fillPct}%`,
-            background: barColor,
-            opacity: 0.85,
-            transition: "width 200ms",
-          }}
+    <svg
+      viewBox={`0 0 ${VBW} ${VBH}`}
+      width="100%"
+      height="100%"
+      preserveAspectRatio="none"
+      aria-hidden
+      style={{
+        position: "absolute",
+        inset: 0,
+        display: "block",
+        pointerEvents: "none",
+        zIndex: 0,
+      }}
+    >
+      {areaPath && <path d={areaPath} fill={barColor} opacity="0.08" />}
+      {linePath && (
+        <path
+          d={linePath}
+          fill="none"
+          stroke={barColor}
+          strokeWidth="1.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.32"
         />
-        {/* Pacing tick — where you "should" be on day N of the period */}
-        {row.targetCents > 0 && (
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              top: -1,
-              bottom: -1,
-              left: `${Math.min(100, (row.daysLeft > 0 ? 50 : 100))}%`,
-              width: 2,
-              background: "var(--gold)",
-              boxShadow: "0 0 4px var(--gold)",
-            }}
-          />
-        )}
-      </div>
-      {/* 7-day burn sparkline */}
-      <svg
-        viewBox={`0 0 ${sw} ${sh}`}
-        width="100%"
-        height={sh}
-        preserveAspectRatio="none"
-        style={{ display: "block" }}
-      >
-        {areaPath && <path d={areaPath} fill={barColor} opacity="0.18" />}
-        {linePath && (
-          <path
-            d={linePath}
-            fill="none"
-            stroke={barColor}
-            strokeWidth="1.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        )}
-        {/* Today dot at the right end */}
-        {points.length > 0 && (
-          <circle
-            cx={points[points.length - 1]![0]}
-            cy={points[points.length - 1]![1]}
-            r="2.2"
-            fill={barColor}
-          />
-        )}
-      </svg>
-    </div>
+      )}
+      {/* Today dot — rightmost point, slightly stronger so the eye
+          can pick it out from the row. */}
+      {last && (
+        <circle
+          cx={last[0]}
+          cy={last[1]}
+          r="3"
+          fill={barColor}
+          opacity="0.55"
+        />
+      )}
+    </svg>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function planetGlyph(p: PlanetId | null): string {
+  switch (p) {
+    case "sol":     return "☉";
+    case "luna":    return "☽";
+    case "mars":    return "♂";
+    case "mercury": return "☿";
+    case "jupiter": return "♃";
+    case "venus":   return "♀";
+    case "saturn":  return "♄";
+    default:        return "·";
+  }
 }

@@ -115,6 +115,32 @@ export default async function Dashboard() {
     dailySpendCents.reduce((s, v) => s + v, 0) / 7,
   );
 
+  // 14-day window for the Scrollable Vessel Feed's background sparkline
+  // (Cluster 3.x Component 4). Oldest first, today last. Kept separate
+  // from the 7-day window above so the Daily Tracking card's compact
+  // 7-day shape doesn't change.
+  const last14Days: Date[] = [];
+  for (let i = 13; i >= 0; i -= 1) {
+    const d = new Date(TODAY);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - i);
+    last14Days.push(d);
+  }
+  const spendByEnvelope14: Record<string, number[]> = {};
+  for (const e of ENVELOPES) {
+    spendByEnvelope14[e.id] = last14Days.map((day) => {
+      const start = day.getTime();
+      const end = start + 24 * 60 * 60 * 1000;
+      return TRANSACTIONS.filter(
+        (t) =>
+          t.envelopeId === e.id &&
+          !t.isIncome &&
+          t.date.getTime() >= start &&
+          t.date.getTime() < end,
+      ).reduce((s, t) => s + Math.abs(t.amountCents), 0);
+    });
+  }
+
   // --- CRITICAL TIMELINE (month calendar + scheduled bills list) ---
   // The calendar shows the current month (Aug 2026). Every recurring
   // bill with a `dueDay` lands on that day each month; goal target
@@ -392,7 +418,10 @@ export default async function Dashboard() {
       currentCents: e.current,
       targetCents: e.target,
       lastPayee: lastTx ? lastTx.payee : null,
-      burnCents: spendByEnvelope[e.id] ?? new Array(7).fill(0),
+      // 14-day burn (Cluster 3.x Component 4 — the row's background
+      // sparkline). Falls back to a 14-zero array if no transactions
+      // exist for this envelope.
+      burnCents: spendByEnvelope14[e.id] ?? new Array(14).fill(0),
       daysLeft,
     };
   }).sort((a, b) => {
@@ -837,11 +866,7 @@ export default async function Dashboard() {
               tap a row to go deeper
             </div>
           </div>
-          <AllocationFeed
-            rows={allocationRows}
-            periodStart={PERIOD_START}
-            periodEnd={PERIOD_END}
-          />
+          <AllocationFeed rows={allocationRows} />
         </section>
 
         {/* ============== BOTTOM 30% — CUSTOMIZE + COLOPHON ============== */}

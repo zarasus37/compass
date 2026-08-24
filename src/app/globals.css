@@ -352,6 +352,27 @@
 }
 
 /* ============================================================================
+   VESSEL FEED — Scrollable Vessel Feed (Cluster 3.x Component 4)
+   ============================================================================
+   The OVER state of the gauge bar pulses on a 1.4s loop. The keyframe
+   alternates opacity 1.0 ↔ 0.55 so the bar reads as a live alert without
+   being seizure-inducing. Color stays var(--neg) the whole time — the
+   blink is in brightness, not hue. */
+@keyframes vesselOverBlink {
+  0%, 100% { opacity: 1; box-shadow: 0 0 12px var(--neg); }
+  50%      { opacity: 0.55; box-shadow: 0 0 4px var(--neg); }
+}
+.vessel-feed-bar--over {
+  animation: vesselOverBlink 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vessel-feed-bar--over {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* ============================================================================
    TOP APP BAR (Cluster 3.x)
    ============================================================================
    Sticky persistent header on every signed-in page. The hover state for
