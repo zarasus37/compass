@@ -352,6 +352,35 @@
 }
 
 /* ============================================================================
+   TOP APP BAR (Cluster 3.x)
+   ============================================================================
+   Sticky persistent header on every signed-in page. The hover state for
+   the engine-toggle pill is CSS-only (inline style can't express :hover).
+   On narrow viewports the day-of-period sub-label collapses so the brand
+   and the toggle stay visible while the date range keeps the center. */
+.top-app-bar-engine:hover {
+  border-color: var(--terminal-cyan-dim) !important;
+  background: var(--cosmos-2) !important;
+}
+.top-app-bar-engine:focus-visible {
+  outline: none;
+  border-color: var(--terminal-cyan) !important;
+  box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.25);
+}
+@media (max-width: 720px) {
+  .top-app-bar-sub {
+    display: none !important;
+  }
+  .top-app-bar-engine-label {
+    display: none;
+  }
+  .top-app-bar {
+    padding: 0 16px !important;
+    gap: 12px !important;
+  }
+}
+
+/* ============================================================================
    CALENDAR (Cluster 2.0.2 — Month view)
    ============================================================================ */
 .month-calendar-day:hover {

@@ -16,6 +16,7 @@ import { NetTrajectoryCard } from "@/components/dashboard/cards/net-trajectory";
 import { PayDistributionCard } from "@/components/dashboard/cards/pay-distribution";
 import { AllocationFeed, type AllocationRow } from "@/components/dashboard/AllocationFeed";
 import { BottomNav } from "@/components/shell/BottomNav";
+import { TopAppBar } from "@/components/shell/TopAppBar";
 import { CARD_META, type CardId } from "@/components/dashboard/catalog";
 import {
   liveEnvelopes,
@@ -541,7 +542,10 @@ export default async function Dashboard() {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", minHeight: "100vh" }}>
       <AppSidebar user={{ name: user.name, email: user.email }} />
-      <div style={{ padding: "40px 80px 112px", maxWidth: 1480, position: "relative" }}>
+      <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+        {/* Persistent top bar — branding, pay period, engine toggle. */}
+        <TopAppBar />
+        <div style={{ padding: "32px 80px 112px", maxWidth: 1480, position: "relative", flex: 1 }}>
         {/* ============== HERO (compact) ============== */}
         <header
           style={{
@@ -775,6 +779,7 @@ export default async function Dashboard() {
           <span>v0.1 · 2026 · Q3</span>
         </footer>
         </section>
+        </div>
       </div>
       <BottomNav />
     </div>
