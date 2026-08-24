@@ -26,19 +26,19 @@ import * as React from "react";
 import { DashboardCard } from "./DashboardCard";
 import { SafeToSpendHero, type SafeToSpendHeroData } from "./cards/safe-to-spend-hero";
 import { SpendRingCard, type SpendRingCardData } from "./cards/spend-ring";
-import { CriticalTimelineCard, type CriticalTimelineCardData } from "./cards/critical-timeline";
+import { HorizonStrip, type HorizonStripData } from "./cards/horizon-strip";
 import { CARD_META } from "./catalog";
 
 export interface SwipeableDashboardHeaderProps {
   safeToSpendData: SafeToSpendHeroData;
   spendRingData: SpendRingCardData;
-  criticalTimelineData: CriticalTimelineCardData;
+  horizonStripData: HorizonStripData;
 }
 
 export function SwipeableDashboardHeader({
   safeToSpendData,
   spendRingData,
-  criticalTimelineData,
+  horizonStripData,
 }: SwipeableDashboardHeaderProps) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = React.useState(0);
@@ -174,7 +174,8 @@ export function SwipeableDashboardHeader({
           <SafeToSpendHero data={safeToSpendData} embedded />
         </div>
 
-        {/* Page 1: Spend Ring + Critical Timeline side-by-side */}
+        {/* Page 1: Spend Ring (left) + Horizon Strip (right) — the
+            Consumption Ring & Timeline combo per the spec. */}
         <div
           style={{
             flex: "0 0 100%",
@@ -196,16 +197,45 @@ export function SwipeableDashboardHeader({
           >
             <SpendRingCard data={spendRingData} />
           </DashboardCard>
-          <DashboardCard
-            cardId="critical-timeline"
-            href={CARD_META["critical-timeline"].href}
-            eyebrow={CARD_META["critical-timeline"].eyebrow}
-            title={CARD_META["critical-timeline"].title}
-            em={CARD_META["critical-timeline"].em}
-            accent={CARD_META["critical-timeline"].accent}
+          <div
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--line)",
+              borderRadius: 4,
+              padding: "18px 22px 22px",
+              display: "flex",
+              flexDirection: "column",
+              minWidth: 0,
+            }}
           >
-            <CriticalTimelineCard data={criticalTimelineData} />
-          </DashboardCard>
+            <div
+              style={{
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 10,
+                fontWeight: 600,
+                color: "var(--terminal-cyan)",
+                letterSpacing: "0.20em",
+                textTransform: "uppercase",
+                marginBottom: 12,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 5,
+                  height: 5,
+                  borderRadius: "50%",
+                  background: "var(--terminal-cyan)",
+                  boxShadow: "0 0 6px var(--terminal-cyan)",
+                }}
+              />
+              // CHRONICLE · 14-DAY HORIZON
+            </div>
+            <HorizonStrip data={horizonStripData} />
+          </div>
         </div>
       </div>
 

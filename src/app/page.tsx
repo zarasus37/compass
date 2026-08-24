@@ -5,8 +5,9 @@ import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { DashboardGrid } from "@/components/dashboard/DashboardGrid";
 import { MustHaveToolsStrip } from "@/components/dashboard/MustHaveToolsStrip";
 import { SwipeableDashboardHeader } from "@/components/dashboard/SwipeableDashboardHeader";
+import { type HorizonStripDay, type HorizonStripData } from "@/components/dashboard/cards/horizon-strip";
 import { DailyTrackingCard } from "@/components/dashboard/cards/daily-tracking";
-import { CriticalTimelineCard } from "@/components/dashboard/cards/critical-timeline";
+import { CriticalTimelineCard } from "@/components/dashboard/cards/critical-timeline"; // (legacy — used by deprecated critical-timeline card on the dashboard grid)
 import { EnvelopeStatusCard } from "@/components/dashboard/cards/envelope-status";
 import { TopPriorityCard } from "@/components/dashboard/cards/top-priority";
 import { NextStepCard } from "@/components/dashboard/cards/next-step";
@@ -188,6 +189,75 @@ export default async function Dashboard() {
       planet: env?.planet ?? null,
     };
   }).sort((a, b) => a.dayOfMonth - b.dayOfMonth);
+
+  // --- HORIZON STRIP (Page 1 of the swipeable header) ---
+  // One row per day of the current pay period. For each day we match
+  // bills (by day-of-month against the day's calendar date) and goals
+  // (by exact targetDate). "Transfer" goals — emergency-fund sweeps and
+  // the like — are flagged so they read as automatic movements, not
+  // discretionary ones.
+  const isSameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+
+  // Reuse `due` from the critical-timeline block above; it already
+  // carries the paidThisPeriod flag for each bill.
+  const paidBillIds = new Set(due.filter((d) => d.paidThisPeriod).map((d) => d.bill.id));
+
+  const horizonDays: HorizonStripDay[] = [];
+  for (let i = 0; i < totalDays; i += 1) {
+    const date = new Date(PERIOD_START);
+    date.setDate(date.getDate() + i);
+    const dayOfMonth = date.getDate();
+
+    const events: HorizonStripDay["events"] = [];
+
+    // Bills — match by day-of-month against the period-day's calendar date.
+    for (const b of BILLS) {
+      if (b.dueDay === dayOfMonth) {
+        const env = b.envelopeId
+          ? ENVELOPES.find((e) => e.id === b.envelopeId)
+          : null;
+        events.push({
+          id: `bill-${b.id}-d${i + 1}`,
+          kind: "bill",
+          name: b.name,
+          amountCents: b.amountCents,
+          autopay: b.autopay,
+          isPaid: paidBillIds.has(b.id),
+          planet: env?.planet ?? null,
+        });
+      }
+    }
+
+    // Goals — match by exact targetDate.
+    for (const g of GOALS) {
+      if (isSameDay(g.targetDate, date)) {
+        const isTransfer = /emergency|transfer|sweep|fund/i.test(g.name);
+        events.push({
+          id: `goal-${g.id}-d${i + 1}`,
+          kind: "goal",
+          name: g.name,
+          amountCents: g.targetCents,
+          isTransfer,
+          planet: g.planet,
+        });
+      }
+    }
+
+    horizonDays.push({
+      day: i + 1,
+      date,
+      isToday: isSameDay(date, TODAY),
+      events,
+    });
+  }
+
+  const horizonStripData: HorizonStripData = {
+    days: horizonDays,
+    hasAnyEvent: horizonDays.some((d) => d.events.length > 0),
+  };
 
   // --- ENVELOPE STATUS ---
   type EnvelopeStatusKind = "over" | "watch" | "calm";
@@ -661,13 +731,7 @@ export default async function Dashboard() {
             totalSpentCents: burnSpent,
             totalTargetCents,
           }}
-          criticalTimelineData={{
-            listRows: monthListRows,
-            calendarBills,
-            calendarGoals,
-            transactionDays,
-            today: TODAY,
-          }}
+          horizonStripData={horizonStripData}
         />
 
         {/* ============== MUST-HAVE TOOLS INDEX ============== */}

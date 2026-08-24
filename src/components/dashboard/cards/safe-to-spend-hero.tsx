@@ -224,7 +224,7 @@ export function SafeToSpendHero({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr",
+            gridTemplateColumns: "1fr 1.2fr",
             gap: 16,
             paddingLeft: 20,
             borderLeft: "1px solid var(--line-soft)",
@@ -236,9 +236,32 @@ export function SafeToSpendHero({
             sub={daysLeft === 1 ? "day" : "days"}
           />
           <Metric
-            label="per day"
-            value={formatMoneyCompact(perDayCents)}
-            sub="to last"
+            label="velocity"
+            value={
+              <span
+                style={{
+                  fontFeatureSettings: '"tnum" 1, "zero" 1',
+                  fontSize: 26,
+                  fontWeight: 700,
+                  color: tight ? "var(--warn)" : "var(--ink)",
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                {formatMoneyCompact(perDayCents)}
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: "var(--ink-3)",
+                    marginLeft: 4,
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  / day
+                </span>
+              </span>
+            }
+            sub="to last the period"
             accent={tight ? "var(--warn)" : "var(--ok)"}
           />
         </div>
@@ -643,7 +666,7 @@ function Metric({
   borderLeft,
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   sub?: string;
   accent?: string;
   borderLeft?: boolean;
