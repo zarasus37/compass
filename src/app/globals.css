@@ -247,6 +247,17 @@
 .plaid-institution:active {
   background: var(--cosmos);
 }
+
+/* Must-Have Tools strip — tooltip pop-in. */
+@keyframes mustHaveTooltipIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [role="tooltip"] {
+    animation: none !important;
+  }
+}
 .dashboard-card-link:hover .dashboard-card-chevron {
   color: var(--terminal-cyan);
   transform: translateX(3px);
