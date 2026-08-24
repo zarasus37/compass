@@ -70,7 +70,7 @@ export function SankeyFlow({
   // Build the chart data: optional source node + the envelope nodes.
   const data = useMemo(() => {
     const finalNodes = showSource
-      ? [{ id: "__source", label: sourceLabel, color: "var(--gold-glow)" }, ...nodes]
+      ? [{ id: "__source", label: sourceLabel, color: "#FFD24A" }, ...nodes]
       : nodes;
     const finalLinks = showSource
       ? links.map((l) => ({ ...l, source: "__source" }))
@@ -83,9 +83,9 @@ export function SankeyFlow({
   // PLANET_COLORS so the blocks read on the dark cosmic canvas).
   const colorFor = (node: { id: string; color?: string }): string => {
     if (node.color) return node.color;
-    if (node.id === "__source") return "var(--gold-glow)";
+    if (node.id === "__source") return "#FFD24A"; // bright gold for source
     const planet = inferPlanet(node.id);
-    return planet ? SANKEY_PALETTE[planet] : "var(--gold-glow)";
+    return planet ? SANKEY_PALETTE[planet] : "#FFD24A";
   };
 
   return (
@@ -165,15 +165,15 @@ export function SankeyFlow({
         colors={colorFor as never}
         nodeOpacity={1}
         nodeHoverOpacity={1}
-        nodeHoverOthersOpacity={0.55}
-        nodeThickness={18}
+        nodeHoverOthersOpacity={0.45}
+        nodeThickness={22}
         nodeInnerPadding={3}
-        nodeSpacing={20}
-        nodeBorderWidth={1}
-        nodeBorderColor={{ from: "color", modifiers: [["darker", 0.35]] }}
-        linkOpacity={0.62}
-        linkHoverOpacity={0.95}
-        linkHoverOthersOpacity={0.22}
+        nodeSpacing={22}
+        nodeBorderWidth={2}
+        nodeBorderColor={{ from: "color", modifiers: [["darker", 0.5]] }}
+        linkOpacity={0.88}
+        linkHoverOpacity={1}
+        linkHoverOthersOpacity={0.28}
         linkContract={3}
         enableLinkGradient
         labelPosition="outside"
@@ -256,7 +256,7 @@ export function SankeyFlow({
                   fontFamily: "var(--font-jetbrains), monospace",
                   fontSize: 12,
                   fontWeight: 600,
-                  color: target.label === sourceLabel ? "var(--gold-glow)" : colorFor(target as never),
+                  color: target.label === sourceLabel ? "#FFD24A" : colorFor(target as never),
                 }}
               >
                 {formatMoney(link.value)} → {target.label ?? target.id}
@@ -333,11 +333,11 @@ function inferPlanet(nodeId: string): PlanetId | null {
  * each block a 1px edge for separation against neighbors.
  */
 const SANKEY_PALETTE: Record<PlanetId, string> = {
-  sol:     "#F5C24A",  // warm gold (Rent)
-  luna:    "#9DC4E8",  // cool moon-blue (Groceries)
-  mars:    "#E06A4A",  // iron orange-red (Buffer)
-  mercury: "#5DD4C2",  // bright teal (Utilities)
-  jupiter: "#B794D4",  // royal purple (Growth)
-  venus:   "#E8A88A",  // warm rose (Joy)
-  saturn:  "#8FA0BD",  // cool slate (Debt)
+  sol:     "#FFC93C",  // warm gold (Rent)
+  luna:    "#5BA8E0",  // cool moon-blue (Groceries) — more saturated
+  mars:    "#FF5C2E",  // iron orange-red (Buffer) — more saturated
+  mercury: "#1FE0C2",  // bright teal (Utilities)
+  jupiter: "#C77DFF",  // royal purple (Growth) — more saturated
+  venus:   "#FF8A65",  // warm rose (Joy) — more saturated
+  saturn:  "#7B8DB5",  // cool slate (Debt)
 };
