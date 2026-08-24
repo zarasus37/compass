@@ -258,6 +258,15 @@
     animation: none !important;
   }
 }
+
+/* Sankey chart — every link path is filtered through a Gaussian-blur
+   glow (defined in the component's <defs>). The result: each band
+   has a soft halo in its own color, so the eye reads "this is a
+   green beam for Groceries" or "this is a cyan beam for Utilities"
+   — not "this is a dim streak that might be something". */
+.sankey-chart svg path[fill]:not([fill="transparent"]) {
+  filter: url(#sankeyGlow);
+}
 .dashboard-card-link:hover .dashboard-card-chevron {
   color: var(--terminal-cyan);
   transform: translateX(3px);

@@ -101,6 +101,7 @@ export function SankeyFlow({
 
   return (
     <div
+      className="sankey-chart"
       style={{
         position: "relative",
         width: "100%",
@@ -110,6 +111,25 @@ export function SankeyFlow({
         padding: "12px 12px 8px",
       }}
     >
+      {/* SVG defs — a Gaussian-blur glow filter applied to every link
+          path so each band reads as light-emitting, not just flat color.
+          The filter is referenced by CSS via .sankey-chart path. */}
+      <svg
+        aria-hidden
+        width="0"
+        height="0"
+        style={{ position: "absolute", overflow: "hidden" }}
+      >
+        <defs>
+          <filter id="sankeyGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+      </svg>
       {/* Source header — guarantees the "Paycheck · $X" label is
           always visible regardless of chart width. The in-chart source
           node keeps its `outside` label so both reads agree. */}
@@ -186,6 +206,7 @@ export function SankeyFlow({
         linkHoverOpacity={1}
         linkHoverOthersOpacity={0.2}
         linkContract={3}
+        linkBlendMode="screen"
         enableLinkGradient={false}
         labelPosition="outside"
         labelOrientation="horizontal"
