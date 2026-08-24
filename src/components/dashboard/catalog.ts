@@ -84,6 +84,32 @@ export const CARD_CATALOG: CardMeta[] = [
       "Top 3 envelopes ranked by attention needed — over-limit first, then highest utilization. Tap to see the full bar chart. (Lives in the Middle 40% Allocation Feed by default — add from the catalog to also pin a compact copy here.)",
   },
   {
+    id: "net-trajectory",
+    eyebrow: "// growth",
+    title: "Net Trajectory",
+    em: "12 months forward.",
+    glyph: "📈",
+    accent: "jupiter",
+    href: "/insights",
+    span: "full",
+    defaultOn: true,
+    description:
+      "Line graph of net worth projected at the current pace. Shaded area beneath the curve shows the compounding. Gold dashed reference line marks the emergency fund target.",
+  },
+  {
+    id: "pay-distribution",
+    eyebrow: "// cash flow",
+    title: "Pay Distribution",
+    em: "where the paycheck goes.",
+    glyph: "⇉",
+    accent: "gold",
+    href: "/allocation",
+    span: "full",
+    defaultOn: true,
+    description:
+      "The paycheck fans out into the seven vessels, weighted by the plan. Each segment is a planet. Tap to see the full Sankey (the Automation Map) on /allocation.",
+  },
+  {
     id: "next-step",
     eyebrow: "// recommended",
     title: "Next Step",
@@ -134,32 +160,6 @@ export const CARD_CATALOG: CardMeta[] = [
     defaultOn: false,
     description:
       "Single concentric ring showing total remaining budget for the period. The big number in the center is the cash you actually have left. Tap to see the full Ouroboros + Trajectory on /insights.",
-  },
-  {
-    id: "net-trajectory",
-    eyebrow: "// growth",
-    title: "Net Trajectory",
-    em: "12 months forward.",
-    glyph: "📈",
-    accent: "jupiter",
-    href: "/insights",
-    span: "full",
-    defaultOn: true,
-    description:
-      "Line graph of net worth projected at the current pace. Shaded area beneath the curve shows the compounding. Gold dashed reference line marks the emergency fund target.",
-  },
-  {
-    id: "pay-distribution",
-    eyebrow: "// cash flow",
-    title: "Pay Distribution",
-    em: "where the paycheck goes.",
-    glyph: "⇉",
-    accent: "gold",
-    href: "/allocation",
-    span: "full",
-    defaultOn: true,
-    description:
-      "The paycheck fans out into the seven vessels, weighted by the plan. Each segment is a planet. Tap to see the full Sankey (the Automation Map) on /allocation.",
   },
 ];
 
