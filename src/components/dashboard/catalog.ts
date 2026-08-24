@@ -177,6 +177,26 @@ export const DEFAULT_ORDER: CardId[] = CARD_CATALOG.filter((c) => c.defaultOn).m
   (c) => c.id,
 );
 
+/**
+ * Cards that USED to be default-on but are no longer, because the
+ * same data is now surfaced in a more prominent zone above the
+ * grid (SafeToSpendHero for daily telemetry, Top 30% for critical
+ * timeline, Middle 40% AllocationFeed for envelope status).
+ *
+ * Existing users with saved layouts from before these changes
+ * still have these cards in their localStorage order, which
+ * produces duplicates of the upper-zone content. `loadLayout()`
+ * silently drops them so the migration is one-way and invisible.
+ *
+ * The user can re-add any of them from the Add Card sheet if
+ * they want a compact copy pinned to the bottom.
+ */
+export const DEPRECATED_DEFAULT_CARDS: ReadonlySet<CardId> = new Set<CardId>([
+  "daily-tracking", // SafeToSpendHero (commit 69f4480) owns safe-to-spend
+  "critical-timeline", // Top 30% zone (commit 83ce59d) owns the calendar
+  "envelope-status", // Middle 40% AllocationFeed (commit 83ce59d) owns per-envelope
+]);
+
 /** localStorage key for the user's layout. */
 export const STORAGE_KEY = "compass-dashboard-layout-v1";
 
@@ -202,11 +222,14 @@ export function loadLayout(): DashboardLayout {
     ) {
       return defaultLayout();
     }
-    // Filter to known ids, append any new ones (e.g. a new card was added
-    // to the catalog after the user saved their layout).
+    // Filter to known ids, drop deprecated ones, append any new ones
+    // (e.g. a new card was added to the catalog after the user saved
+    // their layout). See DEPRECATED_DEFAULT_CARDS for the migration
+    // rationale.
     const known = new Set<CardId>(CARD_CATALOG.map((c) => c.id));
-    const filtered = parsed.order.filter((id): id is CardId =>
-      known.has(id as CardId),
+    const filtered = parsed.order.filter(
+      (id): id is CardId =>
+        known.has(id as CardId) && !DEPRECATED_DEFAULT_CARDS.has(id as CardId),
     );
     const missing = CARD_CATALOG.filter(
       (c) => c.defaultOn && !filtered.includes(c.id),
