@@ -5,6 +5,7 @@ import { EnvelopeBarChart } from "@/components/alchemy/EnvelopeBarChart";
 import { VesselGlyph, type PlanetId } from "@/components/alchemy/VesselGlyph";
 import { EnvelopeMiniBar } from "@/components/viz/EnvelopeMiniBar";
 import { BudgetVsActual, type BudgetVsActualRow } from "@/components/viz/BudgetVsActual";
+import { RebalanceForm } from "@/components/envelopes/RebalanceForm";
 import { liveEnvelopes, liveTransactions, TODAY, PERIOD_START, PERIOD_END } from "@/lib/mock";
 import { formatMoney, formatMoneySigned } from "@/lib/money";
 import { formatShortDate, addDays, daysBetween, dayOfPeriod, periodLength } from "@/lib/format";
@@ -101,6 +102,23 @@ export default function EnvelopesPage() {
           sub={`${nearLimit.length} near limit`}
         />
       </div>
+
+      <section style={{ marginBottom: 64 }}>
+        <SectionHeader
+          title="Move between vessels"
+          em="rebalance without waiting for a paycheck."
+          meta="Atomic — both balances update or neither does. Audited."
+        />
+        <RebalanceForm
+          envelopes={ENVELOPES.map((e) => ({
+            id: e.id,
+            name: e.name,
+            planet: e.planet,
+            currentCents: e.current,
+            targetCents: e.target,
+          }))}
+        />
+      </section>
 
       <section style={{ marginBottom: 64 }}>
         <SectionHeader
