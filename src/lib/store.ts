@@ -499,6 +499,101 @@ export function updateEnvelope(
 }
 
 /**
+ * Atomic envelope rebalancing.
+ *
+ * Move `transferCents` from `sourceEnvelopeId` to `destinationEnvelopeId`
+ * in a single safe operation. The two balance mutations happen together
+ * — if any check fails, neither is applied.
+ *
+ * Mirrors the system-spec function (BEGIN TRANSACTION / SELECTs /
+ * UPDATEs / status recompute / audit log insert / COMMIT, with
+ * ROLLBACK on any error). For the in-memory store, "atomic" is
+ * structural: every check happens before any mutation. When the
+ * Prisma migration lands, this same call site becomes the wrapper
+ * around `prisma.$transaction([...])` — the function signature
+ * stays the same so the UI doesn't change.
+ *
+ * Status state (OVER / WATCH / CALM) is derived from
+ * `currentCents / targetCents` on the next read, not stored. So
+ * the AllocationFeed and Status pill pick up the new state
+ * automatically after a rebalance.
+ *
+ * Used by the "Move $X from Y → Z" form on /envelopes (Cluster 2.3,
+ * not yet wired to the UI) and by the rebalance gesture on the
+ * AllocationFeed rows.
+ */
+export function rebalanceEnvelopes(
+  sourceEnvelopeId: string,
+  destinationEnvelopeId: string,
+  transferCents: number,
+): {
+  ok: boolean;
+  reason?: string;
+  source?: Envelope;
+  destination?: Envelope;
+  audit?: AuditLogEntry;
+} {
+  // 1. Validate input shape.
+  if (!Number.isInteger(transferCents) || transferCents <= 0) {
+    return { ok: false, reason: "Transfer amount must be a positive integer (cents)." };
+  }
+  if (sourceEnvelopeId === destinationEnvelopeId) {
+    return { ok: false, reason: "Source and destination must be different envelopes." };
+  }
+
+  // 2. Fetch both envelopes (Prisma path: SELECT ... FROM envelopes
+  // WHERE id = ? — Prisma's $transaction gives snapshot isolation).
+  const s = getState();
+  const source = s.envelopes.find((e) => e.id === sourceEnvelopeId);
+  const dest = s.envelopes.find((e) => e.id === destinationEnvelopeId);
+  if (!source || !dest) {
+    return { ok: false, reason: "One or both envelopes were not found." };
+  }
+
+  // 3. Structural protection: source must have enough to cover the
+  // transfer. (Prisma path: re-check inside the transaction so we
+  // never race against a concurrent withdrawal.)
+  if (source.currentCents < transferCents) {
+    return { ok: false, reason: "Source envelope has insufficient balance for the transfer." };
+  }
+
+  // 4. Mutate (Prisma path: UPDATE envelopes SET current_balance =
+  // current_balance - ? WHERE id = ? — Prisma will roll this back
+  // if any later step in the $transaction throws).
+  source.currentCents -= transferCents;
+  dest.currentCents += transferCents;
+
+  // 5. Status state (OVER / WATCH / CALM) is derived, not stored —
+  // nothing to UPDATE here. The next read of either envelope will
+  // recompute the new ratio.
+
+  // 6. Audit log (Prisma path: INSERT INTO AuditLog with actionType =
+  // "envelope_rebalance", payload = the transfer JSON). Here we
+  // append to the in-memory audit ring.
+  const audit: AuditLogEntry = {
+    id: nextId("aud-rebal"),
+    at: new Date(),
+    kind: "manual-adjust",
+    summary: `Rebalanced ${formatCentsInline(transferCents)} from "${source.name}" → "${dest.name}".`,
+    meta: {
+      sourceEnvelopeId: source.id,
+      destinationEnvelopeId: dest.id,
+      transferCents,
+      sourceBalanceAfterCents: source.currentCents,
+      destinationBalanceAfterCents: dest.currentCents,
+    },
+  };
+  s.audit.unshift(audit);
+
+  return {
+    ok: true,
+    source: { ...source },
+    destination: { ...dest },
+    audit,
+  };
+}
+
+/**
  * Add a new envelope (vessel) to the live store. Used by the
  * "+ New envelope" form on /envelopes/new (Cluster 1.10).
  * currentCents starts at 0 — the new vessel begins empty.
