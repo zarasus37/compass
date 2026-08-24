@@ -27,11 +27,13 @@ import {
   liveBills,
   livePlan,
   liveTransactions,
+  getCurrentPayPeriod,
   TODAY,
   PERIOD_START,
   PERIOD_END,
   NEXT_PAY_DATE,
 } from "@/lib/mock";
+import { getActiveEngineLevel } from "@/app/(app)/settings/engine-actions";
 import {
   paycheckBreakdown,
   billsDueInPeriod,
@@ -650,8 +652,17 @@ export default async function Dashboard() {
     <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", minHeight: "100vh" }}>
       <AppSidebar user={{ name: user.name, email: user.email }} />
       <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-        {/* Persistent top bar — branding, pay period, engine toggle. */}
-        <TopAppBar />
+        {/* Persistent top bar — Sovereign Monad branding, pay period
+            chip, engine toggle. Reads engine level + pay period from
+            the DB (with constants fallback) so the bar always reflects
+            the current system state. */}
+        <TopAppBar
+          engineLevel={await getActiveEngineLevel()}
+          payPeriod={await (async () => {
+            const pp = await getCurrentPayPeriod();
+            return { startDate: pp.startDate, endDate: pp.endDate };
+          })()}
+        />
         <div style={{ padding: "32px 80px 112px", maxWidth: 1480, position: "relative", flex: 1 }}>
         {/* Contextual rebalance alert bay — only renders when an envelope
             is over its target. Surfaces the worst overage with a

@@ -257,6 +257,15 @@ exports.Prisma.SystemSettingsScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.PayPeriodScalarFieldEnum = {
+  id: 'id',
+  startDate: 'startDate',
+  endDate: 'endDate',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -282,7 +291,8 @@ exports.Prisma.ModelName = {
   AllocationPlan: 'AllocationPlan',
   AllocationRule: 'AllocationRule',
   AuditLog: 'AuditLog',
-  SystemSettings: 'SystemSettings'
+  SystemSettings: 'SystemSettings',
+  PayPeriod: 'PayPeriod'
 };
 
 /**

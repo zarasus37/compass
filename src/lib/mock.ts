@@ -38,12 +38,57 @@ import {
   PERIOD_END,
   NEXT_PAY_DATE,
 } from "./mock-seed";
+import { prisma } from "@/server/db";
 
 // ---------------------------------------------------------------------------
 // Re-export date constants
 // ---------------------------------------------------------------------------
 
 export { TODAY, PERIOD_START, PERIOD_END, NEXT_PAY_DATE };
+
+/**
+ * PayPeriod snapshot — read from Prisma (PayPeriod table) with a
+ * fallback to the PERIOD_START / PERIOD_END constants. The TopAppBar
+ * uses this to render the "CYCLE" chip ("AUG 15 ↔ AUG 29") and to
+ * compute the day-of-period.
+ *
+ * Why fallback: the v1 mock-seed.ts defines the period as constants
+ * for the case where the PayPeriod table is empty. Production users
+ * will have at least one active row seeded; the fallback just keeps
+ * the dev experience smooth before the seed step runs.
+ */
+export interface PayPeriodSnapshot {
+  startDate: Date;
+  endDate: Date;
+  /** True when this came from the PayPeriod table; false when from constants. */
+  fromDb: boolean;
+}
+
+export async function getCurrentPayPeriod(): Promise<PayPeriodSnapshot> {
+  try {
+    const row = await prisma.payPeriod.findFirst({
+      where: { isActive: true },
+      orderBy: { startDate: "desc" },
+    });
+    if (row) {
+      return {
+        startDate: row.startDate,
+        endDate: row.endDate,
+        fromDb: true,
+      };
+    }
+  } catch (err) {
+    // If the table doesn't exist yet or the DB is unreachable, fall
+    // back to the constants. The layout will still render something
+    // sensible.
+    console.warn("getCurrentPayPeriod: DB read failed, using constants:", err);
+  }
+  return {
+    startDate: PERIOD_START,
+    endDate: PERIOD_END,
+    fromDb: false,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Re-export derived snapshot

@@ -1,31 +1,24 @@
 /**
- * Smoke for the TopAppBar — verify it renders on every signed-in page.
+ * Smoke for the TopAppBar (Sovereign Monad / vessel design system).
  *
- * Walks: login → fetch a list of pages (dashboard, envelopes, period,
- * insights, settings, transactions) → assert the bar's three elements
- * are present on each.
+ * Walks: login → fetch a list of pages → assert the bar's three
+ * regions are present on each.
+ *
+ * The bar's elements (vessel redesign):
+ *   - Brand: pulsing accent dot + "Sovereign Monad" wordmark
+ *   - Cycle: "CYCLE: AUG 15 ↔ AUG 29" chip with a thin progress
+ *     rail on the right edge
+ *   - Engine: a <form action={toggleEngineAction}> with a
+ *     <button aria-label="Current engine: ⚙ L1 RULES ENGINE. Click
+ *     to toggle."> pill + a separate <a href="/settings"> cog
+ *
+ * The aria-label still encodes the engine state so screen readers
+ * and the engine-toggle smoke can both detect it. The visual label
+ * carries a leading glyph (⚙ L1 / ⚡ L2) for high-contrast reading.
  *
  * Run with: node tests/smoke-topbar.mjs
  *
- * The bar's elements:
- *   - Brand link (☉ + COMPASS + version chip)
- *   - Pay period window (left bracket + date range + right bracket)
- *   - Day-of-period count (DAY n / total)
- *   - Mini progress bar (in the sub-row)
- *   - Engine toggle: a <form action={toggleEngineAction}> wrapping a
- *     <button aria-label="Current engine: L1 RULES ENGINE. Click to
- *     toggle."> + a separate <a aria-label="Open settings" href="/settings">
- *     cog. The button shows "L1 | RULES ENGINE" (or "L2 | AI ENGINE")
- *     so the user knows what state the engine is in and can click to
- *     flip it.
- *
- * The bracket characters and "DAY" text are split by React 19
- * hydration comments in the SSR output, so the checks look for
- * adjacent <span>s and the date text in the cyan-colored span.
- * The bracket-styled span is matched on its exact color/style
- * signature so a future color change is caught.
- *
- * Requires the dev server to be running on 127.0.0.1:3000.
+ * Requires the dev server on 127.0.0.1:3000.
  */
 
 const BASE = "http://127.0.0.1:3000";
@@ -93,7 +86,7 @@ const PAGES = [
 // ---------- Main ----------
 
 async function main() {
-  console.log("--- TopAppBar smoke ---\n");
+  console.log("--- TopAppBar smoke (vessel) ---\n");
 
   // Login
   const lr = await get("/login");
@@ -111,29 +104,74 @@ async function main() {
   for (const p of PAGES) {
     const r = await get(p.path);
     const html = await r.text();
-    const hasBar             = /class="top-app-bar"/.test(html);
-    const hasCompass         = /aria-label="Compass — home"/.test(html);
-    const hasPeriodBracketL  = /<span aria-hidden="true" style="color:var\(--ink-4\);font-size:14px;line-height:1">\[<\/span>/.test(html);
-    const hasPeriodBracketR  = /<span aria-hidden="true" style="color:var\(--ink-4\);font-size:14px;line-height:1">\]<\/span>/.test(html);
-    const hasPeriodDate      = /color:var\(--terminal-cyan\)">[A-Z]{3} \d+/.test(html);
-    const hasEngine          = /RULES ENGINE/.test(html) || /AI ENGINE/.test(html);
-    // The engine toggle is now a <form> with a <button> (state pill)
-    // + a separate <a> (cog → /settings). The button's aria-label
-    // encodes the current state; the cog is its own link.
-    const hasEngineButton    = /aria-label="Current engine: (RULES|AI) ENGINE\. Click to toggle\."/.test(html);
-    const hasEngineCog       = /<a[^>]*aria-label="Open settings"[^>]*href="\/settings"/.test(html);
-    const hasEngineL1        = />L1</.test(html) || />L2</.test(html);
-    // React 19 hydration comments ("<!-- -->") sit between the literal
-    // "DAY" and the digit, so the regex has to span those markers.
-    // We strip them first, then look for the canonical "DAY <n>".
+    // Strip React 19 hydration comments so adjacent <span> children
+    // are matched as one continuous chunk.
     const stripped = html.replace(/<!--\s*-->/g, "");
-    const hasDayCount        = /DAY \d+/.test(stripped);
-    const hasProgressBar     = /class="top-app-bar-sub"/.test(html);
-    const hasEngineLink      = hasEngineCog; // legacy name, now points to the cog
-    const hasForm            = /<form action="" encType="multipart\/form-data" method="POST"/.test(html)
-                            || /<form[^>]*method="POST"[^>]*>/.test(html);
-    results.push({ label: p.label, status: r.status, hasBar, hasCompass, hasPeriodBracketL, hasPeriodBracketR, hasPeriodDate, hasEngine, hasEngineButton, hasEngineCog, hasEngineL1, hasDayCount, hasProgressBar, hasEngineLink, hasForm });
-    log(p.label, `status=${r.status} bar=${hasBar} brand=${hasCompass} period=${hasPeriodBracketL && hasPeriodBracketR && hasPeriodDate} engineBtn=${hasEngineButton} cog=${hasEngineCog} L=${hasEngineL1} day=${hasDayCount} progress=${hasProgressBar}`);
+
+    // === Bar surface ===
+    const hasBar = /class="top-app-bar"/.test(html);
+    const hasBarAria = /aria-label="Sovereign Monad — top bar"/.test(html);
+
+    // === Brand region ===
+    const hasBrandAria = /aria-label="Sovereign Monad — home"/.test(html);
+    const hasWordmark = />Sovereign Monad</.test(stripped);
+    const hasAccentDot =
+      /background:var\(--vessel-accent\)/.test(html) &&
+      /border-radius:50%/.test(html);
+
+    // === Cycle region ===
+    const hasCycleLabel = />CYCLE:</.test(stripped);
+    // The cycle chip shows the date range like "AUG 15 ↔ AUG 29".
+    // We look for two MONTH-DAY chunks separated by the ↔ glyph.
+    const hasCycleRange = /[A-Z]{3} \d+[\s\S]*?↔[\s\S]*?[A-Z]{3} \d+/.test(stripped);
+    // The cycle chip's parent <div> applies `color: var(--vessel-accent)`;
+    // the inner date <span> inherits the color rather than redeclaring it.
+    // The chip carries the class "top-app-bar-cycle" — anchor the regex on it.
+    const hasCycleColor =
+      /class="top-app-bar-cycle"[^>]*color:var\(--vessel-accent\)/.test(html);
+    // The mini progress rail (60×2 px accent fill) lives inside the chip.
+    // The fill width is a decimal percentage (e.g. 21.4285…%), so allow
+    // \d+ with an optional fraction.
+    const hasCycleProgress =
+      /position:absolute;inset:0 auto 0 0;width:\d+(?:\.\d+)?%;background:var\(--vessel-accent\)/.test(html);
+
+    // === Engine region ===
+    const hasEngineBtn =
+      /aria-label="Current engine: [^"]+Click to toggle\."/.test(html);
+    // The visible label is "⚙ L1 RULES ENGINE" or "⚡ L2 AI ENGINE".
+    const hasEngineLabel =
+      /(⚙|⚡)\s*(L1 RULES ENGINE|L2 AI ENGINE)/.test(stripped);
+    // Engine level text (L1 or L2) somewhere in the bar.
+    const hasEngineLevel = /L1 RULES ENGINE|L2 AI ENGINE/.test(stripped);
+    // Cog links to /settings.
+    const hasEngineCog =
+      /<a[^>]*aria-label="Open settings"[^>]*href="\/settings"/.test(html);
+
+    // === Form/action (toggled via server-action form) ===
+    const hasForm =
+      /<form action="" encType="multipart\/form-data" method="POST"/.test(html) ||
+      /<form[^>]*method="POST"[^>]*>/.test(html);
+
+    // === Vessel styling markers ===
+    const hasVesselBg = /background:var\(--vessel-dark\)/.test(html);
+    const hasVesselBorder = /border-bottom:1px solid var\(--vessel-border\)/.test(html);
+
+    results.push({
+      label: p.label,
+      status: r.status,
+      hasBar, hasBarAria,
+      hasBrandAria, hasWordmark, hasAccentDot,
+      hasCycleLabel, hasCycleRange, hasCycleColor, hasCycleProgress,
+      hasEngineBtn, hasEngineLabel, hasEngineLevel, hasEngineCog,
+      hasForm,
+      hasVesselBg, hasVesselBorder,
+    });
+    log(
+      p.label,
+      `bar=${hasBar} brand=${hasBrandAria} cycle=${hasCycleRange} ` +
+      `engineBtn=${hasEngineBtn} cog=${hasEngineCog} ` +
+      `vessel=${hasVesselBg && hasVesselBorder}`,
+    );
   }
 
   // ---------- Checks ----------
@@ -142,17 +180,21 @@ async function main() {
   for (const r of results) {
     checks.push([`${r.label}: 200`, r.status === 200]);
     checks.push([`${r.label}: top-app-bar class present`, r.hasBar]);
-    checks.push([`${r.label}: brand link present`, r.hasCompass]);
-    checks.push([`${r.label}: pay period left bracket`, r.hasPeriodBracketL]);
-    checks.push([`${r.label}: pay period right bracket`, r.hasPeriodBracketR]);
-    checks.push([`${r.label}: pay period date in cyan`, r.hasPeriodDate]);
-    checks.push([`${r.label}: engine toggle label present`, r.hasEngine]);
-    checks.push([`${r.label}: engine button (L1/L2 toggle) present`, r.hasEngineButton]);
+    checks.push([`${r.label}: bar aria-label (Sovereign Monad)`, r.hasBarAria]);
+    checks.push([`${r.label}: brand link aria-label`, r.hasBrandAria]);
+    checks.push([`${r.label}: wordmark "Sovereign Monad" present`, r.hasWordmark]);
+    checks.push([`${r.label}: pulsing accent dot present`, r.hasAccentDot]);
+    checks.push([`${r.label}: CYCLE: label present`, r.hasCycleLabel]);
+    checks.push([`${r.label}: CYCLE range (MONTH DAY ↔ MONTH DAY) present`, r.hasCycleRange]);
+    checks.push([`${r.label}: CYCLE date in vessel-accent`, r.hasCycleColor]);
+    checks.push([`${r.label}: cycle progress rail present`, r.hasCycleProgress]);
+    checks.push([`${r.label}: engine toggle button present`, r.hasEngineBtn]);
+    checks.push([`${r.label}: engine toggle label (L1 RULES / L2 AI) present`, r.hasEngineLabel]);
+    checks.push([`${r.label}: engine level text present`, r.hasEngineLevel]);
     checks.push([`${r.label}: engine cog links to /settings`, r.hasEngineCog]);
-    checks.push([`${r.label}: engine level text (L1/L2) present`, r.hasEngineL1]);
-    checks.push([`${r.label}: day-of-period count present`, r.hasDayCount]);
-    checks.push([`${r.label}: mini progress bar present`, r.hasProgressBar]);
-    checks.push([`${r.label}: engine toggle is a <form> (POST to action)`, r.hasForm]);
+    checks.push([`${r.label}: engine toggle is a <form> (POST)`, r.hasForm]);
+    checks.push([`${r.label}: vessel-dark background applied`, r.hasVesselBg]);
+    checks.push([`${r.label}: vessel-border applied`, r.hasVesselBorder]);
   }
 
   console.log("\n--- checks ---");

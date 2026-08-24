@@ -109,6 +109,20 @@
   --warn:  #F59E0B;    /* amber (more terminal than warm gold) */
   --neg:   #EF4444;    /* red (more terminal) */
 
+  /* === VESSEL (Sovereign Monad) design system === */
+  /* High-visibility dark canvas + neon purple accent. New shells (TopAppBar
+     and BottomNav) consume these; the older terminal components still use
+     the cosmos/teal/gold tokens above and will migrate incrementally. */
+  --vessel-dark:    #16121e;  /* deep slate-purple canvas background */
+  --vessel-surface: #1c1726;  /* elevated layer container background */
+  --vessel-border:  #2d243d;  /* structural tracking lines */
+  --vessel-accent:  #a855f7;  /* high-visibility purple focus color */
+  --vessel-watch:   #f97316;  /* warning orange accent */
+  --vessel-over:    #ef4444;  /* over-limit neon red accent */
+  --vessel-accent-soft: rgba(168, 85, 247, 0.10);
+  --vessel-neon-glow:   0 0 12px rgba(168, 85, 247, 0.4);
+  --vessel-nav-shadow:  0 -4px 20px rgba(0, 0, 0, 0.6);
+
   /* === PLANETS (7 vessels) — muted, terminal-friendly hues === */
   --sol:     #FCD34D;  /* gold-yellow */
   --luna:    #CBD5E1;  /* slate-silver */
@@ -369,6 +383,17 @@
   .vessel-feed-bar--over {
     animation: none;
     opacity: 1;
+  }
+}
+
+/* Sovereign Monad vessel pulse — the brand-dot's slow heartbeat. */
+@keyframes vessel-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(0.92); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [aria-label="Sovereign Monad — home"] > span[aria-hidden] {
+    animation: none !important;
   }
 }
 

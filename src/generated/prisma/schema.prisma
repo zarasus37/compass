@@ -317,3 +317,29 @@ model SystemSettings {
   activeEngineLvl String   @default("L1")
   updatedAt       DateTime @updatedAt
 }
+
+/// A specific pay-period window. The TopAppBar's "CYCLE" chip reads the
+/// currently-active row (the one with isActive=true) and renders the
+/// `startDate ↔ endDate` range. Multi-user ready; v1 has one active row.
+///
+/// This is intentionally separate from `PaySchedule` (which describes the
+/// recurrence cadence — weekly/biweekly/etc.). A PaySchedule can produce
+/// many PayPeriod rows over time. For v1 we seed a single active period
+/// that mirrors the PERIOD_START / PERIOD_END constants in lib/mock.ts.
+model PayPeriod {
+  id        String   @id @default(cuid())
+  /// Inclusive start of the period (date only, midnight local).
+  startDate DateTime
+  /// Exclusive end of the period — i.e. the day AFTER the last day
+  /// of the period. Stored as DateTime so partial-day math works in
+  /// the future (early pay / late pay edge cases).
+  endDate   DateTime
+  /// True while this is the current period. Exactly one row should have
+  /// isActive=true at a time; the layout helper picks the most recent.
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([startDate, endDate])
+}

@@ -61,7 +61,7 @@ const log = (k, v) => console.log(`[${k}] ${v}`);
 
 const FOUR_TABS = [
   { label: "Dashboard",          fullName: "Dashboard Hub",     glyph: "◉" },
-  { label: "Quick Entry",        fullName: "Ledger Input",      glyph: "+" },
+  { label: "Quick Entry",        fullName: "Ledger Input",      glyph: "⊕" },
   { label: "Advanced Analytics", fullName: "Macro Analytics",   glyph: "◍" },
   { label: "Settings",           fullName: "System Blueprint",  glyph: "⚙" },
 ];
@@ -99,9 +99,12 @@ async function main() {
     const navMatch = text.match(/<nav aria-label="Primary navigation dock"[\s\S]*?<\/nav>/);
     const navHtml = navMatch ? navMatch[0] : "";
 
-    // Count tabs in the nav (class may appear after other attributes,
-    // so match it positionally, not after the opening `<a`).
-    const tabMatches = [...navHtml.matchAll(/<a [^>]*class="bottom-nav-tab"/g)];
+    // Count tabs in the nav. The center "Quick Entry" tab carries
+    // both `bottom-nav-tab` and `bottom-nav-tab--center` in its class
+    // attribute; the regex allows extra class names.
+    const tabMatches = [
+      ...navHtml.matchAll(/<a [^>]*class="bottom-nav-tab(?:\s+[^"]*)?"/g),
+    ];
     const tabCount = tabMatches.length;
 
     // For each expected tab, check it renders in the nav.
@@ -119,8 +122,16 @@ async function main() {
 
     // The active tab has aria-current="page" on its <a>. The aria-label
     // appears first in the rendered HTML, so we read it from any <a>
-    // that has both class="bottom-nav-tab" and aria-current="page".
-    const activeMatch = navHtml.match(/<a [^>]*aria-label="([^"]+)"[^>]*aria-current="page"[^>]*class="bottom-nav-tab"|<a [^>]*aria-current="page"[^>]*aria-label="([^"]+)"[^>]*class="bottom-nav-tab"|<a [^>]*aria-label="([^"]+)"[^>]*class="bottom-nav-tab"[^>]*aria-current="page"/);
+    // that has both class="bottom-nav-tab*" and aria-current="page".
+    // (The center tab also carries the "bottom-nav-tab--center" modifier.)
+    const classRe = /class="bottom-nav-tab(?:\s+[^"]*)?"/;
+    const activeMatch = navHtml.match(
+      new RegExp(
+        `<a [^>]*aria-label="([^"]+)"[^>]*aria-current="page"[^>]*${classRe.source}` +
+        `|<a [^>]*aria-current="page"[^>]*aria-label="([^"]+)"[^>]*${classRe.source}` +
+        `|<a [^>]*aria-label="([^"]+)"[^>]*${classRe.source}[^>]*aria-current="page"`,
+      ),
+    );
     const activeTab = activeMatch ? (activeMatch[1] || activeMatch[2] || activeMatch[3]) : null;
     // The active tab's label (DASHBOARD / LEDGER / ...) is the one
     // whose fullName is in activeTab.

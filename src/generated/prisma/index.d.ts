@@ -84,6 +84,18 @@ export type AuditLog = $Result.DefaultSelection<Prisma.$AuditLogPayload>
  * via the toggleEngineAction server action.
  */
 export type SystemSettings = $Result.DefaultSelection<Prisma.$SystemSettingsPayload>
+/**
+ * Model PayPeriod
+ * A specific pay-period window. The TopAppBar's "CYCLE" chip reads the
+ * currently-active row (the one with isActive=true) and renders the
+ * `startDate ↔ endDate` range. Multi-user ready; v1 has one active row.
+ * 
+ * This is intentionally separate from `PaySchedule` (which describes the
+ * recurrence cadence — weekly/biweekly/etc.). A PaySchedule can produce
+ * many PayPeriod rows over time. For v1 we seed a single active period
+ * that mirrors the PERIOD_START / PERIOD_END constants in lib/mock.ts.
+ */
+export type PayPeriod = $Result.DefaultSelection<Prisma.$PayPeriodPayload>
 
 /**
  * Enums
@@ -332,6 +344,16 @@ export class PrismaClient<
     * ```
     */
   get systemSettings(): Prisma.SystemSettingsDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.payPeriod`: Exposes CRUD operations for the **PayPeriod** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more PayPeriods
+    * const payPeriods = await prisma.payPeriod.findMany()
+    * ```
+    */
+  get payPeriod(): Prisma.PayPeriodDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -789,7 +811,8 @@ export namespace Prisma {
     AllocationPlan: 'AllocationPlan',
     AllocationRule: 'AllocationRule',
     AuditLog: 'AuditLog',
-    SystemSettings: 'SystemSettings'
+    SystemSettings: 'SystemSettings',
+    PayPeriod: 'PayPeriod'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -805,7 +828,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "session" | "account" | "envelope" | "transaction" | "paySchedule" | "goal" | "allocationPlan" | "allocationRule" | "auditLog" | "systemSettings"
+      modelProps: "user" | "session" | "account" | "envelope" | "transaction" | "paySchedule" | "goal" | "allocationPlan" | "allocationRule" | "auditLog" | "systemSettings" | "payPeriod"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1623,6 +1646,80 @@ export namespace Prisma {
           }
         }
       }
+      PayPeriod: {
+        payload: Prisma.$PayPeriodPayload<ExtArgs>
+        fields: Prisma.PayPeriodFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.PayPeriodFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PayPeriodPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.PayPeriodFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PayPeriodPayload>
+          }
+          findFirst: {
+            args: Prisma.PayPeriodFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PayPeriodPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.PayPeriodFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PayPeriodPayload>
+          }
+          findMany: {
+            args: Prisma.PayPeriodFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PayPeriodPayload>[]
+          }
+          create: {
+            args: Prisma.PayPeriodCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PayPeriodPayload>
+          }
+          createMany: {
+            args: Prisma.PayPeriodCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.PayPeriodCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PayPeriodPayload>[]
+          }
+          delete: {
+            args: Prisma.PayPeriodDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PayPeriodPayload>
+          }
+          update: {
+            args: Prisma.PayPeriodUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PayPeriodPayload>
+          }
+          deleteMany: {
+            args: Prisma.PayPeriodDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.PayPeriodUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.PayPeriodUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PayPeriodPayload>[]
+          }
+          upsert: {
+            args: Prisma.PayPeriodUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PayPeriodPayload>
+          }
+          aggregate: {
+            args: Prisma.PayPeriodAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregatePayPeriod>
+          }
+          groupBy: {
+            args: Prisma.PayPeriodGroupByArgs<ExtArgs>
+            result: $Utils.Optional<PayPeriodGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.PayPeriodCountArgs<ExtArgs>
+            result: $Utils.Optional<PayPeriodCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -1757,6 +1854,7 @@ export namespace Prisma {
     allocationRule?: AllocationRuleOmit
     auditLog?: AuditLogOmit
     systemSettings?: SystemSettingsOmit
+    payPeriod?: PayPeriodOmit
   }
 
   /* Types for Logging */
@@ -15188,6 +15286,1029 @@ export namespace Prisma {
 
 
   /**
+   * Model PayPeriod
+   */
+
+  export type AggregatePayPeriod = {
+    _count: PayPeriodCountAggregateOutputType | null
+    _min: PayPeriodMinAggregateOutputType | null
+    _max: PayPeriodMaxAggregateOutputType | null
+  }
+
+  export type PayPeriodMinAggregateOutputType = {
+    id: string | null
+    startDate: Date | null
+    endDate: Date | null
+    isActive: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type PayPeriodMaxAggregateOutputType = {
+    id: string | null
+    startDate: Date | null
+    endDate: Date | null
+    isActive: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type PayPeriodCountAggregateOutputType = {
+    id: number
+    startDate: number
+    endDate: number
+    isActive: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type PayPeriodMinAggregateInputType = {
+    id?: true
+    startDate?: true
+    endDate?: true
+    isActive?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type PayPeriodMaxAggregateInputType = {
+    id?: true
+    startDate?: true
+    endDate?: true
+    isActive?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type PayPeriodCountAggregateInputType = {
+    id?: true
+    startDate?: true
+    endDate?: true
+    isActive?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type PayPeriodAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which PayPeriod to aggregate.
+     */
+    where?: PayPeriodWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PayPeriods to fetch.
+     */
+    orderBy?: PayPeriodOrderByWithRelationInput | PayPeriodOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: PayPeriodWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PayPeriods from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PayPeriods.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned PayPeriods
+    **/
+    _count?: true | PayPeriodCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: PayPeriodMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: PayPeriodMaxAggregateInputType
+  }
+
+  export type GetPayPeriodAggregateType<T extends PayPeriodAggregateArgs> = {
+        [P in keyof T & keyof AggregatePayPeriod]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregatePayPeriod[P]>
+      : GetScalarType<T[P], AggregatePayPeriod[P]>
+  }
+
+
+
+
+  export type PayPeriodGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: PayPeriodWhereInput
+    orderBy?: PayPeriodOrderByWithAggregationInput | PayPeriodOrderByWithAggregationInput[]
+    by: PayPeriodScalarFieldEnum[] | PayPeriodScalarFieldEnum
+    having?: PayPeriodScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: PayPeriodCountAggregateInputType | true
+    _min?: PayPeriodMinAggregateInputType
+    _max?: PayPeriodMaxAggregateInputType
+  }
+
+  export type PayPeriodGroupByOutputType = {
+    id: string
+    startDate: Date
+    endDate: Date
+    isActive: boolean
+    createdAt: Date
+    updatedAt: Date
+    _count: PayPeriodCountAggregateOutputType | null
+    _min: PayPeriodMinAggregateOutputType | null
+    _max: PayPeriodMaxAggregateOutputType | null
+  }
+
+  type GetPayPeriodGroupByPayload<T extends PayPeriodGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<PayPeriodGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof PayPeriodGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], PayPeriodGroupByOutputType[P]>
+            : GetScalarType<T[P], PayPeriodGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type PayPeriodSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    startDate?: boolean
+    endDate?: boolean
+    isActive?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["payPeriod"]>
+
+  export type PayPeriodSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    startDate?: boolean
+    endDate?: boolean
+    isActive?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["payPeriod"]>
+
+  export type PayPeriodSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    startDate?: boolean
+    endDate?: boolean
+    isActive?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["payPeriod"]>
+
+  export type PayPeriodSelectScalar = {
+    id?: boolean
+    startDate?: boolean
+    endDate?: boolean
+    isActive?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type PayPeriodOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "startDate" | "endDate" | "isActive" | "createdAt" | "updatedAt", ExtArgs["result"]["payPeriod"]>
+
+  export type $PayPeriodPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "PayPeriod"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      /**
+       * Inclusive start of the period (date only, midnight local).
+       */
+      startDate: Date
+      /**
+       * Exclusive end of the period — i.e. the day AFTER the last day
+       * of the period. Stored as DateTime so partial-day math works in
+       * the future (early pay / late pay edge cases).
+       */
+      endDate: Date
+      /**
+       * True while this is the current period. Exactly one row should have
+       * isActive=true at a time; the layout helper picks the most recent.
+       */
+      isActive: boolean
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["payPeriod"]>
+    composites: {}
+  }
+
+  type PayPeriodGetPayload<S extends boolean | null | undefined | PayPeriodDefaultArgs> = $Result.GetResult<Prisma.$PayPeriodPayload, S>
+
+  type PayPeriodCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<PayPeriodFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: PayPeriodCountAggregateInputType | true
+    }
+
+  export interface PayPeriodDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['PayPeriod'], meta: { name: 'PayPeriod' } }
+    /**
+     * Find zero or one PayPeriod that matches the filter.
+     * @param {PayPeriodFindUniqueArgs} args - Arguments to find a PayPeriod
+     * @example
+     * // Get one PayPeriod
+     * const payPeriod = await prisma.payPeriod.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends PayPeriodFindUniqueArgs>(args: SelectSubset<T, PayPeriodFindUniqueArgs<ExtArgs>>): Prisma__PayPeriodClient<$Result.GetResult<Prisma.$PayPeriodPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one PayPeriod that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {PayPeriodFindUniqueOrThrowArgs} args - Arguments to find a PayPeriod
+     * @example
+     * // Get one PayPeriod
+     * const payPeriod = await prisma.payPeriod.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends PayPeriodFindUniqueOrThrowArgs>(args: SelectSubset<T, PayPeriodFindUniqueOrThrowArgs<ExtArgs>>): Prisma__PayPeriodClient<$Result.GetResult<Prisma.$PayPeriodPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first PayPeriod that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PayPeriodFindFirstArgs} args - Arguments to find a PayPeriod
+     * @example
+     * // Get one PayPeriod
+     * const payPeriod = await prisma.payPeriod.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends PayPeriodFindFirstArgs>(args?: SelectSubset<T, PayPeriodFindFirstArgs<ExtArgs>>): Prisma__PayPeriodClient<$Result.GetResult<Prisma.$PayPeriodPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first PayPeriod that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PayPeriodFindFirstOrThrowArgs} args - Arguments to find a PayPeriod
+     * @example
+     * // Get one PayPeriod
+     * const payPeriod = await prisma.payPeriod.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends PayPeriodFindFirstOrThrowArgs>(args?: SelectSubset<T, PayPeriodFindFirstOrThrowArgs<ExtArgs>>): Prisma__PayPeriodClient<$Result.GetResult<Prisma.$PayPeriodPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more PayPeriods that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PayPeriodFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all PayPeriods
+     * const payPeriods = await prisma.payPeriod.findMany()
+     * 
+     * // Get first 10 PayPeriods
+     * const payPeriods = await prisma.payPeriod.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const payPeriodWithIdOnly = await prisma.payPeriod.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends PayPeriodFindManyArgs>(args?: SelectSubset<T, PayPeriodFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PayPeriodPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a PayPeriod.
+     * @param {PayPeriodCreateArgs} args - Arguments to create a PayPeriod.
+     * @example
+     * // Create one PayPeriod
+     * const PayPeriod = await prisma.payPeriod.create({
+     *   data: {
+     *     // ... data to create a PayPeriod
+     *   }
+     * })
+     * 
+     */
+    create<T extends PayPeriodCreateArgs>(args: SelectSubset<T, PayPeriodCreateArgs<ExtArgs>>): Prisma__PayPeriodClient<$Result.GetResult<Prisma.$PayPeriodPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many PayPeriods.
+     * @param {PayPeriodCreateManyArgs} args - Arguments to create many PayPeriods.
+     * @example
+     * // Create many PayPeriods
+     * const payPeriod = await prisma.payPeriod.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends PayPeriodCreateManyArgs>(args?: SelectSubset<T, PayPeriodCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many PayPeriods and returns the data saved in the database.
+     * @param {PayPeriodCreateManyAndReturnArgs} args - Arguments to create many PayPeriods.
+     * @example
+     * // Create many PayPeriods
+     * const payPeriod = await prisma.payPeriod.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many PayPeriods and only return the `id`
+     * const payPeriodWithIdOnly = await prisma.payPeriod.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends PayPeriodCreateManyAndReturnArgs>(args?: SelectSubset<T, PayPeriodCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PayPeriodPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a PayPeriod.
+     * @param {PayPeriodDeleteArgs} args - Arguments to delete one PayPeriod.
+     * @example
+     * // Delete one PayPeriod
+     * const PayPeriod = await prisma.payPeriod.delete({
+     *   where: {
+     *     // ... filter to delete one PayPeriod
+     *   }
+     * })
+     * 
+     */
+    delete<T extends PayPeriodDeleteArgs>(args: SelectSubset<T, PayPeriodDeleteArgs<ExtArgs>>): Prisma__PayPeriodClient<$Result.GetResult<Prisma.$PayPeriodPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one PayPeriod.
+     * @param {PayPeriodUpdateArgs} args - Arguments to update one PayPeriod.
+     * @example
+     * // Update one PayPeriod
+     * const payPeriod = await prisma.payPeriod.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends PayPeriodUpdateArgs>(args: SelectSubset<T, PayPeriodUpdateArgs<ExtArgs>>): Prisma__PayPeriodClient<$Result.GetResult<Prisma.$PayPeriodPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more PayPeriods.
+     * @param {PayPeriodDeleteManyArgs} args - Arguments to filter PayPeriods to delete.
+     * @example
+     * // Delete a few PayPeriods
+     * const { count } = await prisma.payPeriod.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends PayPeriodDeleteManyArgs>(args?: SelectSubset<T, PayPeriodDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more PayPeriods.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PayPeriodUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many PayPeriods
+     * const payPeriod = await prisma.payPeriod.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends PayPeriodUpdateManyArgs>(args: SelectSubset<T, PayPeriodUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more PayPeriods and returns the data updated in the database.
+     * @param {PayPeriodUpdateManyAndReturnArgs} args - Arguments to update many PayPeriods.
+     * @example
+     * // Update many PayPeriods
+     * const payPeriod = await prisma.payPeriod.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more PayPeriods and only return the `id`
+     * const payPeriodWithIdOnly = await prisma.payPeriod.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends PayPeriodUpdateManyAndReturnArgs>(args: SelectSubset<T, PayPeriodUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PayPeriodPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one PayPeriod.
+     * @param {PayPeriodUpsertArgs} args - Arguments to update or create a PayPeriod.
+     * @example
+     * // Update or create a PayPeriod
+     * const payPeriod = await prisma.payPeriod.upsert({
+     *   create: {
+     *     // ... data to create a PayPeriod
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the PayPeriod we want to update
+     *   }
+     * })
+     */
+    upsert<T extends PayPeriodUpsertArgs>(args: SelectSubset<T, PayPeriodUpsertArgs<ExtArgs>>): Prisma__PayPeriodClient<$Result.GetResult<Prisma.$PayPeriodPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of PayPeriods.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PayPeriodCountArgs} args - Arguments to filter PayPeriods to count.
+     * @example
+     * // Count the number of PayPeriods
+     * const count = await prisma.payPeriod.count({
+     *   where: {
+     *     // ... the filter for the PayPeriods we want to count
+     *   }
+     * })
+    **/
+    count<T extends PayPeriodCountArgs>(
+      args?: Subset<T, PayPeriodCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], PayPeriodCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a PayPeriod.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PayPeriodAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends PayPeriodAggregateArgs>(args: Subset<T, PayPeriodAggregateArgs>): Prisma.PrismaPromise<GetPayPeriodAggregateType<T>>
+
+    /**
+     * Group by PayPeriod.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PayPeriodGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends PayPeriodGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: PayPeriodGroupByArgs['orderBy'] }
+        : { orderBy?: PayPeriodGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, PayPeriodGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetPayPeriodGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the PayPeriod model
+   */
+  readonly fields: PayPeriodFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for PayPeriod.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__PayPeriodClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the PayPeriod model
+   */
+  interface PayPeriodFieldRefs {
+    readonly id: FieldRef<"PayPeriod", 'String'>
+    readonly startDate: FieldRef<"PayPeriod", 'DateTime'>
+    readonly endDate: FieldRef<"PayPeriod", 'DateTime'>
+    readonly isActive: FieldRef<"PayPeriod", 'Boolean'>
+    readonly createdAt: FieldRef<"PayPeriod", 'DateTime'>
+    readonly updatedAt: FieldRef<"PayPeriod", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * PayPeriod findUnique
+   */
+  export type PayPeriodFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PayPeriod
+     */
+    select?: PayPeriodSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PayPeriod
+     */
+    omit?: PayPeriodOmit<ExtArgs> | null
+    /**
+     * Filter, which PayPeriod to fetch.
+     */
+    where: PayPeriodWhereUniqueInput
+  }
+
+  /**
+   * PayPeriod findUniqueOrThrow
+   */
+  export type PayPeriodFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PayPeriod
+     */
+    select?: PayPeriodSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PayPeriod
+     */
+    omit?: PayPeriodOmit<ExtArgs> | null
+    /**
+     * Filter, which PayPeriod to fetch.
+     */
+    where: PayPeriodWhereUniqueInput
+  }
+
+  /**
+   * PayPeriod findFirst
+   */
+  export type PayPeriodFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PayPeriod
+     */
+    select?: PayPeriodSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PayPeriod
+     */
+    omit?: PayPeriodOmit<ExtArgs> | null
+    /**
+     * Filter, which PayPeriod to fetch.
+     */
+    where?: PayPeriodWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PayPeriods to fetch.
+     */
+    orderBy?: PayPeriodOrderByWithRelationInput | PayPeriodOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for PayPeriods.
+     */
+    cursor?: PayPeriodWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PayPeriods from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PayPeriods.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of PayPeriods.
+     */
+    distinct?: PayPeriodScalarFieldEnum | PayPeriodScalarFieldEnum[]
+  }
+
+  /**
+   * PayPeriod findFirstOrThrow
+   */
+  export type PayPeriodFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PayPeriod
+     */
+    select?: PayPeriodSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PayPeriod
+     */
+    omit?: PayPeriodOmit<ExtArgs> | null
+    /**
+     * Filter, which PayPeriod to fetch.
+     */
+    where?: PayPeriodWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PayPeriods to fetch.
+     */
+    orderBy?: PayPeriodOrderByWithRelationInput | PayPeriodOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for PayPeriods.
+     */
+    cursor?: PayPeriodWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PayPeriods from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PayPeriods.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of PayPeriods.
+     */
+    distinct?: PayPeriodScalarFieldEnum | PayPeriodScalarFieldEnum[]
+  }
+
+  /**
+   * PayPeriod findMany
+   */
+  export type PayPeriodFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PayPeriod
+     */
+    select?: PayPeriodSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PayPeriod
+     */
+    omit?: PayPeriodOmit<ExtArgs> | null
+    /**
+     * Filter, which PayPeriods to fetch.
+     */
+    where?: PayPeriodWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PayPeriods to fetch.
+     */
+    orderBy?: PayPeriodOrderByWithRelationInput | PayPeriodOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing PayPeriods.
+     */
+    cursor?: PayPeriodWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PayPeriods from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PayPeriods.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of PayPeriods.
+     */
+    distinct?: PayPeriodScalarFieldEnum | PayPeriodScalarFieldEnum[]
+  }
+
+  /**
+   * PayPeriod create
+   */
+  export type PayPeriodCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PayPeriod
+     */
+    select?: PayPeriodSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PayPeriod
+     */
+    omit?: PayPeriodOmit<ExtArgs> | null
+    /**
+     * The data needed to create a PayPeriod.
+     */
+    data: XOR<PayPeriodCreateInput, PayPeriodUncheckedCreateInput>
+  }
+
+  /**
+   * PayPeriod createMany
+   */
+  export type PayPeriodCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many PayPeriods.
+     */
+    data: PayPeriodCreateManyInput | PayPeriodCreateManyInput[]
+  }
+
+  /**
+   * PayPeriod createManyAndReturn
+   */
+  export type PayPeriodCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PayPeriod
+     */
+    select?: PayPeriodSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the PayPeriod
+     */
+    omit?: PayPeriodOmit<ExtArgs> | null
+    /**
+     * The data used to create many PayPeriods.
+     */
+    data: PayPeriodCreateManyInput | PayPeriodCreateManyInput[]
+  }
+
+  /**
+   * PayPeriod update
+   */
+  export type PayPeriodUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PayPeriod
+     */
+    select?: PayPeriodSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PayPeriod
+     */
+    omit?: PayPeriodOmit<ExtArgs> | null
+    /**
+     * The data needed to update a PayPeriod.
+     */
+    data: XOR<PayPeriodUpdateInput, PayPeriodUncheckedUpdateInput>
+    /**
+     * Choose, which PayPeriod to update.
+     */
+    where: PayPeriodWhereUniqueInput
+  }
+
+  /**
+   * PayPeriod updateMany
+   */
+  export type PayPeriodUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update PayPeriods.
+     */
+    data: XOR<PayPeriodUpdateManyMutationInput, PayPeriodUncheckedUpdateManyInput>
+    /**
+     * Filter which PayPeriods to update
+     */
+    where?: PayPeriodWhereInput
+    /**
+     * Limit how many PayPeriods to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * PayPeriod updateManyAndReturn
+   */
+  export type PayPeriodUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PayPeriod
+     */
+    select?: PayPeriodSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the PayPeriod
+     */
+    omit?: PayPeriodOmit<ExtArgs> | null
+    /**
+     * The data used to update PayPeriods.
+     */
+    data: XOR<PayPeriodUpdateManyMutationInput, PayPeriodUncheckedUpdateManyInput>
+    /**
+     * Filter which PayPeriods to update
+     */
+    where?: PayPeriodWhereInput
+    /**
+     * Limit how many PayPeriods to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * PayPeriod upsert
+   */
+  export type PayPeriodUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PayPeriod
+     */
+    select?: PayPeriodSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PayPeriod
+     */
+    omit?: PayPeriodOmit<ExtArgs> | null
+    /**
+     * The filter to search for the PayPeriod to update in case it exists.
+     */
+    where: PayPeriodWhereUniqueInput
+    /**
+     * In case the PayPeriod found by the `where` argument doesn't exist, create a new PayPeriod with this data.
+     */
+    create: XOR<PayPeriodCreateInput, PayPeriodUncheckedCreateInput>
+    /**
+     * In case the PayPeriod was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<PayPeriodUpdateInput, PayPeriodUncheckedUpdateInput>
+  }
+
+  /**
+   * PayPeriod delete
+   */
+  export type PayPeriodDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PayPeriod
+     */
+    select?: PayPeriodSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PayPeriod
+     */
+    omit?: PayPeriodOmit<ExtArgs> | null
+    /**
+     * Filter which PayPeriod to delete.
+     */
+    where: PayPeriodWhereUniqueInput
+  }
+
+  /**
+   * PayPeriod deleteMany
+   */
+  export type PayPeriodDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which PayPeriods to delete
+     */
+    where?: PayPeriodWhereInput
+    /**
+     * Limit how many PayPeriods to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * PayPeriod without action
+   */
+  export type PayPeriodDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PayPeriod
+     */
+    select?: PayPeriodSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PayPeriod
+     */
+    omit?: PayPeriodOmit<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -15369,6 +16490,18 @@ export namespace Prisma {
   };
 
   export type SystemSettingsScalarFieldEnum = (typeof SystemSettingsScalarFieldEnum)[keyof typeof SystemSettingsScalarFieldEnum]
+
+
+  export const PayPeriodScalarFieldEnum: {
+    id: 'id',
+    startDate: 'startDate',
+    endDate: 'endDate',
+    isActive: 'isActive',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type PayPeriodScalarFieldEnum = (typeof PayPeriodScalarFieldEnum)[keyof typeof PayPeriodScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -16361,6 +17494,63 @@ export namespace Prisma {
     id?: StringWithAggregatesFilter<"SystemSettings"> | string
     activeEngineLvl?: StringWithAggregatesFilter<"SystemSettings"> | string
     updatedAt?: DateTimeWithAggregatesFilter<"SystemSettings"> | Date | string
+  }
+
+  export type PayPeriodWhereInput = {
+    AND?: PayPeriodWhereInput | PayPeriodWhereInput[]
+    OR?: PayPeriodWhereInput[]
+    NOT?: PayPeriodWhereInput | PayPeriodWhereInput[]
+    id?: StringFilter<"PayPeriod"> | string
+    startDate?: DateTimeFilter<"PayPeriod"> | Date | string
+    endDate?: DateTimeFilter<"PayPeriod"> | Date | string
+    isActive?: BoolFilter<"PayPeriod"> | boolean
+    createdAt?: DateTimeFilter<"PayPeriod"> | Date | string
+    updatedAt?: DateTimeFilter<"PayPeriod"> | Date | string
+  }
+
+  export type PayPeriodOrderByWithRelationInput = {
+    id?: SortOrder
+    startDate?: SortOrder
+    endDate?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type PayPeriodWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: PayPeriodWhereInput | PayPeriodWhereInput[]
+    OR?: PayPeriodWhereInput[]
+    NOT?: PayPeriodWhereInput | PayPeriodWhereInput[]
+    startDate?: DateTimeFilter<"PayPeriod"> | Date | string
+    endDate?: DateTimeFilter<"PayPeriod"> | Date | string
+    isActive?: BoolFilter<"PayPeriod"> | boolean
+    createdAt?: DateTimeFilter<"PayPeriod"> | Date | string
+    updatedAt?: DateTimeFilter<"PayPeriod"> | Date | string
+  }, "id">
+
+  export type PayPeriodOrderByWithAggregationInput = {
+    id?: SortOrder
+    startDate?: SortOrder
+    endDate?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: PayPeriodCountOrderByAggregateInput
+    _max?: PayPeriodMaxOrderByAggregateInput
+    _min?: PayPeriodMinOrderByAggregateInput
+  }
+
+  export type PayPeriodScalarWhereWithAggregatesInput = {
+    AND?: PayPeriodScalarWhereWithAggregatesInput | PayPeriodScalarWhereWithAggregatesInput[]
+    OR?: PayPeriodScalarWhereWithAggregatesInput[]
+    NOT?: PayPeriodScalarWhereWithAggregatesInput | PayPeriodScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"PayPeriod"> | string
+    startDate?: DateTimeWithAggregatesFilter<"PayPeriod"> | Date | string
+    endDate?: DateTimeWithAggregatesFilter<"PayPeriod"> | Date | string
+    isActive?: BoolWithAggregatesFilter<"PayPeriod"> | boolean
+    createdAt?: DateTimeWithAggregatesFilter<"PayPeriod"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"PayPeriod"> | Date | string
   }
 
   export type UserCreateInput = {
@@ -17382,6 +18572,69 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type PayPeriodCreateInput = {
+    id?: string
+    startDate: Date | string
+    endDate: Date | string
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type PayPeriodUncheckedCreateInput = {
+    id?: string
+    startDate: Date | string
+    endDate: Date | string
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type PayPeriodUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    startDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    endDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PayPeriodUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    startDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    endDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PayPeriodCreateManyInput = {
+    id?: string
+    startDate: Date | string
+    endDate: Date | string
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type PayPeriodUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    startDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    endDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PayPeriodUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    startDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    endDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type StringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[]
@@ -18195,6 +19448,33 @@ export namespace Prisma {
   export type SystemSettingsMinOrderByAggregateInput = {
     id?: SortOrder
     activeEngineLvl?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type PayPeriodCountOrderByAggregateInput = {
+    id?: SortOrder
+    startDate?: SortOrder
+    endDate?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type PayPeriodMaxOrderByAggregateInput = {
+    id?: SortOrder
+    startDate?: SortOrder
+    endDate?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type PayPeriodMinOrderByAggregateInput = {
+    id?: SortOrder
+    startDate?: SortOrder
+    endDate?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
     updatedAt?: SortOrder
   }
 

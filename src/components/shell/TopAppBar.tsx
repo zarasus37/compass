@@ -1,390 +1,218 @@
 /**
  * TopAppBar — the persistent header pinned to the top of every signed-in
- * screen (Cluster 3.x).
+ * page (Sovereign Monad design system).
  *
- * Three elements, left-to-right:
- *   - BRAND: small ☉ glyph + "COMPASS" wordmark → links to /.
- *   - PAY PERIOD WINDOW: eyebrow + bracketed date range + day-of-period
- *     + a thin progress bar showing where we are in the period. Centered.
- *   - ENGINE TOGGLE: pill showing the current engine state (L1 rules
- *     engine) + a settings cog. Single click → /settings.
+ * Three flex columns, left-to-right on desktop, wrapping on phone:
+ *   1. BRAND — small pulsing accent dot + "SOVEREIGN MONAD" wordmark.
+ *   2. CYCLE — bracketed chip showing the active pay-period range
+ *      (e.g. "CYCLE: AUG 15 ↔ AUG 29"). Centered.
+ *   3. ENGINE — L1 / L2 toggle pill + a settings cog link.
  *
- * Style: Component Oracle Terminal. Cosmos canvas, line border, square
- * 4px corners, JetBrains Mono for data/labels, Sora for the wordmark.
+ * Style: Vessel (Sovereign Monad). Dark slate-purple canvas
+ * (#16121e), neon purple accent (#a855f7), JetBrains Mono for data,
+ * Sora for the wordmark. Sticky at the top, drops a soft shadow so
+ * the bar visually lifts off the content as the user scrolls.
  *
- * Position: sticky so it never scrolls out of view. Background cosmos
- * with a 1px line border and a soft drop shadow so the bar visually
- * lifts off the content as the user scrolls.
- *
- * Server component. No client interactivity — the only interactive
- * surface is the two <Link>s. This keeps the bar cheap and lets the
- * SSR output always be correct (no hydration mismatch on the date
- * range if a long-running session is open across midnight).
+ * Server component. The toggle pill is a server-action <form> for
+ * SSR-fallback + accessibility + testability (the engine-toggle smoke
+ * POSTs the form). The button inside the form is a tiny client
+ * component (`EnginePillButton`) that uses `useFormStatus` for the
+ * "isPending" visual feedback the spec wants during the round-trip.
  */
 
 import * as React from "react";
 import Link from "next/link";
 import {
-  PERIOD_START,
-  PERIOD_END,
-  TODAY,
-} from "@/lib/mock";
-import {
-  dayOfPeriod,
-  periodLength,
-} from "@/lib/format";
-import {
-  getActiveEngineLevel,
   toggleEngineAction,
   type EngineLevel,
 } from "@/app/(app)/settings/engine-actions";
+import { EnginePillButton } from "./EnginePillButton";
 
-/**
- * TopAppBar — the persistent header pinned to the top of every signed-in
- * page (Cluster 3.x).
- *
- * Three elements, left-to-right:
- *   - BRAND: small ☉ glyph + "COMPASS" wordmark → links to /.
- *   - PAY PERIOD WINDOW: eyebrow + bracketed date range + day-of-period
- *     + a thin progress bar showing where we are in the period. Centered.
- *   - ENGINE TOGGLE: a <form action={toggleEngineAction}> pill that
- *     shows the current engine state (L1 / L2) + a settings cog.
- *     Click to flip the state — the action writes to SystemSettings
- *     and revalidates the root layout so every page re-reads on next
- *     render.
- *
- * Style: Component Oracle Terminal. Cosmos canvas, line border, square
- * 4px corners, JetBrains Mono for data/labels, Sora for the wordmark.
- *
- * Position: sticky so it never scrolls out of view. Background cosmos
- * with a 1px line border and a soft drop shadow so the bar visually
- * lifts off the content as the user scrolls past the top fold.
- *
- * Server component. The engine toggle is a server-action <form>, so
- * no client JS is needed for the click — the form POSTs to the
- * action, the action revalidates the layout, and the bar re-renders
- * with the new level.
- */
+export interface TopAppBarProps {
+  /** Active engine level read from SystemSettings (L1 = rules, L2 = AI). */
+  engineLevel: EngineLevel;
+  /** The active pay period (from Prisma PayPeriod, or constants fallback). */
+  payPeriod: { startDate: Date; endDate: Date };
+}
 
-export async function TopAppBar() {
-  // --- Pay period metrics ---
-  // dayOfPeriod returns 0 when TODAY is outside [PERIOD_START, PERIOD_END).
-  // The clamp keeps the bar usable in the edge case (e.g. dev sandbox
-  // where TODAY is mock-frozen before the period).
-  const totalDays = periodLength(PERIOD_START, PERIOD_END);
-  const rawDay = dayOfPeriod(TODAY, PERIOD_START, PERIOD_END);
-  const day = Math.max(1, Math.min(rawDay || 1, totalDays));
-  const pct = totalDays > 0 ? Math.min(100, (day / totalDays) * 100) : 0;
+export function TopAppBar({ engineLevel, payPeriod }: TopAppBarProps) {
+  // Pay-period metrics.
+  const start = payPeriod.startDate;
+  const end = payPeriod.endDate;
+  const totalDays = Math.max(
+    1,
+    Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+  );
+  const today = new Date();
+  const rawDay = Math.max(
+    1,
+    Math.round((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+  );
+  const day = Math.max(1, Math.min(rawDay, totalDays));
+  const pct = Math.min(100, (day / totalDays) * 100);
 
-  // Bracketed date range. "Aug 15 – Aug 29" inside terminal-style
-  // square brackets — the brackets are muted (ink-4) so the dates
-  // themselves carry the weight.
+  // "AUG 15 ↔ AUG 29" format. The arrow is the Sovereign Monad
+  // operator — terminal log marker, like in the spec.
   const fmt = (d: Date) =>
-    d.toLocaleString("en-US", { month: "short", day: "numeric" }).toUpperCase();
-  const range = `${fmt(PERIOD_START)} — ${fmt(PERIOD_END)}`;
+    d
+      .toLocaleString("en-US", { month: "short", day: "numeric" })
+      .toUpperCase();
+  const range = `${fmt(start)} ↔ ${fmt(end)}`;
 
-  // Pad the dates so "Aug 1" and "Aug 15" line up vertically. (mono
-  // tnum feature aligns digits; the em-dash stays centered.)
-  const rangePadded = range.replace(/(\w+ \d+) — (\w+ \d+)/, (_m, a, b) => {
-    return `${a.padEnd(7, " ")}  —  ${b.padStart(7, " ")}`;
-  });
-
-  // --- Engine state (from SystemSettings via the action helpers) ---
-  const engineLevel: EngineLevel = await getActiveEngineLevel();
-  const engineLabel = engineLevel === "L1" ? "RULES ENGINE" : "AI ENGINE";
+  // Engine pill label.
+  const engineLabel =
+    engineLevel === "L2" ? "⚡ L2 AI ENGINE" : "⚙ L1 RULES ENGINE";
+  const isL2 = engineLevel === "L2";
 
   return (
     <header
-      aria-label="App header"
+      aria-label="Sovereign Monad — top bar"
       className="top-app-bar"
       style={{
         position: "sticky",
         top: 0,
         zIndex: 30,
-        background: "var(--cosmos)",
-        borderBottom: "1px solid var(--line)",
-        height: 60,
-        padding: "0 28px",
-        display: "grid",
-        gridTemplateColumns: "1fr auto 1fr",
+        background: "var(--vessel-dark)",
+        borderBottom: "1px solid var(--vessel-border)",
+        padding: "12px 16px",
+        // Sticky, wraps cleanly on phone (flex-wrap below).
+        display: "flex",
+        flexDirection: "row",
+        flexWrap: "wrap",
+        justifyContent: "space-between",
         alignItems: "center",
-        gap: 28,
-        // Subtle drop shadow so the bar visually lifts off the
-        // content as the user scrolls past the top fold.
-        boxShadow: "0 6px 20px rgba(0, 0, 0, 0.35)",
+        gap: 12,
+        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.5)",
       }}
     >
-      {/* ─────────── LEFT: BRAND ─────────── */}
+      {/* ─────────── LEFT: SYSTEM METRIC SIGNATURE ───────────
+          Pulsing accent dot + Sora wordmark. The dot uses
+          vessel-accent + a soft neon-glow halo. */}
       <Link
         href="/"
-        aria-label="Compass — home"
+        aria-label="Sovereign Monad — home"
         style={{
           display: "inline-flex",
           alignItems: "center",
-          gap: 10,
-          justifySelf: "start",
+          gap: 8,
           textDecoration: "none",
-          color: "var(--ink)",
+          color: "#FFFFFF",
         }}
       >
         <span
           aria-hidden
           style={{
-            display: "grid",
-            placeItems: "center",
-            width: 26,
-            height: 26,
-            borderRadius: 2,
-            background: "var(--surface)",
-            border: "1px solid var(--line)",
-            color: "var(--terminal-cyan)",
-            fontSize: 14,
-            lineHeight: 1,
-            fontWeight: 700,
-            fontFamily: "var(--font-jetbrains), monospace",
-            boxShadow: "0 0 8px rgba(45, 212, 191, 0.18)",
+            display: "inline-block",
+            width: 12,
+            height: 12,
+            borderRadius: "50%",
+            background: "var(--vessel-accent)",
+            boxShadow: "var(--vessel-neon-glow)",
+            animation: "vessel-pulse 1.6s ease-in-out infinite",
           }}
-        >
-          ☉
-        </span>
+        />
         <span
           style={{
             fontFamily: "var(--font-sora)",
-            fontSize: 15,
-            fontWeight: 600,
-            letterSpacing: "0.02em",
-            color: "var(--ink)",
-          }}
-        >
-          COMPASS
-        </span>
-        <span
-          aria-hidden
-          style={{
-            fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 9,
-            fontWeight: 600,
-            color: "var(--gold)",
+            fontSize: 14,
+            fontWeight: 900,
             letterSpacing: "0.20em",
             textTransform: "uppercase",
-            marginLeft: 2,
+            color: "#FFFFFF",
           }}
         >
-          v8
+          Sovereign Monad
         </span>
       </Link>
 
-      {/* ─────────── CENTER: PAY PERIOD ─────────── */}
+      {/* ─────────── CENTER: ACTIVE RUNTIME DURATION RANGE ───────────
+          "CYCLE: AUG 15 ↔ AUG 29" chip. Hidden on narrow phones
+          (the bar's flex-wrap drops it under the brand). */}
       <div
         role="group"
-        aria-label={`Active pay period ${range}, day ${day} of ${totalDays}`}
+        aria-label={`Active cycle ${range}, day ${day} of ${totalDays}`}
+        className="top-app-bar-cycle"
         style={{
-          justifySelf: "center",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 4,
-          minWidth: 0,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 12.5,
-            fontWeight: 600,
-            color: "var(--ink)",
-            letterSpacing: "0.06em",
-            fontFeatureSettings: '"tnum" 1, "zero" 1',
-            whiteSpace: "nowrap",
-          }}
-        >
-          <span
-            aria-hidden
-            style={{ color: "var(--ink-4)", fontSize: 14, lineHeight: 1 }}
-          >
-            [
-          </span>
-          <span style={{ color: "var(--terminal-cyan)" }}>
-            {rangePadded}
-          </span>
-          <span
-            aria-hidden
-            style={{ color: "var(--ink-4)", fontSize: 14, lineHeight: 1 }}
-          >
-            ]
-          </span>
-        </div>
-
-        {/* Sub-row: day count + mini progress bar */}
-        <div
-          className="top-app-bar-sub"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 9,
-            fontWeight: 600,
-            color: "var(--ink-3)",
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-          }}
-        >
-          <span>
-            DAY {day} <span style={{ color: "var(--ink-5)" }}>/</span> {totalDays}
-          </span>
-          {/* Mini progress bar — same cosmos palette as the rest
-              of the bar. 60px wide, 2px tall. */}
-          <span
-            aria-hidden
-            style={{
-              position: "relative",
-              display: "inline-block",
-              width: 60,
-              height: 2,
-              background: "var(--cosmos-3)",
-              borderRadius: 1,
-              overflow: "hidden",
-            }}
-          >
-            <span
-              style={{
-                position: "absolute",
-                inset: "0 auto 0 0",
-                width: `${pct}%`,
-                background:
-                  pct >= 90
-                    ? "var(--warn)"
-                    : pct >= 100
-                    ? "var(--neg)"
-                    : "var(--terminal-cyan)",
-                boxShadow: "0 0 4px currentColor",
-                transition: "width 200ms",
-              }}
-            />
-          </span>
-        </div>
-      </div>
-
-      {/* ─────────── RIGHT: ENGINE TOGGLE ───────────
-          A <form> with a server-action submit. Clicking flips the
-          active engine level on SystemSettings and revalidates the
-          root layout; the bar re-renders with the new state. The
-          visible pill still links to /settings (the cog → full
-          settings page). */}
-      <form
-        action={toggleEngineAction}
-        style={{
-          justifySelf: "end",
           display: "inline-flex",
           alignItems: "center",
-          gap: 0,
-          margin: 0,
-          padding: 0,
+          justifyContent: "center",
+          padding: "6px 12px",
+          borderRadius: 6,
+          background: "var(--vessel-surface)",
+          border: "1px solid var(--vessel-border)",
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 12,
+          fontWeight: 600,
+          letterSpacing: "0.10em",
+          color: "var(--vessel-accent)",
         }}
       >
-        <button
-          type="submit"
-          aria-label={`Current engine: ${engineLabel}. Click to toggle.`}
-          className="top-app-bar-engine"
+        <span style={{ opacity: 0.6, marginRight: 8 }}>CYCLE:</span>
+        <span>{range}</span>
+        <span
+          aria-hidden
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "7px 12px 7px 14px",
-            background: "var(--surface)",
-            border: "1px solid var(--line)",
-            borderRadius: 3,
-            textDecoration: "none",
-            color: "var(--ink)",
-            transition: "border-color 160ms, background 160ms",
-            cursor: "pointer",
-            fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: "inherit",
+            marginLeft: 10,
+            position: "relative",
+            display: "inline-block",
+            width: 60,
+            height: 2,
+            background: "rgba(168, 85, 247, 0.15)",
+            borderRadius: 1,
+            overflow: "hidden",
           }}
         >
-          {/* State pill — small dot + engine state */}
           <span
             aria-hidden
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 10,
-              fontWeight: 700,
-              color: engineLevel === "L1" ? "var(--terminal-cyan)" : "var(--gold)",
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
-            }}
-          >
-            <span
-              aria-hidden
-              style={{
-                display: "inline-block",
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background:
-                  engineLevel === "L1" ? "var(--terminal-cyan)" : "var(--gold)",
-                boxShadow:
-                  engineLevel === "L1"
-                    ? "0 0 6px var(--terminal-cyan)"
-                    : "0 0 6px var(--gold)",
-              }}
-            />
-            {engineLevel}
-          </span>
-
-          {/* Divider */}
-          <span
-            aria-hidden
-            style={{
-              width: 1,
-              height: 14,
-              background: "var(--line)",
+              position: "absolute",
+              inset: "0 auto 0 0",
+              width: `${pct}%`,
+              background: "var(--vessel-accent)",
+              boxShadow: "0 0 4px var(--vessel-accent)",
+              transition: "width 200ms",
             }}
           />
+        </span>
+      </div>
 
-          {/* Label */}
-          <span
-            className="top-app-bar-engine-label"
-            style={{
-              fontSize: 10,
-              fontWeight: 500,
-              color: "var(--ink-2)",
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
-            }}
-          >
-            {engineLabel}
-          </span>
-
-          {/* Settings cog — links to /settings for the full config */}
-        </button>
+      {/* ─────────── RIGHT: DYNAMIC STATE TOGGLE + COG ───────────
+          The toggle is a <form action={toggleEngineAction}> so it's
+          testable via the form wire format and degrades gracefully
+          with JS off. The button uses useFormStatus for the
+          "isPending" visual. The cog is a separate link to /settings. */}
+      <div
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
+        <form
+          action={toggleEngineAction}
+          style={{ margin: 0, padding: 0, display: "inline-flex" }}
+        >
+          <EnginePillButton isL2={isL2} label={engineLabel} />
+        </form>
         <Link
           href="/settings"
           aria-label="Open settings"
           style={{
             display: "inline-grid",
             placeItems: "center",
-            width: 28,
+            width: 32,
             height: 32,
-            marginLeft: 4,
-            color: "var(--ink-3)",
-            fontSize: 12,
-            lineHeight: 1,
+            color: "var(--vessel-accent)",
+            fontSize: 14,
             textDecoration: "none",
-            border: "1px solid var(--line)",
-            borderRadius: 3,
-            background: "var(--cosmos-2)",
+            border: "1px solid var(--vessel-border)",
+            borderRadius: 6,
+            background: "var(--vessel-surface)",
           }}
         >
           ⚙
         </Link>
-      </form>
+      </div>
     </header>
   );
 }

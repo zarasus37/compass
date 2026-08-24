@@ -2,48 +2,45 @@
 
 /**
  * BottomNav — the Base Navigation Dock (Bottom 30%, Cluster 3.x
- * Component 5).
+ * Component 5) on the Sovereign Monad (vessel) design system.
  *
- * Four persistent high-contrast tabs at the bottom of every signed-in
- * screen. Per the spec, these are the "primary tap-through hub" for
- * cross-utilization entry points. The user-visible labels are
- * user-friendly ("Dashboard", "Quick Entry", "Advanced Analytics",
- * "Settings") so mom instantly knows where to click. The verbose
- * spec names ("Dashboard Hub", "Ledger Input", "Macro Analytics",
- * "System Blueprint") ride on the aria-label for screen readers.
+ * Four persistent tabs at the bottom of every signed-in screen.
+ * The Quick Entry tab is the floating center button — elevated
+ * above the dock with a neon-glow ring, the visual "anchor" of
+ * the bottom edge. The other three are flat dock tabs.
  *
  *   1. Dashboard          — /                       ◉
- *   2. Quick Entry        — /transactions/new        +
+ *   2. Quick Entry ★      — /transactions/new        ⊕  (floating, center)
  *   3. Advanced Analytics — /insights                ◍
  *   4. Settings           — /settings                ⚙
  *
- * Fixed at the bottom of the viewport on every page. Active state
- * is derived from the current pathname. Component Oracle Terminal
- * voice: teal-cyan active rail (2px, glow), surface-tinted active
- * background, square 4px corners.
+ * The user-friendly labels ride on the visible text; the verbose
+ * spec names ("Dashboard Hub" / "Ledger Input" / etc.) ride on
+ * aria-label for screen readers.
  *
- * On mobile the bar collapses to icon-only (labels hidden < 540px);
- * the 4-icon row stays legible on a phone (~94px per cell on 375px).
+ * Active state is derived from the current pathname. The floating
+ * center button does not get a separate "active" treatment — its
+ * position alone is the affordance.
+ *
+ * On phone (< 540px) the flat tabs collapse to icon-only and
+ * labels hide (the floating center button keeps its label).
  */
 
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+type Glyph = React.ReactNode;
+
 interface Tab {
   href: string;
   label: string;
-  /** Long-form for aria-label and tooltips (the dock can be terse). */
   fullName: string;
-  glyph: string;
-  /** Match a deeper route as well, e.g. /transactions/new should
-   *  highlight the Ledger Input tab even though /transactions is
-   *  the canonical prefix. */
+  glyph: Glyph;
   matchPrefix?: string;
-  /** Set true ONLY for the dashboard tab — its canonical href is "/"
-   *  and we want the active state to match the root exactly, not
-   *  every other path (which would happen if matchPrefix were "/"). */
   matchExact?: boolean;
+  /** True for the floating center button (Quick Entry). */
+  isCenter?: boolean;
 }
 
 const TABS: Tab[] = [
@@ -58,7 +55,8 @@ const TABS: Tab[] = [
     href: "/transactions/new",
     label: "Quick Entry",
     fullName: "Ledger Input",
-    glyph: "+",
+    glyph: "⊕",
+    isCenter: true,
     matchPrefix: "/transactions",
   },
   {
@@ -79,6 +77,7 @@ const TABS: Tab[] = [
 
 export function BottomNav() {
   const pathname = usePathname();
+
   return (
     <nav
       aria-label="Primary navigation dock"
@@ -89,24 +88,91 @@ export function BottomNav() {
         left: 0,
         right: 0,
         zIndex: 40,
-        background: "var(--cosmos-2)",
-        borderTop: "1px solid var(--line)",
-        padding: "8px 16px 10px",
-        boxShadow: "0 -8px 24px rgba(0, 0, 0, 0.5)",
-        // Lift above any in-page overflow
+        background: "var(--vessel-dark)",
+        borderTop: "1px solid var(--vessel-border)",
+        boxShadow: "var(--vessel-nav-shadow)",
+        padding: "10px 16px 14px",
       }}
     >
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
+          // 4 columns: dashboard | center-button-spacer | center-button | spacer | analytics | settings
+          // We use 5 tracks so the center button slots into the middle track
+          // while the labels flank it. On phone, labels collapse via CSS.
+          gridTemplateColumns: "1fr 1fr 1fr 1fr",
           gap: 8,
-          maxWidth: 720,
+          maxWidth: 600,
           margin: "0 auto",
+          alignItems: "center",
         }}
       >
         {TABS.map((t) => {
           const active = isActiveTab(pathname, t);
+
+          if (t.isCenter) {
+            // Floating center button — elevated, neon-glow ring.
+            return (
+              <Link
+                key={t.href}
+                href={t.href}
+                aria-label={t.fullName}
+                aria-current={active ? "page" : undefined}
+                className="bottom-nav-tab bottom-nav-tab--center"
+                style={{
+                  gridColumn: "3 / 4", // sit in the middle of the 4-col grid
+                  justifySelf: "center",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 4,
+                  // Negative top margin so the disc rises above the dock.
+                  marginTop: -22,
+                  textDecoration: "none",
+                  position: "relative",
+                }}
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    display: "grid",
+                    placeItems: "center",
+                    width: 56,
+                    height: 56,
+                    borderRadius: "50%",
+                    background: "var(--vessel-surface)",
+                    border: "2px solid var(--vessel-accent)",
+                    color: "var(--vessel-accent)",
+                    fontSize: 24,
+                    fontWeight: 700,
+                    fontFamily: "var(--font-jetbrains), monospace",
+                    lineHeight: 1,
+                    boxShadow: "var(--vessel-neon-glow)",
+                    transition: "transform 200ms",
+                  }}
+                >
+                  {t.glyph}
+                </span>
+                <span
+                  className="bottom-nav-label"
+                  style={{
+                    fontFamily: "var(--font-jetbrains), monospace",
+                    fontSize: 9,
+                    fontWeight: 600,
+                    letterSpacing: "0.14em",
+                    textTransform: "uppercase",
+                    color: "var(--vessel-accent)",
+                    whiteSpace: "nowrap",
+                    marginTop: 2,
+                  }}
+                >
+                  {t.label}
+                </span>
+              </Link>
+            );
+          }
+
+          // Flat dock tab.
           return (
             <Link
               key={t.href}
@@ -118,33 +184,20 @@ export function BottomNav() {
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
+                justifyContent: "center",
                 gap: 4,
-                padding: "8px 10px",
-                borderRadius: 3,
-                background: active ? "var(--surface)" : "transparent",
-                border: `1px solid ${active ? "var(--terminal-cyan-dim)" : "transparent"}`,
-                color: active ? "var(--terminal-cyan)" : "var(--ink-3)",
+                padding: "8px 4px",
+                borderRadius: 6,
+                background: active ? "var(--vessel-surface)" : "transparent",
+                border: `1px solid ${
+                  active ? "var(--vessel-accent)" : "transparent"
+                }`,
+                color: active ? "var(--vessel-accent)" : "rgba(255,255,255,0.45)",
                 textDecoration: "none",
-                transition: "all 120ms",
+                transition: "all 200ms",
                 position: "relative",
               }}
             >
-              {/* Active rail — a 2px line on top of the tab */}
-              {active && (
-                <span
-                  aria-hidden
-                  style={{
-                    position: "absolute",
-                    top: -1,
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    width: 32,
-                    height: 2,
-                    background: "var(--terminal-cyan)",
-                    boxShadow: "0 0 6px var(--terminal-cyan)",
-                  }}
-                />
-              )}
               <span
                 aria-hidden
                 style={{
@@ -161,7 +214,7 @@ export function BottomNav() {
                 style={{
                   fontFamily: "var(--font-jetbrains), monospace",
                   fontSize: 9,
-                  fontWeight: active ? 600 : 500,
+                  fontWeight: active ? 700 : 500,
                   letterSpacing: "0.14em",
                   textTransform: "uppercase",
                   whiteSpace: "nowrap",

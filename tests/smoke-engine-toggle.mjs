@@ -91,10 +91,15 @@ function extractEngineForm(html) {
 }
 function readEngineLabel(html) {
   // The button's aria-label carries the human label:
-  //   "Current engine: RULES ENGINE. Click to toggle."  (L1)
-  //   "Current engine: AI ENGINE. Click to toggle."     (L2)
+  //   "Current engine: ⚙ L1 RULES ENGINE. Click to toggle."  (L1, post-vessel)
+  //   "Current engine: ⚡ L2 AI ENGINE. Click to toggle."     (L2, post-vessel)
+  // We strip any leading glyph emoji and return just "L1 RULES ENGINE" / "L2 AI ENGINE"
+  // so the rest of the smoke can compare consistently across rebrands.
   const m = html.match(/<button[^>]*aria-label="Current engine: ([^.]+)\. Click to toggle\."/);
-  return m ? m[1].trim() : null;
+  if (!m) return null;
+  const raw = m[1].trim();
+  // Drop any leading non-alphanumeric emoji/glyph + space.
+  return raw.replace(/^[^\w]+/, "").trim();
 }
 const log = (k, v) => console.log(`[${k}] ${v}`);
 
@@ -123,13 +128,13 @@ async function main() {
 
   const startLabel = readEngineLabel(html1);
   log("start label", startLabel);
-  if (startLabel !== "RULES ENGINE" && startLabel !== "AI ENGINE") {
-    console.log("FATAL: start label not in {RULES ENGINE, AI ENGINE}");
+  if (startLabel !== "L1 RULES ENGINE" && startLabel !== "L2 AI ENGINE") {
+    console.log("FATAL: start label not in {L1 RULES ENGINE, L2 AI ENGINE}");
     process.exit(2);
   }
 
   // --- Step 2: POST the toggle (plain server action) ---
-  const targetLabel = startLabel === "RULES ENGINE" ? "AI ENGINE" : "RULES ENGINE";
+  const targetLabel = startLabel === "L1 RULES ENGINE" ? "L2 AI ENGINE" : "L1 RULES ENGINE";
   const toggleRes = await postPlainAction("/", engineAid1);
   log("toggle POST", `status=${toggleRes.status}`);
 
@@ -164,7 +169,7 @@ async function main() {
 
   // --- checks ---
   const checks = [
-    ["start label is RULES ENGINE or AI ENGINE", startLabel === "RULES ENGINE" || startLabel === "AI ENGINE"],
+    ["start label is L1 RULES ENGINE or L2 AI ENGINE", startLabel === "L1 RULES ENGINE" || startLabel === "L2 AI ENGINE"],
     ["toggle POST returns 200/303", toggleRes.status === 200 || toggleRes.status === 303 || toggleRes.status === 307],
     [`after toggle: label is ${targetLabel}`, afterToggle === targetLabel],
     ["toggle back POST returns 200/303", toggleRes2.status === 200 || toggleRes2.status === 303 || toggleRes2.status === 307],
