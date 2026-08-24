@@ -258,16 +258,18 @@ export default async function Dashboard() {
       }
     }
 
-    // Goals — match by exact targetDate.
+    // Goals — match by exact targetDate. The kind field (Prisma
+    // `GoalKind` enum, mirrored in the in-memory store) drives the
+    // TRANSFER vs MILESTONE tag in the HorizonStrip — no more name
+    // regex.
     for (const g of GOALS) {
       if (isSameDay(g.targetDate, date)) {
-        const isTransfer = /emergency|transfer|sweep|fund/i.test(g.name);
         events.push({
           id: `goal-${g.id}-d${i + 1}`,
           kind: "goal",
           name: g.name,
           amountCents: g.targetCents,
-          isTransfer,
+          isTransfer: g.kind === "TRANSFER",
           planet: g.planet,
         });
       }

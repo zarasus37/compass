@@ -141,6 +141,122 @@ exports.Prisma.SessionScalarFieldEnum = {
   expiresAt: 'expiresAt'
 };
 
+exports.Prisma.AccountScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  type: 'type',
+  currentBalance: 'currentBalance',
+  institution: 'institution',
+  mask: 'mask',
+  routingEnabled: 'routingEnabled',
+  isArchived: 'isArchived',
+  sortOrder: 'sortOrder',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.EnvelopeScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  targetBalance: 'targetBalance',
+  currentBalance: 'currentBalance',
+  planet: 'planet',
+  color: 'color',
+  icon: 'icon',
+  destinationAccountId: 'destinationAccountId',
+  enforceHardCap: 'enforceHardCap',
+  sortOrder: 'sortOrder',
+  isArchived: 'isArchived',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.TransactionScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  accountId: 'accountId',
+  envelopeId: 'envelopeId',
+  amount: 'amount',
+  date: 'date',
+  payee: 'payee',
+  notes: 'notes',
+  source: 'source',
+  metadata: 'metadata',
+  isPrimaMateria: 'isPrimaMateria',
+  fromPlanId: 'fromPlanId',
+  fromPaycheckId: 'fromPaycheckId',
+  cleared: 'cleared',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.PayScheduleScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  cadence: 'cadence',
+  amount: 'amount',
+  accountId: 'accountId',
+  startDate: 'startDate',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.GoalScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  description: 'description',
+  targetAmount: 'targetAmount',
+  currentAmount: 'currentAmount',
+  targetDate: 'targetDate',
+  envelopeId: 'envelopeId',
+  planet: 'planet',
+  isPrimary: 'isPrimary',
+  kind: 'kind',
+  sortOrder: 'sortOrder',
+  isArchived: 'isArchived',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.AllocationPlanScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  strategyId: 'strategyId',
+  isArmed: 'isArmed',
+  name: 'name',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.AllocationRuleScalarFieldEnum = {
+  id: 'id',
+  planId: 'planId',
+  envelopeId: 'envelopeId',
+  pct: 'pct',
+  fixedCents: 'fixedCents',
+  sortOrder: 'sortOrder',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.AuditLogScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  actionType: 'actionType',
+  payload: 'payload',
+  aiTierAtTime: 'aiTierAtTime',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.SystemSettingsScalarFieldEnum = {
+  id: 'id',
+  activeEngineLvl: 'activeEngineLvl',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -150,11 +266,23 @@ exports.Prisma.NullsOrder = {
   first: 'first',
   last: 'last'
 };
-
+exports.GoalKind = exports.$Enums.GoalKind = {
+  TRANSFER: 'TRANSFER',
+  MILESTONE: 'MILESTONE'
+};
 
 exports.Prisma.ModelName = {
   User: 'User',
-  Session: 'Session'
+  Session: 'Session',
+  Account: 'Account',
+  Envelope: 'Envelope',
+  Transaction: 'Transaction',
+  PaySchedule: 'PaySchedule',
+  Goal: 'Goal',
+  AllocationPlan: 'AllocationPlan',
+  AllocationRule: 'AllocationRule',
+  AuditLog: 'AuditLog',
+  SystemSettings: 'SystemSettings'
 };
 
 /**

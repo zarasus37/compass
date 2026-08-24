@@ -77,6 +77,7 @@ function toDisplayGoal(g: Goal) {
     envelopeId: g.envelopeId,
     perPaycheckCents: g.perPaycheckCents,
     isPrimary: g.isPrimary,
+    kind: g.kind,
   };
 }
 

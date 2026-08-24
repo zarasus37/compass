@@ -33,18 +33,40 @@ import {
   dayOfPeriod,
   periodLength,
 } from "@/lib/format";
+import {
+  getActiveEngineLevel,
+  toggleEngineAction,
+  type EngineLevel,
+} from "@/app/(app)/settings/engine-actions";
 
 /**
- * The current engine state. In a future build this would come from
- * a store-backed preference (the L1/L2 toggle in /settings). For now
- * the L1 rules engine is the canonical state — every derivation in
- * lib/store.ts uses it. The right-side pill surfaces the state so
- * the user always knows which engine produced the numbers they see.
+ * TopAppBar — the persistent header pinned to the top of every signed-in
+ * page (Cluster 3.x).
+ *
+ * Three elements, left-to-right:
+ *   - BRAND: small ☉ glyph + "COMPASS" wordmark → links to /.
+ *   - PAY PERIOD WINDOW: eyebrow + bracketed date range + day-of-period
+ *     + a thin progress bar showing where we are in the period. Centered.
+ *   - ENGINE TOGGLE: a <form action={toggleEngineAction}> pill that
+ *     shows the current engine state (L1 / L2) + a settings cog.
+ *     Click to flip the state — the action writes to SystemSettings
+ *     and revalidates the root layout so every page re-reads on next
+ *     render.
+ *
+ * Style: Component Oracle Terminal. Cosmos canvas, line border, square
+ * 4px corners, JetBrains Mono for data/labels, Sora for the wordmark.
+ *
+ * Position: sticky so it never scrolls out of view. Background cosmos
+ * with a 1px line border and a soft drop shadow so the bar visually
+ * lifts off the content as the user scrolls past the top fold.
+ *
+ * Server component. The engine toggle is a server-action <form>, so
+ * no client JS is needed for the click — the form POSTs to the
+ * action, the action revalidates the layout, and the bar re-renders
+ * with the new level.
  */
-const ENGINE_STATE = "L1";
-const ENGINE_LABEL = "RULES ENGINE";
 
-export function TopAppBar() {
+export async function TopAppBar() {
   // --- Pay period metrics ---
   // dayOfPeriod returns 0 when TODAY is outside [PERIOD_START, PERIOD_END).
   // The clamp keeps the bar usable in the edge case (e.g. dev sandbox
@@ -66,6 +88,10 @@ export function TopAppBar() {
   const rangePadded = range.replace(/(\w+ \d+) — (\w+ \d+)/, (_m, a, b) => {
     return `${a.padEnd(7, " ")}  —  ${b.padStart(7, " ")}`;
   });
+
+  // --- Engine state (from SystemSettings via the action helpers) ---
+  const engineLevel: EngineLevel = await getActiveEngineLevel();
+  const engineLabel = engineLevel === "L1" ? "RULES ENGINE" : "AI ENGINE";
 
   return (
     <header
@@ -243,96 +269,122 @@ export function TopAppBar() {
         </div>
       </div>
 
-      {/* ─────────── RIGHT: ENGINE TOGGLE ─────────── */}
-      <Link
-        href="/settings"
-        aria-label={`Open settings — current engine: ${ENGINE_LABEL}`}
-        className="top-app-bar-engine"
+      {/* ─────────── RIGHT: ENGINE TOGGLE ───────────
+          A <form> with a server-action submit. Clicking flips the
+          active engine level on SystemSettings and revalidates the
+          root layout; the bar re-renders with the new state. The
+          visible pill still links to /settings (the cog → full
+          settings page). */}
+      <form
+        action={toggleEngineAction}
         style={{
           justifySelf: "end",
           display: "inline-flex",
           alignItems: "center",
-          gap: 10,
-          padding: "7px 12px 7px 14px",
-          background: "var(--surface)",
-          border: "1px solid var(--line)",
-          borderRadius: 3,
-          textDecoration: "none",
-          color: "var(--ink)",
-          transition: "border-color 160ms, background 160ms",
+          gap: 0,
+          margin: 0,
+          padding: 0,
         }}
       >
-        {/* State pill — small dot + engine state */}
-        <span
-          aria-hidden
+        <button
+          type="submit"
+          aria-label={`Current engine: ${engineLabel}. Click to toggle.`}
+          className="top-app-bar-engine"
           style={{
             display: "inline-flex",
             alignItems: "center",
-            gap: 6,
+            gap: 10,
+            padding: "7px 12px 7px 14px",
+            background: "var(--surface)",
+            border: "1px solid var(--line)",
+            borderRadius: 3,
+            textDecoration: "none",
+            color: "var(--ink)",
+            transition: "border-color 160ms, background 160ms",
+            cursor: "pointer",
             fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 10,
-            fontWeight: 700,
-            color: "var(--terminal-cyan)",
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
+            fontSize: "inherit",
           }}
         >
+          {/* State pill — small dot + engine state */}
           <span
             aria-hidden
             style={{
-              display: "inline-block",
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: "var(--terminal-cyan)",
-              boxShadow: "0 0 6px var(--terminal-cyan)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 10,
+              fontWeight: 700,
+              color: engineLevel === "L1" ? "var(--terminal-cyan)" : "var(--gold)",
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                display: "inline-block",
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background:
+                  engineLevel === "L1" ? "var(--terminal-cyan)" : "var(--gold)",
+                boxShadow:
+                  engineLevel === "L1"
+                    ? "0 0 6px var(--terminal-cyan)"
+                    : "0 0 6px var(--gold)",
+              }}
+            />
+            {engineLevel}
+          </span>
+
+          {/* Divider */}
+          <span
+            aria-hidden
+            style={{
+              width: 1,
+              height: 14,
+              background: "var(--line)",
             }}
           />
-          {ENGINE_STATE}
-        </span>
 
-        {/* Divider */}
-        <span
-          aria-hidden
-          style={{
-            width: 1,
-            height: 14,
-            background: "var(--line)",
-          }}
-        />
+          {/* Label */}
+          <span
+            className="top-app-bar-engine-label"
+            style={{
+              fontSize: 10,
+              fontWeight: 500,
+              color: "var(--ink-2)",
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+            }}
+          >
+            {engineLabel}
+          </span>
 
-        {/* Label */}
-        <span
-          className="top-app-bar-engine-label"
-          style={{
-            fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 10,
-            fontWeight: 500,
-            color: "var(--ink-2)",
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-          }}
-        >
-          {ENGINE_LABEL}
-        </span>
-
-        {/* Settings cog */}
-        <span
-          aria-hidden
+          {/* Settings cog — links to /settings for the full config */}
+        </button>
+        <Link
+          href="/settings"
+          aria-label="Open settings"
           style={{
             display: "inline-grid",
             placeItems: "center",
-            width: 18,
-            height: 18,
-            marginLeft: 2,
+            width: 28,
+            height: 32,
+            marginLeft: 4,
             color: "var(--ink-3)",
             fontSize: 12,
             lineHeight: 1,
+            textDecoration: "none",
+            border: "1px solid var(--line)",
+            borderRadius: 3,
+            background: "var(--cosmos-2)",
           }}
         >
           ⚙
-        </span>
-      </Link>
+        </Link>
+      </form>
     </header>
   );
 }

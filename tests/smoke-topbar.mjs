@@ -12,7 +12,12 @@
  *   - Pay period window (left bracket + date range + right bracket)
  *   - Day-of-period count (DAY n / total)
  *   - Mini progress bar (in the sub-row)
- *   - Engine toggle (● L1 | RULES ENGINE ⚙ → /settings)
+ *   - Engine toggle: a <form action={toggleEngineAction}> wrapping a
+ *     <button aria-label="Current engine: L1 RULES ENGINE. Click to
+ *     toggle."> + a separate <a aria-label="Open settings" href="/settings">
+ *     cog. The button shows "L1 | RULES ENGINE" (or "L2 | AI ENGINE")
+ *     so the user knows what state the engine is in and can click to
+ *     flip it.
  *
  * The bracket characters and "DAY" text are split by React 19
  * hydration comments in the SSR output, so the checks look for
@@ -111,16 +116,24 @@ async function main() {
     const hasPeriodBracketL  = /<span aria-hidden="true" style="color:var\(--ink-4\);font-size:14px;line-height:1">\[<\/span>/.test(html);
     const hasPeriodBracketR  = /<span aria-hidden="true" style="color:var\(--ink-4\);font-size:14px;line-height:1">\]<\/span>/.test(html);
     const hasPeriodDate      = /color:var\(--terminal-cyan\)">[A-Z]{3} \d+/.test(html);
-    const hasEngine          = /RULES ENGINE/.test(html);
+    const hasEngine          = /RULES ENGINE/.test(html) || /AI ENGINE/.test(html);
+    // The engine toggle is now a <form> with a <button> (state pill)
+    // + a separate <a> (cog → /settings). The button's aria-label
+    // encodes the current state; the cog is its own link.
+    const hasEngineButton    = /aria-label="Current engine: (RULES|AI) ENGINE\. Click to toggle\."/.test(html);
+    const hasEngineCog       = /<a[^>]*aria-label="Open settings"[^>]*href="\/settings"/.test(html);
+    const hasEngineL1        = />L1</.test(html) || />L2</.test(html);
     // React 19 hydration comments ("<!-- -->") sit between the literal
     // "DAY" and the digit, so the regex has to span those markers.
     // We strip them first, then look for the canonical "DAY <n>".
     const stripped = html.replace(/<!--\s*-->/g, "");
     const hasDayCount        = /DAY \d+/.test(stripped);
     const hasProgressBar     = /class="top-app-bar-sub"/.test(html);
-    const hasEngineLink      = /aria-label="Open settings — current engine: RULES ENGINE"/.test(html);
-    results.push({ label: p.label, status: r.status, hasBar, hasCompass, hasPeriodBracketL, hasPeriodBracketR, hasPeriodDate, hasEngine, hasDayCount, hasProgressBar, hasEngineLink });
-    log(p.label, `status=${r.status} bar=${hasBar} brand=${hasCompass} period=${hasPeriodBracketL && hasPeriodBracketR && hasPeriodDate} engine=${hasEngine} day=${hasDayCount} progress=${hasProgressBar}`);
+    const hasEngineLink      = hasEngineCog; // legacy name, now points to the cog
+    const hasForm            = /<form action="" encType="multipart\/form-data" method="POST"/.test(html)
+                            || /<form[^>]*method="POST"[^>]*>/.test(html);
+    results.push({ label: p.label, status: r.status, hasBar, hasCompass, hasPeriodBracketL, hasPeriodBracketR, hasPeriodDate, hasEngine, hasEngineButton, hasEngineCog, hasEngineL1, hasDayCount, hasProgressBar, hasEngineLink, hasForm });
+    log(p.label, `status=${r.status} bar=${hasBar} brand=${hasCompass} period=${hasPeriodBracketL && hasPeriodBracketR && hasPeriodDate} engineBtn=${hasEngineButton} cog=${hasEngineCog} L=${hasEngineL1} day=${hasDayCount} progress=${hasProgressBar}`);
   }
 
   // ---------- Checks ----------
@@ -134,9 +147,12 @@ async function main() {
     checks.push([`${r.label}: pay period right bracket`, r.hasPeriodBracketR]);
     checks.push([`${r.label}: pay period date in cyan`, r.hasPeriodDate]);
     checks.push([`${r.label}: engine toggle label present`, r.hasEngine]);
+    checks.push([`${r.label}: engine button (L1/L2 toggle) present`, r.hasEngineButton]);
+    checks.push([`${r.label}: engine cog links to /settings`, r.hasEngineCog]);
+    checks.push([`${r.label}: engine level text (L1/L2) present`, r.hasEngineL1]);
     checks.push([`${r.label}: day-of-period count present`, r.hasDayCount]);
     checks.push([`${r.label}: mini progress bar present`, r.hasProgressBar]);
-    checks.push([`${r.label}: engine toggle links to /settings`, r.hasEngineLink]);
+    checks.push([`${r.label}: engine toggle is a <form> (POST to action)`, r.hasForm]);
   }
 
   console.log("\n--- checks ---");

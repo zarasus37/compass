@@ -28,6 +28,7 @@ import {
   DEBTS_SEED,
   type EnvelopeSeed,
   type GoalSeed,
+  type GoalKindSeed,
   type TransactionSeed,
   type AllocationPlanSeed,
   type AllocationRuleSeed,
@@ -106,6 +107,9 @@ export interface Goal {
   envelopeId: string | null;
   perPaycheckCents: number;
   isPrimary: boolean;
+  /** TRANSFER (auto money movement) or MILESTONE (destination amount).
+   *  Mirrors the Prisma `GoalKind` enum. */
+  kind: GoalKindSeed;
 }
 
 export interface Transaction {
@@ -220,6 +224,7 @@ function seedState(): StoreState {
       envelopeId: g.envelopeId,
       perPaycheckCents: g.perPaycheckCents,
       isPrimary: g.isPrimary,
+      kind: g.kind,
     })),
     transactions: TRANSACTIONS_SEED.map((t: TransactionSeed) => ({
       id: t.id,
@@ -421,6 +426,7 @@ export function addGoal(input: {
     envelopeId: input.envelopeId,
     perPaycheckCents: Math.max(0, Math.round(input.perPaycheckCents)),
     isPrimary: input.isPrimary,
+    kind: "MILESTONE", // default; UI can flip to TRANSFER when the user arms a sweep rule
   };
   s.goals.push(goal);
 

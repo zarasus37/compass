@@ -60,10 +60,10 @@ function extractActionId(html) {
 const log = (k, v) => console.log(`[${k}] ${v}`);
 
 const FOUR_TABS = [
-  { label: "DASHBOARD", fullName: "Dashboard Hub",     glyph: "◉" },
-  { label: "LEDGER",    fullName: "Ledger Input",      glyph: "+" },
-  { label: "ANALYTICS", fullName: "Macro Analytics",   glyph: "◍" },
-  { label: "BLUEPRINT", fullName: "System Blueprint",  glyph: "⚙" },
+  { label: "Dashboard",          fullName: "Dashboard Hub",     glyph: "◉" },
+  { label: "Quick Entry",        fullName: "Ledger Input",      glyph: "+" },
+  { label: "Advanced Analytics", fullName: "Macro Analytics",   glyph: "◍" },
+  { label: "Settings",           fullName: "System Blueprint",  glyph: "⚙" },
 ];
 
 async function main() {
@@ -81,10 +81,10 @@ async function main() {
 
   // ---------- Page-by-page: which tab is active? ----------
   const PAGES = [
-    { path: "/",                   expectedActive: "DASHBOARD" },
-    { path: "/transactions/new",   expectedActive: "LEDGER" },
-    { path: "/insights",           expectedActive: "ANALYTICS" },
-    { path: "/settings",           expectedActive: "BLUEPRINT" },
+    { path: "/",                   expectedActive: "Dashboard" },
+    { path: "/transactions/new",   expectedActive: "Quick Entry" },
+    { path: "/insights",           expectedActive: "Advanced Analytics" },
+    { path: "/settings",           expectedActive: "Settings" },
     { path: "/envelopes",          expectedActive: null       }, // sub-page, no active tab
   ];
 

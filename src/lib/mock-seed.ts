@@ -42,6 +42,8 @@ export const ENVELOPES_SEED: EnvelopeSeed[] = [
   { id: "env-debt",      name: "Debt",          planet: "saturn",  currentCents: 202_100, targetCents: 482_000  },
 ];
 
+export type GoalKindSeed = "TRANSFER" | "MILESTONE";
+
 export interface GoalSeed {
   id: string;
   name: string;
@@ -53,6 +55,10 @@ export interface GoalSeed {
   envelopeId: string | null;
   perPaycheckCents: number;
   isPrimary: boolean;
+  /** TRANSFER = automatic money movement (e.g. emergency-fund sweep);
+   *  MILESTONE = a destination amount the user is working toward.
+   *  Mirrors the Prisma `GoalKind` enum. */
+  kind: GoalKindSeed;
 }
 
 export const GOALS_SEED: GoalSeed[] = [
@@ -67,6 +73,7 @@ export const GOALS_SEED: GoalSeed[] = [
     envelopeId: "env-savings",
     perPaycheckCents: 43_200, // $432
     isPrimary: true,
+    kind: "TRANSFER",         // auto-sweep from paycheck → savings
   },
   {
     id: "goal-debt",
@@ -79,6 +86,7 @@ export const GOALS_SEED: GoalSeed[] = [
     envelopeId: "env-debt",
     perPaycheckCents: 0,
     isPrimary: false,
+    kind: "MILESTONE",        // a destination amount to hit
   },
   {
     id: "goal-visit",
@@ -91,6 +99,7 @@ export const GOALS_SEED: GoalSeed[] = [
     envelopeId: null,
     perPaycheckCents: 0,
     isPrimary: false,
+    kind: "MILESTONE",        // saving up for a trip
   },
 ];
 

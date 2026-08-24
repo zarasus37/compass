@@ -6,30 +6,21 @@
  *
  * Four persistent high-contrast tabs at the bottom of every signed-in
  * screen. Per the spec, these are the "primary tap-through hub" for
- * cross-utilization entry points:
+ * cross-utilization entry points. The user-visible labels are
+ * user-friendly ("Dashboard", "Quick Entry", "Advanced Analytics",
+ * "Settings") so mom instantly knows where to click. The verbose
+ * spec names ("Dashboard Hub", "Ledger Input", "Macro Analytics",
+ * "System Blueprint") ride on the aria-label for screen readers.
  *
- *   1. Dashboard Hub  — /                       ◉
- *      "Instantly returns to this core scannable vertical feed view."
- *      Active on the root dashboard.
- *
- *   2. Ledger Input   — /transactions/new        +
- *      "A swift, single-tap transaction entry block with a quick
- *       receipt scan option." Active on any /transactions/* route.
- *
- *   3. Macro Analytics — /insights               ◍
- *      "Opens deep, historical data analytics sheets, including your
- *       12-month net worth curves and cash flow funnel charts."
- *      Active on any /insights/* route.
- *
- *   4. System Blueprint — /settings             ⚙
- *      "Configures global variables, automated pay-period splits,
- *       and synchronization links between your computer and mobile
- *       environments." Active on any /settings/* route.
+ *   1. Dashboard          — /                       ◉
+ *   2. Quick Entry        — /transactions/new        +
+ *   3. Advanced Analytics — /insights                ◍
+ *   4. Settings           — /settings                ⚙
  *
  * Fixed at the bottom of the viewport on every page. Active state
  * is derived from the current pathname. Component Oracle Terminal
  * voice: teal-cyan active rail (2px, glow), surface-tinted active
- * background, mono caps labels, square 4px corners.
+ * background, square 4px corners.
  *
  * On mobile the bar collapses to icon-only (labels hidden < 540px);
  * the 4-icon row stays legible on a phone (~94px per cell on 375px).
@@ -58,28 +49,28 @@ interface Tab {
 const TABS: Tab[] = [
   {
     href: "/",
-    label: "DASHBOARD",
+    label: "Dashboard",
     fullName: "Dashboard Hub",
     glyph: "◉",
     matchExact: true,
   },
   {
     href: "/transactions/new",
-    label: "LEDGER",
+    label: "Quick Entry",
     fullName: "Ledger Input",
     glyph: "+",
     matchPrefix: "/transactions",
   },
   {
     href: "/insights",
-    label: "ANALYTICS",
+    label: "Advanced Analytics",
     fullName: "Macro Analytics",
     glyph: "◍",
     matchPrefix: "/insights",
   },
   {
     href: "/settings",
-    label: "BLUEPRINT",
+    label: "Settings",
     fullName: "System Blueprint",
     glyph: "⚙",
     matchPrefix: "/settings",

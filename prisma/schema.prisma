@@ -2,6 +2,16 @@
 // Cluster 1 (Pay Period 1.0) data model.
 // Money math: every monetary field uses integer cents (per spec — never floats).
 
+/// Type for Goal: TRANSFER = automatic money movement (e.g. emergency
+/// fund sweep, savings transfer), MILESTONE = a destination amount
+/// the user is working toward (e.g. "Debt Free", "Visit Family").
+/// Replaces the brittle name-pattern regex in the HorizonStrip's
+/// transfer detection.
+enum GoalKind {
+  TRANSFER
+  MILESTONE
+}
+
 generator client {
   provider = "prisma-client-js"
   // Pin the client to src/generated/prisma so pnpm can resolve it
@@ -214,6 +224,12 @@ model Goal {
   planet          String?
   /// Hero priority — at most one per user (enforced in app code).
   isPrimary       Boolean  @default(false)
+  /// TRANSFER = automatic money movement (e.g. emergency-fund sweep,
+  /// savings transfer — surfaces in the HorizonStrip's transfer tag).
+  /// MILESTONE = a destination amount the user is working toward
+  /// (e.g. "Debt Free", "Visit Family"). Replaces the brittle
+  /// name-pattern regex in the HorizonStrip's transfer detection.
+  kind            GoalKind @default(MILESTONE)
   sortOrder       Int      @default(0)
   isArchived      Boolean  @default(false)
   createdAt       DateTime @default(now())
@@ -286,4 +302,18 @@ model AuditLog {
   @@index([userId])
   @@index([createdAt])
   @@index([userId, createdAt])
+}
+
+/// Global system configuration. One row, identified by the constant
+/// "GLOBAL_CONFIG". Stores cross-cutting toggles that aren't user-scoped
+/// (e.g. active engine level — L1 rules vs. L2 AI). The TopAppBar's
+/// engine pill reads this row to show the current state and toggles it
+/// via the toggleEngineAction server action.
+model SystemSettings {
+  id                String   @id @default("GLOBAL_CONFIG")
+  /// "L1" (deterministic rules engine) or "L2" (AI-driven). The pill
+  /// on the TopAppBar surfaces this value and the engine toggle flips
+  /// it between the two states.
+  activeEngineLvl   String   @default("L1")
+  updatedAt         DateTime @updatedAt
 }
