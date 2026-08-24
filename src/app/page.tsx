@@ -13,6 +13,8 @@ import { SnapshotCard } from "@/components/dashboard/cards/snapshot";
 import { SpendRingCard } from "@/components/dashboard/cards/spend-ring";
 import { NetTrajectoryCard } from "@/components/dashboard/cards/net-trajectory";
 import { PayDistributionCard } from "@/components/dashboard/cards/pay-distribution";
+import { AllocationFeed, type AllocationRow } from "@/components/dashboard/AllocationFeed";
+import { BottomNav } from "@/components/shell/BottomNav";
 import { CARD_META, type CardId } from "@/components/dashboard/catalog";
 import {
   liveEnvelopes,
@@ -298,6 +300,39 @@ export default async function Dashboard() {
     };
   }).filter((a) => a.cents > 0);
 
+  // --- ALLOCATION FEED (Middle 40%) ---
+  // One row per envelope. Last-payee lookup is O(transactions) per
+  // envelope — fine for the 7-vessel scale; if we ever support
+  // custom envelopes, swap for an indexed Map.
+  const daysLeft = Math.max(0, periodLength(PERIOD_START, PERIOD_END) - day);
+  const allocationRows: AllocationRow[] = ENVELOPES.map((e) => {
+    const lastTx = TRANSACTIONS.find((t) => t.envelopeId === e.id);
+    return {
+      id: e.id,
+      name: e.name,
+      planet: e.planet,
+      currentCents: e.current,
+      targetCents: e.target,
+      lastPayee: lastTx ? lastTx.payee : null,
+      burnCents: spendByEnvelope[e.id] ?? new Array(7).fill(0),
+      daysLeft,
+    };
+  }).sort((a, b) => {
+    // Over first, then watch, then by amount desc.
+    const statusA = a.targetCents > 0 && a.currentCents > a.targetCents
+      ? 0
+      : a.targetCents > 0 && a.currentCents / a.targetCents >= 0.8
+      ? 1
+      : 2;
+    const statusB = b.targetCents > 0 && b.currentCents > b.targetCents
+      ? 0
+      : b.targetCents > 0 && b.currentCents / b.targetCents >= 0.8
+      ? 1
+      : 2;
+    if (statusA !== statusB) return statusA - statusB;
+    return b.currentCents - a.currentCents;
+  });
+
   // -------------------------------------------------------------------------
   // Build the cardNodes map. Each entry is a pre-rendered <DashboardCard>
   // ready for the grid to slot in.
@@ -505,21 +540,21 @@ export default async function Dashboard() {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", minHeight: "100vh" }}>
       <AppSidebar user={{ name: user.name, email: user.email }} />
-      <div style={{ padding: "48px 80px 96px", maxWidth: 1480, position: "relative" }}>
-        {/* ============== HERO ============== */}
+      <div style={{ padding: "40px 80px 112px", maxWidth: 1480, position: "relative" }}>
+        {/* ============== HERO (compact) ============== */}
         <header
           style={{
             display: "grid",
             gridTemplateColumns: "1fr auto",
             gap: 32,
             alignItems: "flex-end",
-            paddingBottom: 24,
-            marginBottom: 40,
+            paddingBottom: 18,
+            marginBottom: 24,
             borderBottom: "1px solid var(--line)",
             position: "relative",
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <div
               style={{
                 fontFamily: "var(--font-jetbrains), monospace",
@@ -540,7 +575,7 @@ export default async function Dashboard() {
               style={{
                 fontFamily: "var(--font-sora)",
                 fontWeight: 600,
-                fontSize: 38,
+                fontSize: 30,
                 lineHeight: 1.1,
                 letterSpacing: "-0.015em",
                 margin: 0,
@@ -552,16 +587,17 @@ export default async function Dashboard() {
             <p
               style={{
                 fontFamily: "var(--font-sora)",
-                fontSize: 15,
+                fontSize: 13.5,
                 lineHeight: 1.5,
-                color: "var(--ink-2)",
+                color: "var(--ink-3)",
                 maxWidth: 640,
-                margin: "6px 0 0",
+                margin: 0,
                 fontWeight: 400,
               }}
             >
-              Your dashboard, your way. Tap any card to go deeper — and tap{" "}
-              <span style={{ fontFamily: "var(--font-jetbrains), monospace", color: "var(--terminal-cyan)" }}>CUSTOMIZE</span> to make it yours.
+              {day <= totalDays
+                ? `Day ${day} of ${totalDays} in this pay period — ${daysLeft} day${daysLeft === 1 ? "" : "s"} to the next paycheck.`
+                : "Period closed. Run the next paycheck to start a new arc."}
             </p>
           </div>
           <div
@@ -588,20 +624,155 @@ export default async function Dashboard() {
           </div>
         </header>
 
+        {/* ============== TOP 30% — PROGRESS RING + HORIZON LINE ============== */}
+        <section
+          aria-label="Progress ring and horizon line"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.6fr)",
+            gap: 20,
+            marginBottom: 28,
+          }}
+        >
+          <DashboardCard
+            cardId="spend-ring"
+            href={CARD_META["spend-ring"].href}
+            eyebrow={CARD_META["spend-ring"].eyebrow}
+            title={CARD_META["spend-ring"].title}
+            em={CARD_META["spend-ring"].em}
+            accent={CARD_META["spend-ring"].accent}
+          >
+            <SpendRingCard
+              data={{
+                perEnvelope: ENVELOPES.map((e) => ({
+                  id: e.id,
+                  name: e.name,
+                  planet: e.planet,
+                  currentCents: e.current,
+                  targetCents: e.target,
+                })),
+                totalSpentCents: burnSpent,
+                totalTargetCents,
+              }}
+            />
+          </DashboardCard>
+
+          <DashboardCard
+            cardId="critical-timeline"
+            href={CARD_META["critical-timeline"].href}
+            eyebrow={CARD_META["critical-timeline"].eyebrow}
+            title={CARD_META["critical-timeline"].title}
+            em={CARD_META["critical-timeline"].em}
+            accent={CARD_META["critical-timeline"].accent}
+          >
+            <CriticalTimelineCard
+              data={{
+                listRows: monthListRows,
+                calendarBills,
+                calendarGoals,
+                transactionDays,
+                today: TODAY,
+              }}
+            />
+          </DashboardCard>
+        </section>
+
         {/* ============== MUST-HAVE TOOLS INDEX ============== */}
         <MustHaveToolsStrip />
 
-        {/* ============== CARD GRID ============== */}
-        <DashboardGrid cardNodes={cardNodes} />
-
-        {/* ============== COLOPHON ============== */}
-        <footer
+        {/* ============== MIDDLE 40% — ALLOCATION FEED ============== */}
+        <section
+          aria-label="Allocation feed"
           style={{
-            marginTop: 80,
-            paddingTop: 24,
+            marginBottom: 28,
+            padding: "20px 0 28px",
             borderTop: "1px solid var(--line)",
-            display: "flex",
-            justifyContent: "space-between",
+            borderBottom: "1px solid var(--line)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+              marginBottom: 14,
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontFamily: "var(--font-jetbrains), monospace",
+                  fontSize: 10.5,
+                  fontWeight: 600,
+                  color: "var(--terminal-cyan)",
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 4,
+                }}
+              >
+                <span aria-hidden style={{ color: "var(--ok)" }}>●</span>
+                FEED · 7 VESSELS · {allocationRows.length} ALLOCATIONS
+              </div>
+              <h2
+                style={{
+                  fontFamily: "var(--font-sora)",
+                  fontSize: 22,
+                  fontWeight: 600,
+                  margin: 0,
+                  color: "var(--ink)",
+                  letterSpacing: "-0.005em",
+                }}
+              >
+                The Allocation Feed
+                <em
+                  style={{
+                    fontFamily: "var(--font-sora)",
+                    fontStyle: "normal",
+                    color: "var(--ink-3)",
+                    fontWeight: 400,
+                    marginLeft: 8,
+                    fontSize: 16,
+                  }}
+                >
+                  what each vessel is doing right now.
+                </em>
+              </h2>
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 9.5,
+                color: "var(--ink-4)",
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+              }}
+            >
+              tap a row to go deeper
+            </div>
+          </div>
+          <AllocationFeed
+            rows={allocationRows}
+            periodStart={PERIOD_START}
+            periodEnd={PERIOD_END}
+          />
+        </section>
+
+        {/* ============== BOTTOM 30% — CUSTOMIZE + COLOPHON ============== */}
+        <section aria-label="Customization">
+          <DashboardGrid cardNodes={cardNodes} />
+
+          <footer
+            style={{
+              marginTop: 48,
+              paddingTop: 24,
+              borderTop: "1px solid var(--line)",
+              display: "flex",
+              justifyContent: "space-between",
             alignItems: "center",
             fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 10,
@@ -614,7 +785,9 @@ export default async function Dashboard() {
           <span style={{ color: "var(--gold)" }}>A oracle for your money.</span>
           <span>v0.1 · 2026 · Q3</span>
         </footer>
+        </section>
       </div>
+      <BottomNav />
     </div>
   );
 }

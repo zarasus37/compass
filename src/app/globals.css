@@ -267,6 +267,29 @@
 .sankey-chart svg path[fill]:not([fill="transparent"]) {
   filter: url(#sankeyGlow);
 }
+
+/* Bottom nav — collapse to icon-only on narrow viewports so the
+   three glyphs stay legible. */
+@media (max-width: 540px) {
+  .bottom-nav-label {
+    display: none;
+  }
+  .bottom-nav {
+    padding: 6px 8px 8px !important;
+  }
+}
+
+/* Allocation feed rows — hover lifts the border to teal, slides
+   the row forward 1px. */
+.allocation-row:hover {
+  background: var(--cosmos-2) !important;
+  border-color: var(--terminal-cyan-dim) !important;
+  transform: translateX(2px);
+}
+.allocation-row:active {
+  transform: scale(0.997) translateX(0);
+  transition-duration: 60ms;
+}
 .dashboard-card-link:hover .dashboard-card-chevron {
   color: var(--terminal-cyan);
   transform: translateX(3px);
