@@ -6,7 +6,7 @@
  * is re-checked in the page (via `requireUser()`) and in the auth
  * layout (via `getCurrentUser()`).
  *
- * Public routes: /login, /welcome, /api/health.
+ * Public routes: /login, /welcome, /api/health, /api/dev-agent.
  * Everything else: requires a cookie. If missing → redirect to /login.
  *
  * Note: we deliberately do NOT redirect from /login to / based on
@@ -20,7 +20,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const SESSION_COOKIE = "compass_session";
 
-const PUBLIC_PREFIXES = ["/login", "/welcome", "/api/health", "/_next", "/favicon"];
+const PUBLIC_PREFIXES = ["/login", "/welcome", "/api/health", "/api/dev-agent", "/_next", "/favicon"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some(
