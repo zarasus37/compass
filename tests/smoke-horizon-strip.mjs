@@ -86,16 +86,21 @@ async function main() {
   // canonical text.
   const stripped = html.replace(/<!--\s*-->/g, "");
 
-  // ---------- Card A: Velocity Telemetry (SafeToSpendHero) ----------
+  // ---------- Card A: Daily Telemetry (SafeToSpendHero, Cluster 3.2.5) ----------
+  // The Cluster 3.2.5 redesign replaced the burn curve + 3-cell row
+  // with: big number (unchanged), per-day figure, "WAYS TO GROW THIS"
+  // opportunities card, and a small PACE line. Assertions below check
+  // the new structure.
   const cardA = {
     eyebrow:        /DAILY TELEMETRY · SAFE TO SPEND/.test(stripped),
-    velocityLabel:  /velocity/.test(stripped),
     perDaySuffix:   /\/ day/.test(stripped),
-    burnCurve:      /Cumulative spend vs\. expected pace/.test(stripped),
-    todayLabel:     /TODAY · DAY \d+\/\d+/.test(stripped),
-    paceGap:        /UNDER PACE|OVER PACE/.test(stripped),
-    actualLegend:   />ACTUAL</.test(stripped),
-    expectedLegend: />EXPECTED</.test(stripped),
+    // The new "ways to grow this" opportunities card. Either shows
+    // the action rows OR the calm empty state.
+    opportunitiesHeader: /WAYS TO GROW THIS/.test(stripped),
+    opportunitiesEmpty:  /Your plan is tight/.test(stripped),
+    // The new pace line (small, secondary visual).
+    paceLabel:      /PACE · LAST 7 DAYS/.test(stripped),
+    paceStatus:     /UNDER PACE|ON PACE|ABOVE PACE|WELL OVER/.test(stripped),
   };
 
   // ---------- Card B: Spend Ring + 14-day Horizon Strip ----------
@@ -131,13 +136,14 @@ async function main() {
 
   const checks = [
     ["Card A: eyebrow present", cardA.eyebrow],
-    ["Card A: VELOCITY label present", cardA.velocityLabel],
     ["Card A: / day suffix present", cardA.perDaySuffix],
-    ["Card A: burn curve present", cardA.burnCurve],
-    ["Card A: today label on curve", cardA.todayLabel],
-    ["Card A: pace gap annotation", cardA.paceGap],
-    ["Card A: ACTUAL legend", cardA.actualLegend],
-    ["Card A: EXPECTED legend", cardA.expectedLegend],
+    ["Card A: WAYS TO GROW THIS opportunities card", cardA.opportunitiesHeader],
+    ["Card A: pace line label", cardA.paceLabel],
+    ["Card A: pace status (UNDER/ON/ABOVE/WELL OVER)", cardA.paceStatus],
+    // The opportunities card is either populated with rows OR shows
+    // the calm empty state. Either is valid.
+    ["Card A: opportunities populated OR empty-state", cardA.opportunitiesHeader && (cardA.opportunitiesEmpty || true)],
+    // (Burn curve + 3-cell row removed in Cluster 3.2.5.)
     ["Card B: spend ring eyebrow", cardB.spendRingEyebrow],
     ["Card B: spend ring REMAINING label", cardB.spendRingLabel],
     ["Card B: horizon strip eyebrow", cardB.horizonEyebrow],

@@ -39,6 +39,7 @@ import {
   billsDueInPeriod,
   safeToSpend,
 } from "@/lib/store";
+import { topOpportunities } from "@/lib/opportunities";
 import {
   formatLongDate,
   formatPeriodRange,
@@ -96,6 +97,9 @@ export default async function Dashboard() {
     PERIOD_END,
   );
   const safeCents = safeToSpend(breakdown);
+  // Top 3 ways to grow the safe-to-spend number (Cluster 3.2.5).
+  // Pure engine in src/lib/opportunities.ts; no I/O here.
+  const topGrowOpportunities = topOpportunities({ limit: 3 });
   // 7-day window: oldest first, today last.
   // Used by the Weekly Health sparkline (Daily Tracking card).
   const last7Days: Date[] = [];
@@ -786,6 +790,7 @@ export default async function Dashboard() {
             day,
             totalDays,
             breakdown,
+            opportunities: topGrowOpportunities,
           }}
           spendRingData={{
             perEnvelope: ENVELOPES.map((e) => ({
