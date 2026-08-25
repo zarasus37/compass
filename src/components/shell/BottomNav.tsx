@@ -24,11 +24,22 @@
  *
  * On phone (< 540px) the flat tabs collapse to icon-only and
  * labels hide (the floating center button keeps its label).
+ *
+ * Retractable: a chevron handle at the top of the nav collapses the
+ * whole dock down to a thin ~22px peek (the handle only, showing
+ * chevron-up to re-expand). The Quick Entry center disc hides with
+ * the rest. State persists to localStorage (`compass-bottomnav-
+ * collapsed-v1`) so a refresh / navigation keeps the user's choice.
+ * The dashboard (`/`) renders its own copy of this component via
+ * the same localStorage key, so the state is consistent across both
+ * layouts.
  */
 
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
+const COLLAPSED_KEY = "compass-bottomnav-collapsed-v1";
 
 type Glyph = React.ReactNode;
 
@@ -77,11 +88,38 @@ const TABS: Tab[] = [
 
 export function BottomNav() {
   const pathname = usePathname();
+  // Default to expanded on SSR + first paint to avoid layout flash.
+  // The useEffect below reads the persisted state after mount.
+  const [collapsed, setCollapsed] = React.useState(false);
+  const [hydrated, setHydrated] = React.useState(false);
+
+  React.useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(COLLAPSED_KEY);
+      if (stored === "1") setCollapsed(true);
+    } catch {
+      // localStorage may be disabled (private mode, etc.) — ignore.
+    }
+    setHydrated(true);
+  }, []);
+
+  const toggle = React.useCallback(() => {
+    setCollapsed((c) => {
+      const next = !c;
+      try {
+        window.localStorage.setItem(COLLAPSED_KEY, next ? "1" : "0");
+      } catch {
+        // Ignore storage failures — the visual state still updates.
+      }
+      return next;
+    });
+  }, []);
 
   return (
     <nav
       aria-label="Primary navigation dock"
-      className="bottom-nav"
+      data-collapsed={collapsed ? "true" : "false"}
+      className={`bottom-nav${collapsed ? " bottom-nav--collapsed" : ""}`}
       style={{
         position: "fixed",
         bottom: 0,
@@ -91,11 +129,65 @@ export function BottomNav() {
         background: "var(--vessel-dark)",
         borderTop: "1px solid var(--vessel-border)",
         boxShadow: "var(--vessel-nav-shadow)",
-        padding: "10px 16px 14px",
+        // When collapsed, the whole nav slides down so only the
+        // 22px handle stays visible. transform keeps the slide smooth
+        // and avoids any layout impact on the rest of the page.
+        transform: hydrated && collapsed ? "translateY(calc(100% - 22px))" : "translateY(0)",
+        transition: "transform 280ms cubic-bezier(0.2, 0.7, 0.3, 1)",
+        willChange: "transform",
       }}
     >
-      <div
+      {/* ── COLLAPSE HANDLE ──
+          Always visible (both expanded and collapsed). 22px tall, sits
+          at the top edge of the nav above the tabs. Tapping anywhere
+          on the handle toggles the collapse state. */}
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={collapsed ? "Expand navigation dock" : "Collapse navigation dock"}
+        aria-expanded={!collapsed}
+        className="bottom-nav-handle"
         style={{
+          position: "relative",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: "100%",
+          height: 22,
+          padding: 0,
+          background: "transparent",
+          border: 0,
+          borderBottom: collapsed ? "1px solid var(--vessel-border)" : "0",
+          cursor: "pointer",
+          color: "var(--vessel-accent)",
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 12,
+          lineHeight: 1,
+          flexShrink: 0,
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            display: "inline-block",
+            transform: collapsed ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 240ms cubic-bezier(0.2, 0.7, 0.3, 1)",
+          }}
+        >
+          ▼
+        </span>
+      </button>
+
+      {/* ── TAB GRID ──
+          Hidden via opacity + pointer-events when collapsed (the
+          transform above already slides it off-screen, but disabling
+          interaction prevents accidental taps during the slide). */}
+      <div
+        aria-hidden={collapsed}
+        style={{
+          opacity: collapsed ? 0 : 1,
+          pointerEvents: collapsed ? "none" : "auto",
+          transition: "opacity 200ms ease",
           display: "grid",
           // 4 columns: dashboard | center-button-spacer | center-button | spacer | analytics | settings
           // We use 5 tracks so the center button slots into the middle track
@@ -105,6 +197,7 @@ export function BottomNav() {
           maxWidth: 600,
           margin: "0 auto",
           alignItems: "center",
+          padding: "4px 0 6px",
         }}
       >
         {TABS.map((t) => {

@@ -98,19 +98,14 @@ async function main() {
   }
   const firstRowStripped = firstRowHtml.replace(/<!--\s*-->/g, "");
 
-  // Background sparkline: look for the position:absolute SVG with
-  // viewBox 0 0 1000 60 (our sparkline canvas size).
-  const hasBgSparkline = /viewBox="0 0 1000 60"/.test(firstRowHtml);
-  // Find the area-fill path inside that SVG and count its `L` commands.
-  // 14 points → 1 M + 13 L (line) or 15 L (area, which closes back to
-  // the baseline with 2 more L). Either way, >= 12 means "14-day shape".
-  // (Cluster 3.1: vessel tokens replace terminal neg/warn.)
-  const sparklineAreaMatch = firstRowHtml.match(
-    /<path d="(M[^"]+)" fill="var\(--(?:vessel-over|vessel-watch|jupiter|mercury|mars|venus|saturn|luna|sol)\)"/,
-  );
-  const sparklineLCmds = sparklineAreaMatch
-    ? (sparklineAreaMatch[1].match(/L/g) || []).length
-    : 0;
+  // Background sparkline was moved OFF the row in Cluster 3.2 — it now
+  // lives on the envelope detail page (`/envelopes/[id]`) so the user
+  // can match the cadence against the specific transactions that drove
+  // it. The row no longer has a viewBox="0 0 1000 60" SVG, so this
+  // check is intentionally removed. (See smoke-envelope-cadence.mjs
+  // for the new detail-page cadence checks, if/when added.)
+  const hasBgSparkline = false;
+  const sparklineLCmds = 0;
 
   // Numeric ledger: a row contains the "$X / $Y" pair. Look for the
   // "/" separator after a money value.
@@ -140,24 +135,12 @@ async function main() {
   // inside a colored border.
   const hasStatusPill = />CALM<\/span>|>WATCH<\/span>|>OVER<\/span>/.test(firstRowStripped);
 
-  // 14-day: the L-count should be 13 (14 points: 1 M + 13 L). If the
-  // envelope has no transactions, the path might be a single point or
-  // absent — we accept >= 12 as "approximately 14-day" because the
-  // cadence math rounds 14 points to 13 segments.
-  const has14DayShape = sparklineLCmds >= 12;
-
-  // Background sparkline opacity: the area path uses opacity="0.08",
-  // the line uses opacity="0.32". Both should be present.
-  const hasLowOpacityArea = /opacity="0\.08"/.test(firstRowHtml);
-  const hasLowOpacityLine = /opacity="0\.32"/.test(firstRowHtml);
+  // (Background sparkline + 14-day shape + opacity checks removed in
+  // Cluster 3.2 — the cadence chart moved to the detail page.)
 
   const checks = [
     ["at least 4 envelope rows present", rowCount >= 4],
     ["first row: thick (12px) gauge bar", hasThickBar],
-    ["first row: background sparkline (1000x60 viewBox)", hasBgSparkline],
-    ["first row: 14-day cadence shape (>= 12 L commands)", has14DayShape],
-    ["first row: low-opacity area fill (0.08)", hasLowOpacityArea],
-    ["first row: low-opacity line (0.32)", hasLowOpacityLine],
     ["first row: status pill (CALM/WATCH/OVER)", hasStatusPill],
     ["first row: numeric ledger present (money values)", hasLedger],
     ["first row has a title", titlesFound],
@@ -175,8 +158,6 @@ async function main() {
 
   console.log("\n--- row anatomy ---");
   log("row count", rowCount);
-  log("bg sparkline viewBox 0 0 1000 60", hasBgSparkline);
-  log("sparkline L commands", sparklineLCmds);
   log("thick 12px bar", hasThickBar);
   log("status pill", statusInFirst ? statusInFirst[1] : "MISS");
   log("numeric ledger", hasLedger);

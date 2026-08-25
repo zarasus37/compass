@@ -5,20 +5,16 @@
  * Component 4 — "Scrollable Vessel Feed").
  *
  * Vertical scrolling list, one row per envelope. Each row is a
- * self-contained functional unit with four distinct visual layers:
+ * self-contained functional unit with three visual layers (was four
+ * before Cluster 3.2 — the background sparkline was moved to the
+ * envelope detail page where the user can match the cadence against
+ * the specific transactions that drove it):
  *
- *   1. Background sparkline (low-opacity, 14-day cadence)
- *      A thin SVG line chart spans the full row width behind the
- *      foreground content. It charts this envelope's daily spend
- *      across the past 14 days, with the rightmost point (today)
- *      slightly emphasized. Opacity 0.10 keeps it as context, not
- *      noise.
- *
- *   2. Foreground: title (left) + numeric ledger (right)
+ *   1. Foreground: title (left) + numeric ledger (right)
  *      Left: vessel glyph + name + last payee + status pill
  *      Right: "$X.XX / $Y.YY" — the used-vs-maximum tracking pair
  *
- *   3. Linear gauge bar
+ *   2. Linear gauge bar
  *      Thick (12px), fills left-to-right. Color/state:
  *        - CALM  (0-79%):  planet color (jupiter-violet by default;
  *          reads as "deep purple" per the spec)
@@ -26,7 +22,13 @@
  *        - OVER  (100%+):  var(--vessel-over) with vesselOverBlink keyframe
  *          (1.4s opacity 1.0 ↔ 0.55). Brightness pulses, color stays.
  *
- *   4. Sub-line: last transaction payee + days left
+ *   3. Sub-line: last transaction payee + days left
+ *
+ * The 14-day cadence chart that USED to be Layer 1 (a low-opacity
+ * background sparkline) is now on the envelope detail page
+ * (`/envelopes/[id]`) as a real chart — it sits directly above the
+ * transaction list so the user can see "this is the trend" and
+ * "these are the specific transactions" side by side.
  *
  * Sovereign Monad (v6) treatment: 1px vessel-border, planet-color
  * left rail, mono caps status pill, Sora envelope name, JetBrains
@@ -158,12 +160,7 @@ function AllocationRowItem({ row }: { row: AllocationRow }) {
         transition: "transform 120ms, background 120ms, border-color 120ms",
       }}
     >
-      {/* ── LAYER 1: BACKGROUND SPARKLINE ──────────────────────────────
-          Full-width 14-day cadence chart at low opacity. Drawn behind
-          everything else via position: absolute. */}
-      <BackgroundSparkline burnCents={row.burnCents} barColor={barColor} />
-
-      {/* ── LAYER 2: FOREGROUND HEADER ROW (title + ledger) ──────────── */}
+      {/* ── LAYER 1: FOREGROUND HEADER ROW (title + ledger) ──────────── */}
       <div
         style={{
           position: "relative",
@@ -301,7 +298,7 @@ function AllocationRowItem({ row }: { row: AllocationRow }) {
         </div>
       </div>
 
-      {/* ── LAYER 3: LINEAR GAUGE BAR ──────────────────────────────────
+      {/* ── LAYER 2: LINEAR GAUGE BAR ──────────────────────────────────
           Thick (12px), fills left-to-right, with state colors. OVER
           state adds the .vessel-feed-bar--over class for the blink
           keyframe (defined in globals.css). */}
@@ -340,90 +337,6 @@ function AllocationRowItem({ row }: { row: AllocationRow }) {
             wired back via a row prop in a future pass. */}
       </div>
     </Link>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// BackgroundSparkline — the low-opacity 14-day cadence chart embedded
-// behind the row. Uses the row's bar color so the OVER state's red
-// sparkline visually reads as "the bar is on fire".
-// ---------------------------------------------------------------------------
-
-function BackgroundSparkline({
-  burnCents,
-  barColor,
-}: {
-  burnCents: number[];
-  barColor: string;
-}) {
-  // Render a full-width sparkline that scales to the row's actual
-  // width (viewBox 0 0 1000 60, width 100%, height 100%). The
-  // `preserveAspectRatio="none"` lets it stretch.
-  const VBW = 1000;
-  const VBH = 60;
-  const padX = 4;
-  const padTop = 8;
-  const padBottom = 8;
-  const innerW = VBW - padX * 2;
-  const innerH = VBH - padTop - padBottom;
-
-  const n = Math.max(1, burnCents.length);
-  const max = Math.max(1, ...burnCents);
-  const stepX = innerW / (n - 1 || 1);
-  const points = burnCents.map((v, i) => {
-    const x = padX + i * stepX;
-    const y = VBH - padBottom - (v / max) * innerH;
-    return [x, y] as [number, number];
-  });
-  const linePath = points
-    .map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`)
-    .join(" ");
-  const last = points[points.length - 1];
-  const first = points[0];
-  const areaPath =
-    points.length > 0
-      ? `${linePath} L${last![0].toFixed(1)},${VBH - padBottom} L${first![0].toFixed(1)},${VBH - padBottom} Z`
-      : "";
-
-  return (
-    <svg
-      viewBox={`0 0 ${VBW} ${VBH}`}
-      width="100%"
-      height="100%"
-      preserveAspectRatio="none"
-      aria-hidden
-      style={{
-        position: "absolute",
-        inset: 0,
-        display: "block",
-        pointerEvents: "none",
-        zIndex: 0,
-      }}
-    >
-      {areaPath && <path d={areaPath} fill={barColor} opacity="0.08" />}
-      {linePath && (
-        <path
-          d={linePath}
-          fill="none"
-          stroke={barColor}
-          strokeWidth="1.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.32"
-        />
-      )}
-      {/* Today dot — rightmost point, slightly stronger so the eye
-          can pick it out from the row. */}
-      {last && (
-        <circle
-          cx={last[0]}
-          cy={last[1]}
-          r="3"
-          fill={barColor}
-          opacity="0.55"
-        />
-      )}
-    </svg>
   );
 }
 

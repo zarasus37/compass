@@ -293,6 +293,22 @@
   }
 }
 
+/* Bottom nav handle (collapse/expand toggle) — Cluster 3.2. */
+.bottom-nav-handle:hover {
+  background: var(--vessel-surface) !important;
+}
+.bottom-nav-handle:focus-visible {
+  outline: none;
+  background: var(--vessel-surface) !important;
+  box-shadow: inset 0 0 0 1px var(--vessel-accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .bottom-nav,
+  .bottom-nav-handle span[aria-hidden] {
+    transition: none !important;
+  }
+}
+
 /* Allocation feed rows — hover lifts the border to teal, slides
    the row forward 1px. */
 .allocation-row:hover {

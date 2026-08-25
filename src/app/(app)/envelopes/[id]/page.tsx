@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { VesselGlyph } from "@/components/alchemy/VesselGlyph";
 import { EnvelopeMiniBar } from "@/components/viz/EnvelopeMiniBar";
+import { EnvelopeCadenceChart } from "@/components/viz/EnvelopeCadenceChart";
 import {
   liveEnvelopes,
   liveTransactions,
@@ -60,6 +61,28 @@ export default function EnvelopeDetailPage({
     .filter((t) => t.amountCents < 0)
     .reduce((s, t) => s + Math.abs(t.amountCents), 0);
   const txCount = txForEnv.length;
+
+  // 14-day daily-spend cadence for the chart (Cluster 3.2).
+  // Oldest first, today last. Only counts as spend when amountCents < 0
+  // (positive amounts are allocations / refunds, not "spend per day").
+  const cadenceStart = new Date(TODAY);
+  cadenceStart.setDate(cadenceStart.getDate() - 13);
+  cadenceStart.setHours(0, 0, 0, 0);
+  const burnCents: number[] = Array.from({ length: 14 }, (_, i) => {
+    const day = new Date(cadenceStart);
+    day.setDate(cadenceStart.getDate() + i);
+    return txForEnv
+      .filter((t) => {
+        if (t.amountCents >= 0) return false;
+        const td = new Date(t.date);
+        return (
+          td.getFullYear() === day.getFullYear() &&
+          td.getMonth() === day.getMonth() &&
+          td.getDate() === day.getDate()
+        );
+      })
+      .reduce((s, t) => s + Math.abs(t.amountCents), 0);
+  });
 
   return (
     <div>
@@ -272,6 +295,20 @@ export default function EnvelopeDetailPage({
             <span>{formatMoney(e.target)}</span>
           </div>
         </div>
+      </section>
+
+      <section style={{ marginBottom: 48 }}>
+        <SectionHeader
+          title="Cadence"
+          em="last 14 days, by day."
+          meta="Match the trend against the transactions below."
+        />
+        <EnvelopeCadenceChart
+          burnCents={burnCents}
+          planet={e.planet}
+          envelopeName={e.name}
+          startDate={cadenceStart}
+        />
       </section>
 
       <section style={{ marginBottom: 48 }}>
