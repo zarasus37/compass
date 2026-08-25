@@ -3,11 +3,18 @@
  *
  * Runs on the Edge runtime, so it CANNOT use Prisma. It only checks
  * for the presence of the session cookie; the actual session validity
- * is re-checked in the page (via `requireUser()`).
+ * is re-checked in the page (via `requireUser()`) and in the auth
+ * layout (via `getCurrentUser()`).
  *
  * Public routes: /login, /welcome, /api/health.
  * Everything else: requires a cookie. If missing → redirect to /login.
- * If present + already on /login or /welcome → redirect to /.
+ *
+ * Note: we deliberately do NOT redirect from /login to / based on
+ * cookie presence here. The auth layout already does that check
+ * (DB-backed, accurate), and a stale cookie would create an
+ * infinite loop: middleware says "you have a cookie, go to /",
+ * the dashboard says "session is invalid, go to /login", repeat.
+ * Leaving the redirect to the auth layout keeps the loop off.
  */
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -25,14 +32,9 @@ export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const hasCookie = Boolean(req.cookies.get(SESSION_COOKIE)?.value);
 
+  // Public route — always pass through. The (auth) layout decides
+  // whether to redirect to / based on the actual session (DB query).
   if (isPublic(pathname)) {
-    // If the user already has a session and is hitting an auth page,
-    // send them on to the app.
-    if (hasCookie && (pathname === "/login" || pathname === "/welcome")) {
-      const url = req.nextUrl.clone();
-      url.pathname = "/";
-      return NextResponse.redirect(url);
-    }
     return NextResponse.next();
   }
 
