@@ -141,8 +141,8 @@ export function MonthCalendar({ today, bills, goals, transactionDays }: MonthCal
   return (
     <div
       style={{
-        background: "var(--cosmos-2)",
-        border: "1px solid var(--line)",
+        background: "var(--vessel-surface)",
+        border: "1px solid var(--vessel-border)",
         borderRadius: 4,
         padding: "14px 14px 12px",
       }}
@@ -153,7 +153,7 @@ export function MonthCalendar({ today, bills, goals, transactionDays }: MonthCal
           fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 10.5,
           fontWeight: 600,
-          color: "var(--terminal-cyan)",
+          color: "var(--vessel-accent)",
           letterSpacing: "0.18em",
           textTransform: "uppercase",
           marginBottom: 12,
@@ -270,7 +270,7 @@ function DayCell({ day }: { day: MonthCalendarDay }) {
         minHeight: 32,
         border: isToday
           ? "1.5px solid var(--gold)"
-          : "1px solid var(--line-soft)",
+          : "1px solid var(--vessel-border)",
         borderRadius: 2,
         background: isToday
           ? "rgba(201, 164, 92, 0.10)"

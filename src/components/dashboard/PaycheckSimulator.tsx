@@ -52,7 +52,7 @@ export function PaycheckSimulator() {
     <section
       style={{
         background:
-          "radial-gradient(ellipse at 100% 0%, rgba(212, 175, 82, 0.10) 0%, transparent 55%), radial-gradient(ellipse at 0% 100%, rgba(196, 90, 58, 0.05) 0%, transparent 50%), var(--surface)",
+          "radial-gradient(ellipse at 100% 0%, rgba(212, 175, 82, 0.10) 0%, transparent 55%), radial-gradient(ellipse at 0% 100%, rgba(196, 90, 58, 0.05) 0%, transparent 50%), var(--vessel-surface)",
         border: "1px solid var(--gold-soft)",
         borderRadius: 4,
         padding: "36px 44px 32px",
@@ -186,8 +186,8 @@ export function PaycheckSimulator() {
                   inputMode="decimal"
                   style={{
                     width: "100%",
-                    background: "var(--cosmos)",
-                    border: "1px solid var(--line)",
+                    background: "var(--vessel-dark)",
+                    border: "1px solid var(--vessel-border)",
                     borderRadius: 2,
                     padding: "12px 14px 12px 30px",
                     color: "var(--ink)",
@@ -234,7 +234,7 @@ export function PaycheckSimulator() {
               style={{
                 fontFamily: "var(--font-sora)",
                                 fontSize: 14,
-                color: "var(--neg)",
+                color: "var(--vessel-over)",
                 marginTop: 12,
               }}
             >
@@ -246,8 +246,8 @@ export function PaycheckSimulator() {
         {/* Right side: live plan summary */}
         <div
           style={{
-            background: "var(--cosmos)",
-            border: "1px solid var(--line)",
+            background: "var(--vessel-dark)",
+            border: "1px solid var(--vessel-border)",
             borderRadius: 4,
             padding: "22px 24px 18px",
             position: "relative",
@@ -327,8 +327,8 @@ export function PaycheckSimulator() {
                   color: g.color,
                   lineHeight: 1,
                   padding: "8px 0",
-                  background: "var(--surface)",
-                  border: "1px solid var(--line-soft)",
+                  background: "var(--vessel-surface)",
+                  border: "1px solid var(--vessel-border)",
                   borderRadius: 2,
                 }}
                 title={g.label}
@@ -481,8 +481,8 @@ function AllocationRow({
         alignItems: "center",
         gap: 10,
         padding: "8px 12px",
-        background: "var(--surface)",
-        border: "1px solid var(--line-soft)",
+        background: "var(--vessel-surface)",
+        border: "1px solid var(--vessel-border)",
         borderRadius: 2,
         fontSize: 13,
       }}

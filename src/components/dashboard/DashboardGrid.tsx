@@ -207,11 +207,11 @@ export function DashboardGrid({ cardNodes }: DashboardGridProps) {
                 fontWeight: 600,
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
-                background: "var(--cosmos-2)",
+                background: "var(--vessel-surface)",
                 color:
-                  hiddenIds.length === 0 ? "var(--ink-5)" : "var(--terminal-cyan)",
+                  hiddenIds.length === 0 ? "var(--ink-5)" : "var(--vessel-accent)",
                 border: `1px solid ${
-                  hiddenIds.length === 0 ? "var(--line)" : "var(--terminal-cyan)"
+                  hiddenIds.length === 0 ? "var(--vessel-border)" : "var(--vessel-accent)"
                 }`,
                 borderRadius: 2,
                 padding: "12px 22px",
@@ -288,16 +288,16 @@ function CustomizeToggle({
         fontWeight: 600,
         letterSpacing: "0.18em",
         textTransform: "uppercase",
-        background: editing ? "var(--terminal-cyan)" : "var(--cosmos-2)",
-        color: editing ? "var(--void)" : "var(--terminal-cyan)",
+        background: editing ? "var(--vessel-accent)" : "var(--vessel-surface)",
+        color: editing ? "var(--void)" : "var(--vessel-accent)",
         border: `1px solid ${
-          editing ? "var(--terminal-cyan)" : "var(--line)"
+          editing ? "var(--vessel-accent)" : "var(--vessel-border)"
         }`,
         borderRadius: 2,
         padding: "12px 18px",
         cursor: "pointer",
         boxShadow: editing
-          ? "0 0 16px rgba(45, 212, 191, 0.35), 0 8px 24px rgba(0, 0, 0, 0.4)"
+          ? "0 0 16px rgba(168, 85, 247, 0.35), 0 8px 24px rgba(0, 0, 0, 0.4)"
           : "0 4px 16px rgba(0, 0, 0, 0.35)",
         transition: "all 200ms cubic-bezier(0.2, 0.7, 0.3, 1)",
       }}
@@ -459,9 +459,9 @@ function AddCardSheet({
           width: "100%",
           maxWidth: 720,
           maxHeight: "80vh",
-          background: "var(--surface)",
-          border: "1px solid var(--line)",
-          borderTop: "1px solid var(--terminal-cyan)",
+          background: "var(--vessel-surface)",
+          border: "1px solid var(--vessel-border)",
+          borderTop: "1px solid var(--vessel-accent)",
           borderRadius: 4,
           padding: "28px 32px 24px",
           overflow: "auto",
@@ -476,7 +476,7 @@ function AddCardSheet({
             justifyContent: "space-between",
             marginBottom: 20,
             paddingBottom: 14,
-            borderBottom: "1px solid var(--line)",
+            borderBottom: "1px solid var(--vessel-border)",
           }}
         >
           <div>
@@ -484,7 +484,7 @@ function AddCardSheet({
               style={{
                 fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 10,
-                color: "var(--terminal-cyan)",
+                color: "var(--vessel-accent)",
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
                 marginBottom: 4,
@@ -511,7 +511,7 @@ function AddCardSheet({
             aria-label="Close"
             style={{
               background: "transparent",
-              border: "1px solid var(--line)",
+              border: "1px solid var(--vessel-border)",
               borderRadius: 2,
               width: 36,
               height: 36,
@@ -552,8 +552,8 @@ function AddCardSheet({
                     gap: 18,
                     alignItems: "center",
                     padding: "16px 18px",
-                    background: "var(--cosmos-2)",
-                    border: "1px solid var(--line)",
+                    background: "var(--vessel-surface)",
+                    border: "1px solid var(--vessel-border)",
                     borderLeft: `2px solid var(--${c.accent === "gold" ? "gold" : c.accent})`,
                     borderRadius: 3,
                     color: "inherit",
@@ -572,8 +572,8 @@ function AddCardSheet({
                       display: "grid",
                       placeItems: "center",
                       fontSize: 18,
-                      background: "var(--cosmos)",
-                      border: "1px solid var(--line)",
+                      background: "var(--vessel-dark)",
+                      border: "1px solid var(--vessel-border)",
                     }}
                   >
                     {c.glyph}
@@ -607,12 +607,12 @@ function AddCardSheet({
                       fontFamily: "var(--font-jetbrains), monospace",
                       fontSize: 10,
                       fontWeight: 700,
-                      color: "var(--terminal-cyan)",
+                      color: "var(--vessel-accent)",
                       letterSpacing: "0.16em",
                       textTransform: "uppercase",
                       whiteSpace: "nowrap",
                       padding: "4px 8px",
-                      border: "1px solid var(--terminal-cyan-dim)",
+                      border: "1px solid var(--vessel-accent-soft)",
                       borderRadius: 2,
                     }}
                   >
@@ -628,7 +628,7 @@ function AddCardSheet({
           style={{
             marginTop: 24,
             paddingTop: 18,
-            borderTop: "1px solid var(--line)",
+            borderTop: "1px solid var(--vessel-border)",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -645,7 +645,7 @@ function AddCardSheet({
               textTransform: "uppercase",
               background: "transparent",
               color: "var(--ink-3)",
-              border: "1px solid var(--line)",
+              border: "1px solid var(--vessel-border)",
               borderRadius: 2,
               padding: "10px 16px",
               cursor: "pointer",
@@ -663,7 +663,7 @@ function AddCardSheet({
               fontWeight: 700,
               letterSpacing: "0.16em",
               textTransform: "uppercase",
-              background: "var(--terminal-cyan)",
+              background: "var(--vessel-accent)",
               color: "var(--void)",
               border: 0,
               borderRadius: 2,

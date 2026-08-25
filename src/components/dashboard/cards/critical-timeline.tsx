@@ -59,8 +59,8 @@ export function CriticalTimelineCard({ data }: { data: CriticalTimelineCardData 
     return (
       <div
         style={{
-          background: "var(--cosmos-2)",
-          border: "1px solid var(--line)",
+          background: "var(--vessel-surface)",
+          border: "1px solid var(--vessel-border)",
           borderRadius: 3,
           overflow: "hidden",
         }}
@@ -148,8 +148,8 @@ function ScheduledBillsList({ rows }: { rows: CriticalTimelineListRow[] }) {
   return (
     <div
       style={{
-        background: "var(--cosmos-2)",
-        border: "1px solid var(--line)",
+        background: "var(--vessel-surface)",
+        border: "1px solid var(--vessel-border)",
         borderRadius: 3,
         overflow: "hidden",
       }}
@@ -159,14 +159,14 @@ function ScheduledBillsList({ rows }: { rows: CriticalTimelineListRow[] }) {
           fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 9.5,
           fontWeight: 600,
-          color: "var(--terminal-cyan)",
+          color: "var(--vessel-accent)",
           letterSpacing: "0.18em",
           textTransform: "uppercase",
           padding: "10px 18px 8px",
           display: "flex",
           alignItems: "center",
           gap: 8,
-          borderBottom: "1px solid var(--line-soft)",
+          borderBottom: "1px solid var(--vessel-border)",
         }}
       >
         <span style={{ color: "var(--ink-4)" }}>//</span>
@@ -182,7 +182,7 @@ function ScheduledBillsList({ rows }: { rows: CriticalTimelineListRow[] }) {
               key={row.id}
               style={{
                 padding: "9px 12px",
-                borderTop: i === 0 ? "0" : "1px solid var(--line-soft)",
+                borderTop: i === 0 ? "0" : "1px solid var(--vessel-border)",
                 display: "grid",
                 gridTemplateColumns: "auto 1fr auto auto",
                 alignItems: "center",
@@ -220,11 +220,11 @@ function ScheduledBillsList({ rows }: { rows: CriticalTimelineListRow[] }) {
                       fontFamily: "var(--font-jetbrains), monospace",
                       fontSize: 8,
                       fontWeight: 700,
-                      color: "var(--terminal-cyan)",
+                      color: "var(--vessel-accent)",
                       letterSpacing: "0.10em",
                       marginLeft: 8,
                       padding: "1px 4px",
-                      border: "0.5px solid var(--terminal-cyan-dim)",
+                      border: "0.5px solid var(--vessel-accent-soft)",
                       borderRadius: 1,
                     }}
                   >

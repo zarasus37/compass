@@ -32,8 +32,8 @@ export function SnapshotCard({ data }: { data: SnapshotCardData }) {
         display: "grid",
         gridTemplateColumns: "repeat(3, 1fr)",
         gap: 0,
-        background: "var(--cosmos-2)",
-        border: "1px solid var(--line)",
+        background: "var(--vessel-surface)",
+        border: "1px solid var(--vessel-border)",
         borderRadius: 3,
         overflow: "hidden",
       }}
@@ -83,12 +83,12 @@ function Cell({
       ? "var(--gold)"
       : accent === "ok"
       ? "var(--ok)"
-      : "var(--terminal-cyan)";
+      : "var(--vessel-accent)";
   return (
     <div
       style={{
         padding: "20px 22px",
-        borderLeft: borderLeft ? "1px solid var(--line-soft)" : undefined,
+        borderLeft: borderLeft ? "1px solid var(--vessel-border)" : undefined,
       }}
     >
       <div

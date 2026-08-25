@@ -73,7 +73,7 @@ export function PayDistributionCard({ data }: { data: PayDistributionCardData })
         <div
           style={{
             height: 1,
-            background: "var(--line-soft)",
+            background: "var(--vessel-border)",
             position: "relative",
           }}
         >
@@ -87,7 +87,7 @@ export function PayDistributionCard({ data }: { data: PayDistributionCardData })
               fontSize: 9,
               color: "var(--ink-3)",
               letterSpacing: "0.18em",
-              background: "var(--surface)",
+              background: "var(--vessel-surface)",
               padding: "0 6px",
             }}
           >
@@ -111,7 +111,7 @@ export function PayDistributionCard({ data }: { data: PayDistributionCardData })
             style={{
               fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 12.5,
-              color: "var(--terminal-cyan)",
+              color: "var(--vessel-accent)",
               fontFeatureSettings: '"tnum" 1, "zero" 1',
               fontWeight: 600,
             }}
@@ -128,8 +128,8 @@ export function PayDistributionCard({ data }: { data: PayDistributionCardData })
           height: 22,
           borderRadius: 2,
           overflow: "hidden",
-          background: "var(--cosmos)",
-          border: "1px solid var(--line)",
+          background: "var(--vessel-dark)",
+          border: "1px solid var(--vessel-border)",
         }}
       >
         {allocs.map((a) => {
@@ -153,7 +153,7 @@ export function PayDistributionCard({ data }: { data: PayDistributionCardData })
             title={`Free: ${formatMoney(free)} (${((free / total) * 100).toFixed(0)}%)`}
             style={{
               width: `${(free / total) * 100}%`,
-              background: "var(--cosmos-2)",
+              background: "var(--vessel-surface)",
               borderLeft: "1px dashed var(--ink-5)",
             }}
           />
@@ -237,7 +237,7 @@ export function PayDistributionCard({ data }: { data: PayDistributionCardData })
                 width: 6,
                 height: 6,
                 borderRadius: 1,
-                background: "var(--cosmos-2)",
+                background: "var(--vessel-surface)",
                 border: "1px dashed var(--ink-5)",
               }}
             />

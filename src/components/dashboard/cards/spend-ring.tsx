@@ -73,7 +73,7 @@ export function SpendRingCard({ data }: { data: SpendRingCardData }) {
 
   // The ring color goes from ok → warn → neg based on fill ratio
   const ringColor =
-    pct < 0.5 ? "var(--terminal-cyan)" : pct < 0.9 ? "var(--warn)" : "var(--neg)";
+    pct < 0.5 ? "var(--vessel-accent)" : pct < 0.9 ? "var(--vessel-watch)" : "var(--vessel-over)";
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 24, alignItems: "center" }}>
@@ -84,7 +84,7 @@ export function SpendRingCard({ data }: { data: SpendRingCardData }) {
           cy={cy}
           r={(r + innerR) / 2}
           fill="none"
-          stroke="var(--line-soft)"
+          stroke="var(--vessel-border)"
           strokeWidth={r - innerR}
         />
         {/* filled arc */}
@@ -108,7 +108,7 @@ export function SpendRingCard({ data }: { data: SpendRingCardData }) {
           textAnchor="middle"
           fontFamily="var(--font-jetbrains), monospace"
           fontSize={18}
-          fill={remaining === 0 ? "var(--neg)" : "var(--ink)"}
+          fill={remaining === 0 ? "var(--vessel-over)" : "var(--ink)"}
           fontWeight={700}
           style={{ fontFeatureSettings: '"tnum" 1, "zero" 1' }}
         >
@@ -177,9 +177,9 @@ export function SpendRingCard({ data }: { data: SpendRingCardData }) {
                 fontSize: 10.5,
                 color:
                   s.pct >= 1
-                    ? "var(--neg)"
+                    ? "var(--vessel-over)"
                     : s.pct >= 0.8
-                    ? "var(--warn)"
+                    ? "var(--vessel-watch)"
                     : "var(--ok)",
                 fontFeatureSettings: '"tnum" 1, "zero" 1',
                 fontWeight: 600,

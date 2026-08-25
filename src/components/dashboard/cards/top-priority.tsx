@@ -73,7 +73,7 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
               fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 30,
               lineHeight: 1,
-              color: "var(--terminal-cyan)",
+              color: "var(--vessel-accent)",
               fontFeatureSettings: '"tnum" 1, "zero" 1',
               fontWeight: 600,
               letterSpacing: "-0.01em",
@@ -124,8 +124,8 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
           style={{
             position: "relative",
             height: 5,
-            background: "var(--cosmos)",
-            border: "1px solid var(--line-soft)",
+            background: "var(--vessel-dark)",
+            border: "1px solid var(--vessel-border)",
             overflow: "hidden",
             marginBottom: 10,
           }}
@@ -135,8 +135,8 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
               position: "absolute",
               inset: "0 auto 0 0",
               width: `${pct}%`,
-              background: "linear-gradient(90deg, var(--terminal-cyan), var(--gold))",
-              boxShadow: "0 0 8px var(--terminal-cyan)",
+              background: "linear-gradient(90deg, var(--vessel-accent), var(--gold))",
+              boxShadow: "0 0 8px var(--vessel-accent)",
             }}
           />
         </div>
@@ -162,7 +162,7 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
                 fontWeight: 500,
                 letterSpacing: "0.02em",
                 padding: "0 4px",
-                border: "0.5px solid var(--line)",
+                border: "0.5px solid var(--vessel-border)",
                 borderRadius: 1,
                 marginLeft: 4,
               }}
@@ -187,10 +187,10 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
               style={{
                 fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 12,
-                color: "var(--terminal-cyan)",
+                color: "var(--vessel-accent)",
                 fontWeight: 600,
                 padding: "0 4px",
-                border: "0.5px solid var(--terminal-cyan-dim)",
+                border: "0.5px solid var(--vessel-accent-soft)",
                 borderRadius: 1,
               }}
             >
@@ -222,9 +222,9 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
           alignItems: "stretch",
           gap: 6,
           padding: "10px 16px 12px",
-          background: "rgba(45, 212, 191, 0.04)",
-          border: "1px solid var(--line)",
-          borderLeft: "2px solid var(--terminal-cyan)",
+          background: "rgba(168, 85, 247, 0.04)",
+          border: "1px solid var(--vessel-border)",
+          borderLeft: "2px solid var(--vessel-accent)",
           borderRadius: 3,
         }}
       >
@@ -241,7 +241,7 @@ export function TopPriorityCard({ data }: { data: TopPriorityCardData | null }) 
             textTransform: "uppercase",
           }}
         >
-          <span style={{ color: "var(--terminal-cyan)" }}>
+          <span style={{ color: "var(--vessel-accent)" }}>
             <span style={{ color: "var(--ink-4)" }}>//</span> 18-month projection
           </span>
           <span

@@ -90,8 +90,8 @@ export function AppSidebar({ user }: AppSidebarProps) {
   return (
     <aside
       style={{
-        background: "var(--cosmos)",
-        borderRight: "1px solid var(--line)",
+        background: "var(--vessel-dark)",
+        borderRight: "1px solid var(--vessel-border)",
         padding: "20px 12px 16px",
         display: "flex",
         flexDirection: "column",
@@ -108,7 +108,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
           alignItems: "center",
           justifyContent: collapsed ? "center" : "space-between",
           padding: "4px 4px 12px",
-          borderBottom: "1px solid var(--line-soft)",
+          borderBottom: "1px solid var(--vessel-border)",
         }}
       >
         <Link
@@ -148,7 +148,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
               placeItems: "center",
               color: "var(--ink-3)",
               background: "transparent",
-              border: "1px solid var(--line-soft)",
+              border: "1px solid var(--vessel-border)",
               borderRadius: 2,
               cursor: "pointer",
             }}
@@ -181,13 +181,13 @@ export function AppSidebar({ user }: AppSidebarProps) {
       <div
         style={{
           marginTop: "auto",
-          border: "1px solid var(--line)",
+          border: "1px solid var(--vessel-border)",
           borderRadius: 2,
           padding: 10,
           display: "flex",
           alignItems: "center",
           gap: 10,
-          background: "var(--surface)",
+          background: "var(--vessel-surface)",
           position: "relative",
         }}
       >
@@ -197,9 +197,9 @@ export function AppSidebar({ user }: AppSidebarProps) {
             width: 32,
             height: 32,
             borderRadius: 2,
-            background: "var(--cosmos-2)",
-            border: "1px solid var(--terminal-cyan-dim)",
-            color: "var(--terminal-cyan)",
+            background: "var(--vessel-surface)",
+            border: "1px solid var(--vessel-accent-soft)",
+            color: "var(--vessel-accent)",
             display: "grid",
             placeItems: "center",
             fontFamily: "var(--font-jetbrains), monospace",
@@ -236,7 +236,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                 textOverflow: "ellipsis",
               }}
             >
-              <span style={{ color: "var(--terminal-cyan)" }}>●</span> {user.email}
+              <span style={{ color: "var(--vessel-accent)" }}>●</span> {user.email}
             </span>
           </div>
         )}
@@ -258,8 +258,8 @@ function BrandMark() {
         height: 28,
         display: "grid",
         placeItems: "center",
-        background: "var(--cosmos-2)",
-        border: "1px solid var(--terminal-cyan-dim)",
+        background: "var(--vessel-surface)",
+        border: "1px solid var(--vessel-accent-soft)",
         borderRadius: 2,
         position: "relative",
       }}
@@ -269,7 +269,7 @@ function BrandMark() {
           fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 13,
           fontWeight: 700,
-          color: "var(--terminal-cyan)",
+          color: "var(--vessel-accent)",
           letterSpacing: "-0.02em",
         }}
       >
@@ -319,7 +319,7 @@ function NavChapterView({
           aria-hidden
           style={{
             height: 1,
-            background: "var(--line-soft)",
+            background: "var(--vessel-border)",
             margin: "4px 8px",
           }}
         />
@@ -339,14 +339,14 @@ function NavChapterView({
               gap: 10,
               padding: collapsed ? "8px 0" : "7px 10px",
               borderRadius: 2,
-              color: isActive ? "var(--terminal-cyan)" : "var(--ink-2)",
+              color: isActive ? "var(--vessel-accent)" : "var(--ink-2)",
               fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 12.5,
               fontWeight: isActive ? 600 : 500,
               textDecoration: "none",
-              background: isActive ? "var(--cosmos-2)" : "transparent",
+              background: isActive ? "var(--vessel-surface)" : "transparent",
               border: isActive
-                ? "1px solid var(--terminal-cyan-dim)"
+                ? "1px solid var(--vessel-accent-soft)"
                 : "1px solid transparent",
               whiteSpace: "nowrap",
               justifyContent: collapsed ? "center" : "flex-start",
@@ -363,8 +363,8 @@ function NavChapterView({
                   top: 4,
                   bottom: 4,
                   width: 2,
-                  background: "var(--terminal-cyan)",
-                  boxShadow: "0 0 6px var(--terminal-cyan)",
+                  background: "var(--vessel-accent)",
+                  boxShadow: "0 0 6px var(--vessel-accent)",
                 }}
               />
             )}
@@ -375,7 +375,7 @@ function NavChapterView({
                 style={{
                   width: 10,
                   flexShrink: 0,
-                  color: isActive ? "var(--terminal-cyan)" : "var(--ink-5)",
+                  color: isActive ? "var(--vessel-accent)" : "var(--ink-5)",
                   fontSize: 11,
                 }}
               >
@@ -402,11 +402,11 @@ function NavChapterView({
                   borderRadius: 2,
                   background: "transparent",
                   border: `1px solid ${
-                    item.badge.tone === "auto" ? "var(--terminal-cyan-dim)" : "var(--line)"
+                    item.badge.tone === "auto" ? "var(--vessel-accent-soft)" : "var(--vessel-border)"
                   }`,
                   color:
                     item.badge.tone === "auto"
-                      ? "var(--terminal-cyan)"
+                      ? "var(--vessel-accent)"
                       : "var(--ink-2)",
                   letterSpacing: "0.04em",
                   whiteSpace: "nowrap",

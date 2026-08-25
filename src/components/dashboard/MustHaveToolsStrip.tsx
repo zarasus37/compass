@@ -175,8 +175,8 @@ export function MustHaveToolsStrip() {
     <section
       aria-label="Must-have tools index"
       style={{
-        background: "var(--cosmos-2)",
-        border: "1px solid var(--line)",
+        background: "var(--vessel-surface)",
+        border: "1px solid var(--vessel-border)",
         borderRadius: 4,
         padding: "16px 20px 18px",
         marginBottom: 28,
@@ -197,7 +197,7 @@ export function MustHaveToolsStrip() {
             fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 10.5,
             fontWeight: 600,
-            color: "var(--terminal-cyan)",
+            color: "var(--vessel-accent)",
             letterSpacing: "0.18em",
             textTransform: "uppercase",
             display: "inline-flex",
@@ -222,7 +222,7 @@ export function MustHaveToolsStrip() {
       </div>
 
       <div style={{ display: "grid", gap: 10 }}>
-        <Row label="// visualisations" tools={VIZ_TOOLS} accent="var(--terminal-cyan)" />
+        <Row label="// visualisations" tools={VIZ_TOOLS} accent="var(--vessel-accent)" />
         <Row label="// utilities" tools={FEATURE_TOOLS} accent="var(--gold)" />
       </div>
     </section>
@@ -325,9 +325,9 @@ function Chip({
         alignItems: "center",
         gap: 10,
         padding: "10px 12px",
-        background: isHovered ? "var(--cosmos)" : "var(--surface)",
-        border: "1px solid var(--line)",
-        borderLeft: `2px solid ${isHovered ? accent : "var(--line)"}`,
+        background: isHovered ? "var(--vessel-dark)" : "var(--vessel-surface)",
+        border: "1px solid var(--vessel-border)",
+        borderLeft: `2px solid ${isHovered ? accent : "var(--vessel-border)"}`,
         borderRadius: 3,
         textDecoration: "none",
         color: "inherit",
@@ -416,12 +416,12 @@ function Tooltip({ tool, accent }: { tool: Tool; accent: string }) {
         left: 0,
         right: 0,
         marginBottom: 6,
-        background: "var(--cosmos)",
+        background: "var(--vessel-dark)",
         border: `1px solid ${accent}`,
         borderLeft: `2px solid ${accent}`,
         borderRadius: 4,
         padding: "14px 18px",
-        boxShadow: "0 8px 24px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(45, 212, 191, 0.05) inset",
+        boxShadow: "0 8px 24px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(168, 85, 247, 0.05) inset",
         pointerEvents: "none", // don't block mouse from leaving the row
         animation: "mustHaveTooltipIn 160ms cubic-bezier(0.2, 0.7, 0.3, 1)",
         zIndex: 50,
@@ -494,7 +494,7 @@ function Tooltip({ tool, accent }: { tool: Tool; accent: string }) {
           gap: 10,
           alignItems: "baseline",
           paddingTop: 8,
-          borderTop: "1px solid var(--line)",
+          borderTop: "1px solid var(--vessel-border)",
         }}
       >
         <span

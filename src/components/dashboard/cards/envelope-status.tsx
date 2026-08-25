@@ -54,14 +54,14 @@ const STATUS_META: Record<
   over: {
     label: "OVER",
     marker: "[WARN]",
-    accent: "var(--neg)",
-    barColor: "var(--neg)",
+    accent: "var(--vessel-over)",
+    barColor: "var(--vessel-over)",
   },
   watch: {
     label: "WATCH",
     marker: "[WARN]",
-    accent: "var(--warn)",
-    barColor: "var(--warn)",
+    accent: "var(--vessel-watch)",
+    barColor: "var(--vessel-watch)",
   },
   calm: {
     label: "CALM",
@@ -78,8 +78,8 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
   return (
     <div
       style={{
-        background: "var(--cosmos-2)",
-        border: "1px solid var(--line)",
+        background: "var(--vessel-surface)",
+        border: "1px solid var(--vessel-border)",
         borderRadius: 3,
         overflow: "hidden",
       }}
@@ -157,7 +157,7 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
                 key={row.id}
                 style={{
                   padding: "14px 22px",
-                  borderTop: i === 0 ? "0" : "1px solid var(--line-soft)",
+                  borderTop: i === 0 ? "0" : "1px solid var(--vessel-border)",
                   display: "grid",
                   gridTemplateColumns: "auto 1fr auto auto",
                   alignItems: "center",
@@ -224,8 +224,8 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
                     style={{
                       position: "relative",
                       height: 3,
-                      background: "var(--cosmos)",
-                      border: "1px solid var(--line-soft)",
+                      background: "var(--vessel-dark)",
+                      border: "1px solid var(--vessel-border)",
                       borderRadius: 1,
                       overflow: "hidden",
                       marginTop: 4,
@@ -248,7 +248,7 @@ export function EnvelopeStatusCard({ data }: { data: EnvelopeStatusCardData }) {
                           inset: "0 auto 0 100%",
                           width: `${overflowRatio * 100}%`,
                           background:
-                            "repeating-linear-gradient(45deg, var(--neg), var(--neg) 3px, rgba(239, 68, 68, 0.3) 3px, rgba(239, 68, 68, 0.3) 6px)",
+                            "repeating-linear-gradient(45deg, var(--vessel-over), var(--vessel-over) 3px, rgba(239, 68, 68, 0.3) 3px, rgba(239, 68, 68, 0.3) 6px)",
                         }}
                       />
                     )}
@@ -381,7 +381,7 @@ function BurnSparkline({
             cy={y(cents[todayIdx] ?? 0)}
             r={1.8}
             fill={accent}
-            stroke="var(--cosmos-2)"
+            stroke="var(--vessel-surface)"
             strokeWidth={0.6}
           />
         </>

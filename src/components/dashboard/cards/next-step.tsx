@@ -51,8 +51,8 @@ export function NextStepCard({ data }: { data: NextStepCardData }) {
           fontWeight: 700,
           letterSpacing: "0.04em",
           background: calm ? "rgba(74, 222, 128, 0.10)" : "rgba(239, 68, 68, 0.12)",
-          color: calm ? "var(--ok)" : "var(--neg)",
-          border: `1px solid ${calm ? "var(--ok)" : "var(--neg)"}`,
+          color: calm ? "var(--ok)" : "var(--vessel-over)",
+          border: `1px solid ${calm ? "var(--ok)" : "var(--vessel-over)"}`,
           flexShrink: 0,
           lineHeight: 1,
         }}
@@ -120,7 +120,7 @@ export function NextStepCard({ data }: { data: NextStepCardData }) {
                     {sep}
                     <b
                       style={{
-                        color: "var(--neg)",
+                        color: "var(--vessel-over)",
                         fontWeight: 600,
                         fontFamily: "var(--font-sora)",
                       }}

@@ -69,8 +69,8 @@ export function DailyTrackingCard({ data }: { data: DailyTrackingCardData }) {
       ? "var(--ok)"
       : pace < 1.5
       ? "var(--ok)"
-      : "var(--warn)";
-  const safeAccent = safeToSpendCents < 0 ? "var(--neg)" : "var(--terminal-cyan)";
+      : "var(--vessel-watch)";
+  const safeAccent = safeToSpendCents < 0 ? "var(--vessel-over)" : "var(--vessel-accent)";
 
   return (
     <div
@@ -78,10 +78,10 @@ export function DailyTrackingCard({ data }: { data: DailyTrackingCardData }) {
         display: "grid",
         gridTemplateColumns: "1.4fr 1fr 1fr",
         gap: 0,
-        border: "1px solid var(--line)",
+        border: "1px solid var(--vessel-border)",
         borderRadius: 3,
         overflow: "hidden",
-        background: "var(--cosmos-2)",
+        background: "var(--vessel-surface)",
       }}
     >
       {/* SAFE TO SPEND — the headline */}
@@ -288,7 +288,7 @@ function WeekSparkline({
       <path
         d={path}
         fill="none"
-        stroke="var(--terminal-cyan)"
+        stroke="var(--vessel-accent)"
         strokeWidth={1.4}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -300,7 +300,7 @@ function WeekSparkline({
         cy={y(dailyCents[todayIdx] ?? 0)}
         r={2.5}
         fill={todayAccent}
-        stroke="var(--cosmos-2)"
+        stroke="var(--vessel-surface)"
         strokeWidth={1}
       />
       {/* Spike rings */}
@@ -337,7 +337,7 @@ function Cell({
     <div
       style={{
         padding: "20px 22px",
-        borderLeft: borderLeft ? "1px solid var(--line-soft)" : undefined,
+        borderLeft: borderLeft ? "1px solid var(--vessel-border)" : undefined,
         textAlign: align ?? "left",
         display: "flex",
         flexDirection: "column",

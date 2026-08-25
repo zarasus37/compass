@@ -529,7 +529,7 @@ export default async function Dashboard() {
             style={{
               fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 9.5,
-              color: overLimit.length === 0 ? "var(--ok)" : "var(--neg)",
+              color: overLimit.length === 0 ? "var(--ok)" : "var(--vessel-over)",
               letterSpacing: "0.18em",
               textTransform: "uppercase",
             }}
@@ -696,7 +696,7 @@ export default async function Dashboard() {
             alignItems: "flex-end",
             paddingBottom: 18,
             marginBottom: 24,
-            borderBottom: "1px solid var(--line)",
+            borderBottom: "1px solid var(--vessel-border)",
             position: "relative",
           }}
         >
@@ -705,7 +705,7 @@ export default async function Dashboard() {
               style={{
                 fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 10.5,
-                color: "var(--terminal-cyan)",
+                color: "var(--vessel-accent)",
                 fontWeight: 500,
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
@@ -728,7 +728,7 @@ export default async function Dashboard() {
                 color: "var(--ink)",
               }}
             >
-              Welcome back, <span style={{ color: "var(--terminal-cyan)" }}>Mom.</span>
+              Welcome back, <span style={{ color: "var(--vessel-accent)" }}>Mom.</span>
             </h1>
             <p
               style={{
@@ -751,8 +751,8 @@ export default async function Dashboard() {
               display: "inline-flex",
               alignItems: "center",
               gap: 10,
-              background: "var(--surface)",
-              border: "1px solid var(--line)",
+              background: "var(--vessel-surface)",
+              border: "1px solid var(--vessel-border)",
               borderRadius: 2,
               padding: "8px 14px",
               fontFamily: "var(--font-jetbrains), monospace",
@@ -815,8 +815,8 @@ export default async function Dashboard() {
           style={{
             marginBottom: 28,
             padding: "20px 0 28px",
-            borderTop: "1px solid var(--line)",
-            borderBottom: "1px solid var(--line)",
+            borderTop: "1px solid var(--vessel-border)",
+            borderBottom: "1px solid var(--vessel-border)",
           }}
         >
           <div
@@ -835,7 +835,7 @@ export default async function Dashboard() {
                   fontFamily: "var(--font-jetbrains), monospace",
                   fontSize: 10.5,
                   fontWeight: 600,
-                  color: "var(--terminal-cyan)",
+                  color: "var(--vessel-accent)",
                   letterSpacing: "0.18em",
                   textTransform: "uppercase",
                   display: "inline-flex",
@@ -895,7 +895,7 @@ export default async function Dashboard() {
             style={{
               marginTop: 48,
               paddingTop: 24,
-              borderTop: "1px solid var(--line)",
+              borderTop: "1px solid var(--vessel-border)",
               display: "flex",
               justifyContent: "space-between",
             alignItems: "center",
@@ -906,7 +906,7 @@ export default async function Dashboard() {
             textTransform: "uppercase",
           }}
         >
-          <span style={{ color: "var(--terminal-cyan)" }}>● COMPASS_ORACLE</span>
+          <span style={{ color: "var(--vessel-accent)" }}>● COMPASS_ORACLE</span>
           <span style={{ color: "var(--gold)" }}>A oracle for your money.</span>
           <span>v0.1 · 2026 · Q3</span>
         </footer>

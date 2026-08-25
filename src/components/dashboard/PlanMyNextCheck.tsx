@@ -83,8 +83,8 @@ export function PlanMyNextCheck({
   return (
     <section
       style={{
-        background: "var(--surface)",
-        border: "1px solid var(--line)",
+        background: "var(--vessel-surface)",
+        border: "1px solid var(--vessel-border)",
         borderRadius: 4,
         padding: "32px 36px 28px",
         marginBottom: 56,
@@ -136,7 +136,7 @@ export function PlanMyNextCheck({
           alignItems: "end",
           marginBottom: 24,
           paddingBottom: 24,
-          borderBottom: "1px solid var(--line-soft)",
+          borderBottom: "1px solid var(--vessel-border)",
         }}
       >
         <div>
@@ -184,9 +184,9 @@ export function PlanMyNextCheck({
               lineHeight: 1,
               color:
                 breakdown.unallocatedCents === 0
-                  ? "var(--neg)"
+                  ? "var(--vessel-over)"
                   : breakdown.unallocatedCents < safeFloor
-                  ? "var(--warn)"
+                  ? "var(--vessel-watch)"
                   : "var(--ok)",
               fontFeatureSettings: '"tnum" 1',
               textShadow:
@@ -216,7 +216,7 @@ export function PlanMyNextCheck({
               fontFamily: "var(--font-sora)",
               fontSize: 40,
               lineHeight: 1,
-              color: breakdown.billsExceedPaycheck ? "var(--neg)" : "var(--ink)",
+              color: breakdown.billsExceedPaycheck ? "var(--vessel-over)" : "var(--ink)",
               fontFeatureSettings: '"tnum" 1',
             }}
           >
@@ -231,7 +231,7 @@ export function PlanMyNextCheck({
           style={{
             background:
               "linear-gradient(90deg, rgba(196, 90, 58, 0.18) 0%, transparent 100%)",
-            border: "1px solid var(--neg)",
+            border: "1px solid var(--vessel-over)",
             borderRadius: 2,
             padding: "12px 16px",
             marginBottom: 20,
@@ -240,7 +240,7 @@ export function PlanMyNextCheck({
             gap: 12,
           }}
         >
-          <span style={{ color: "var(--neg)", fontSize: 18 }}>!</span>
+          <span style={{ color: "var(--vessel-over)", fontSize: 18 }}>!</span>
           <span
             style={{
               fontFamily: "var(--font-sora)",
@@ -249,7 +249,7 @@ export function PlanMyNextCheck({
             }}
           >
             Bills exceed the paycheck by{" "}
-            <b style={{ color: "var(--neg)", fontWeight: 600 }}>
+            <b style={{ color: "var(--vessel-over)", fontWeight: 600 }}>
               {formatMoney(overByCents)}
             </b>
             . Pull from the buffer or extend the timeline.
@@ -261,7 +261,7 @@ export function PlanMyNextCheck({
           style={{
             background:
               "linear-gradient(90deg, rgba(212, 160, 80, 0.18) 0%, transparent 100%)",
-            border: "1px solid var(--warn)",
+            border: "1px solid var(--vessel-watch)",
             borderRadius: 2,
             padding: "12px 16px",
             marginBottom: 20,
@@ -270,7 +270,7 @@ export function PlanMyNextCheck({
             gap: 12,
           }}
         >
-          <span style={{ color: "var(--warn)", fontSize: 18 }}>!</span>
+          <span style={{ color: "var(--vessel-watch)", fontSize: 18 }}>!</span>
           <span
             style={{
               fontFamily: "var(--font-sora)",
@@ -290,8 +290,8 @@ export function PlanMyNextCheck({
           display: "flex",
           width: "100%",
           height: 22,
-          background: "var(--cosmos)",
-          border: "1px solid var(--line-soft)",
+          background: "var(--vessel-dark)",
+          border: "1px solid var(--vessel-border)",
           borderRadius: 3,
           overflow: "hidden",
           marginBottom: 14,

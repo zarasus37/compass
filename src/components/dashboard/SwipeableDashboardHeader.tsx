@@ -109,7 +109,7 @@ export function SwipeableDashboardHeader({
             fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 10.5,
             fontWeight: 600,
-            color: "var(--terminal-cyan)",
+            color: "var(--vessel-accent)",
             letterSpacing: "0.20em",
             textTransform: "uppercase",
             display: "inline-flex",
@@ -199,8 +199,8 @@ export function SwipeableDashboardHeader({
           </DashboardCard>
           <div
             style={{
-              background: "var(--surface)",
-              border: "1px solid var(--line)",
+              background: "var(--vessel-surface)",
+              border: "1px solid var(--vessel-border)",
               borderRadius: 4,
               padding: "18px 22px 22px",
               display: "flex",
@@ -213,7 +213,7 @@ export function SwipeableDashboardHeader({
                 fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 10,
                 fontWeight: 600,
-                color: "var(--terminal-cyan)",
+                color: "var(--vessel-accent)",
                 letterSpacing: "0.20em",
                 textTransform: "uppercase",
                 marginBottom: 12,
@@ -228,8 +228,8 @@ export function SwipeableDashboardHeader({
                   width: 5,
                   height: 5,
                   borderRadius: "50%",
-                  background: "var(--terminal-cyan)",
-                  boxShadow: "0 0 6px var(--terminal-cyan)",
+                  background: "var(--vessel-accent)",
+                  boxShadow: "0 0 6px var(--vessel-accent)",
                 }}
               />
               // CHRONICLE · 14-DAY HORIZON
@@ -265,8 +265,8 @@ export function SwipeableDashboardHeader({
                 width: active ? 24 : 8,
                 height: 8,
                 borderRadius: 2,
-                background: active ? "var(--terminal-cyan)" : "var(--ink-5)",
-                boxShadow: active ? "0 0 6px var(--terminal-cyan)" : "none",
+                background: active ? "var(--vessel-accent)" : "var(--ink-5)",
+                boxShadow: active ? "0 0 6px var(--vessel-accent)" : "none",
                 border: 0,
                 padding: 0,
                 cursor: "pointer",
@@ -288,7 +288,7 @@ export function SwipeableDashboardHeader({
           display: none;
         }
         .swipeable-header-scroll:focus-visible {
-          outline: 1px solid var(--terminal-cyan);
+          outline: 1px solid var(--vessel-accent);
           outline-offset: 4px;
           border-radius: 4px;
         }
@@ -322,9 +322,9 @@ function ArrowButton({
         height: 30,
         display: "grid",
         placeItems: "center",
-        background: "var(--cosmos-2)",
-        color: disabled ? "var(--ink-5)" : "var(--terminal-cyan)",
-        border: `1px solid ${disabled ? "var(--line)" : "var(--terminal-cyan-dim)"}`,
+        background: "var(--vessel-surface)",
+        color: disabled ? "var(--ink-5)" : "var(--vessel-accent)",
+        border: `1px solid ${disabled ? "var(--vessel-border)" : "var(--vessel-accent-soft)"}`,
         borderRadius: 2,
         cursor: disabled ? "default" : "pointer",
         padding: 0,
@@ -333,13 +333,13 @@ function ArrowButton({
       }}
       onMouseEnter={(e) => {
         if (disabled) return;
-        e.currentTarget.style.background = "var(--cosmos-3)";
-        e.currentTarget.style.borderColor = "var(--terminal-cyan)";
+        e.currentTarget.style.background = "var(--vessel-dark)";
+        e.currentTarget.style.borderColor = "var(--vessel-accent)";
       }}
       onMouseLeave={(e) => {
         if (disabled) return;
-        e.currentTarget.style.background = "var(--cosmos-2)";
-        e.currentTarget.style.borderColor = "var(--terminal-cyan-dim)";
+        e.currentTarget.style.background = "var(--vessel-surface)";
+        e.currentTarget.style.borderColor = "var(--vessel-accent-soft)";
       }}
     >
       {glyph}

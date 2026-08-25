@@ -90,7 +90,7 @@ export function NetTrajectoryCard({ data }: { data: NetTrajectoryCardData }) {
             style={{
               fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 22,
-              color: "var(--terminal-cyan)",
+              color: "var(--vessel-accent)",
               fontFeatureSettings: '"tnum" 1, "zero" 1',
               fontWeight: 600,
             }}
@@ -137,12 +137,12 @@ export function NetTrajectoryCard({ data }: { data: NetTrajectoryCardData }) {
       <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} preserveAspectRatio="none">
         <defs>
           <linearGradient id="nt-grad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="var(--terminal-cyan)" stopOpacity="0.5" />
-            <stop offset="100%" stopColor="var(--terminal-cyan)" />
+            <stop offset="0%" stopColor="var(--vessel-accent)" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="var(--vessel-accent)" />
           </linearGradient>
           <linearGradient id="nt-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--terminal-cyan)" stopOpacity="0.32" />
-            <stop offset="100%" stopColor="var(--terminal-cyan)" stopOpacity="0" />
+            <stop offset="0%" stopColor="var(--vessel-accent)" stopOpacity="0.32" />
+            <stop offset="100%" stopColor="var(--vessel-accent)" stopOpacity="0" />
           </linearGradient>
         </defs>
         {/* grid lines */}
@@ -153,7 +153,7 @@ export function NetTrajectoryCard({ data }: { data: NetTrajectoryCardData }) {
             x2={w - padX}
             y1={padY + innerH * p}
             y2={padY + innerH * p}
-            stroke="var(--line-soft)"
+            stroke="var(--vessel-border)"
             strokeWidth="0.5"
             strokeDasharray="2 3"
           />
@@ -193,8 +193,8 @@ export function NetTrajectoryCard({ data }: { data: NetTrajectoryCardData }) {
           strokeLinejoin="round"
         />
         {/* now dot */}
-        <circle cx={currentX} cy={currentY} r="3" fill="var(--terminal-cyan)" />
-        <circle cx={currentX} cy={currentY} r="5" fill="none" stroke="var(--terminal-cyan)" strokeWidth="0.5" opacity="0.5" />
+        <circle cx={currentX} cy={currentY} r="3" fill="var(--vessel-accent)" />
+        <circle cx={currentX} cy={currentY} r="5" fill="none" stroke="var(--vessel-accent)" strokeWidth="0.5" opacity="0.5" />
         {/* 12mo dot */}
         <circle cx={futureX} cy={futureY} r="3" fill="var(--jupiter)" />
         <circle cx={futureX} cy={futureY} r="5" fill="none" stroke="var(--jupiter)" strokeWidth="0.5" opacity="0.5" />

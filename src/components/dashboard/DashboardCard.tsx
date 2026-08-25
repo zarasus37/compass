@@ -55,10 +55,10 @@ export interface DashboardCardProps {
 
 const ACCENT_VAR: Record<CardAccent, string> = {
   gold: "var(--gold)",
-  warn: "var(--warn)",
-  neg: "var(--neg)",
+  warn: "var(--vessel-watch)",
+  neg: "var(--vessel-over)",
   ok: "var(--ok)",
-  cyan: "var(--terminal-cyan)",
+  cyan: "var(--vessel-accent)",
   jupiter: "var(--jupiter)",
   saturn: "var(--saturn)",
   venus: "var(--venus)",
@@ -70,10 +70,10 @@ const ACCENT_VAR: Record<CardAccent, string> = {
 
 const ACCENT_TINT: Record<CardAccent, string> = {
   gold: "rgba(201, 164, 92, 0.08)",
-  warn: "rgba(245, 158, 11, 0.08)",
+  warn: "rgba(249, 115, 22, 0.08)",
   neg: "rgba(239, 68, 68, 0.10)",
   ok: "rgba(74, 222, 128, 0.08)",
-  cyan: "rgba(45, 212, 191, 0.10)",
+  cyan: "rgba(168, 85, 247, 0.10)",
   jupiter: "rgba(196, 181, 253, 0.10)",
   saturn: "rgba(148, 163, 184, 0.08)",
   venus: "rgba(252, 165, 165, 0.10)",
@@ -106,9 +106,9 @@ export function DashboardCard({
     <div
       style={{
         position: "relative",
-        background: `${tint}, var(--surface)`,
+        background: `${tint}, var(--vessel-surface)`,
         backgroundBlendMode: "normal" as const,
-        border: "1px solid var(--line)",
+        border: "1px solid var(--vessel-border)",
         borderLeft: `1px solid ${accentColor}`,
         borderRadius: 4,
         padding: "20px 22px 18px",
@@ -130,8 +130,8 @@ export function DashboardCard({
             display: "inline-flex",
             alignItems: "center",
             gap: 2,
-            background: "var(--cosmos-2)",
-            border: "1px solid var(--line)",
+            background: "var(--vessel-surface)",
+            border: "1px solid var(--vessel-border)",
             borderRadius: 2,
             padding: 2,
             zIndex: 2,
@@ -314,7 +314,7 @@ function EditButton({
         color: disabled
           ? "var(--ink-5)"
           : danger
-          ? "var(--neg)"
+          ? "var(--vessel-over)"
           : "var(--ink-2)",
         border: 0,
         borderRadius: 1,
@@ -327,7 +327,7 @@ function EditButton({
         if (disabled) return;
         e.currentTarget.style.background = danger
           ? "rgba(239, 68, 68, 0.18)"
-          : "rgba(45, 212, 191, 0.18)";
+          : "rgba(168, 85, 247, 0.18)";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = "transparent";
