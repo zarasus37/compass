@@ -110,6 +110,10 @@ export interface Goal {
   /** TRANSFER (auto money movement) or MILESTONE (destination amount).
    *  Mirrors the Prisma `GoalKind` enum. */
   kind: GoalKindSeed;
+  /** EMERGENCY = canonical Emergency Fund. INVEST = long-horizon
+   *  investment goal. Null for custom goals. The /goals page filters
+   *  by `?kind=emergency|invest` which maps to this field. */
+  goalType: "EMERGENCY" | "INVEST" | null;
 }
 
 export interface Transaction {
@@ -225,6 +229,7 @@ function seedState(): StoreState {
       perPaycheckCents: g.perPaycheckCents,
       isPrimary: g.isPrimary,
       kind: g.kind,
+      goalType: g.goalType ?? null,
     })),
     transactions: TRANSACTIONS_SEED.map((t: TransactionSeed) => ({
       id: t.id,
@@ -396,6 +401,7 @@ export function addGoal(input: {
   envelopeId: string | null;
   perPaycheckCents: number;
   isPrimary: boolean;
+  goalType?: "EMERGENCY" | "INVEST" | null;
 }): { ok: boolean; reason?: string; goal?: Goal } {
   if (!input.name || input.name.trim().length === 0) {
     return { ok: false, reason: "Name is required." };
@@ -427,6 +433,7 @@ export function addGoal(input: {
     perPaycheckCents: Math.max(0, Math.round(input.perPaycheckCents)),
     isPrimary: input.isPrimary,
     kind: "MILESTONE", // default; UI can flip to TRANSFER when the user arms a sweep rule
+    goalType: input.goalType ?? null,
   };
   s.goals.push(goal);
 

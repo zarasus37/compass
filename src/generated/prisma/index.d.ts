@@ -108,11 +108,23 @@ export namespace $Enums {
 
 export type GoalKind = (typeof GoalKind)[keyof typeof GoalKind]
 
+
+export const GoalType: {
+  EMERGENCY: 'EMERGENCY',
+  INVEST: 'INVEST'
+};
+
+export type GoalType = (typeof GoalType)[keyof typeof GoalType]
+
 }
 
 export type GoalKind = $Enums.GoalKind
 
 export const GoalKind: typeof $Enums.GoalKind
+
+export type GoalType = $Enums.GoalType
+
+export const GoalType: typeof $Enums.GoalType
 
 /**
  * ##  Prisma Client ʲˢ
@@ -9699,6 +9711,7 @@ export namespace Prisma {
     planet: string | null
     isPrimary: boolean | null
     kind: $Enums.GoalKind | null
+    goalType: $Enums.GoalType | null
     sortOrder: number | null
     isArchived: boolean | null
     createdAt: Date | null
@@ -9717,6 +9730,7 @@ export namespace Prisma {
     planet: string | null
     isPrimary: boolean | null
     kind: $Enums.GoalKind | null
+    goalType: $Enums.GoalType | null
     sortOrder: number | null
     isArchived: boolean | null
     createdAt: Date | null
@@ -9735,6 +9749,7 @@ export namespace Prisma {
     planet: number
     isPrimary: number
     kind: number
+    goalType: number
     sortOrder: number
     isArchived: number
     createdAt: number
@@ -9767,6 +9782,7 @@ export namespace Prisma {
     planet?: true
     isPrimary?: true
     kind?: true
+    goalType?: true
     sortOrder?: true
     isArchived?: true
     createdAt?: true
@@ -9785,6 +9801,7 @@ export namespace Prisma {
     planet?: true
     isPrimary?: true
     kind?: true
+    goalType?: true
     sortOrder?: true
     isArchived?: true
     createdAt?: true
@@ -9803,6 +9820,7 @@ export namespace Prisma {
     planet?: true
     isPrimary?: true
     kind?: true
+    goalType?: true
     sortOrder?: true
     isArchived?: true
     createdAt?: true
@@ -9908,6 +9926,7 @@ export namespace Prisma {
     planet: string | null
     isPrimary: boolean
     kind: $Enums.GoalKind
+    goalType: $Enums.GoalType | null
     sortOrder: number
     isArchived: boolean
     createdAt: Date
@@ -9945,6 +9964,7 @@ export namespace Prisma {
     planet?: boolean
     isPrimary?: boolean
     kind?: boolean
+    goalType?: boolean
     sortOrder?: boolean
     isArchived?: boolean
     createdAt?: boolean
@@ -9964,6 +9984,7 @@ export namespace Prisma {
     planet?: boolean
     isPrimary?: boolean
     kind?: boolean
+    goalType?: boolean
     sortOrder?: boolean
     isArchived?: boolean
     createdAt?: boolean
@@ -9983,6 +10004,7 @@ export namespace Prisma {
     planet?: boolean
     isPrimary?: boolean
     kind?: boolean
+    goalType?: boolean
     sortOrder?: boolean
     isArchived?: boolean
     createdAt?: boolean
@@ -10002,13 +10024,14 @@ export namespace Prisma {
     planet?: boolean
     isPrimary?: boolean
     kind?: boolean
+    goalType?: boolean
     sortOrder?: boolean
     isArchived?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type GoalOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "name" | "description" | "targetAmount" | "currentAmount" | "targetDate" | "envelopeId" | "planet" | "isPrimary" | "kind" | "sortOrder" | "isArchived" | "createdAt" | "updatedAt", ExtArgs["result"]["goal"]>
+  export type GoalOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "name" | "description" | "targetAmount" | "currentAmount" | "targetDate" | "envelopeId" | "planet" | "isPrimary" | "kind" | "goalType" | "sortOrder" | "isArchived" | "createdAt" | "updatedAt", ExtArgs["result"]["goal"]>
   export type GoalInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
   }
@@ -10061,6 +10084,13 @@ export namespace Prisma {
        * name-pattern regex in the HorizonStrip's transfer detection.
        */
       kind: $Enums.GoalKind
+      /**
+       * EMERGENCY = the canonical Emergency Fund goal.
+       * INVEST = the long-horizon investment goal.
+       * Null for custom goals (trip, purchase, anything else).
+       * The /goals page filters by `?kind=emergency|invest`.
+       */
+      goalType: $Enums.GoalType | null
       sortOrder: number
       isArchived: boolean
       createdAt: Date
@@ -10500,6 +10530,7 @@ export namespace Prisma {
     readonly planet: FieldRef<"Goal", 'String'>
     readonly isPrimary: FieldRef<"Goal", 'Boolean'>
     readonly kind: FieldRef<"Goal", 'GoalKind'>
+    readonly goalType: FieldRef<"Goal", 'GoalType'>
     readonly sortOrder: FieldRef<"Goal", 'Int'>
     readonly isArchived: FieldRef<"Goal", 'Boolean'>
     readonly createdAt: FieldRef<"Goal", 'DateTime'>
@@ -16436,6 +16467,7 @@ export namespace Prisma {
     planet: 'planet',
     isPrimary: 'isPrimary',
     kind: 'kind',
+    goalType: 'goalType',
     sortOrder: 'sortOrder',
     isArchived: 'isArchived',
     createdAt: 'createdAt',
@@ -16557,6 +16589,13 @@ export namespace Prisma {
    * Reference to a field of type 'GoalKind'
    */
   export type EnumGoalKindFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'GoalKind'>
+    
+
+
+  /**
+   * Reference to a field of type 'GoalType'
+   */
+  export type EnumGoalTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'GoalType'>
     
 
 
@@ -17162,6 +17201,7 @@ export namespace Prisma {
     planet?: StringNullableFilter<"Goal"> | string | null
     isPrimary?: BoolFilter<"Goal"> | boolean
     kind?: EnumGoalKindFilter<"Goal"> | $Enums.GoalKind
+    goalType?: EnumGoalTypeNullableFilter<"Goal"> | $Enums.GoalType | null
     sortOrder?: IntFilter<"Goal"> | number
     isArchived?: BoolFilter<"Goal"> | boolean
     createdAt?: DateTimeFilter<"Goal"> | Date | string
@@ -17181,6 +17221,7 @@ export namespace Prisma {
     planet?: SortOrderInput | SortOrder
     isPrimary?: SortOrder
     kind?: SortOrder
+    goalType?: SortOrderInput | SortOrder
     sortOrder?: SortOrder
     isArchived?: SortOrder
     createdAt?: SortOrder
@@ -17203,6 +17244,7 @@ export namespace Prisma {
     planet?: StringNullableFilter<"Goal"> | string | null
     isPrimary?: BoolFilter<"Goal"> | boolean
     kind?: EnumGoalKindFilter<"Goal"> | $Enums.GoalKind
+    goalType?: EnumGoalTypeNullableFilter<"Goal"> | $Enums.GoalType | null
     sortOrder?: IntFilter<"Goal"> | number
     isArchived?: BoolFilter<"Goal"> | boolean
     createdAt?: DateTimeFilter<"Goal"> | Date | string
@@ -17222,6 +17264,7 @@ export namespace Prisma {
     planet?: SortOrderInput | SortOrder
     isPrimary?: SortOrder
     kind?: SortOrder
+    goalType?: SortOrderInput | SortOrder
     sortOrder?: SortOrder
     isArchived?: SortOrder
     createdAt?: SortOrder
@@ -17248,6 +17291,7 @@ export namespace Prisma {
     planet?: StringNullableWithAggregatesFilter<"Goal"> | string | null
     isPrimary?: BoolWithAggregatesFilter<"Goal"> | boolean
     kind?: EnumGoalKindWithAggregatesFilter<"Goal"> | $Enums.GoalKind
+    goalType?: EnumGoalTypeNullableWithAggregatesFilter<"Goal"> | $Enums.GoalType | null
     sortOrder?: IntWithAggregatesFilter<"Goal"> | number
     isArchived?: BoolWithAggregatesFilter<"Goal"> | boolean
     createdAt?: DateTimeWithAggregatesFilter<"Goal"> | Date | string
@@ -18213,6 +18257,7 @@ export namespace Prisma {
     planet?: string | null
     isPrimary?: boolean
     kind?: $Enums.GoalKind
+    goalType?: $Enums.GoalType | null
     sortOrder?: number
     isArchived?: boolean
     createdAt?: Date | string
@@ -18232,6 +18277,7 @@ export namespace Prisma {
     planet?: string | null
     isPrimary?: boolean
     kind?: $Enums.GoalKind
+    goalType?: $Enums.GoalType | null
     sortOrder?: number
     isArchived?: boolean
     createdAt?: Date | string
@@ -18249,6 +18295,7 @@ export namespace Prisma {
     planet?: NullableStringFieldUpdateOperationsInput | string | null
     isPrimary?: BoolFieldUpdateOperationsInput | boolean
     kind?: EnumGoalKindFieldUpdateOperationsInput | $Enums.GoalKind
+    goalType?: NullableEnumGoalTypeFieldUpdateOperationsInput | $Enums.GoalType | null
     sortOrder?: IntFieldUpdateOperationsInput | number
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -18268,6 +18315,7 @@ export namespace Prisma {
     planet?: NullableStringFieldUpdateOperationsInput | string | null
     isPrimary?: BoolFieldUpdateOperationsInput | boolean
     kind?: EnumGoalKindFieldUpdateOperationsInput | $Enums.GoalKind
+    goalType?: NullableEnumGoalTypeFieldUpdateOperationsInput | $Enums.GoalType | null
     sortOrder?: IntFieldUpdateOperationsInput | number
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -18286,6 +18334,7 @@ export namespace Prisma {
     planet?: string | null
     isPrimary?: boolean
     kind?: $Enums.GoalKind
+    goalType?: $Enums.GoalType | null
     sortOrder?: number
     isArchived?: boolean
     createdAt?: Date | string
@@ -18303,6 +18352,7 @@ export namespace Prisma {
     planet?: NullableStringFieldUpdateOperationsInput | string | null
     isPrimary?: BoolFieldUpdateOperationsInput | boolean
     kind?: EnumGoalKindFieldUpdateOperationsInput | $Enums.GoalKind
+    goalType?: NullableEnumGoalTypeFieldUpdateOperationsInput | $Enums.GoalType | null
     sortOrder?: IntFieldUpdateOperationsInput | number
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -18321,6 +18371,7 @@ export namespace Prisma {
     planet?: NullableStringFieldUpdateOperationsInput | string | null
     isPrimary?: BoolFieldUpdateOperationsInput | boolean
     kind?: EnumGoalKindFieldUpdateOperationsInput | $Enums.GoalKind
+    goalType?: NullableEnumGoalTypeFieldUpdateOperationsInput | $Enums.GoalType | null
     sortOrder?: IntFieldUpdateOperationsInput | number
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -19199,6 +19250,13 @@ export namespace Prisma {
     not?: NestedEnumGoalKindFilter<$PrismaModel> | $Enums.GoalKind
   }
 
+  export type EnumGoalTypeNullableFilter<$PrismaModel = never> = {
+    equals?: $Enums.GoalType | EnumGoalTypeFieldRefInput<$PrismaModel> | null
+    in?: $Enums.GoalType[] | null
+    notIn?: $Enums.GoalType[] | null
+    not?: NestedEnumGoalTypeNullableFilter<$PrismaModel> | $Enums.GoalType | null
+  }
+
   export type GoalCountOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
@@ -19211,6 +19269,7 @@ export namespace Prisma {
     planet?: SortOrder
     isPrimary?: SortOrder
     kind?: SortOrder
+    goalType?: SortOrder
     sortOrder?: SortOrder
     isArchived?: SortOrder
     createdAt?: SortOrder
@@ -19235,6 +19294,7 @@ export namespace Prisma {
     planet?: SortOrder
     isPrimary?: SortOrder
     kind?: SortOrder
+    goalType?: SortOrder
     sortOrder?: SortOrder
     isArchived?: SortOrder
     createdAt?: SortOrder
@@ -19253,6 +19313,7 @@ export namespace Prisma {
     planet?: SortOrder
     isPrimary?: SortOrder
     kind?: SortOrder
+    goalType?: SortOrder
     sortOrder?: SortOrder
     isArchived?: SortOrder
     createdAt?: SortOrder
@@ -19287,6 +19348,16 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumGoalKindFilter<$PrismaModel>
     _max?: NestedEnumGoalKindFilter<$PrismaModel>
+  }
+
+  export type EnumGoalTypeNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.GoalType | EnumGoalTypeFieldRefInput<$PrismaModel> | null
+    in?: $Enums.GoalType[] | null
+    notIn?: $Enums.GoalType[] | null
+    not?: NestedEnumGoalTypeNullableWithAggregatesFilter<$PrismaModel> | $Enums.GoalType | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedEnumGoalTypeNullableFilter<$PrismaModel>
+    _max?: NestedEnumGoalTypeNullableFilter<$PrismaModel>
   }
 
   export type AllocationPlanCountOrderByAggregateInput = {
@@ -20134,6 +20205,10 @@ export namespace Prisma {
     set?: $Enums.GoalKind
   }
 
+  export type NullableEnumGoalTypeFieldUpdateOperationsInput = {
+    set?: $Enums.GoalType | null
+  }
+
   export type UserUpdateOneRequiredWithoutGoalsNestedInput = {
     create?: XOR<UserCreateWithoutGoalsInput, UserUncheckedCreateWithoutGoalsInput>
     connectOrCreate?: UserCreateOrConnectWithoutGoalsInput
@@ -20415,6 +20490,13 @@ export namespace Prisma {
     not?: NestedEnumGoalKindFilter<$PrismaModel> | $Enums.GoalKind
   }
 
+  export type NestedEnumGoalTypeNullableFilter<$PrismaModel = never> = {
+    equals?: $Enums.GoalType | EnumGoalTypeFieldRefInput<$PrismaModel> | null
+    in?: $Enums.GoalType[] | null
+    notIn?: $Enums.GoalType[] | null
+    not?: NestedEnumGoalTypeNullableFilter<$PrismaModel> | $Enums.GoalType | null
+  }
+
   export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
     equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
     in?: Date[] | string[] | null
@@ -20437,6 +20519,16 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumGoalKindFilter<$PrismaModel>
     _max?: NestedEnumGoalKindFilter<$PrismaModel>
+  }
+
+  export type NestedEnumGoalTypeNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.GoalType | EnumGoalTypeFieldRefInput<$PrismaModel> | null
+    in?: $Enums.GoalType[] | null
+    notIn?: $Enums.GoalType[] | null
+    not?: NestedEnumGoalTypeNullableWithAggregatesFilter<$PrismaModel> | $Enums.GoalType | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedEnumGoalTypeNullableFilter<$PrismaModel>
+    _max?: NestedEnumGoalTypeNullableFilter<$PrismaModel>
   }
 
   export type NestedIntNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -20668,6 +20760,7 @@ export namespace Prisma {
     planet?: string | null
     isPrimary?: boolean
     kind?: $Enums.GoalKind
+    goalType?: $Enums.GoalType | null
     sortOrder?: number
     isArchived?: boolean
     createdAt?: Date | string
@@ -20685,6 +20778,7 @@ export namespace Prisma {
     planet?: string | null
     isPrimary?: boolean
     kind?: $Enums.GoalKind
+    goalType?: $Enums.GoalType | null
     sortOrder?: number
     isArchived?: boolean
     createdAt?: Date | string
@@ -20954,6 +21048,7 @@ export namespace Prisma {
     planet?: StringNullableFilter<"Goal"> | string | null
     isPrimary?: BoolFilter<"Goal"> | boolean
     kind?: EnumGoalKindFilter<"Goal"> | $Enums.GoalKind
+    goalType?: EnumGoalTypeNullableFilter<"Goal"> | $Enums.GoalType | null
     sortOrder?: IntFilter<"Goal"> | number
     isArchived?: BoolFilter<"Goal"> | boolean
     createdAt?: DateTimeFilter<"Goal"> | Date | string
@@ -22525,6 +22620,7 @@ export namespace Prisma {
     planet?: string | null
     isPrimary?: boolean
     kind?: $Enums.GoalKind
+    goalType?: $Enums.GoalType | null
     sortOrder?: number
     isArchived?: boolean
     createdAt?: Date | string
@@ -22774,6 +22870,7 @@ export namespace Prisma {
     planet?: NullableStringFieldUpdateOperationsInput | string | null
     isPrimary?: BoolFieldUpdateOperationsInput | boolean
     kind?: EnumGoalKindFieldUpdateOperationsInput | $Enums.GoalKind
+    goalType?: NullableEnumGoalTypeFieldUpdateOperationsInput | $Enums.GoalType | null
     sortOrder?: IntFieldUpdateOperationsInput | number
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -22791,6 +22888,7 @@ export namespace Prisma {
     planet?: NullableStringFieldUpdateOperationsInput | string | null
     isPrimary?: BoolFieldUpdateOperationsInput | boolean
     kind?: EnumGoalKindFieldUpdateOperationsInput | $Enums.GoalKind
+    goalType?: NullableEnumGoalTypeFieldUpdateOperationsInput | $Enums.GoalType | null
     sortOrder?: IntFieldUpdateOperationsInput | number
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -22808,6 +22906,7 @@ export namespace Prisma {
     planet?: NullableStringFieldUpdateOperationsInput | string | null
     isPrimary?: BoolFieldUpdateOperationsInput | boolean
     kind?: EnumGoalKindFieldUpdateOperationsInput | $Enums.GoalKind
+    goalType?: NullableEnumGoalTypeFieldUpdateOperationsInput | $Enums.GoalType | null
     sortOrder?: IntFieldUpdateOperationsInput | number
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string

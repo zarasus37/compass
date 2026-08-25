@@ -123,6 +123,7 @@ function toDisplayGoal(g: Goal) {
     perPaycheckCents: g.perPaycheckCents,
     isPrimary: g.isPrimary,
     kind: g.kind,
+    goalType: g.goalType ?? null,
   };
 }
 

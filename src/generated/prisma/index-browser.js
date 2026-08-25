@@ -216,6 +216,7 @@ exports.Prisma.GoalScalarFieldEnum = {
   planet: 'planet',
   isPrimary: 'isPrimary',
   kind: 'kind',
+  goalType: 'goalType',
   sortOrder: 'sortOrder',
   isArchived: 'isArchived',
   createdAt: 'createdAt',
@@ -278,6 +279,11 @@ exports.Prisma.NullsOrder = {
 exports.GoalKind = exports.$Enums.GoalKind = {
   TRANSFER: 'TRANSFER',
   MILESTONE: 'MILESTONE'
+};
+
+exports.GoalType = exports.$Enums.GoalType = {
+  EMERGENCY: 'EMERGENCY',
+  INVEST: 'INVEST'
 };
 
 exports.Prisma.ModelName = {

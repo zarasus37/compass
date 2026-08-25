@@ -43,6 +43,7 @@ export const ENVELOPES_SEED: EnvelopeSeed[] = [
 ];
 
 export type GoalKindSeed = "TRANSFER" | "MILESTONE";
+export type GoalTypeSeed = "EMERGENCY" | "INVEST";
 
 export interface GoalSeed {
   id: string;
@@ -59,6 +60,11 @@ export interface GoalSeed {
    *  MILESTONE = a destination amount the user is working toward.
    *  Mirrors the Prisma `GoalKind` enum. */
   kind: GoalKindSeed;
+  /** EMERGENCY = the canonical Emergency Fund goal.
+   *  INVEST = the long-horizon investment goal.
+   *  Null for custom goals (trip, purchase, anything else).
+   *  Mirrors the Prisma `GoalType` enum. */
+  goalType: GoalTypeSeed | null;
 }
 
 export const GOALS_SEED: GoalSeed[] = [
@@ -74,6 +80,21 @@ export const GOALS_SEED: GoalSeed[] = [
     perPaycheckCents: 43_200, // $432
     isPrimary: true,
     kind: "TRANSFER",         // auto-sweep from paycheck → savings
+    goalType: "EMERGENCY",
+  },
+  {
+    id: "goal-invest",
+    name: "Investment Goal",
+    description: "The long-horizon money. Compounding does most of the work; keep feeding it through the cycles.",
+    planet: "jupiter",
+    targetCents: 120_000_000, // $1,200,000 (target at age 65)
+    currentCents: 5_080_000,  // $50,800 (today)
+    targetDate: new Date("2048-01-01"),
+    envelopeId: "env-savings",
+    perPaycheckCents: 40_000, // $400 / month (allocation-driven)
+    isPrimary: false,
+    kind: "MILESTONE",        // a destination amount to hit
+    goalType: "INVEST",
   },
   {
     id: "goal-debt",
@@ -87,6 +108,7 @@ export const GOALS_SEED: GoalSeed[] = [
     perPaycheckCents: 0,
     isPrimary: false,
     kind: "MILESTONE",        // a destination amount to hit
+    goalType: null,
   },
   {
     id: "goal-visit",
@@ -100,6 +122,7 @@ export const GOALS_SEED: GoalSeed[] = [
     perPaycheckCents: 0,
     isPrimary: false,
     kind: "MILESTONE",        // saving up for a trip
+    goalType: null,
   },
 ];
 

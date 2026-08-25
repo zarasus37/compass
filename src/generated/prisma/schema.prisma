@@ -12,6 +12,23 @@ enum GoalKind {
   MILESTONE
 }
 
+/// User-facing goal category (Cluster 4.2). Separate from `kind`:
+/// - `kind` (TRANSFER | MILESTONE) is the engine mechanic — how the
+///   goal works (auto-sweep vs. save-up-to-target).
+/// - `goalType` (EMERGENCY | INVEST) is what the goal is for. The
+///   deep-links `/goals?kind=emergency` and `/goals?kind=invest` map
+///   to these. The redirect from the old `/emergency` and `/invest`
+///   pages lands here.
+///
+/// Null is allowed for custom goals (trip, purchase, anything else
+/// that doesn't fit the canonical categories). The `/goals` page
+/// shows an "ALL" tab by default; the kind param narrows to one
+/// category.
+enum GoalType {
+  EMERGENCY
+  INVEST
+}
+
 generator client {
   provider = "prisma-client-js"
   // Pin the client to src/generated/prisma so pnpm can resolve it
@@ -230,6 +247,11 @@ model Goal {
   /// (e.g. "Debt Free", "Visit Family"). Replaces the brittle
   /// name-pattern regex in the HorizonStrip's transfer detection.
   kind          GoalKind  @default(MILESTONE)
+  /// EMERGENCY = the canonical Emergency Fund goal.
+  /// INVEST = the long-horizon investment goal.
+  /// Null for custom goals (trip, purchase, anything else).
+  /// The /goals page filters by `?kind=emergency|invest`.
+  goalType      GoalType?
   sortOrder     Int       @default(0)
   isArchived    Boolean   @default(false)
   createdAt     DateTime  @default(now())
