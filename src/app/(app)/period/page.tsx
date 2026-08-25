@@ -19,6 +19,7 @@ import {
   addDays,
   daysBetween,
 } from "@/lib/format";
+import { PRIOR_PERIODS } from "@/lib/mock-seed";
 
 export const dynamic = "force-dynamic";
 
@@ -27,10 +28,17 @@ export const dynamic = "force-dynamic";
  *
  * Component Oracle Terminal treatment: mono caps section headers
  * with // prefix, JetBrains Mono for amounts and the day counter,
- * Sora for section titles and the "days until paycheck" headline.
- * Today highlight in gold (semantic). The Mandala is preserved as
- * the visual centerpiece (it shows the period arc), but with
- * terminal styling around it.
+ * Sora for section titles. The Mandala is preserved as the visual
+ * centerpiece.
+ *
+ * Three Period-specific visualizations live here:
+ *   1. Pace projection — a cumulative-spend curve over the day-by-day
+ *      timeline with a forward projection line ("at this rate, you'll
+ *      finish at $X").
+ *   2. Closing balance bridge — a stacked-bar walk from Start →
+ *      +Income → −Spending → Projected.
+ *   3. Period comparison — a grouped bar chart of the last 3 periods'
+ *      income / spending / carry.
  */
 export default function PeriodPage() {
   const ENVELOPES = liveEnvelopes();
@@ -43,7 +51,9 @@ export default function PeriodPage() {
   const totalIncome = TRANSACTIONS.filter((t) => t.amountCents > 0).reduce((s, t) => s + t.amountCents, 0);
   const totalExpense = TRANSACTIONS.filter((t) => t.amountCents < 0).reduce((s, t) => s + t.amountCents, 0);
   const totalDistill = ENVELOPES.reduce((s, e) => s + e.target, 0);
-  const projectedBalance = 240_000 - totalDistill;
+  // Closing-balance walk components
+  const startBalanceCents = 240_000; // carry-in from prior period
+  const projectedBalanceCents = startBalanceCents + totalIncome + totalExpense;
 
   return (
     <div>
@@ -195,7 +205,7 @@ export default function PeriodPage() {
             <PeriodStat label="period income" value={formatMoney(totalIncome)} accent="cyan" sub={`Paycheck ${formatShortDate(TODAY)}`} />
             <PeriodStat label="period spending" value={formatMoneySigned(totalExpense)} sub={`${totalDays - day} days left`} />
             <PeriodStat label="allocated" value={formatMoney(totalDistill)} sub="across 7 envelopes" />
-            <PeriodStat label="projected carry" value={formatMoney(projectedBalance)} sub="after next paycheck" accent={projectedBalance < 0 ? "neg" : "ok"} />
+            <PeriodStat label="projected carry" value={formatMoney(projectedBalanceCents)} sub="after next paycheck" accent={projectedBalanceCents < 0 ? "neg" : "ok"} />
           </div>
         </div>
       </section>
@@ -285,244 +295,49 @@ export default function PeriodPage() {
         </div>
       </section>
 
-      {/* Day-by-day timeline */}
+      {/* Day-by-day timeline + pace projection */}
       <section style={{ marginBottom: 64 }}>
-        <SectionHeader title="Day by day" em="what's happened this period." />
-        <div
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--line)",
-            borderRadius: 4,
-            padding: 24,
-            display: "grid",
-            gridTemplateColumns: "repeat(14, 1fr)",
-            gap: 6,
-          }}
-        >
-          {Array.from({ length: totalDays }, (_, i) => {
-            const date = addDays(PERIOD_START, i);
-            const isToday = i + 1 === day;
-            const isPast = i + 1 < day;
-            const txCount = TRANSACTIONS.filter((t) => t.date.getTime() === date.getTime()).length;
-            return (
-              <div
-                key={i}
-                style={{
-                  aspectRatio: "1",
-                  border: `1px solid ${isToday ? "var(--gold)" : "var(--line-soft)"}`,
-                  background: isToday
-                    ? "rgba(201, 164, 92, 0.10)"
-                    : isPast
-                    ? "var(--cosmos)"
-                    : "transparent",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 2,
-                  fontSize: 11,
-                  fontFamily: "var(--font-jetbrains), monospace",
-                  fontFeatureSettings: '"tnum" 1',
-                  color: isToday ? "var(--gold)" : isPast ? "var(--ink-2)" : "var(--ink-4)",
-                  fontWeight: isToday ? 700 : 500,
-                }}
-              >
-                <div style={{ fontSize: 8, color: "var(--ink-3)" }}>{formatShortDate(date).split(" ")[0]}</div>
-                <div>{i + 1}</div>
-                {txCount > 0 && (
-                  <div
-                    style={{
-                      width: 4,
-                      height: 4,
-                      borderRadius: "50%",
-                      background: isToday ? "var(--gold)" : "var(--gold-soft)",
-                    }}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-        <div
-          style={{
-            display: "flex",
-            gap: 24,
-            marginTop: 16,
-            fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 10.5,
-            color: "var(--ink-3)",
-            letterSpacing: "0.10em",
-            textTransform: "uppercase",
-          }}
-        >
-          <span>
-            <span
-              style={{
-                display: "inline-block",
-                width: 8,
-                height: 8,
-                background: "var(--gold)",
-                borderRadius: "50%",
-                marginRight: 6,
-                verticalAlign: "middle",
-              }}
-            />
-            Today
-          </span>
-          <span>
-            <span
-              style={{
-                display: "inline-block",
-                width: 4,
-                height: 4,
-                background: "var(--gold)",
-                borderRadius: "50%",
-                marginRight: 6,
-                verticalAlign: "middle",
-              }}
-            />
-            Has transactions
-          </span>
-        </div>
+        <SectionHeader
+          title="Day by day · pace"
+          em="cumulative spending this period, with a forward projection."
+        />
+        <PaceProjection
+          periodStart={PERIOD_START}
+          periodEnd={PERIOD_END}
+          today={TODAY}
+          transactions={TRANSACTIONS}
+        />
       </section>
 
-      {/* Closing balance walk */}
-      <section>
-        <div
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--line)",
-            borderRadius: 4,
-            padding: 32,
+      {/* Closing balance bridge chart */}
+      <section style={{ marginBottom: 64 }}>
+        <SectionHeader
+          title="Closing balance · this period"
+          em="how the start balance walks to the projected carry."
+        />
+        <ClosingBalanceBridge
+          startCents={startBalanceCents}
+          incomeCents={totalIncome}
+          spendingCents={Math.abs(totalExpense)}
+        />
+      </section>
+
+      {/* Period-over-period comparison */}
+      <section style={{ marginBottom: 64 }}>
+        <SectionHeader
+          title="Three periods back"
+          em="income, spending, and carry for the last three cycles."
+        />
+        <PeriodComparison
+          current={{
+            label: "This period",
+            incomeCents: totalIncome,
+            spendingCents: Math.abs(totalExpense),
+            carryCents: projectedBalanceCents,
+            accent: "cyan" as const,
           }}
-        >
-          <div
-            style={{
-              fontFamily: "var(--font-jetbrains), monospace",
-              fontSize: 9.5,
-              fontWeight: 600,
-              color: "var(--ink-3)",
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
-              marginBottom: 20,
-            }}
-          >
-            <span style={{ color: "var(--ink-4)" }}>//</span> Closing balance · this period
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              fontFamily: "var(--font-sora)",
-              fontSize: 16,
-              color: "var(--ink-2)",
-            }}
-          >
-            <div style={{ textAlign: "center" }}>
-              <div
-                style={{
-                  fontFamily: "var(--font-jetbrains), monospace",
-                  fontSize: 11,
-                  color: "var(--ink-3)",
-                  letterSpacing: "0.10em",
-                  textTransform: "uppercase",
-                }}
-              >
-                Start
-              </div>
-              <div
-                style={{
-                  fontFamily: "var(--font-jetbrains), monospace",
-                  fontSize: 22,
-                  fontWeight: 600,
-                  marginTop: 4,
-                  fontFeatureSettings: '"tnum" 1, "zero" 1',
-                }}
-              >
-                {formatMoney(2_400)}
-              </div>
-            </div>
-            <div style={{ flex: 1, textAlign: "center", color: "var(--gold)" }}>→</div>
-            <div style={{ textAlign: "center" }}>
-              <div
-                style={{
-                  fontFamily: "var(--font-jetbrains), monospace",
-                  fontSize: 11,
-                  color: "var(--ok)",
-                  letterSpacing: "0.10em",
-                  textTransform: "uppercase",
-                }}
-              >
-                + Income
-              </div>
-              <div
-                style={{
-                  fontFamily: "var(--font-jetbrains), monospace",
-                  fontSize: 22,
-                  fontWeight: 600,
-                  marginTop: 4,
-                  color: "var(--ok)",
-                  fontFeatureSettings: '"tnum" 1, "zero" 1',
-                }}
-              >
-                {formatMoney(2_400)}
-              </div>
-            </div>
-            <div style={{ flex: 1, textAlign: "center", color: "var(--mars)" }}>→</div>
-            <div style={{ textAlign: "center" }}>
-              <div
-                style={{
-                  fontFamily: "var(--font-jetbrains), monospace",
-                  fontSize: 11,
-                  color: "var(--mars)",
-                  letterSpacing: "0.10em",
-                  textTransform: "uppercase",
-                }}
-              >
-                − Spending
-              </div>
-              <div
-                style={{
-                  fontFamily: "var(--font-jetbrains), monospace",
-                  fontSize: 22,
-                  fontWeight: 600,
-                  marginTop: 4,
-                  color: "var(--mars)",
-                  fontFeatureSettings: '"tnum" 1, "zero" 1',
-                }}
-              >
-                {formatMoneySigned(-1_003_78)}
-              </div>
-            </div>
-            <div style={{ flex: 1, textAlign: "center", color: "var(--gold)" }}>→</div>
-            <div style={{ textAlign: "center" }}>
-              <div
-                style={{
-                  fontFamily: "var(--font-jetbrains), monospace",
-                  fontSize: 11,
-                  color: "var(--gold)",
-                  letterSpacing: "0.10em",
-                  textTransform: "uppercase",
-                }}
-              >
-                Projected
-              </div>
-              <div
-                style={{
-                  fontFamily: "var(--font-jetbrains), monospace",
-                  fontSize: 28,
-                  fontWeight: 700,
-                  marginTop: 4,
-                  color: "var(--gold)",
-                  fontFeatureSettings: '"tnum" 1, "zero" 1',
-                }}
-              >
-                {formatMoney(3_796_22)}
-              </div>
-            </div>
-          </div>
-        </div>
+          prior={PRIOR_PERIODS}
+        />
       </section>
     </div>
   );
@@ -583,10 +398,11 @@ function PeriodStat({
       <div
         style={{
           fontFamily: "var(--font-jetbrains), monospace",
-          fontSize: 10.5,
-          color: "var(--ink-3)",
+          fontSize: 10,
+          color: "var(--ink-4)",
+          letterSpacing: "0.10em",
+          textTransform: "uppercase",
           marginTop: 4,
-          letterSpacing: "0.04em",
         }}
       >
         {sub}
@@ -595,93 +411,814 @@ function PeriodStat({
   );
 }
 
-function SectionHeader({
-  title,
-  em,
-  meta,
-}: {
-  title: string;
-  em?: string;
-  meta?: string;
-}) {
-  const accentColor = "var(--terminal-cyan)";
+function SectionHeader({ title, em }: { title: string; em: string }) {
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div
+        style={{
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 10.5,
+          fontWeight: 600,
+          color: "var(--terminal-cyan)",
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          marginBottom: 8,
+        }}
+      >
+        <span style={{ color: "var(--ink-4)" }}>//</span> {title}
+      </div>
+      <h2
+        style={{
+          fontFamily: "var(--font-sora)",
+          fontSize: 28,
+          margin: 0,
+          fontWeight: 600,
+          color: "var(--ink)",
+          letterSpacing: "-0.01em",
+        }}
+      >
+        {title}
+      </h2>
+      <p
+        style={{
+          fontFamily: "var(--font-sora)",
+          fontSize: 15,
+          color: "var(--ink-3)",
+          margin: "6px 0 0",
+        }}
+      >
+        {em}
+      </p>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Pace projection — the 14-day timeline + a cumulative-spend curve
+// with a forward projection line ("at this rate, you'll finish
+// at $X"). Reshaped from Dashboard's 7-day rolling pace for
+// Period's scope (this cycle, not rolling 7).
+// ──────────────────────────────────────────────────────────────────────
+
+interface PaceProps {
+  periodStart: Date;
+  periodEnd: Date;
+  today: Date;
+  transactions: ReadonlyArray<{ date: Date; amountCents: number }>;
+}
+
+function PaceProjection({ periodStart, periodEnd, today, transactions }: PaceProps) {
+  const totalDays = periodLength(periodStart, periodEnd);
+  const day = dayOfPeriod(today, periodStart, periodEnd);
+
+  // Cumulative spending per day-of-period (1-based; day 1 = periodStart).
+  // Spending = absolute value of negative transactions; we don't subtract
+  // income — the projection answers "how fast are you burning through
+  // the cycle's budget."
+  const spendPerDay: number[] = Array.from({ length: totalDays }, () => 0);
+  for (const t of transactions) {
+    if (t.amountCents >= 0) continue;
+    const d = dayOfPeriod(t.date, periodStart, periodEnd);
+    if (d >= 1 && d <= totalDays) {
+      spendPerDay[d - 1] = (spendPerDay[d - 1] ?? 0) + Math.abs(t.amountCents);
+    }
+  }
+  const cumulative: number[] = [];
+  let run = 0;
+  for (const s of spendPerDay) {
+    run += s;
+    cumulative.push(run);
+  }
+
+  const totalSpentCents = run;
+  // Linear projection: at day N with cumulative C, projected end =
+  // C * (totalDays / N). If N === 0, no projection.
+  const projectedEndCents =
+    day >= 1 ? Math.round((totalSpentCents * totalDays) / Math.max(day, 1)) : 0;
+  const pacePerDay = day >= 1 ? totalSpentCents / day : 0;
+
+  // y-axis max is the larger of (projected) and (actual total).
+  const yMaxCents = Math.max(projectedEndCents, totalSpentCents, 100_00);
+
+  // Chart dimensions
+  const W = 920;
+  const H = 200;
+  const padL = 56;
+  const padR = 24;
+  const padT = 18;
+  const padB = 36;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+  const colW = innerW / totalDays;
+  const yToPx = (cents: number) => padT + innerH - (cents / yMaxCents) * innerH;
+  const xToPx = (i: number) => padL + colW * (i + 0.5);
+
+  // Build the path data for the cumulative-spend line.
+  // Past days: solid line through actual cumulative values.
+  // Future days: dashed line following the linear projection.
+  const pastPoints: Array<{ x: number; y: number }> = [];
+  const projPoints: Array<{ x: number; y: number }> = [];
+  for (let i = 0; i < totalDays; i++) {
+    const x = xToPx(i);
+    const px = yToPx(cumulative[i] ?? 0);
+    if (i + 1 <= day) {
+      pastPoints.push({ x, y: px });
+    } else {
+      // Project from the last actual point, linearly to projectedEndCents.
+      const startC = day >= 1 ? cumulative[day - 1] ?? 0 : 0;
+      const startI = Math.max(day - 1, 0);
+      const tDays = Math.max(totalDays - 1 - startI, 1);
+      const projAtI = startC + ((projectedEndCents - startC) * (i - startI)) / tDays;
+      const projY = yToPx(projAtI);
+      projPoints.push({ x, y: projY });
+    }
+  }
+
+  const toPath = (pts: Array<{ x: number; y: number }>) =>
+    pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+
+  // Y-axis ticks: 5 evenly-spaced values from 0 to yMax.
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((p) => Math.round(yMaxCents * p));
+
   return (
     <div
       style={{
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "space-between",
-        marginBottom: 28,
-        paddingBottom: 16,
-        borderBottom: "1px solid var(--line)",
-        position: "relative",
+        background: "var(--surface)",
+        border: "1px solid var(--line)",
+        borderRadius: 4,
+        padding: 24,
       }}
     >
-      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-        <span
-          style={{
-            fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 9.5,
-            fontWeight: 600,
-            color: accentColor,
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-          }}
-        >
-          <span style={{ color: "var(--ink-4)" }}>//</span>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr",
+          gap: 24,
+          marginBottom: 16,
+        }}
+      >
+        <PaceStat
+          label="spent this period"
+          value={formatMoney(totalSpentCents)}
+          sub={`across ${totalDays} days`}
+        />
+        <PaceStat
+          label="pace per day"
+          value={formatMoney(Math.round(pacePerDay))}
+          sub="average since period start"
+        />
+        <PaceStat
+          label="finish at"
+          value={formatMoney(projectedEndCents)}
+          sub="if pace holds"
+          accent="gold"
+        />
+      </div>
+
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" style={{ display: "block" }}>
+        {ticks.map((t, i) => {
+          const y = yToPx(t);
+          return (
+            <g key={i}>
+              <line
+                x1={padL}
+                x2={W - padR}
+                y1={y}
+                y2={y}
+                stroke="var(--line-soft)"
+                strokeDasharray="2 3"
+                strokeWidth={1}
+              />
+              <text
+                x={padL - 8}
+                y={y + 3}
+                textAnchor="end"
+                fontFamily="var(--font-jetbrains), monospace"
+                fontSize={9}
+                fill="var(--ink-4)"
+                style={{ fontFeatureSettings: '"tnum" 1' }}
+              >
+                {formatMoney(t)}
+              </text>
+            </g>
+          );
+        })}
+
+        {Array.from({ length: totalDays }, (_, i) => {
+          const date = addDays(periodStart, i);
+          const x = xToPx(i);
+          const isToday = i + 1 === day;
+          return (
+            <g key={i}>
+              <text
+                x={x}
+                y={H - 18}
+                textAnchor="middle"
+                fontFamily="var(--font-jetbrains), monospace"
+                fontSize={9}
+                fontWeight={isToday ? 700 : 500}
+                fill={isToday ? "var(--gold)" : "var(--ink-3)"}
+                style={{ fontFeatureSettings: '"tnum" 1' }}
+              >
+                {date.getDate()}
+              </text>
+              <text
+                x={x}
+                y={H - 6}
+                textAnchor="middle"
+                fontFamily="var(--font-jetbrains), monospace"
+                fontSize={7}
+                letterSpacing="0.10em"
+                fill={isToday ? "var(--gold)" : "var(--ink-4)"}
+              >
+                D{i + 1}
+              </text>
+              {isToday && (
+                <line
+                  x1={x}
+                  x2={x}
+                  y1={padT}
+                  y2={H - padB}
+                  stroke="var(--gold)"
+                  strokeWidth={1.5}
+                  opacity={0.5}
+                />
+              )}
+            </g>
+          );
+        })}
+
+        {pastPoints.length > 0 && (
+          <path
+            d={toPath(pastPoints)}
+            fill="none"
+            stroke="var(--terminal-cyan)"
+            strokeWidth={2}
+          />
+        )}
+
+        {projPoints.length > 0 && day < totalDays && (
+          <path
+            d={toPath(projPoints)}
+            fill="none"
+            stroke="var(--gold)"
+            strokeWidth={2}
+            strokeDasharray="4 4"
+          />
+        )}
+
+        {Array.from({ length: day }, (_, i) => {
+          const x = xToPx(i);
+          const y = yToPx(cumulative[i] ?? 0);
+          return (
+            <circle
+              key={i}
+              cx={x}
+              cy={y}
+              r={2.5}
+              fill="var(--terminal-cyan)"
+              stroke="var(--surface)"
+              strokeWidth={1}
+            />
+          );
+        })}
+
+        {day >= 1 && day < totalDays && (
+          <text
+            x={W - padR + 4}
+            y={yToPx(projectedEndCents) + 3}
+            textAnchor="start"
+            fontFamily="var(--font-jetbrains), monospace"
+            fontSize={9}
+            fontWeight={700}
+            fill="var(--gold)"
+            style={{ fontFeatureSettings: '"tnum" 1, "zero" 1' }}
+          >
+            {formatMoney(projectedEndCents)}
+          </text>
+        )}
+      </svg>
+
+      <div
+        style={{
+          display: "flex",
+          gap: 24,
+          marginTop: 12,
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 10,
+          color: "var(--ink-3)",
+          letterSpacing: "0.10em",
+          textTransform: "uppercase",
+        }}
+      >
+        <span>
+          <svg width="20" height="6" style={{ verticalAlign: "middle", marginRight: 6 }}>
+            <line x1="0" y1="3" x2="20" y2="3" stroke="var(--terminal-cyan)" strokeWidth="2" />
+          </svg>
+          Actual
         </span>
-        <h2
-          style={{
-            fontFamily: "var(--font-sora)",
-            fontWeight: 600,
-            fontSize: 26,
-            letterSpacing: "-0.01em",
-            margin: 0,
-            color: "var(--ink)",
-          }}
+        <span>
+          <svg width="20" height="6" style={{ verticalAlign: "middle", marginRight: 6 }}>
+            <line x1="0" y1="3" x2="20" y2="3" stroke="var(--gold)" strokeWidth="2" strokeDasharray="4 4" />
+          </svg>
+          Projection
+        </span>
+        <span>
+          <svg width="6" height="14" style={{ verticalAlign: "middle", marginRight: 6 }}>
+            <line x1="3" y1="0" x2="3" y2="14" stroke="var(--gold)" strokeWidth="1.5" opacity={0.5} />
+          </svg>
+          Today
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function PaceStat({
+  label,
+  value,
+  sub,
+  accent,
+}: {
+  label: string;
+  value: string;
+  sub: string;
+  accent?: "cyan" | "ok" | "neg" | "gold";
+}) {
+  return (
+    <div>
+      <div
+        style={{
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 9.5,
+          fontWeight: 600,
+          color: "var(--ink-3)",
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          marginBottom: 6,
+        }}
+      >
+        <span style={{ color: "var(--ink-4)" }}>//</span> {label}
+      </div>
+      <div
+        style={{
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 22,
+          fontWeight: 600,
+          color:
+            accent === "gold"
+              ? "var(--gold)"
+              : accent === "neg"
+              ? "var(--neg)"
+              : accent === "ok"
+              ? "var(--ok)"
+              : "var(--terminal-cyan)",
+          fontFeatureSettings: '"tnum" 1, "zero" 1',
+        }}
+      >
+        {value}
+      </div>
+      <div
+        style={{
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 9.5,
+          color: "var(--ink-4)",
+          letterSpacing: "0.10em",
+          textTransform: "uppercase",
+          marginTop: 2,
+        }}
+      >
+        {sub}
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Closing-balance bridge — a stacked-bar walk from Start → +Income →
+// −Spending → Projected. Replaces the prior text-based walk.
+// ──────────────────────────────────────────────────────────────────────
+
+interface BridgeProps {
+  startCents: number;
+  incomeCents: number;
+  spendingCents: number;
+}
+
+function ClosingBalanceBridge({ startCents, incomeCents, spendingCents }: BridgeProps) {
+  const projectedCents = startCents + incomeCents - spendingCents;
+  const maxBar = Math.max(startCents + incomeCents, projectedCents) * 1.05;
+  const W = 920;
+  const H = 280;
+  const padL = 60;
+  const padR = 60;
+  const padT = 36;
+  const padB = 56;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+  const yToPx = (cents: number) => padT + innerH - (cents / maxBar) * innerH;
+  const slotW = innerW / 4;
+  const barW = Math.min(120, slotW * 0.55);
+
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((p) => Math.round(maxBar * p));
+
+  interface BarSpec {
+    label: string;
+    sub: string;
+    color: string;
+    mode: "absolute" | "stacked-add" | "stacked-sub";
+    value: number;
+    base: number;
+    result: number;
+  }
+  const bars: BarSpec[] = [
+    {
+      label: "Start",
+      sub: "carry-in",
+      color: "var(--terminal-cyan)",
+      mode: "absolute",
+      value: startCents,
+      base: 0,
+      result: startCents,
+    },
+    {
+      label: "+ Income",
+      sub: "paycheck",
+      color: "var(--ok)",
+      mode: "stacked-add",
+      value: incomeCents,
+      base: startCents,
+      result: startCents + incomeCents,
+    },
+    {
+      label: "− Spending",
+      sub: "outflow",
+      color: "var(--mars)",
+      mode: "stacked-sub",
+      value: spendingCents,
+      base: startCents + incomeCents,
+      result: startCents + incomeCents - spendingCents,
+    },
+    {
+      label: "Projected",
+      sub: "closing",
+      color: "var(--gold)",
+      mode: "absolute",
+      value: projectedCents,
+      base: 0,
+      result: projectedCents,
+    },
+  ];
+
+  return (
+    <div
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--line)",
+        borderRadius: 4,
+        padding: 24,
+      }}
+    >
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" style={{ display: "block" }}>
+        {ticks.map((t, i) => {
+          const y = yToPx(t);
+          return (
+            <g key={i}>
+              <line
+                x1={padL}
+                x2={W - padR}
+                y1={y}
+                y2={y}
+                stroke="var(--line-soft)"
+                strokeDasharray="2 3"
+                strokeWidth={1}
+              />
+              <text
+                x={padL - 8}
+                y={y + 3}
+                textAnchor="end"
+                fontFamily="var(--font-jetbrains), monospace"
+                fontSize={9}
+                fill="var(--ink-4)"
+                style={{ fontFeatureSettings: '"tnum" 1' }}
+              >
+                {formatMoney(t)}
+              </text>
+            </g>
+          );
+        })}
+
+        {bars.slice(0, -1).map((b, i) => {
+          const next = bars[i + 1];
+          if (!next) return null;
+          const x1 = padL + slotW * (i + 0.5) + barW / 2;
+          const x2 = padL + slotW * (i + 1.5) - barW / 2;
+          const y1 = yToPx(b.result);
+          const y2 =
+            next.mode === "stacked-sub"
+              ? yToPx(next.base)
+              : yToPx(next.mode === "stacked-add" ? next.base + next.value : next.result);
+          return (
+            <line
+              key={`tread-${i}`}
+              x1={x1}
+              y1={y1}
+              x2={x2}
+              y2={y2}
+              stroke="var(--ink-3)"
+              strokeWidth={1}
+              strokeDasharray="3 3"
+            />
+          );
+        })}
+
+        {bars.map((b, i) => {
+          const cx = padL + slotW * (i + 0.5);
+          const x = cx - barW / 2;
+          let y: number;
+          let h: number;
+          if (b.mode === "absolute") {
+            y = yToPx(b.value);
+            h = padT + innerH - y;
+          } else if (b.mode === "stacked-add") {
+            const topY = yToPx(b.base + b.value);
+            const botY = yToPx(b.base);
+            y = topY;
+            h = botY - topY;
+          } else {
+            const topY = yToPx(b.base);
+            const botY = yToPx(b.base - b.value);
+            y = topY;
+            h = botY - topY;
+          }
+          return (
+            <g key={b.label}>
+              <rect
+                x={x}
+                y={y}
+                width={barW}
+                height={Math.max(0, h)}
+                fill={b.color}
+                opacity={0.9}
+                rx={2}
+              />
+              <text
+                x={cx}
+                y={y - 8}
+                textAnchor="middle"
+                fontFamily="var(--font-jetbrains), monospace"
+                fontSize={11}
+                fontWeight={700}
+                fill={b.color}
+                style={{ fontFeatureSettings: '"tnum" 1, "zero" 1' }}
+              >
+                {b.mode === "stacked-sub"
+                  ? `−${formatMoney(b.value)}`
+                  : b.mode === "stacked-add"
+                    ? `+${formatMoney(b.value)}`
+                    : formatMoney(b.value)}
+              </text>
+              <text
+                x={cx}
+                y={H - padB + 18}
+                textAnchor="middle"
+                fontFamily="var(--font-jetbrains), monospace"
+                fontSize={10}
+                fontWeight={600}
+                fill="var(--ink-2)"
+                style={{ textTransform: "uppercase", letterSpacing: "0.12em" }}
+              >
+                {b.label}
+              </text>
+              <text
+                x={cx}
+                y={H - padB + 32}
+                textAnchor="middle"
+                fontFamily="var(--font-jetbrains), monospace"
+                fontSize={9}
+                fill="var(--ink-4)"
+                style={{ textTransform: "uppercase", letterSpacing: "0.10em" }}
+              >
+                {b.sub}
+              </text>
+            </g>
+          );
+        })}
+
+        <text
+          x={W - padR + 4}
+          y={yToPx(projectedCents) + 3}
+          textAnchor="start"
+          fontFamily="var(--font-jetbrains), monospace"
+          fontSize={10}
+          fontWeight={700}
+          fill="var(--gold)"
+          style={{ fontFeatureSettings: '"tnum" 1, "zero" 1' }}
         >
-          {title}
-        </h2>
-        {em && (
+          {formatMoney(projectedCents)}
+        </text>
+      </svg>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Period comparison — a grouped bar chart (Income / Spending / Carry)
+// for the last 3 prior periods + the current one. Period-specific
+// because Dashboard has no reason to show period history.
+// ──────────────────────────────────────────────────────────────────────
+
+interface PeriodColumn {
+  label: string;
+  incomeCents: number;
+  spendingCents: number;
+  carryCents: number;
+  accent?: "cyan" | "gold";
+}
+
+function PeriodComparison({
+  current,
+  prior,
+}: {
+  current: PeriodColumn;
+  prior: ReadonlyArray<{ label: string; incomeCents: number; spendingCents: number; carryCents: number }>;
+}) {
+  const periods: PeriodColumn[] = [
+    current,
+    ...prior.map((p) => ({ ...p, accent: undefined as "cyan" | "gold" | undefined })),
+  ];
+
+  const allValues = periods.flatMap((p) => [p.incomeCents, p.spendingCents, p.carryCents]);
+  const maxBar = Math.max(...allValues) * 1.1;
+
+  const W = 920;
+  const H = 280;
+  const padL = 60;
+  const padR = 40;
+  const padT = 36;
+  const padB = 60;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+  const yToPx = (cents: number) => padT + innerH - (cents / maxBar) * innerH;
+  const slotW = innerW / periods.length;
+  const groupGap = 8;
+  const barW = (slotW - groupGap * 4) / 3;
+
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((p) => Math.round(maxBar * p));
+
+  return (
+    <div
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--line)",
+        borderRadius: 4,
+        padding: 24,
+      }}
+    >
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" style={{ display: "block" }}>
+        {ticks.map((t, i) => {
+          const y = yToPx(t);
+          return (
+            <g key={i}>
+              <line
+                x1={padL}
+                x2={W - padR}
+                y1={y}
+                y2={y}
+                stroke="var(--line-soft)"
+                strokeDasharray="2 3"
+                strokeWidth={1}
+              />
+              <text
+                x={padL - 8}
+                y={y + 3}
+                textAnchor="end"
+                fontFamily="var(--font-jetbrains), monospace"
+                fontSize={9}
+                fill="var(--ink-4)"
+                style={{ fontFeatureSettings: '"tnum" 1' }}
+              >
+                {formatMoney(t)}
+              </text>
+            </g>
+          );
+        })}
+
+        {periods.map((p, pi) => {
+          const slotX = padL + slotW * pi;
+          const colors = ["var(--ok)", "var(--mars)", "var(--terminal-cyan)"];
+          const metrics: Array<{ key: "income" | "spending" | "carry"; cents: number; color: string }> = [
+            { key: "income", cents: p.incomeCents, color: colors[0]! },
+            { key: "spending", cents: p.spendingCents, color: colors[1]! },
+            { key: "carry", cents: p.carryCents, color: colors[2]! },
+          ];
+          const isCurrent = p.accent === "cyan";
+          return (
+            <g key={p.label}>
+              {metrics.map((m, mi) => {
+                const x = slotX + groupGap + mi * (barW + groupGap);
+                const y = yToPx(m.cents);
+                const h = padT + innerH - y;
+                return (
+                  <g key={m.key}>
+                    <rect
+                      x={x}
+                      y={y}
+                      width={barW}
+                      height={Math.max(0, h)}
+                      fill={m.color}
+                      opacity={isCurrent ? 0.95 : 0.55}
+                      rx={2}
+                    />
+                    {isCurrent && mi === 0 && (
+                      <rect
+                        x={x - 2}
+                        y={y - 2}
+                        width={barW + 4}
+                        height={Math.max(0, h) + 4}
+                        fill="none"
+                        stroke="var(--gold)"
+                        strokeWidth={1}
+                        strokeDasharray="3 3"
+                        opacity={0.6}
+                        rx={3}
+                      />
+                    )}
+                  </g>
+                );
+              })}
+              <text
+                x={slotX + slotW / 2}
+                y={H - padB + 18}
+                textAnchor="middle"
+                fontFamily="var(--font-jetbrains), monospace"
+                fontSize={10}
+                fontWeight={isCurrent ? 700 : 500}
+                fill={isCurrent ? "var(--gold)" : "var(--ink-2)"}
+                style={{ textTransform: "uppercase", letterSpacing: "0.10em" }}
+              >
+                {isCurrent ? "this period" : p.label}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+
+      <div
+        style={{
+          display: "flex",
+          gap: 24,
+          marginTop: 12,
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 10,
+          color: "var(--ink-3)",
+          letterSpacing: "0.10em",
+          textTransform: "uppercase",
+        }}
+      >
+        <span>
           <span
             style={{
-              fontFamily: "var(--font-sora)",
-              fontWeight: 400,
-              fontSize: 16,
-              color: "var(--ink-3)",
+              display: "inline-block",
+              width: 10,
+              height: 10,
+              background: "var(--ok)",
+              marginRight: 6,
+              verticalAlign: "middle",
+              borderRadius: 1,
             }}
-          >
-            {em}
-          </span>
-        )}
+          />
+          Income
+        </span>
+        <span>
+          <span
+            style={{
+              display: "inline-block",
+              width: 10,
+              height: 10,
+              background: "var(--mars)",
+              marginRight: 6,
+              verticalAlign: "middle",
+              borderRadius: 1,
+            }}
+          />
+          Spending
+        </span>
+        <span>
+          <span
+            style={{
+              display: "inline-block",
+              width: 10,
+              height: 10,
+              background: "var(--terminal-cyan)",
+              marginRight: 6,
+              verticalAlign: "middle",
+              borderRadius: 1,
+            }}
+          />
+          Carry
+        </span>
       </div>
-      {meta && (
-        <div
-          style={{
-            fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 10,
-            color: "var(--ink-3)",
-            letterSpacing: "0.10em",
-            textTransform: "uppercase",
-            maxWidth: 380,
-            textAlign: "right",
-          }}
-        >
-          {meta}
-        </div>
-      )}
-      <span
-        aria-hidden
-        style={{
-          position: "absolute",
-          bottom: -1,
-          left: 0,
-          width: 80,
-          height: 1,
-          background: accentColor,
-          boxShadow: `0 0 8px ${accentColor}`,
-        }}
-      />
     </div>
   );
 }

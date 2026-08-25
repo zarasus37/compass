@@ -15,6 +15,53 @@ export const PERIOD_START = new Date("2026-08-22T00:00:00");
 export const PERIOD_END = new Date("2026-09-05T00:00:00"); // exclusive end
 export const NEXT_PAY_DATE = new Date("2026-08-28T00:00:00");
 
+/**
+ * Prior-period summary stats (for the /period comparison chart).
+ * Three periods before the current one, in reverse-chronological order
+ * (newest first). Each entry has the period's start date + the three
+ * summary numbers: total income, total spending (negative), and the
+ * carry (closing balance at period end).
+ *
+ * Plausible values for the demo persona (mom@compass.local). When the
+ * real persistence layer lands (Cluster 5.x), this becomes a query
+ * over the PayPeriod table.
+ */
+export interface PriorPeriodSummary {
+  startDate: Date;
+  endDate: Date;
+  incomeCents: number;
+  spendingCents: number; // positive number, even though it's outflow
+  carryCents: number;
+  label: string; // e.g. "Aug 8 – Aug 21"
+}
+
+export const PRIOR_PERIODS: PriorPeriodSummary[] = [
+  {
+    startDate: new Date("2026-08-08T00:00:00"),
+    endDate: new Date("2026-08-22T00:00:00"),
+    incomeCents: 2_400_00,
+    spendingCents: 1_890_32,
+    carryCents: 2_910_44,
+    label: "Aug 8 – Aug 21",
+  },
+  {
+    startDate: new Date("2026-07-25T00:00:00"),
+    endDate: new Date("2026-08-08T00:00:00"),
+    incomeCents: 2_400_00,
+    spendingCents: 1_650_18,
+    carryCents: 3_150_26,
+    label: "Jul 25 – Aug 7",
+  },
+  {
+    startDate: new Date("2026-07-11T00:00:00"),
+    endDate: new Date("2026-07-25T00:00:00"),
+    incomeCents: 2_400_00,
+    spendingCents: 1_720_45,
+    carryCents: 2_680_81,
+    label: "Jul 11 – Jul 24",
+  },
+];
+
 export type PlanetSeed =
   | "sol"
   | "luna"
