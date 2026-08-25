@@ -2,6 +2,9 @@ import * as React from "react";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { Mandala } from "@/components/alchemy/Mandala";
 import { VesselGlyph } from "@/components/alchemy/VesselGlyph";
+import { SpendRingCard } from "@/components/dashboard/cards/spend-ring";
+import { SankeyFlow, type SankeyNode, type SankeyLink } from "@/components/viz/SankeyFlow";
+import { PLANET_COLORS, type PlanetId } from "@/components/alchemy/VesselGlyph";
 import {
   TODAY,
   PERIOD_START,
@@ -210,6 +213,74 @@ export default function PeriodPage() {
         </div>
       </section>
 
+      {/* Period overview: spend ring + safe-to-spend-until-paycheck (#1, #3) */}
+      <section style={{ marginBottom: 64 }}>
+        <SectionHeader
+          title="This period at a glance"
+          em="spend ring scoped to the cycle, and what's left to spend before the next paycheck."
+        />
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 16,
+          }}
+        >
+          <div
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--line)",
+              borderRadius: 4,
+              padding: 24,
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 9.5,
+                fontWeight: 600,
+                color: "var(--ink-3)",
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                marginBottom: 16,
+              }}
+            >
+              <span style={{ color: "var(--ink-4)" }}>//</span> spend ring · this period
+            </div>
+            <SpendRingCard
+              data={{
+                perEnvelope: ENVELOPES.map((e) => ({
+                  id: e.id,
+                  name: e.name,
+                  planet: e.planet as PlanetId,
+                  currentCents: e.current,
+                  targetCents: e.target,
+                })),
+                totalSpentCents: Math.abs(totalExpense),
+                totalTargetCents: totalDistill,
+              }}
+            />
+          </div>
+          <div
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--line)",
+              borderRadius: 4,
+              padding: 24,
+            }}
+          >
+            <SafeToSpendUntilPaycheck
+              envelopes={ENVELOPES}
+              transactions={TRANSACTIONS}
+              daysToPay={daysToPay}
+              today={TODAY}
+              periodStart={PERIOD_START}
+              periodEnd={PERIOD_END}
+            />
+          </div>
+        </div>
+      </section>
+
       {/* Full allocation breakdown */}
       <section style={{ marginBottom: 64 }}>
         <SectionHeader title="Will be distributed" em="when the next paycheck arrives." />
@@ -221,14 +292,30 @@ export default function PeriodPage() {
             padding: 4,
           }}
         >
+          {/* Sankey allocation waterfall — paycheck → 7 envelopes (#6) */}
+          <div style={{ padding: 12 }}>
+            <AllocationSankey envelopes={ENVELOPES} totalCents={totalDistill} />
+          </div>
           {ENVELOPES.map((e, i) => {
             const pct = totalDistill > 0 ? Math.round((e.target / totalDistill) * 100) : 0;
+            // Per-envelope burn-rate sparkline (#4): daily spend in
+            // this envelope, oldest first, padded to totalDays.
+            const burnCents = Array.from({ length: totalDays }, () => 0);
+            for (const t of TRANSACTIONS) {
+              if (t.amountCents >= 0) continue;
+              if (t.envelopeId !== e.id) continue;
+              const d = dayOfPeriod(t.date, PERIOD_START, PERIOD_END);
+              if (d >= 1 && d <= totalDays) {
+                burnCents[d - 1] = (burnCents[d - 1] ?? 0) + Math.abs(t.amountCents);
+              }
+            }
+            const planetColor = PLANET_COLORS[e.planet];
             return (
               <div
                 key={e.id}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "44px 1fr 100px 2fr 120px",
+                  gridTemplateColumns: "44px 1fr 100px 2fr 140px 100px",
                   alignItems: "center",
                   gap: 24,
                   padding: "16px 24px",
@@ -275,6 +362,13 @@ export default function PeriodPage() {
                       background: "var(--gold)",
                       boxShadow: "0 0 8px var(--gold)",
                     }}
+                  />
+                </div>
+                {/* Per-envelope burn-rate sparkline (#4) */}
+                <div style={{ display: "flex", alignItems: "center" }}>
+                  <EnvelopeBurnSparkline
+                    cents={burnCents}
+                    planetColor={planetColor}
                   />
                 </div>
                 <div
@@ -1220,5 +1314,335 @@ function PeriodComparison({
         </span>
       </div>
     </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Period overview additions (#1, #3, #4, #6).
+//   #1 — SpendRingCard (reused from dashboard) with period-scoped data.
+//   #3 — SafeToSpendUntilPaycheck: a stat block answering "what can I
+//        still spend before the next paycheck without dipping into the
+//        hard-locked envelopes (Rent, Debt, Savings, Utilities)?"
+//   #4 — EnvelopeBurnSparkline: a tiny per-envelope burn-rate sparkline
+//        inline in the Will-be-distributed row, so the user can see at
+//        a glance which envelopes are burning fast.
+//   #6 — AllocationSankey: a SankeyFlow showing the paycheck fanning
+//        out into the 7 envelopes, mirroring the compass metaphor.
+// ──────────────────────────────────────────────────────────────────────
+
+// #3 — safe-to-spend-until-paycheck
+// Computes the "permission slip" using only the FLEXIBLE envelopes
+// (Dining & Joy + Buffer for the demo persona). The hard-locked
+// envelopes (Rent, Utilities, Savings, Debt) are excluded — touching
+// them is a policy break, not a budget question.
+function SafeToSpendUntilPaycheck({
+  envelopes,
+  transactions,
+  daysToPay,
+  today,
+  periodStart,
+  periodEnd,
+}: {
+  envelopes: ReadonlyArray<{ id: string; name: string; current: number; target: number }>;
+  transactions: ReadonlyArray<{ amountCents: number; envelopeId: string | null }>;
+  daysToPay: number;
+  today: Date;
+  periodStart: Date;
+  periodEnd: Date;
+}) {
+  // Hard-coded flexible envelope set for the demo persona.
+  // In Cluster 5.x this becomes a user preference ("which envelopes
+  // count as flexible / discretionary").
+  const FLEXIBLE_IDS = new Set(["env-dining", "env-buffer"]);
+  const flexible = envelopes.filter((e) => FLEXIBLE_IDS.has(e.id));
+
+  // Flexible spend this period (what's already gone from the
+  // flexible envelopes' targets).
+  let spentFromFlexible = 0;
+  for (const t of transactions) {
+    if (t.amountCents >= 0) continue;
+    if (t.envelopeId && FLEXIBLE_IDS.has(t.envelopeId)) {
+      spentFromFlexible += Math.abs(t.amountCents);
+    }
+  }
+  const totalFlexibleTarget = flexible.reduce((s, e) => s + e.target, 0);
+  const totalFlexibleCurrent = flexible.reduce((s, e) => s + e.current, 0);
+  const remainingCents = Math.max(0, totalFlexibleCurrent);
+  const perDayCents = daysToPay > 0 ? Math.round(remainingCents / daysToPay) : remainingCents;
+
+  // The "if you go back in time" framing: how much of the flexible
+  // budget was left at this point in past periods? (Read-only stat —
+  // shows the user what the typical "now" looks like.)
+  // For v1, just show the current number + the per-day.
+
+  // Day-of-period (1-based) for context.
+  const day = dayOfPeriod(today, periodStart, periodEnd);
+  void spentFromFlexible;
+  void totalFlexibleTarget;
+  void day;
+
+  const accent = remainingCents === 0 ? "neg" : remainingCents < perDayCents * 2 ? "warn" : "cyan";
+
+  return (
+    <div>
+      <div
+        style={{
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 9.5,
+          fontWeight: 600,
+          color: "var(--ink-3)",
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          marginBottom: 16,
+        }}
+      >
+        <span style={{ color: "var(--ink-4)" }}>//</span> safe to spend · before paycheck
+      </div>
+
+      {/* Big number */}
+      <div
+        style={{
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 44,
+          fontWeight: 600,
+          color:
+            accent === "neg"
+              ? "var(--neg)"
+              : accent === "warn"
+                ? "var(--warn)"
+                : "var(--terminal-cyan)",
+          fontFeatureSettings: '"tnum" 1, "zero" 1',
+          lineHeight: 1,
+          marginBottom: 6,
+        }}
+      >
+        {formatMoney(remainingCents)}
+      </div>
+      <div
+        style={{
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 10.5,
+          color: "var(--ink-3)",
+          letterSpacing: "0.10em",
+          textTransform: "uppercase",
+          marginBottom: 24,
+        }}
+      >
+        of {formatMoney(totalFlexibleTarget)} flexible · across Dining & Joy, Buffer
+      </div>
+
+      {/* 3-cell row */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr",
+          border: "1px solid var(--line)",
+          borderRadius: 4,
+        }}
+      >
+        <div style={{ padding: "12px 14px", borderRight: "1px solid var(--line-soft)" }}>
+          <div
+            style={{
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 9,
+              color: "var(--ink-3)",
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              marginBottom: 6,
+            }}
+          >
+            per day
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 18,
+              fontWeight: 600,
+              color: "var(--ink)",
+              fontFeatureSettings: '"tnum" 1, "zero" 1',
+            }}
+          >
+            {formatMoney(perDayCents)}
+          </div>
+        </div>
+        <div style={{ padding: "12px 14px", borderRight: "1px solid var(--line-soft)" }}>
+          <div
+            style={{
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 9,
+              color: "var(--ink-3)",
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              marginBottom: 6,
+            }}
+          >
+            days left
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 18,
+              fontWeight: 600,
+              color: "var(--ink)",
+              fontFeatureSettings: '"tnum" 1, "zero" 1',
+            }}
+          >
+            {daysToPay}
+          </div>
+        </div>
+        <div style={{ padding: "12px 14px" }}>
+          <div
+            style={{
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 9,
+              color: "var(--ink-3)",
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              marginBottom: 6,
+            }}
+          >
+            from
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--font-sora)",
+              fontSize: 12,
+              fontWeight: 500,
+              color: "var(--ink-2)",
+            }}
+          >
+            {flexible.map((e) => e.name).join(" + ")}
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          marginTop: 16,
+          fontFamily: "var(--font-sora)",
+          fontSize: 12,
+          lineHeight: 1.5,
+          color: "var(--ink-3)",
+        }}
+      >
+        Hard-locked envelopes (Rent, Utilities, Savings, Debt) are excluded — touching those is a policy break, not a budget question.
+      </div>
+    </div>
+  );
+}
+
+// #4 — EnvelopeBurnSparkline (per-envelope, inline in the
+// Will-be-distributed row). Tiny 7-day burn rate so the user can
+// see at a glance which envelopes are burning fast vs flat.
+function EnvelopeBurnSparkline({
+  cents,
+  planetColor,
+}: {
+  cents: number[];
+  planetColor: string;
+}) {
+  const W = 140;
+  const H = 18;
+  const padX = 2;
+  const padY = 2;
+  const innerW = W - padX * 2;
+  const innerH = H - padY * 2;
+  const max = Math.max(1, ...cents);
+  const yMax = max * 1.1;
+  const x = (i: number) => padX + (i / Math.max(1, cents.length - 1)) * innerW;
+  const y = (v: number) => padY + (1 - v / yMax) * innerH;
+  const path = cents
+    .map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(v).toFixed(1)}`)
+    .join(" ");
+  const hasSpend = cents.some((v) => v > 0);
+  const total = cents.reduce((s, v) => s + v, 0);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <svg
+        width={W}
+        height={H}
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={`Burn rate · ${formatMoney(total)}`}
+        style={{ display: "block" }}
+      >
+        {hasSpend ? (
+          <>
+            <path d={path} fill="none" stroke={planetColor} strokeWidth={1.5} />
+            {cents.length > 0 && (
+              <circle
+                cx={x(cents.length - 1)}
+                cy={y(cents[cents.length - 1] ?? 0)}
+                r={2}
+                fill={planetColor}
+                stroke="var(--surface)"
+                strokeWidth={1}
+              />
+            )}
+          </>
+        ) : (
+          <line
+            x1={padX}
+            x2={W - padX}
+            y1={H - padY}
+            y2={H - padY}
+            stroke="var(--ink-5)"
+            strokeWidth={0.5}
+            strokeDasharray="1 2"
+            opacity={0.6}
+          />
+        )}
+      </svg>
+      <div
+        style={{
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 9.5,
+          color: "var(--ink-4)",
+          letterSpacing: "0.10em",
+          textTransform: "uppercase",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {hasSpend ? formatMoney(total) : "—"}
+      </div>
+    </div>
+  );
+}
+
+// #6 — AllocationSankey: a SankeyFlow showing the paycheck fanning
+// out into the 7 envelopes. Wraps the viz component to provide the
+// nodes/links in the shape it expects.
+function AllocationSankey({
+  envelopes,
+  totalCents,
+}: {
+  envelopes: ReadonlyArray<{ id: string; name: string; planet: PlanetId; target: number }>;
+  totalCents: number;
+}) {
+  const nodes: SankeyNode[] = [
+    { id: "paycheck", label: "Paycheck", color: "var(--gold)" },
+    ...envelopes.map((e) => ({
+      id: e.id,
+      label: e.name,
+      color: PLANET_COLORS[e.planet],
+    })),
+  ];
+  const links: SankeyLink[] = envelopes
+    .filter((e) => e.target > 0)
+    .map((e) => ({
+      source: "paycheck",
+      target: e.id,
+      value: e.target,
+    }));
+  return (
+    <SankeyFlow
+      nodes={nodes}
+      links={links}
+      totalCents={totalCents}
+      height={220}
+      showSource
+      sourceLabel="Paycheck"
+    />
   );
 }

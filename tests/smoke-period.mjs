@@ -224,6 +224,85 @@ async function main() {
       countMatches(html, /Carry/) >= 1,
   );
 
+  // ── #1 Period-scoped spend ring ─────────────────────────────────
+  log("ring", "checking period spend ring");
+  check(
+    "ring: 'spend ring · this period' header present",
+    countMatches(html, /spend ring · this period/) >= 1,
+  );
+  // The SpendRingCard has a circle + path for the ring; the title is
+  // "REMAINING" + the OF label. Both should be present.
+  check(
+    "ring: center 'REMAINING' label rendered",
+    countMatches(html, />REMAINING</) >= 1,
+  );
+
+  // ── #3 Safe-to-spend-until-paycheck ─────────────────────────────
+  log("safe", "checking safe-to-spend-until-paycheck block");
+  check(
+    "safe: 'safe to spend · before paycheck' header present",
+    countMatches(html, /safe to spend · before paycheck/) >= 1,
+  );
+  check(
+    "safe: per-day stat present",
+    countMatches(html, />per day</) >= 1,
+  );
+  check(
+    "safe: days-left stat present",
+    countMatches(html, />days left</) >= 1,
+  );
+  // The flexible-envelope set (Dining & Joy + Buffer) is named explicitly.
+  check(
+    "safe: flexible envelope names listed ('Dining & Joy, Buffer')",
+    /Dining &amp; Joy.*Buffer|Buffer.*Dining &amp; Joy/.test(html) ||
+      /Dining & Joy.*Buffer|Buffer.*Dining & Joy/.test(html),
+  );
+  // The "hard-locked" disclaimer copy is on the page.
+  check(
+    "safe: 'hard-locked' disclaimer is on the page",
+    countMatches(html, /hard-locked/i) >= 1,
+  );
+
+  // ── #4 Per-envelope burn sparkline ─────────────────────────────
+  log("burn", "checking per-envelope burn sparklines");
+  // Each row's burn sparkline has an aria-label of the form "Burn rate · $X".
+  // We expect at least 4 sparklines (some envelopes may have no spend).
+  // React HTML-encodes the aria-label value, so check the
+  // &quot;encoded form too. The regexes need the /g flag or
+  // String.match returns a single object instead of an array.
+  const burnAriaCount =
+    countMatches(html, /aria-label="Burn rate/g) +
+    countMatches(html, /aria-label=&quot;Burn rate/g);
+  check(
+    "burn: at least 4 'Burn rate' sparkline aria-labels in the page",
+    burnAriaCount >= 4,
+    `found ${burnAriaCount}`,
+  );
+
+  // ── #6 Allocation waterfall (Sankey) ────────────────────────────
+  log("sankey", "checking allocation waterfall");
+  // The Sankey renders <svg> nodes. The 'Will be distributed' section
+  // now contains a Sankey above the list. Look for the nivo/Sankey
+  // markers (rects with rounded corners for nodes + path-based links).
+  // The simplest reliable check: the section contains a sequence of
+  // multiple <rect> nodes inside an <svg>, with one of them labelled
+  // "Paycheck" in some form.
+  check(
+    "sankey: 'Paycheck' label appears in the page (Sankey source)",
+    countMatches(html, /Paycheck/) >= 1,
+  );
+  // The Sankey renders each envelope name as a node label.
+  // We check that all 7 envelope names appear as node labels in the
+  // Sankey by counting "node" rectangles. Easier: at least one
+  // SVG with multiple <rect> in the Will be distributed section.
+  // We check the general signature: the page now has at least 2
+  // distinct <svg viewBox="0 0 800 ... or larger"> charts.
+  // (The dashboard's spend ring is smaller; the Sankey is bigger.)
+  check(
+    "sankey: page has at least 2 large SVGs (Sankey + bridge or compare)",
+    (html.match(/<svg[^>]*viewBox="0 0 9\d\d/g) ?? []).length >= 2,
+  );
+
   // ── Report ─────────────────────────────────────────────────────
   console.log("\n--- checks ---");
   let pass = 0, fail = 0;
