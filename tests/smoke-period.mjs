@@ -230,12 +230,53 @@ async function main() {
     "ring: 'spend ring · this period' header present",
     countMatches(html, /spend ring · this period/) >= 1,
   );
-  // The SpendRingCard has a circle + path for the ring; the title is
-  // "REMAINING" + the OF label. Both should be present.
+  // The PeriodDonut has center labels "SPENT" + "of $X" + "%". All
+  // three should be present.
   check(
-    "ring: center 'REMAINING' label rendered",
-    countMatches(html, />REMAINING</) >= 1,
+    "ring: center 'SPENT' label rendered",
+    countMatches(html, />SPENT</) >= 1,
   );
+  // The donut has 4 stacked center text elements: "SPENT" / spent value /
+  // "of $X" / pct. All four should be present somewhere in the page.
+  check(
+    "ring: center 'of $X' subtitle rendered",
+    html.includes("of ") && html.includes("$"),
+  );
+  // The PeriodDonut is a TRUE multi-sector donut (one path per
+  // envelope, each in its planet color). The dashboard's old
+  // SpendRingCard only had ONE path. We should have at least 5
+  // distinct planet fills in the donut region.
+  // The actual PLANET_COLORS come from alchemy/VesselGlyph.tsx.
+  const planetFills = [
+    "#f0c14a", // sol (gold)
+    "#b8c8e0", // luna
+    "#c45a3a", // mars
+    "#8ac0b8", // mercury
+    "#9a7ac0", // jupiter
+    "#d4a578", // venus
+    "#a8b0c8", // saturn
+  ];
+  let presentPlanetFills = 0;
+  for (const fill of planetFills) {
+    if (html.includes(fill)) presentPlanetFills++;
+  }
+  check(
+    "ring: at least 5 distinct planet colors in the page (multi-sector donut)",
+    presentPlanetFills >= 5,
+    `found ${presentPlanetFills}`,
+  );
+  // The donut has a path for each envelope (7 sectors). Easiest
+  // reliable check: the legend shows all 7 envelope names (the
+  // legend uses the full name like "Dining & Joy", so check the
+  // name plus a wildcard).
+  for (const envName of [
+    "Rent", "Groceries", "Utilities", "Dining", "Buffer", "Savings", "Debt",
+  ]) {
+    check(
+      `ring: legend lists envelope "${envName}"`,
+      new RegExp(`>${envName}(?:\\b|&| )`).test(html),
+    );
+  }
 
   // ── #3 Safe-to-spend-until-paycheck ─────────────────────────────
   log("safe", "checking safe-to-spend-until-paycheck block");

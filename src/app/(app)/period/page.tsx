@@ -2,7 +2,6 @@ import * as React from "react";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { Mandala } from "@/components/alchemy/Mandala";
 import { VesselGlyph } from "@/components/alchemy/VesselGlyph";
-import { SpendRingCard } from "@/components/dashboard/cards/spend-ring";
 import { SankeyFlow, type SankeyNode, type SankeyLink } from "@/components/viz/SankeyFlow";
 import { PLANET_COLORS, type PlanetId } from "@/components/alchemy/VesselGlyph";
 import {
@@ -247,18 +246,16 @@ export default function PeriodPage() {
             >
               <span style={{ color: "var(--ink-4)" }}>//</span> spend ring · this period
             </div>
-            <SpendRingCard
-              data={{
-                perEnvelope: ENVELOPES.map((e) => ({
-                  id: e.id,
-                  name: e.name,
-                  planet: e.planet as PlanetId,
-                  currentCents: e.current,
-                  targetCents: e.target,
-                })),
-                totalSpentCents: Math.abs(totalExpense),
-                totalTargetCents: totalDistill,
-              }}
+            <PeriodDonut
+              envelopes={ENVELOPES.map((e) => ({
+                id: e.id,
+                name: e.name,
+                planet: e.planet as PlanetId,
+                currentCents: e.current,
+                targetCents: e.target,
+              }))}
+              totalSpentCents={Math.abs(totalExpense)}
+              totalTargetCents={totalDistill}
             />
           </div>
           <div
@@ -1644,5 +1641,254 @@ function AllocationSankey({
       showSource
       sourceLabel="Paycheck"
     />
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// PeriodDonut (#1) — a true multi-sector donut for the period scope.
+// One sector per envelope, sized by the envelope's target, colored by
+// the planet. The center text shows the period's total + remaining.
+// The legend below lists each envelope with its sector % and spent
+// amount. Mirrors the Mandala's 7-color palette so the two visual
+// anchors of the page feel like the same composition.
+// ──────────────────────────────────────────────────────────────────────
+
+interface PeriodDonutProps {
+  envelopes: ReadonlyArray<{
+    id: string;
+    name: string;
+    planet: PlanetId;
+    currentCents: number;
+    targetCents: number;
+  }>;
+  totalSpentCents: number;
+  totalTargetCents: number;
+}
+
+function PeriodDonut({ envelopes, totalSpentCents, totalTargetCents }: PeriodDonutProps) {
+  const total = envelopes.reduce((s, e) => s + e.targetCents, 0);
+  if (total === 0) {
+    return (
+      <div
+        style={{
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 11,
+          color: "var(--ink-4)",
+        }}
+      >
+        No allocation this period.
+      </div>
+    );
+  }
+
+  // Donut geometry
+  const W = 220;
+  const H = 220;
+  const cx = 110;
+  const cy = 110;
+  const rOuter = 100;
+  const rInner = 64;
+  // 1px gap between sectors so the planet colors don't bleed into each
+  // other on the dark canvas.
+  const sectorGapDeg = 0.6;
+
+  // Build sector paths. Each sector spans startAngle → endAngle, drawn
+  // as an outer arc + inner arc (donut wedge).
+  type Sector = {
+    name: string;
+    planet: PlanetId;
+    color: string;
+    spentCents: number;
+    targetCents: number;
+    pct: number; // of total (0-1)
+    path: string;
+  };
+  const sectors: Sector[] = [];
+  let cursorDeg = -90; // start at 12 o'clock
+  for (const e of envelopes) {
+    if (e.targetCents <= 0) continue;
+    const sweep = (e.targetCents / total) * 360;
+    const startDeg = cursorDeg + sectorGapDeg / 2;
+    const endDeg = cursorDeg + sweep - sectorGapDeg / 2;
+    if (endDeg - startDeg <= 0) {
+      cursorDeg += sweep;
+      continue;
+    }
+    const startRad = (startDeg * Math.PI) / 180;
+    const endRad = (endDeg * Math.PI) / 180;
+    // outer arc start/end
+    const ox1 = cx + rOuter * Math.cos(startRad);
+    const oy1 = cy + rOuter * Math.sin(startRad);
+    const ox2 = cx + rOuter * Math.cos(endRad);
+    const oy2 = cy + rOuter * Math.sin(endRad);
+    // inner arc start/end (note: reversed for the closing)
+    const ix1 = cx + rInner * Math.cos(endRad);
+    const iy1 = cy + rInner * Math.sin(endRad);
+    const ix2 = cx + rInner * Math.cos(startRad);
+    const iy2 = cy + rInner * Math.sin(startRad);
+    const largeArc = endDeg - startDeg > 180 ? 1 : 0;
+    const path = `M ${ox1} ${oy1} A ${rOuter} ${rOuter} 0 ${largeArc} 1 ${ox2} ${oy2} L ${ix1} ${iy1} A ${rInner} ${rInner} 0 ${largeArc} 0 ${ix2} ${iy2} Z`;
+    const spentCents = Math.max(0, e.targetCents - e.currentCents);
+    sectors.push({
+      name: e.name,
+      planet: e.planet,
+      color: PLANET_COLORS[e.planet],
+      spentCents,
+      targetCents: e.targetCents,
+      pct: e.targetCents / total,
+      path,
+    });
+    cursorDeg += sweep;
+  }
+
+  // Center text: total spent + remaining
+  const remaining = Math.max(0, totalTargetCents - totalSpentCents);
+  const fillPct = totalTargetCents > 0 ? Math.min(1, totalSpentCents / totalTargetCents) : 0;
+  const ringColor = fillPct < 0.5 ? "var(--terminal-cyan)" : fillPct < 0.9 ? "var(--warn)" : "var(--neg)";
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 24, alignItems: "center" }}>
+      <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} style={{ display: "block" }}>
+        {/* Faint background ring so the sector gaps don't show through */}
+        <circle cx={cx} cy={cy} r={(rOuter + rInner) / 2} fill="none" stroke="var(--vessel-border)" strokeWidth={rOuter - rInner} />
+        {/* Sectors */}
+        {sectors.map((s) => (
+          <path
+            key={s.name}
+            d={s.path}
+            fill={s.color}
+            opacity={0.92}
+          >
+            <title>
+              {s.name} · {formatMoney(s.spentCents)} of {formatMoney(s.targetCents)} ({Math.round(s.pct * 100)}% of allocation)
+            </title>
+          </path>
+        ))}
+        {/* Center labels */}
+        <text
+          x={cx}
+          y={cy - 18}
+          textAnchor="middle"
+          fontFamily="var(--font-jetbrains), monospace"
+          fontSize={8}
+          fontWeight={600}
+          letterSpacing="0.18em"
+          fill="var(--ink-3)"
+          style={{ textTransform: "uppercase" }}
+        >
+          SPENT
+        </text>
+        <text
+          x={cx}
+          y={cy + 6}
+          textAnchor="middle"
+          fontFamily="var(--font-jetbrains), monospace"
+          fontSize={22}
+          fontWeight={700}
+          fill={ringColor}
+          style={{ fontFeatureSettings: '"tnum" 1, "zero" 1' }}
+        >
+          {formatMoney(totalSpentCents)}
+        </text>
+        <text
+          x={cx}
+          y={cy + 26}
+          textAnchor="middle"
+          fontFamily="var(--font-jetbrains), monospace"
+          fontSize={8}
+          fontWeight={500}
+          letterSpacing="0.14em"
+          fill="var(--ink-4)"
+          style={{ textTransform: "uppercase" }}
+        >
+          of {formatMoney(totalTargetCents)}
+        </text>
+        <text
+          x={cx}
+          y={cy + 44}
+          textAnchor="middle"
+          fontFamily="var(--font-jetbrains), monospace"
+          fontSize={9}
+          fontWeight={600}
+          fill="var(--terminal-cyan)"
+          style={{ fontFeatureSettings: '"tnum" 1, "zero" 1' }}
+        >
+          {Math.round(fillPct * 100)}%
+        </text>
+      </svg>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+        <div
+          style={{
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 9.5,
+            fontWeight: 600,
+            color: "var(--ink-3)",
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            marginBottom: 4,
+          }}
+        >
+          // 7 vessels
+        </div>
+        {sectors.map((s) => (
+          <div
+            key={s.name}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "10px 1fr auto",
+              gap: 8,
+              alignItems: "center",
+              fontSize: 11,
+            }}
+          >
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 1,
+                background: s.color,
+              }}
+            />
+            <span
+              style={{
+                fontFamily: "var(--font-sora)",
+                color: "var(--ink-2)",
+                fontSize: 11.5,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {s.name}
+            </span>
+            <span
+              style={{
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 10,
+                color: "var(--ink-4)",
+                fontFeatureSettings: '"tnum" 1',
+                whiteSpace: "nowrap",
+              }}
+            >
+              {Math.round(s.pct * 100)}%
+            </span>
+          </div>
+        ))}
+        <div
+          style={{
+            marginTop: 6,
+            paddingTop: 8,
+            borderTop: "1px solid var(--line-soft)",
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 10,
+            color: "var(--ink-3)",
+            letterSpacing: "0.10em",
+            textTransform: "uppercase",
+          }}
+        >
+          {formatMoney(remaining)} remaining
+        </div>
+      </div>
+    </div>
   );
 }
