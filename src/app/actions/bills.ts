@@ -1,16 +1,22 @@
 "use server";
 
 /**
- * Bill server actions (Cluster 1.8).
+ * Bill server actions (Cluster 1.8, refreshed in Cluster 4.3).
  *
  * Toggling a bill paid/unpaid is a single button click — no modal, no
  * confirmation. The action sets/clears `paidAt` on the bill, writes an
  * audit entry, and revalidates the pages that surface bill state
- * (`/recurring`, `/calendar`, the Plan My Next Check panel on `/`).
+ * (`/obligations` — both tabs, `/calendar`, the Plan My Next Check
+ * panel on `/`).
  *
  * The "create new bill" + "edit bill" + "delete bill" actions come in
  * Cluster 1.6 (form actions). For 1.8 the seed data is enough to
  * demonstrate the full Plan-My-Next-Check flow.
+ *
+ * Cluster 4.3: revalidatePath calls now target `/obligations` (not
+ * the old `/recurring` path, which 308-redirects to
+ * `/obligations?tab=bills`). Targeting the layout root via `/` is
+ * still the right call for the dashboard panel.
  */
 
 import { revalidatePath } from "next/cache";
@@ -42,8 +48,10 @@ export async function toggleBillPaid(
     return { ok: false, reason: "Bill not found." };
   }
 
-  // Revalidate every page that shows bill state
-  revalidatePath("/recurring");
+  // Revalidate every page that shows bill state. /obligations
+  // covers both tabs (Bills + Subscriptions); /calendar shows the
+  // bills-on-calendar grid; / re-renders the Plan My Next Check.
+  revalidatePath("/obligations");
   revalidatePath("/calendar");
   revalidatePath("/");
 
@@ -52,7 +60,9 @@ export async function toggleBillPaid(
 
 /**
  * Add a new bill. Used by the "+ Add bill" form on /recurring/new
- * (Cluster 1.10). Form sends dollars; server converts to cents.
+ * (Cluster 1.10) — the form lives at `/recurring/new` but the bill
+ * list page moved to `/obligations?tab=bills` in Cluster 4.0. Form
+ * sends dollars; server converts to cents.
  */
 export interface AddBillResult {
   ok: boolean;
@@ -93,7 +103,7 @@ export async function logBill(
     return { ok: false, reason: result.reason ?? "Could not save the bill." };
   }
 
-  revalidatePath("/recurring");
+  revalidatePath("/obligations");
   revalidatePath("/");
   revalidatePath("/calendar");
   revalidatePath("/insights");

@@ -64,7 +64,7 @@ export const CARD_CATALOG: CardMeta[] = [
     em: "the next 2-3 bills.",
     glyph: "⏱",
     accent: "warn",
-    href: "/recurring",
+    href: "/obligations?tab=bills",
     span: "half",
     defaultOn: false,
     description:

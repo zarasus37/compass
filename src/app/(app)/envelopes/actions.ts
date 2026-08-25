@@ -18,7 +18,7 @@
  *
  * The `revalidatePath('/', 'layout')` call busts the root layout so
  * every signed-in page (including the unlisted sub-pages like
- * /goals, /recurring, /transactions, /accounts) re-reads envelope
+ * /goals, /obligations, /transactions, /accounts) re-reads envelope
  * state on next render. This is the fix for the stale-bay bug
  * across pages not in the original revalidatePath list.
  */
@@ -88,7 +88,7 @@ export async function rebalanceAction(
 
   // Bust the ROOT LAYOUT so every signed-in page re-reads envelope
   // state on next render. This fixes the stale-bay bug across
-  // unlisted sub-pages (/goals, /recurring, /transactions, etc.)
+  // unlisted sub-pages (/goals, /obligations, /transactions, etc.)
   // without enumerating every path.
   revalidatePath("/", "layout");
 

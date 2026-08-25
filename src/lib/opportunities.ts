@@ -91,7 +91,7 @@ export function topOpportunities(opts: { limit?: number } = {}): Opportunity[] {
         title: `Cancel "${sub.name}"`,
         detail: `last used ${sub.lastUsedDays}d ago`,
         deltaCents: sub.amount,
-        href: "/subscriptions",
+        href: "/obligations?tab=subs",
         planetHint: "venus",
       });
     }
