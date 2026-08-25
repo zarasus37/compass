@@ -104,8 +104,9 @@ async function main() {
   // Find the area-fill path inside that SVG and count its `L` commands.
   // 14 points → 1 M + 13 L (line) or 15 L (area, which closes back to
   // the baseline with 2 more L). Either way, >= 12 means "14-day shape".
+  // (Cluster 3.1: vessel tokens replace terminal neg/warn.)
   const sparklineAreaMatch = firstRowHtml.match(
-    /<path d="(M[^"]+)" fill="var\(--(?:neg|warn|jupiter|mercury|mars|venus|saturn|luna|sol)\)"/,
+    /<path d="(M[^"]+)" fill="var\(--(?:vessel-over|vessel-watch|jupiter|mercury|mars|venus|saturn|luna|sol)\)"/,
   );
   const sparklineLCmds = sparklineAreaMatch
     ? (sparklineAreaMatch[1].match(/L/g) || []).length
@@ -123,9 +124,10 @@ async function main() {
 
   // State color: the bar's background should match the status
   // (var(--neg) for OVER, var(--warn) for WATCH, planet/jupiter for CALM).
-  const overBarColor = /background:var\(--neg\)/.test(firstRowHtml);
+  // (Cluster 3.1: vessel tokens replace terminal neg/warn.)
+  const overBarColor = /background:var\(--vessel-over\)/.test(firstRowHtml);
   const overBarClass = /class="vessel-feed-bar--over"/.test(firstRowHtml);
-  const watchBarColor = /background:var\(--warn\)/.test(firstRowHtml);
+  const watchBarColor = /background:var\(--vessel-watch\)/.test(firstRowHtml);
   const calmBarColor = /background:var\(--jupiter\)|background:#c4b5fd/i.test(firstRowHtml);
 
   // Gauge bar thickness: 12px.

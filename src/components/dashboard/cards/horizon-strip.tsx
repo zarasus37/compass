@@ -17,10 +17,11 @@
  * exact next-14-days. A grid hides that intent behind columns; a
  * strip makes the chronological order the primary signal.
  *
- * Component Oracle Terminal treatment: mono caps day-of-week in
- * ink-3, big mono day-of-month in ink (gold for today), planet-color
- * dots for bill events, gold/cyan badges for goal types, 1px line
- * dividers between days. Today is marked with a gold left rail.
+ * Sovereign Monad (v6) treatment: mono caps day-of-week in
+ * ink-3, big mono day-of-month in ink (gold for today, preserved as
+ * a semantic "today" accent), planet-color dots for bill events,
+ * neon-purple badges for goal types, 1px vessel-border dividers
+ * between days. Today is marked with a gold left rail.
  */
 
 import * as React from "react";
@@ -65,8 +66,8 @@ export function HorizonStrip({ data }: { data: HorizonStripData }) {
     return (
       <div
         style={{
-          background: "var(--cosmos-2)",
-          border: "1px solid var(--line)",
+          background: "var(--vessel-surface)",
+          border: "1px solid var(--vessel-border)",
           borderRadius: 3,
           padding: "20px 22px",
           display: "flex",
@@ -125,8 +126,8 @@ export function HorizonStrip({ data }: { data: HorizonStripData }) {
       role="list"
       aria-label="Period horizon — 14 days"
       style={{
-        background: "var(--cosmos-2)",
-        border: "1px solid var(--line)",
+        background: "var(--vessel-surface)",
+        border: "1px solid var(--vessel-border)",
         borderRadius: 3,
         overflow: "hidden",
       }}
@@ -136,14 +137,14 @@ export function HorizonStrip({ data }: { data: HorizonStripData }) {
           fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 9.5,
           fontWeight: 600,
-          color: "var(--terminal-cyan)",
+          color: "var(--vessel-accent)",
           letterSpacing: "0.18em",
           textTransform: "uppercase",
           padding: "10px 18px 9px",
           display: "flex",
           alignItems: "center",
           gap: 8,
-          borderBottom: "1px solid var(--line-soft)",
+          borderBottom: "1px solid var(--vessel-border)",
         }}
       >
         <span style={{ color: "var(--ink-4)" }}>//</span>
@@ -181,7 +182,7 @@ function DayRow({ day, isFirst }: { day: HorizonStripDay; isFirst: boolean }) {
         alignItems: "center",
         gap: 12,
         padding: "8px 18px",
-        borderTop: isFirst ? "0" : "1px solid var(--line-soft)",
+        borderTop: isFirst ? "0" : "1px solid var(--vessel-border)",
         background: day.isToday ? "rgba(201, 164, 92, 0.06)" : "transparent",
         borderLeft: day.isToday ? "2px solid var(--gold)" : "2px solid transparent",
         paddingLeft: day.isToday ? 16 : 18,
@@ -283,9 +284,9 @@ function EventLine({ ev }: { ev: HorizonStripEvent }) {
             : "GOAL";
   const tagColor =
     ev.kind === "bill"
-      ? "var(--terminal-cyan)"
+      ? "var(--vessel-accent)"
       : ev.isTransfer
-        ? "var(--warn)"
+        ? "var(--vessel-watch)"
         : "var(--gold)";
 
   return (
@@ -322,9 +323,9 @@ function EventLine({ ev }: { ev: HorizonStripEvent }) {
           background:
             tagColor === "var(--gold)"
               ? "rgba(201, 164, 92, 0.06)"
-              : tagColor === "var(--warn)"
-                ? "rgba(245, 158, 11, 0.06)"
-                : "rgba(45, 212, 191, 0.06)",
+              : tagColor === "var(--vessel-watch)"
+                ? "rgba(249, 115, 22, 0.06)"
+                : "rgba(168, 85, 247, 0.06)",
           flexShrink: 0,
         }}
       >

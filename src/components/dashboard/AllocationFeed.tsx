@@ -22,13 +22,13 @@
  *      Thick (12px), fills left-to-right. Color/state:
  *        - CALM  (0-79%):  planet color (jupiter-violet by default;
  *          reads as "deep purple" per the spec)
- *        - WATCH (80-99%): var(--warn) — solid warning orange
- *        - OVER  (100%+):  var(--neg) with vesselOverBlink keyframe
+ *        - WATCH (80-99%): var(--vessel-watch) — solid warning orange
+ *        - OVER  (100%+):  var(--vessel-over) with vesselOverBlink keyframe
  *          (1.4s opacity 1.0 ↔ 0.55). Brightness pulses, color stays.
  *
  *   4. Sub-line: last transaction payee + days left
  *
- * Component Oracle Terminal treatment: 1px line border, planet-color
+ * Sovereign Monad (v6) treatment: 1px vessel-border, planet-color
  * left rail, mono caps status pill, Sora envelope name, JetBrains
  * Mono for the numeric ledger, square 4px corners, hover lifts the
  * row forward 2px (existing pattern).
@@ -70,12 +70,12 @@ function getStatus(targetCents: number, currentCents: number): RowStatus {
  * Bar color per the spec.
  *   CALM  → planet color (each row's vessel hue; jupiter reads as
  *           "deep purple" for any vessel without an explicit color).
- *   WATCH → var(--warn) (warning orange, the second-priority state).
- *   OVER  → var(--neg) (neon red — the only state that blinks).
+ *   WATCH → var(--vessel-watch) (warning orange, the second-priority state).
+ *   OVER  → var(--vessel-over) (neon red — the only state that blinks).
  */
 function getBarColor(status: RowStatus, planet: PlanetId | null): string {
-  if (status === "over") return "var(--neg)";
-  if (status === "watch") return "var(--warn)";
+  if (status === "over") return "var(--vessel-over)";
+  if (status === "watch") return "var(--vessel-watch)";
   if (planet) return PLANET_COLORS[planet];
   return "var(--jupiter)";
 }
@@ -88,8 +88,8 @@ export function AllocationFeed({ rows }: { rows: AllocationRow[] }) {
           style={{
             padding: "32px 16px",
             textAlign: "center",
-            background: "var(--surface)",
-            border: "1px solid var(--line)",
+            background: "var(--vessel-surface)",
+            border: "1px solid var(--vessel-border)",
             borderRadius: 3,
           }}
         >
@@ -120,7 +120,7 @@ function AllocationRowItem({ row }: { row: AllocationRow }) {
   const status = getStatus(row.targetCents, row.currentCents);
   const statusLabel = status === "over" ? "OVER" : status === "watch" ? "WATCH" : "CALM";
   const statusColor =
-    status === "over" ? "var(--neg)" : status === "watch" ? "var(--warn)" : "var(--jupiter)";
+    status === "over" ? "var(--vessel-over)" : status === "watch" ? "var(--vessel-watch)" : "var(--jupiter)";
   const barColor = getBarColor(status, row.planet);
   const planetColor = row.planet ? PLANET_COLORS[row.planet] : "var(--ink-3)";
 
@@ -148,8 +148,8 @@ function AllocationRowItem({ row }: { row: AllocationRow }) {
         flexDirection: "column",
         gap: 10,
         padding: "14px 18px 14px 22px",
-        background: "var(--surface)",
-        border: "1px solid var(--line)",
+        background: "var(--vessel-surface)",
+        border: "1px solid var(--vessel-border)",
         borderLeft: `3px solid ${planetColor}`,
         borderRadius: 3,
         textDecoration: "none",
@@ -183,7 +183,7 @@ function AllocationRowItem({ row }: { row: AllocationRow }) {
             borderRadius: "50%",
             display: "grid",
             placeItems: "center",
-            background: "var(--cosmos)",
+            background: "var(--vessel-dark)",
             border: `1px solid ${planetColor}`,
             color: planetColor,
             fontFamily: "var(--font-jetbrains), monospace",
@@ -264,7 +264,7 @@ function AllocationRowItem({ row }: { row: AllocationRow }) {
               fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 15,
               fontWeight: 700,
-              color: status === "over" ? "var(--neg)" : "var(--ink)",
+              color: status === "over" ? "var(--vessel-over)" : "var(--ink)",
               fontFeatureSettings: '"tnum" 1, "zero" 1',
               letterSpacing: "-0.005em",
               lineHeight: 1.1,
@@ -288,7 +288,7 @@ function AllocationRowItem({ row }: { row: AllocationRow }) {
             style={{
               fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 10,
-              color: status === "over" ? "var(--neg)" : status === "watch" ? "var(--warn)" : "var(--ink-3)",
+              color: status === "over" ? "var(--vessel-over)" : status === "watch" ? "var(--vessel-watch)" : "var(--ink-3)",
               letterSpacing: "0.14em",
               fontWeight: 600,
               marginTop: 3,
@@ -310,8 +310,8 @@ function AllocationRowItem({ row }: { row: AllocationRow }) {
           position: "relative",
           zIndex: 1,
           height: 12,
-          background: "var(--cosmos)",
-          border: "1px solid var(--line)",
+          background: "var(--vessel-dark)",
+          border: "1px solid var(--vessel-border)",
           borderRadius: 3,
           overflow: "hidden",
         }}
@@ -327,7 +327,7 @@ function AllocationRowItem({ row }: { row: AllocationRow }) {
             background: barColor,
             transition: "width 240ms",
             ...(status === "watch"
-              ? { boxShadow: "0 0 8px var(--warn)" }
+              ? { boxShadow: "0 0 8px var(--vessel-watch)" }
               : status === "calm"
                 ? { boxShadow: `0 0 6px ${barColor}` }
                 : {}),

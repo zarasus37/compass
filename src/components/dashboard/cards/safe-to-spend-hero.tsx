@@ -21,9 +21,9 @@
  *   3. The burn curve — full-width SVG, 160px tall
  *   4. Bottom metrics row: today / 7-day avg / vs. pace gap
  *
- * Component Oracle Terminal treatment: mono caps eyebrows with //
+ * Sovereign Monad (v6) treatment: mono caps eyebrows with //
  * prefix, big numbers in JetBrains Mono, body in Sora, status
- * markers [OK]/[WARN] in mono caps.
+ * markers [OK]/[WARN] in mono caps. (Cluster 3.1 Component 1+2.)
  */
 
 import * as React from "react";
@@ -110,22 +110,22 @@ export function SafeToSpendHero({
             : pace < 2
               ? "[WARN] above"
               : "[WARN] well above";
-  const paceAccent = pace < 1.5 ? "var(--ok)" : "var(--warn)";
+  const paceAccent = pace < 1.5 ? "var(--ok)" : "var(--vessel-watch)";
 
   // Safe-to-spend accent: cyan when positive, neg when over the line.
   const safeAccent =
-    safeToSpendCents < 0 ? "var(--neg)" : "var(--terminal-cyan)";
+    safeToSpendCents < 0 ? "var(--vessel-over)" : "var(--vessel-accent)";
 
   // Tight threshold: when per-day budget < 70% of expected daily.
   const tight = perDayCents < expectedDailyCents * 0.7;
-  const barAccent = tight ? "var(--warn)" : "var(--terminal-cyan)";
+  const barAccent = tight ? "var(--vessel-watch)" : "var(--vessel-accent)";
 
   return (
     <section
       aria-label="Daily telemetry — safe to spend"
       style={{
-        background: "var(--cosmos-2)",
-        border: "1px solid var(--line)",
+        background: "var(--vessel-surface)",
+        border: "1px solid var(--vessel-border)",
         borderLeft: `2px solid ${barAccent}`,
         borderRadius: 4,
         padding: "24px 28px 22px",
@@ -149,7 +149,7 @@ export function SafeToSpendHero({
             fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 10.5,
             fontWeight: 600,
-            color: "var(--terminal-cyan)",
+            color: "var(--vessel-accent)",
             letterSpacing: "0.20em",
             textTransform: "uppercase",
             display: "inline-flex",
@@ -227,7 +227,7 @@ export function SafeToSpendHero({
             gridTemplateColumns: "1fr 1.2fr",
             gap: 16,
             paddingLeft: 20,
-            borderLeft: "1px solid var(--line-soft)",
+            borderLeft: "1px solid var(--vessel-border)",
           }}
         >
           <Metric
@@ -243,7 +243,7 @@ export function SafeToSpendHero({
                   fontFeatureSettings: '"tnum" 1, "zero" 1',
                   fontSize: 26,
                   fontWeight: 700,
-                  color: tight ? "var(--warn)" : "var(--ink)",
+                  color: tight ? "var(--vessel-watch)" : "var(--ink)",
                   letterSpacing: "-0.02em",
                 }}
               >
@@ -262,7 +262,7 @@ export function SafeToSpendHero({
               </span>
             }
             sub="to last the period"
-            accent={tight ? "var(--warn)" : "var(--ok)"}
+            accent={tight ? "var(--vessel-watch)" : "var(--ok)"}
           />
         </div>
       </div>
@@ -289,7 +289,7 @@ export function SafeToSpendHero({
           gap: 0,
           marginTop: 18,
           paddingTop: 16,
-          borderTop: "1px solid var(--line-soft)",
+          borderTop: "1px solid var(--vessel-border)",
         }}
       >
         <Metric
@@ -311,7 +311,7 @@ export function SafeToSpendHero({
               : `+${formatMoneyCompact(-gapCents)}`
           }
           sub={underPace ? "under" : "over"}
-          accent={underPace ? "var(--ok)" : "var(--warn)"}
+          accent={underPace ? "var(--ok)" : "var(--vessel-watch)"}
           borderLeft
         />
       </div>
@@ -408,13 +408,13 @@ function BurnCurve({
   const todayYExpected = yScale(expectedYToday);
 
   // Color the actual line + dots based on pace
-  const lineColor = underPace ? "var(--terminal-cyan)" : "var(--warn)";
-  const dotColor = underPace ? "var(--terminal-cyan)" : "var(--warn)";
+  const lineColor = underPace ? "var(--vessel-accent)" : "var(--vessel-watch)";
+  const dotColor = underPace ? "var(--vessel-accent)" : "var(--vessel-watch)";
 
   // Gap label
   const gapAbs = Math.abs(gapCents);
   const gapLabel = (underPace ? "−" : "+") + formatMoneyCompact(gapAbs);
-  const gapColor = underPace ? "var(--ok)" : "var(--warn)";
+  const gapColor = underPace ? "var(--ok)" : "var(--vessel-watch)";
 
   // Position the gap label to the right of the today markers, mid-gap.
   const gapMidY = (todayYActual + todayYExpected) / 2;
@@ -534,7 +534,7 @@ function BurnCurve({
         cx={todayX}
         cy={todayYExpected}
         r={5}
-        fill="var(--cosmos-2)"
+        fill="var(--vessel-surface)"
         stroke="var(--gold)"
         strokeWidth={1.5}
       />
@@ -545,7 +545,7 @@ function BurnCurve({
         cy={todayYActual}
         r={5}
         fill={dotColor}
-        stroke="var(--cosmos-2)"
+        stroke="var(--vessel-surface)"
         strokeWidth={2}
       />
 
