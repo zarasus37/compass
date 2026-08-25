@@ -12,7 +12,7 @@
  *     with name, day-of-month, amount, and an autopay marker. The
  *     list answers "what's due, and when" with precise cents.
  *
- * Tap-through → /recurring, where the full timeline strip + paid
+ * Tap-through → /obligations?tab=bills, where the full timeline strip + paid
  * toggles + add-bill form live.
  *
  * Component Oracle Terminal treatment: section header with //

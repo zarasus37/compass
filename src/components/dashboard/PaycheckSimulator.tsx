@@ -12,7 +12,7 @@
  * Check engine which returns a 5-way breakdown:
  *
  *   Paycheck $2,000
- *     Bills     $1,050   ← from live /recurring list, binned to this period
+ *     Bills     $1,050   ← from live /obligations?tab=bills list, binned to this period
  *     Spending  $  500   ← discretionary envelope allocations
  *     Debt      $  250   ← debt envelope (Saturn)
  *     Savings   $  100   ← savings envelope (Jupiter)

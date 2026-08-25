@@ -379,10 +379,10 @@ export function PlanMyNextCheck({
         >
           {unpaidCount} bill{unpaidCount === 1 ? "" : "s"} still unpaid for this period —{" "}
           <a
-            href="/recurring"
+            href="/obligations?tab=bills"
             style={{ color: "var(--gold)", textDecoration: "none", fontWeight: 600 }}
           >
-            mark them in Recurring →
+            mark them in Obligations →
           </a>
         </p>
       )}

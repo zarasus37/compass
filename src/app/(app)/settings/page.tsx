@@ -6,33 +6,33 @@ import { ResetSeedButton } from "@/components/settings/ResetSeedButton";
 export const dynamic = "force-dynamic";
 
 /**
- * Settings — the central index for utility surfaces.
+ * Settings — the central index for the System chrome.
  *
- * Most user preferences are in-app (theme, layout) and live on the
- * dashboard's customize button. The /settings hub gathers the
- * peripheral utility features that don't fit on a card:
- *   - Habit Quiz (spend profile)
- *   - Household (multi-user)
- *   - Plaid sandbox (bank connection)
- *   - Receipt scan (OCR)
- *   - AI categorize rules
+ * Cluster 4.0 (xKryptic 2026-08-25): the System chapter is no
+ * longer a sidebar entry — it lives behind the gear icon in the
+ * top bar. This hub is what's behind the gear: the four utility
+ * surfaces that aren't daily navigation.
  *
- * Each tool gets a one-paragraph explainer and a CTA to the deep page.
+ *   01  Multi-Bank     (Plaid sandbox)
+ *   02  Smart Categorize (rules engine)
+ *   03  Receipt Scan   (OCR fallback)
+ *   04  Household      (multi-user stub)
  *
- * Component Oracle Terminal treatment: mono caps eyebrows, teal CTA
- * buttons, terminal grid layout.
+ * Subscriptions and Habit Quiz used to live here; they moved to
+ * `// Ledger · Obligations` and `// Learn · Habit Quiz`
+ * respectively.
  */
 export default function SettingsPage() {
   return (
     <div>
       <PageHead
-        eyebrow="// overview · settings"
+        eyebrow="// system · settings"
         title="The Controls"
         em="the things that make Compass yours."
         accent="cyan"
         explanation={
           <>
-            The utilities that don't fit on a dashboard card. Bank connections, habit profile, household access, and the scan / categorize tools. Most preferences (theme, dashboard cards) live on the dashboard itself — this page is for the heavier surfaces.
+            The utilities that don't fit on a dashboard card. Bank connections, scan / categorize tools, household access. Most preferences (theme, dashboard cards) live on the dashboard itself — this page is for the heavier surfaces.
           </>
         }
       />
@@ -76,24 +76,6 @@ export default function SettingsPage() {
         />
         <SettingsRow
           num="04"
-          name="Subscriptions"
-          href="/subscriptions"
-          glyph="↻"
-          accent="var(--venus)"
-          tag="[OK] DETECT"
-          caption="Every recurring charge Compass can see, in one place. Review flagged subscriptions haven't been used in 60+ days. Cancel the ones you don't want."
-        />
-        <SettingsRow
-          num="05"
-          name="Habit Quiz"
-          href="/settings/habit-quiz"
-          glyph="✺"
-          accent="var(--jupiter)"
-          tag="[OK] 5 QUESTIONS"
-          caption="A short quiz that maps your spending to the 7 planetary vessels. The result is the baseline for AI Tier 1 insights — what 'normal' looks like for you."
-        />
-        <SettingsRow
-          num="06"
           name="Household"
           href="/settings/household"
           glyph="◊"

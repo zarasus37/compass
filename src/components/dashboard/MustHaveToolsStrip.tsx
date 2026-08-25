@@ -62,7 +62,7 @@ const VIZ_TOOLS: Tool[] = [
     num: "03",
     glyph: "⏱",
     name: "Pay Period Horizon",
-    href: "/recurring",
+    href: "/obligations?tab=bills",
     caption: "bills + goals timeline",
     description:
       "Full-month calendar with every recurring bill, every goal target date, and every transaction, plotted against the cash-flow cycles.",
@@ -137,7 +137,7 @@ const FEATURE_TOOLS: Tool[] = [
     num: "09",
     glyph: "↻",
     name: "Subscriptions",
-    href: "/subscriptions",
+    href: "/obligations?tab=subs",
     caption: "detect + cancel",
     description:
       "Detects recurring charges by grouping live transactions on a 14/30/31-day cycle. Active (≤30 days) or review (60+ days unused). Recoverable total is the savings.",
@@ -149,7 +149,7 @@ const FEATURE_TOOLS: Tool[] = [
     num: "10",
     glyph: "✺",
     name: "Habit Quiz",
-    href: "/settings/habit-quiz",
+    href: "/learn/habit-quiz",
     caption: "tailor insights",
     description:
       "5 short questions, weighted answers, one of 4 profiles (Saver / Steady / Builder / Dreamer). The profile is the baseline for AI Tier 1 insights.",

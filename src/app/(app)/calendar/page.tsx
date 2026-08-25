@@ -153,10 +153,10 @@ export default function CalendarPage() {
                 <>
                   Next paycheck: {formatMoney(nextPaycheckCents)}. {unpaidBills.length} unpaid · {paidBills.length} already cleared for this period.{" "}
                   <a
-                    href="/recurring"
+                    href="/obligations?tab=bills"
                     style={{ color: "var(--gold)", textDecoration: "none", fontWeight: 600 }}
                   >
-                    Open Recurring →
+                    Open Obligations →
                   </a>
                 </>
               )}

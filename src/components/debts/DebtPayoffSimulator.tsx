@@ -27,10 +27,10 @@ import { useState, useTransition } from "react";
 import { formatMoney } from "@/lib/money";
 import {
   payoffProjection,
-  type Debt,
   type PayoffMethod,
   type PayoffProjection,
-} from "@/lib/store";
+} from "@/lib/payoff-projection";
+import type { Debt } from "@/lib/store";
 import { applyExtraToDebt } from "@/app/actions/debts";
 
 export interface DebtPayoffSimulatorProps {

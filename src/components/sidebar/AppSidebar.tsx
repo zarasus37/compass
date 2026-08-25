@@ -5,14 +5,23 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 /**
- * AppSidebar — the 3-chapter navigation rail (Component Oracle Terminal).
+ * AppSidebar — the 4-chapter navigation rail (Component Oracle Terminal).
  *
- * Chapters: OVERVIEW / PLAN / MONEY (mono uppercase, terminal labels)
- * Page names: plain English, mono items.
- * Active state: teal/cyan left rail + filled background.
- * AUTO badge: teal/cyan border + text.
+ * Chapters: OVERVIEW / LEDGER / AIMS / LEARN (mono uppercase, terminal
+ * labels with // prefix). The System chrome (Settings, Household, Plaid,
+ * Smart Categorize, Receipt Scan) is NOT a sidebar chapter — it lives
+ * behind the gear icon in TopAppBar per the Cluster 4.0 nav restructure.
  *
- * Active state: derived from the URL pathname. The user can collapse
+ *   // OVERVIEW  — Dashboard, Period, Calendar, Insights
+ *   // LEDGER    — Accounts, Transactions, Envelopes, Allocation,
+ *                 Obligations, Debts, Holdings
+ *   // AIMS      — Goals
+ *   // LEARN     — Field Guide, Your Numbers, Glossary, Habit Quiz
+ *
+ * Page names: plain English, mono items. Active state: teal/cyan left
+ * rail + filled background. AUTO badge: teal/cyan border + text.
+ *
+ * Active state is derived from the URL pathname. The user can collapse
  * the rail with the chevron toggle in the header.
  *
  * The sidebar is the "sticky dark bar" the spec calls for, with mono
@@ -39,28 +48,33 @@ const NAV: NavChapter[] = [
       { href: "/period",   label: "Period",    badge: { text: "5D", tone: "count" } },
       { href: "/calendar", label: "Calendar" },
       { href: "/insights", label: "Insights" },
-      { href: "/settings", label: "Settings" },
     ],
   },
   {
-    label: "// Plan",
+    label: "// Ledger",
     items: [
-      { href: "/goals",      label: "Goals" },
-      { href: "/recurring",  label: "Recurring" },
-      { href: "/emergency",  label: "Emergency" },
-      { href: "/invest",     label: "Investment" },
-      { href: "/allocation", label: "Allocation", badge: { text: "AUTO", tone: "auto" } },
+      { href: "/accounts",     label: "Accounts" },
+      { href: "/transactions", label: "Transactions" },
+      { href: "/envelopes",    label: "Envelopes" },
+      { href: "/allocation",   label: "Allocation", badge: { text: "AUTO", tone: "auto" } },
+      { href: "/obligations",  label: "Obligations" },
+      { href: "/debts",        label: "Debts" },
+      { href: "/holdings",     label: "Holdings" },
     ],
   },
   {
-    label: "// Money",
+    label: "// Aims",
     items: [
-      { href: "/envelopes",     label: "Envelopes" },
-      { href: "/transactions",  label: "Transactions" },
-      { href: "/accounts",      label: "Accounts" },
-      { href: "/subscriptions", label: "Subscriptions" },
-      { href: "/debts",         label: "Debts" },
-      { href: "/investments",   label: "Investments" },
+      { href: "/goals", label: "Goals" },
+    ],
+  },
+  {
+    label: "// Learn",
+    items: [
+      { href: "/learn/field-guide", label: "Field Guide" },
+      { href: "/learn/your-numbers", label: "Your Numbers" },
+      { href: "/learn/glossary",   label: "Glossary" },
+      { href: "/learn/habit-quiz", label: "Habit Quiz" },
     ],
   },
 ];
@@ -311,12 +325,13 @@ function NavChapterView({
         />
       )}
       {chapter.items.map((item) => {
-        const isActive = pathname === item.href || (item.href === "/" && pathname === "/");
+        const isActive = isItemActive(pathname, item.href);
         return (
           <Link
             key={item.href}
             href={item.href}
             title={collapsed ? item.label : undefined}
+            aria-current={isActive ? "page" : undefined}
             style={{
               position: "relative",
               display: "flex",
@@ -419,4 +434,15 @@ function NavChapterView({
       })}
     </nav>
   );
+}
+
+/**
+ * isItemActive — match a sidebar item to the current pathname.
+ * - Exact match for "/" (dashboard home).
+ * - Exact + prefix match for deep routes (so /envelopes/x stays lit
+ *   when the sidebar item points to /envelopes).
+ */
+function isItemActive(pathname: string, href: string): boolean {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(href + "/");
 }

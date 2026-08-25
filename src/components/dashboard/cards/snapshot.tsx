@@ -3,7 +3,7 @@
  *
  * Preserved as a card variant of the dashboard snapshot. The deep
  * numbers (full balance history, paycheck details, period walk)
- * live on /accounts, /period, and /recurring respectively.
+ * live on /accounts, /period, and /obligations?tab=bills respectively.
  *
  * Component Oracle Terminal treatment: mono caps eyebrows with //
  * prefix, big numbers in JetBrains Mono with the per-cell accent

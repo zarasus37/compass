@@ -12,7 +12,7 @@
 - **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory) — ✅ done, commit `cda8972`. Cluster 1.7 visual audit — ✅ done, commit `3da5716`. **Cluster 1.8 (Bill organizer + Plan My Next Check + calendar warnings) — ✅ done, commit `999ff37`. Cluster 1.9 (Debt payoff simulator + Saturn vessel + 3-up card + paid-off celebration) — ✅ done, commits `feb50e3` + `801525c` (math-bug fix) + `0ffb439` (per-debt sparkline).** Biweekly period locked as the canonical pay schedule (D17); period-close renamed to match (D18). **Chart-next-to-data principle applied across /goals, /envelopes, /recurring, /debts, /insights — commit `843375c`. Cluster 1.10 (drill-downs + new transaction / goal / envelope / bill / debt forms + edit forms) — ✅ done, commits `03f308f` + `006bca0` + `3dc679f` + `649d76e`. **Cluster 2.0 (customizable, scrollable, card-based dashboard with @dnd-kit drag-and-drop + localStorage persistence) — ✅ done, commit `e648ef5`. Cluster 2.0.1 (visual-first treatment: 7-day WeekSparkline, BurnSparkline, embedded GoalSparkline) — ✅ done, commit `af0b8d3`. Cluster 2.0.2 (full-month calendar with planetary headers + scheduled bills list) — ✅ done, commit `34f3928`. **Cluster 2.0.3 (Component Oracle Terminal re-skin of the dashboard) — ✅ done, commit `884fe70`.** **Cluster 2.1 (must-have viz + utility integration push: 3 new dashboard cards (Spend Ring, Net Trajectory, Pay Distribution) + Must-Have Tools index strip on dashboard + /settings hub + Plaid sandbox + AI categorize rules + Receipt scan + Habit quiz + Household stub + /subscriptions wired to live data) — ✅ done, single working session.** Next: tidy up — fine-tune placement, polish tooltips, add hover states where missing, decide which cards to default-on, integrate the tools into the sidebar nav as a 4th chapter if the Settings entry feels too hidden, then 2.x (form actions deep-dive, bill reminders, variable income, period close), then 3.x (real Plaid, AI tiers).
 - **Stage 3 (Test & bug-fix)**: pending Stage 2
 
-> Last update: 2026-08-24 (post-Cluster-3.1 — vessel visual migration, 5 body shells on the Sovereign Monad palette + collateral tsc fix in engine-actions.ts)
+> Last update: 2026-08-25 (post-Cluster-4.0 — site-wide nav restructure: 3-chapter → 4-chapter + footer chrome, with merged /obligations, renamed /holdings, 4 net-new LEARN pages, and a fixed /debts bundling bug)
 
 ---
 
@@ -53,7 +53,7 @@ Key sections to load into context:
 - **D10** Stack: **Next.js 16 monolith + plugin architecture + API routes for external integrations**
 - **D11** **Unit of truth = pay period** (not month, not transaction)
 - **D12** **Auto-allocate, no confirm modal** (plan is policy, not intent)
-- **D13** **3-chapter sidebar**: ~~Cosmos / The Great Work / Substance~~ → **Overview / Plan / Money** (terminal voice; order matters)
+- **D13** **Sidebar structure**: ~~Cosmos / The Great Work / Substance~~ → ~~3-chapter Overview / Plan / Money~~ → **4-chapter Overview / Ledger / Aims / Learn + System footer** (terminal voice; order matters). The System chrome (Settings, Household, Plaid, Smart Categorize, Receipt Scan) lives behind the gear icon in TopAppBar, not in the sidebar. Recorded 2026-08-25.
 - **D14** **7 planetary vessels** (Sol=Rent, Luna=Groceries, Mars=Buffer, Mercury=Utilities, Jupiter=Growth, Venus=Joy, Saturn=Debt) — preserved as semantic mapping
 - **D15** ~~Alchemical vocabulary~~ (Vessels/Chronicle/Great Work/Prima Materia/Distillation/Aspects) — **demoted to decoration only**, primary labeling is now terminal voice
 - **D16** **Envelopes enforce** (balance = 100% = hard warning)
@@ -525,6 +525,109 @@ The 5 body shells listed in the Cluster 3.0 "what is NOT yet migrated" gap are n
 - All 8 smokes green at 241/241 (topbar 102, rebalance 5, alert-bay 22, horizon-strip 16, vessel-feed 11, bottom-dock 70, reset-seed 8, engine-toggle 7)
 
 **What is NOT yet migrated (the residual gap):** the remaining dashboard shell components — `DashboardCard`, `DashboardGrid`, `MustHaveToolsStrip`, `PlanMyNextCheck`, `PaycheckSimulator`, `SwipeableDashboardHeader`, and the remaining dashboard cards (`daily-tracking`, `envelope-status`, `critical-timeline`, `net-trajectory`, `spend-ring`, `pay-distribution`, `snapshot`, `top-priority`, `next-step`, `month-calendar`) — still use Component Oracle Terminal tokens. The visual mismatch between the vessel shell and the terminal body is now reduced (the 5 priority body shells match) but not eliminated. Tracked as **Cluster 3.1.5 — Visual finish pass** (low effort, additive — same token map).
+
+### Cluster 4.0 — Site-wide nav restructure (✅ DONE; 2026-08-25)
+
+Per xKryptic's directive 2026-08-25: the 3-chapter `// Overview / // Plan / // Money` structure is no longer the right fit. The app reorganizes into **4 chapters + a System footer**, and the new structure is in production.
+
+**New chapter structure:**
+
+| Chapter | Items |
+|---|---|
+| **// Overview** | Dashboard, Period, Calendar, Insights |
+| **// Ledger** | Accounts, Transactions, Envelopes, Allocation, **Obligations** (new — merges Recurring + Subscriptions), Debts, **Holdings** (renamed from Investments) |
+| **// Aims** | Goals (Emergency Fund + Invest are now goal **types** on /goals, not standalone routes) |
+| **// Learn** | **Field Guide** (new), **Your Numbers** (new), **Glossary** (new stub), **Habit Quiz** (moved from /settings) |
+| **Footer / System** | Settings, Household, Plaid, Smart Categorize, Receipt Scan — behind the gear icon in TopAppBar, NOT a sidebar entry |
+
+**Files changed:**
+
+- `src/components/sidebar/AppSidebar.tsx` — full rewrite to the 4-chapter + footer structure. Removed `Settings` from the sidebar (it's behind the gear). Added `aria-current="page"` on the active item (was missing in the prior version — caught by the new sidebar smoke). The `isItemActive` helper now uses exact match for `/` and exact+prefix match for deep routes, so `/envelopes/x` stays lit when the sidebar item points to `/envelopes`.
+
+- `next.config.ts` — added a `redirects()` block with 6 permanent (308) redirects:
+  - `/recurring` → `/obligations?tab=bills`
+  - `/subscriptions` → `/obligations?tab=subs`
+  - `/investments` → `/holdings`
+  - `/settings/habit-quiz` → `/learn/habit-quiz`
+  - `/emergency` → `/goals?kind=emergency`
+  - `/invest` → `/goals?kind=invest`
+  Old deep links still work; bookmarks, smoke scripts, and shared URLs survive the rename.
+
+- `src/app/(app)/obligations/page.tsx` (new) — the merged Recurring + Subscriptions view. Two-tab UI (Bills / Subscriptions) wired to live data from both sources. Reads `?tab=bills` (default) or `?tab=subs` via Next 16 `searchParams` Promise. The Bills tab is a direct port of the old `/recurring` content (liveBills + billsDueInPeriod + BillPaidToggle + due-day timeline); the Subs tab is a direct port of the old `/subscriptions` content (detectSubscriptions + stat strip + active/review list). The `+ Add bill` button only shows on the Bills tab.
+
+- `src/app/(app)/holdings/page.tsx` (new) — rename of `/investments`. Same data, same accent (jupiter), just a new label and route. The 308 redirect handles the old URL.
+
+- `src/app/(app)/learn/field-guide/page.tsx` (new) — the model behind the screens. 6 sections (the period, the vessels, allocation, overflow, goals, pace) with a top-of-page card grid, in-page anchors, and a "colophon" footer pointing to the Glossary and Your Numbers. Sora body, mono caps eyebrows, vessel-accent pull-quote left rail.
+
+- `src/app/(app)/learn/your-numbers/page.tsx` (new) — coaching pulled from live data. Three sections: (1) headline ratios (envelopes used, envelopes over, period progress), (2) per-vessel attention list (over → watch → ok → calm, sorted), (3) top opportunities (same `topOpportunities` engine that powers the SafeToSpendHero). Each row is a one-line observation, not a thesis. Adapts to the data — calm when everything's tight, more rows when there's something to act on.
+
+- `src/app/(app)/learn/glossary/page.tsx` (new stub) — the vocabulary. Per the user's choice, this lands as a calm `[OK] COMING SOON` state with the planned 12 terms listed in a footer callout. Term definitions will fill in over a follow-up pass.
+
+- `src/app/(app)/learn/habit-quiz/page.tsx` (new) + `HabitQuiz.tsx` (moved) — the quiz from `/settings/habit-quiz`, copied verbatim and rebased to the new path. The 308 redirect handles the old URL. The Quiz component itself is unchanged.
+
+- `src/app/(app)/settings/page.tsx` — full rewrite. Dropped the Subscriptions row (moved to /obligations) and the Habit Quiz row (moved to /learn). Renumbered the remaining 4 rows. Updated the eyebrow from `// overview · settings` to `// system · settings`. The page is now a true System hub (Multi-Bank, Smart Categorize, Receipt Scan, Household) — accessed via the gear icon in TopAppBar.
+
+- `src/app/(app)/recurring/new/page.tsx` — the "Add bill" form. The "← All bills" back link now points to `/obligations?tab=bills` (was `/recurring`). The form itself is unchanged.
+
+- `src/components/dashboard/MustHaveToolsStrip.tsx` — 3 href updates: Pay Period Horizon chip → `/obligations?tab=bills`; Subscriptions chip → `/obligations?tab=subs`; Habit Quiz chip → `/learn/habit-quiz`.
+
+- `src/components/dashboard/PlanMyNextCheck.tsx` — the "mark them in Recurring →" CTA now points to `/obligations?tab=bills` with the new label "mark them in Obligations".
+
+- `src/app/(app)/calendar/page.tsx` — the "Open Recurring →" link at the bottom of the bills-due warning now points to `/obligations?tab=bills` with the new label "Open Obligations".
+
+- `src/components/dashboard/cards/critical-timeline.tsx`, `snapshot.tsx`, `dashboard/PaycheckSimulator.tsx` — 3 stale comment-only references updated to the new routes (so future readers see the right paths in the code comments).
+
+**Dead-code / deletion note:** the old page files for `/recurring`, `/subscriptions`, `/investments`, `/emergency`, `/invest`, and `/settings/habit-quiz` are still on disk (the harness blocks `Remove-Item`). The 308 redirects in `next.config.ts` make them unreachable, so they're inert. A future cluster can move them to `_deprecated/` for tidiness, but no functional behavior depends on the removal.
+
+**Collateral fix — pre-existing /debts bundling bug (caught by the new sidebar smoke):**
+
+The new `smoke-sidebar.mjs` exercises every route in the sidebar, including `/debts`. That route failed to compile: `DebtPayoffSimulator.tsx` is `"use client"` but imported the pure `payoffProjection` and `orderDebtsByMethod` functions from `@/lib/store` — which transitively pulled in `better-sqlite3` (a Node-only native module) into the client bundle.
+
+This bug had been latent since Cluster 1.9 (when DebtPayoffSimulator was first shipped); the prior 8 smokes never hit `/debts`, so the dev server's lazy compilation never tripped on it. My new sidebar smoke did.
+
+**Fix:** extracted the pure payoff functions to a new file `src/lib/payoff-projection.ts` (no DB dependency). `lib/store.ts` re-exports them for backwards compatibility (so any server-side import keeps working). Updated `DebtPayoffSimulator.tsx` to import from the new file. The /debts page now compiles cleanly.
+
+The same fix would apply to any other client component that pulls in a pure function from `@/lib/store`. Audited — `paycheckBreakdown` and `safeToSpend` are server-only callers; `billsDueInPeriod` is used in the `/recurring` server page (deleted, see above) and the `/obligations` server page (which I wrote fresh and uses the right import). No other leaks.
+
+**Smoke updates:**
+
+- `tests/smoke-sidebar.mjs` (new, 60 checks) — full coverage of the new 4-chapter structure. Verifies the chapter labels render in order, all 16 nav items have correct hrefs and labels, the Settings entry is absent from the sidebar, every new route resolves to 200, every old URL gets the 308 redirect, and each nav item gets the active treatment on its own page (via the new `aria-current="page"` attribute). This is the smoke that caught the /debts bundling bug.
+
+- `tests/smoke-bottom-dock.mjs` (70 checks) — unchanged. The bottom dock is a separate navigation layer (Dashboard / Quick Entry / Advanced Analytics / Settings), not the sidebar.
+
+- `tests/smoke-topbar.mjs` (102 checks) — unchanged. The top bar (TopAppBar) is unchanged.
+
+- `tests/smoke-vessel-feed.mjs` (7 checks) — unchanged. AllocationFeed is unchanged.
+
+- `tests/smoke-horizon-strip.mjs` (14 checks) — unchanged. Horizon strip is unchanged.
+
+- `tests/smoke-alert-bay.mjs` (22 checks) — unchanged. RebalanceAlertBay is unchanged.
+
+- `tests/smoke-rebalance.mjs` (5 checks) — unchanged. Tests `/envelopes` rebalance which is unaffected.
+
+- `tests/smoke-reset-seed.mjs` (8 checks) — unchanged.
+
+- `tests/smoke-engine-toggle.mjs` (7 checks) — unchanged.
+
+- `tests/smoke-auth.mjs` — still pre-existing failing (expects "Welcome, Mom" heading on `/`; the dashboard was rewritten in Cluster 2.0 and the smoke hasn't been updated). Unrelated to this cluster.
+
+**Verification:**
+
+- `tsc --noEmit` clean across all 60+ source files.
+- All 9 smokes green at 301/301 (topbar 102, sidebar **60** new, rebalance 5, horizon-strip 14, alert-bay 22, vessel-feed 7, bottom-dock 70, reset-seed 8, engine-toggle 7) — plus 6 OK / 0 MISS on the dev server route check.
+- 308 redirects verified end-to-end: `/recurring` → `/obligations?tab=bills`, `/subscriptions` → `/obligations?tab=subs`, `/investments` → `/holdings`, `/settings/habit-quiz` → `/learn/habit-quiz`, `/emergency` → `/goals?kind=emergency`, `/invest` → `/goals?kind=invest`.
+- All 16 new routes resolve to 200 (dashboard, period, calendar, insights, accounts, transactions, envelopes, allocation, obligations, debts, holdings, goals, learn/field-guide, learn/your-numbers, learn/glossary, learn/habit-quiz).
+
+**Decision revision recorded:**
+
+- **D13 (3-chapter sidebar) → 4-chapter + footer.** The D8 Sovereign Monad vessel tokens are unchanged. The D14 planetary vessels are unchanged. The D12 auto-allocate (no confirm modal) is unchanged.
+
+**Follow-up clusters (not in this push, queued for fresh-session handoff):**
+
+- **Cluster 4.1 — Glossary content fill-in.** 12 terms have been identified; write 1-paragraph definitions for each. Add a search box at the top. The planned-terms callout in the stub gets removed once the entries land.
+- **Cluster 4.2 — `/goals` goal-type filtering.** The /goals page should accept `?kind=emergency` and `?kind=invest` (already used by the redirects) to deep-link to the right goal type. The Goal model has a `kind` field with `GoalKind { TRANSFER, MILESTONE }` enum — extend to include `EMERGENCY` and `INVEST` (or add a separate `goalType` field).
+- **Cluster 4.3 — Old page deletion.** Move the dead `/recurring`, `/subscriptions`, `/investments`, `/emergency`, `/invest`, `/settings/habit-quiz` files to a `_deprecated/` directory (or remove them — once a Trash tool is available).
+- **Cluster 4.4 — Visual finish pass** (was 3.1.5): the residual dashboard shell components still use Component Oracle Terminal tokens. Same additive token map as Cluster 3.1.
 
 ### Cluster 2 (after Cluster 2.0)
 

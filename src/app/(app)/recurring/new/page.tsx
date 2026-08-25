@@ -29,7 +29,7 @@ export default function NewBillPage() {
         accent="mercury"
         actions={
           <Link
-            href="/recurring"
+            href="/obligations?tab=bills"
             style={{
               fontFamily: "var(--font-jetbrains), monospace",
               background: "transparent",
