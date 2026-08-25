@@ -13,10 +13,10 @@
  * in component state (not localStorage) so a fresh session / page
  * refresh brings the alert back if the overage is still real.
  *
- * Component Oracle Terminal treatment: warn-bordered banner (amber,
- * left rail 2px), light warn-tinted background, [WARN] mono prefix,
+ * Sovereign Monad (v6) treatment: warn-bordered banner (orange,
+ * left rail 2px), light watch-tinted background, [WARN] mono prefix,
  * envelope name in Sora, overage in JetBrains Mono, square 4px
- * corners, teal-cyan action button.
+ * corners, neon-purple action button.
  */
 
 import * as React from "react";
@@ -81,13 +81,13 @@ export function RebalanceAlertBay({ envelopes, overLimit }: RebalanceAlertBayPro
           display: "flex",
           alignItems: "center",
           gap: 16,
-          background: "rgba(245, 158, 11, 0.06)",
-          border: "1px solid rgba(245, 158, 11, 0.45)",
-          borderLeft: "3px solid var(--warn)",
+          background: "rgba(249, 115, 22, 0.06)",
+          border: "1px solid rgba(249, 115, 22, 0.45)",
+          borderLeft: "3px solid var(--vessel-watch)",
           borderRadius: 4,
           padding: "14px 18px",
           marginBottom: 24,
-          boxShadow: "0 0 16px rgba(245, 158, 11, 0.10)",
+          boxShadow: "0 0 16px rgba(249, 115, 22, 0.10)",
         }}
       >
         {/* Vessel glyph */}
@@ -99,7 +99,7 @@ export function RebalanceAlertBay({ envelopes, overLimit }: RebalanceAlertBayPro
             width: 38,
             height: 38,
             borderRadius: 2,
-            background: "var(--cosmos-2)",
+            background: "var(--vessel-surface)",
             border: `1px solid ${PLANET_COLORS[worst.planet]}`,
             color: PLANET_COLORS[worst.planet],
             fontSize: 18,
@@ -119,7 +119,7 @@ export function RebalanceAlertBay({ envelopes, overLimit }: RebalanceAlertBayPro
               fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 10.5,
               fontWeight: 600,
-              color: "var(--warn)",
+              color: "var(--vessel-watch)",
               letterSpacing: "0.20em",
               textTransform: "uppercase",
               marginBottom: 4,
@@ -154,7 +154,7 @@ export function RebalanceAlertBay({ envelopes, overLimit }: RebalanceAlertBayPro
             exceeded its limit by{" "}
             <b
               style={{
-                color: "var(--warn)",
+                color: "var(--vessel-watch)",
                 fontFamily: "var(--font-jetbrains), monospace",
                 fontFeatureSettings: '"tnum" 1, "zero" 1',
                 fontWeight: 700,
@@ -173,8 +173,8 @@ export function RebalanceAlertBay({ envelopes, overLimit }: RebalanceAlertBayPro
             onClick={() => setDrawerOpen(true)}
             style={{
               fontFamily: "var(--font-jetbrains), monospace",
-              background: "var(--terminal-cyan)",
-              color: "var(--void)",
+              background: "var(--vessel-accent)",
+              color: "#FFFFFF",
               border: 0,
               borderRadius: 2,
               padding: "10px 18px",
@@ -183,15 +183,15 @@ export function RebalanceAlertBay({ envelopes, overLimit }: RebalanceAlertBayPro
               letterSpacing: "0.18em",
               textTransform: "uppercase",
               cursor: "pointer",
-              boxShadow: "0 0 16px rgba(45, 212, 191, 0.30)",
+              boxShadow: "0 0 16px rgba(168, 85, 247, 0.40)",
               transition: "all 160ms",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = "0 0 22px rgba(45, 212, 191, 0.50)";
+              e.currentTarget.style.boxShadow = "0 0 22px rgba(168, 85, 247, 0.60)";
               e.currentTarget.style.transform = "translateY(-1px)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = "0 0 16px rgba(45, 212, 191, 0.30)";
+              e.currentTarget.style.boxShadow = "0 0 16px rgba(168, 85, 247, 0.40)";
               e.currentTarget.style.transform = "translateY(0)";
             }}
           >
@@ -207,7 +207,7 @@ export function RebalanceAlertBay({ envelopes, overLimit }: RebalanceAlertBayPro
               height: 30,
               borderRadius: 2,
               background: "transparent",
-              border: "1px solid var(--line)",
+              border: "1px solid var(--vessel-border)",
               color: "var(--ink-3)",
               fontSize: 14,
               lineHeight: 1,

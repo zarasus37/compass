@@ -5,15 +5,12 @@
  * L1 (deterministic rules engine) and L2 (AI-driven) on the
  * SystemSettings row.
  *
- * The TopAppBar's engine pill submits this action. We read the
- * current row, flip the level, upsert (idempotent on first call —
- * creates the GLOBAL_CONFIG row if it doesn't exist yet), and
- * revalidate the root layout so every page re-reads the new engine
- * state on next render.
- *
- * Returns a small result envelope so the client can branch on
- * `success` (the spec uses useTransition + button.disabled; we
- * still want a typed response for the rare Prisma error path).
+ * The TopAppBar's engine pill submits this action as a plain server-action
+ * `<form action={toggleEngineAction}>` (no useActionState), so the
+ * return type must be `Promise<void>` to match the form's `action` prop
+ * signature `(formData: FormData) => void | Promise<void>`. The
+ * `ToggleEngineResult` type is exported for any future caller that
+ * wants the typed envelope (e.g. a useActionState form).
  *
  * The actual L1 vs L2 engine plumbing is a future cluster — for v1
  * the toggle just records the preference. Other engines can read
@@ -36,7 +33,7 @@ export async function getActiveEngineLevel(): Promise<EngineLevel> {
   return (row?.activeEngineLvl as EngineLevel) ?? "L1";
 }
 
-export async function toggleEngineAction(): Promise<ToggleEngineResult> {
+export async function toggleEngineAction(): Promise<void> {
   try {
     const current = await prisma.systemSettings.findUnique({
       where: { id: "GLOBAL_CONFIG" },
@@ -53,10 +50,10 @@ export async function toggleEngineAction(): Promise<ToggleEngineResult> {
     });
 
     revalidatePath("/", "layout");
-    return { success: true, newLevel: nextLevel };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
     console.error("toggleEngineAction failed:", err);
-    return { success: false, error: message };
+    // The plain-form action signature requires Promise<void>; the
+    // typed envelope is still exported above for any future caller
+    // that wants to surface engine-toggle errors to the UI.
   }
 }

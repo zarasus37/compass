@@ -102,7 +102,9 @@ async function main() {
   const hasExceededPhrase = /has\s*\n*exceeded its limit by/.test(dashStripped)
                           || /has\s+exceeded its limit by/.test(dashStripped);
   const hasDismissButton = /aria-label="Dismiss alert"/.test(dashText);
-  const hasWarnBorder = /border:1px solid rgba\(245, 158, 11/.test(dashText);
+  // Component 3 (Cluster 3.1): warn border now uses vessel-watch orange
+  // (#f97316 = rgb(249, 115, 22)) instead of the old terminal amber.
+  const hasWarnBorder = /border:1px solid rgba\(249, 115, 22/.test(dashText);
 
   // Extract the envelope name + overage from the bay's first warning line.
   // Pattern: "<b>{Name}</b> has exceeded its limit by <b>${X}</b>"

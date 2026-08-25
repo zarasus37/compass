@@ -14,8 +14,8 @@
  * shows the engine's reason. The form auto-resets the amount
  * field after a successful move so the next move is one click away.
  *
- * Component Oracle Terminal treatment: mono caps labels, gold
- * [OK]/[WARN] markers, square 4px corners, teal-cyan submit.
+ * Sovereign Monad (v6) treatment: mono caps labels, gold
+ * [OK]/[WARN] markers, square 4px corners, neon-purple submit.
  */
 
 import * as React from "react";
@@ -60,8 +60,8 @@ export function RebalanceForm({ envelopes }: { envelopes: EnvelopeOption[] }) {
   return (
     <div
       style={{
-        background: "var(--surface)",
-        border: "1px solid var(--line)",
+        background: "var(--vessel-surface)",
+        border: "1px solid var(--vessel-border)",
         borderRadius: 4,
         padding: "24px 28px 22px",
       }}
@@ -174,8 +174,8 @@ export function RebalanceForm({ envelopes }: { envelopes: EnvelopeOption[] }) {
           disabled={pending}
           style={{
             fontFamily: "var(--font-jetbrains), monospace",
-            background: pending ? "var(--cosmos-3)" : "var(--terminal-cyan)",
-            color: pending ? "var(--ink-3)" : "var(--void)",
+            background: pending ? "var(--vessel-dark)" : "var(--vessel-accent)",
+            color: pending ? "var(--ink-3)" : "#FFFFFF",
             border: 0,
             borderRadius: 2,
             padding: "10px 22px",
@@ -185,7 +185,7 @@ export function RebalanceForm({ envelopes }: { envelopes: EnvelopeOption[] }) {
             textTransform: "uppercase",
             cursor: pending ? "default" : "pointer",
             height: 38,
-            boxShadow: pending ? "none" : "0 0 16px rgba(45, 212, 191, 0.3)",
+            boxShadow: pending ? "none" : "0 0 16px rgba(168, 85, 247, 0.4)",
             transition: "all 160ms",
             whiteSpace: "nowrap",
           }}
@@ -202,12 +202,12 @@ export function RebalanceForm({ envelopes }: { envelopes: EnvelopeOption[] }) {
             marginTop: 16,
             padding: "10px 14px",
             background: "rgba(239, 68, 68, 0.08)",
-            border: "1px solid var(--neg)",
-            borderLeft: "2px solid var(--neg)",
+            border: "1px solid var(--vessel-over)",
+            borderLeft: "2px solid var(--vessel-over)",
             borderRadius: 3,
             fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 11,
-            color: "var(--neg)",
+            color: "var(--vessel-over)",
             letterSpacing: "0.04em",
           }}
         >
@@ -310,7 +310,7 @@ function GlyphFor({ planet }: { planet: PlanetId }) {
         width: 16,
         height: 16,
         borderRadius: "50%",
-        background: "var(--cosmos)",
+        background: "var(--vessel-dark)",
         border: `1px solid ${color}`,
         color: color,
         fontSize: 10,
@@ -330,8 +330,8 @@ const selectStyle: React.CSSProperties = {
   fontFamily: "var(--font-jetbrains), monospace",
   fontSize: 13,
   color: "var(--ink)",
-  background: "var(--cosmos-2)",
-  border: "1px solid var(--line)",
+  background: "var(--vessel-surface)",
+  border: "1px solid var(--vessel-border)",
   borderRadius: 3,
   padding: "8px 10px",
   height: 38,

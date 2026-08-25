@@ -17,9 +17,9 @@
  * On failure: the engine's reason is shown inline as [WARN] message;
  * the drawer stays open so the user can correct and retry.
  *
- * Component Oracle Terminal treatment: dark cosmos surface, warn
+ * Sovereign Monad (v6) treatment: dark vessel surface, watch
  * left rail (signals "you're fixing something"), mono caps
- * labels with // prefix, square 4px corners, teal-cyan submit
+ * labels with // prefix, square 4px corners, neon-purple submit
  * with glow, light glass backdrop behind the drawer.
  */
 
@@ -103,7 +103,7 @@ export function RebalanceDrawer({ open, onClose, destination, sources }: Rebalan
         style={{
           position: "fixed",
           inset: 0,
-          background: "rgba(6, 10, 18, 0.55)",
+          background: "rgba(6, 10, 18, 0.45)",
           backdropFilter: "blur(2px)",
           zIndex: 90,
           animation: "rebalanceDrawerIn 180ms cubic-bezier(0.2, 0.7, 0.3, 1)",
@@ -121,8 +121,8 @@ export function RebalanceDrawer({ open, onClose, destination, sources }: Rebalan
           right: 0,
           bottom: 0,
           width: "min(440px, 100vw)",
-          background: "var(--cosmos-2)",
-          borderLeft: "1px solid var(--line)",
+          background: "var(--vessel-surface)",
+          borderLeft: "1px solid var(--vessel-border)",
           boxShadow: "-12px 0 40px rgba(0, 0, 0, 0.6)",
           zIndex: 91,
           display: "flex",
@@ -134,12 +134,12 @@ export function RebalanceDrawer({ open, onClose, destination, sources }: Rebalan
         <div
           style={{
             padding: "20px 24px 18px",
-            borderBottom: "1px solid var(--line)",
+            borderBottom: "1px solid var(--vessel-border)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             gap: 12,
-            background: "var(--cosmos)",
+            background: "var(--vessel-dark)",
           }}
         >
           <div>
@@ -148,7 +148,7 @@ export function RebalanceDrawer({ open, onClose, destination, sources }: Rebalan
                 fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 10,
                 fontWeight: 600,
-                color: "var(--warn)",
+                color: "var(--vessel-watch)",
                 letterSpacing: "0.20em",
                 textTransform: "uppercase",
                 marginBottom: 6,
@@ -163,8 +163,8 @@ export function RebalanceDrawer({ open, onClose, destination, sources }: Rebalan
                   width: 6,
                   height: 6,
                   borderRadius: "50%",
-                  background: "var(--warn)",
-                  boxShadow: "0 0 6px var(--warn)",
+                  background: "var(--vessel-watch)",
+                  boxShadow: "0 0 6px var(--vessel-watch)",
                 }}
               />
               [WARN] balance envelope
@@ -191,8 +191,8 @@ export function RebalanceDrawer({ open, onClose, destination, sources }: Rebalan
               width: 32,
               height: 32,
               borderRadius: 2,
-              background: "var(--cosmos-2)",
-              border: "1px solid var(--line)",
+              background: "var(--vessel-surface)",
+              border: "1px solid var(--vessel-border)",
               color: "var(--ink-3)",
               fontSize: 16,
               lineHeight: 1,
@@ -209,8 +209,8 @@ export function RebalanceDrawer({ open, onClose, destination, sources }: Rebalan
         <div
           style={{
             padding: "16px 24px",
-            background: "rgba(245, 158, 11, 0.06)",
-            borderBottom: "1px solid var(--line-soft)",
+            background: "rgba(249, 115, 22, 0.06)",
+            borderBottom: "1px solid var(--vessel-border)",
             display: "flex",
             alignItems: "center",
             gap: 12,
@@ -224,9 +224,9 @@ export function RebalanceDrawer({ open, onClose, destination, sources }: Rebalan
               width: 36,
               height: 36,
               borderRadius: 2,
-              background: "var(--cosmos)",
-              border: "1px solid var(--warn)",
-              boxShadow: "0 0 6px rgba(245, 158, 11, 0.3)",
+              background: "var(--vessel-dark)",
+              border: "1px solid var(--vessel-watch)",
+              boxShadow: "0 0 6px rgba(249, 115, 22, 0.3)",
               color: PLANET_COLORS[destination.planet],
               fontSize: 18,
               fontFamily: "var(--font-jetbrains), monospace",
@@ -254,7 +254,7 @@ export function RebalanceDrawer({ open, onClose, destination, sources }: Rebalan
               style={{
                 fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 11,
-                color: "var(--warn)",
+                color: "var(--vessel-watch)",
                 fontFeatureSettings: '"tnum" 1, "zero" 1',
               }}
             >
@@ -307,8 +307,8 @@ export function RebalanceDrawer({ open, onClose, destination, sources }: Rebalan
               style={{
                 display: "flex",
                 alignItems: "stretch",
-                background: "var(--cosmos-2)",
-                border: "1px solid var(--line)",
+                background: "var(--vessel-surface)",
+                border: "1px solid var(--vessel-border)",
                 borderRadius: 3,
                 height: 44,
                 overflow: "hidden",
@@ -320,8 +320,8 @@ export function RebalanceDrawer({ open, onClose, destination, sources }: Rebalan
                   display: "grid",
                   placeItems: "center",
                   padding: "0 12px",
-                  background: "var(--cosmos)",
-                  borderRight: "1px solid var(--line)",
+                  background: "var(--vessel-dark)",
+                  borderRight: "1px solid var(--vessel-border)",
                   color: "var(--ink-3)",
                   fontFamily: "var(--font-jetbrains), monospace",
                   fontSize: 14,
@@ -362,12 +362,12 @@ export function RebalanceDrawer({ open, onClose, destination, sources }: Rebalan
               style={{
                 padding: "10px 14px",
                 background: "rgba(239, 68, 68, 0.08)",
-                border: "1px solid var(--neg)",
-                borderLeft: "2px solid var(--neg)",
+                border: "1px solid var(--vessel-over)",
+                borderLeft: "2px solid var(--vessel-over)",
                 borderRadius: 3,
                 fontFamily: "var(--font-jetbrains), monospace",
                 fontSize: 11,
-                color: "var(--neg)",
+                color: "var(--vessel-over)",
                 letterSpacing: "0.04em",
               }}
             >
@@ -408,7 +408,7 @@ export function RebalanceDrawer({ open, onClose, destination, sources }: Rebalan
               alignItems: "center",
               gap: 10,
               paddingTop: 12,
-              borderTop: "1px solid var(--line-soft)",
+              borderTop: "1px solid var(--vessel-border)",
             }}
           >
             <button
@@ -418,7 +418,7 @@ export function RebalanceDrawer({ open, onClose, destination, sources }: Rebalan
               style={{
                 flex: "0 0 auto",
                 background: "transparent",
-                border: "1px solid var(--line)",
+                border: "1px solid var(--vessel-border)",
                 color: "var(--ink-2)",
                 padding: "10px 18px",
                 fontSize: 10.5,
@@ -437,8 +437,8 @@ export function RebalanceDrawer({ open, onClose, destination, sources }: Rebalan
               disabled={pending}
               style={{
                 flex: 1,
-                background: pending ? "var(--cosmos-3)" : "var(--terminal-cyan)",
-                color: pending ? "var(--ink-3)" : "var(--void)",
+                background: pending ? "var(--vessel-dark)" : "var(--vessel-accent)",
+                color: pending ? "var(--ink-3)" : "#FFFFFF",
                 border: 0,
                 padding: "12px 22px",
                 fontSize: 10.5,
@@ -448,7 +448,7 @@ export function RebalanceDrawer({ open, onClose, destination, sources }: Rebalan
                 borderRadius: 2,
                 cursor: pending ? "default" : "pointer",
                 fontFamily: "var(--font-jetbrains), monospace",
-                boxShadow: pending ? "none" : "0 0 16px rgba(45, 212, 191, 0.3)",
+                boxShadow: pending ? "none" : "0 0 16px rgba(168, 85, 247, 0.4)",
                 transition: "all 160ms",
               }}
             >
@@ -554,8 +554,8 @@ const selectStyle: React.CSSProperties = {
   fontFamily: "var(--font-jetbrains), monospace",
   fontSize: 13,
   color: "var(--ink)",
-  background: "var(--cosmos-2)",
-  border: "1px solid var(--line)",
+  background: "var(--vessel-surface)",
+  border: "1px solid var(--vessel-border)",
   borderRadius: 3,
   padding: "10px 12px",
   height: 44,
