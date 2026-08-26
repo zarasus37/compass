@@ -9,33 +9,46 @@ import type {
   VaultEnvelope,
   YieldEvent,
   OffRampAdapterStatus,
+  VaultAccount,
 } from "@/lib/vault/types";
 import { formatShortDate } from "@/lib/format";
 import { SyncButton } from "@/components/vault/SyncButton";
+import { YieldRoutingPicker } from "@/components/vault/YieldRoutingPicker";
+import { BillTransitionMenu } from "@/components/vault/BillTransitionMenu";
+import { RiskAckButton } from "@/components/vault/RiskAckButton";
+import { VaultPauseToggle } from "@/components/vault/VaultPauseToggle";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Compass Vault — self-custodial bill reserve.
  *
- * Phase 2.0 (2026-08-25). Reads from Prisma (the new VaultAccount /
- * VaultEnvelope / ScheduledBill / YieldEvent / PaymentAttempt /
- * ProviderEvent tables) via `loadCurrentVaultSnapshot()`. Falls
- * back to the in-memory derivation only when the user has never
- * seeded the vault — the empty state with a "Sync vault from
- * envelopes" button is rendered in that case.
+ * Phase 2.0 (2026-08-25) shipped the DB-sourced page with the
+ * 6 vault tables, the seed, the DB-backed off-ramp adapters,
+ * and the audit log. Phase 2.5 (2026-08-25) made the page
+ * interactive: yield-routing picker, per-bill state transitions,
+ * risk-disclosure persistence, vault pause/resume. All
+ * persistence is on the new `VaultPreferences` table + the
+ * existing `VaultAccount.status` column; the existing `Bill`
+ * rows are driven through the pure 13-state machine in
+ * `state-machine.ts` and persisted via `transitionBillDb`.
  *
  * Page order (top to bottom):
- *   1. Risk disclosure (mandatory on first visit, dismissable)
+ *   1. Risk disclosure (mandatory on first visit; Phase 2.5
+ *      hides after the user clicks the "I understand" button;
+ *      audit log records the acknowledgment)
  *   2. Alert state banner (CALM / WATCH / ACTION REQUIRED / PAUSED)
- *   3. Source-of-truth indicator (DB-sourced | fallback | empty)
- *   4. 5-cell status strip (vault principal, reserved, yield,
+ *   3. Vault pause toggle (Phase 2.5 — pause/resume the vault)
+ *   4. Source-of-truth indicator (DB-sourced | fallback | empty)
+ *   5. 5-cell status strip (vault principal, reserved, yield,
  *      next execution, liquid buffer)
- *   5. Bill schedule table with lifecycle badges
- *   6. Yield attribution (per envelope)
- *   7. Off-ramp adapter status panel
- *   8. Strategy allocation summary (planned vs deployed)
- *   9. Audit footer (event count)
+ *   6. Bill schedule table with lifecycle badges + per-bill
+ *      transition menu (Phase 2.5)
+ *   7. Yield attribution (per envelope)
+ *   8. Yield-routing picker (Phase 2.5 — 4 strategies)
+ *   9. Off-ramp adapter status panel
+ *  10. Strategy allocation summary (planned vs deployed)
+ *  11. Audit footer (event count)
  */
 
 export default async function VaultPage() {
@@ -65,9 +78,11 @@ export default async function VaultPage() {
         }
       />
 
-      <RiskDisclosure />
+      <RiskDisclosure acknowledged={snap.preferences.riskAcknowledgedAt !== null} />
 
       <AlertBanner state={snap.alert} />
+
+      <VaultPauseRow vault={snap.vault} />
 
       <StatusStrip snap={snap} />
 
@@ -79,6 +94,8 @@ export default async function VaultPage() {
         totalAttributed={snap.totalAttributedYield}
         apy={snap.vault.simulatedApy}
       />
+
+      <YieldRoutingSection current={snap.preferences.yieldRoutingStrategy} />
 
       <OffRampPanel adapters={snap.offRampAdapters} />
 
@@ -116,7 +133,7 @@ function EmptyState() {
           </>
         }
       />
-      <RiskDisclosure />
+      <RiskDisclosure acknowledged={false} />
       <section
         data-testid="vault-empty-state"
         style={{
@@ -179,14 +196,63 @@ function EmptyState() {
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// 1. Risk disclosure — mandatory on first visit
+// 1. Risk disclosure — mandatory on first visit, persistent after
+//    acknowledgment (Phase 2.5)
 //
-// In v2 we still have no "first visit" flag. The disclosure renders
-// as a prominent top notice with the exact copy from the spec. The
-// user dismisses it by scrolling past.
+// The disclosure renders as a prominent top notice with the exact
+// copy from the spec. The user dismisses it by clicking the
+// "I understand" button (RiskAckButton), which writes
+// `riskAcknowledgedAt = now()` on the user's `VaultPreferences` row
+// and a `vault.risk_acknowledged` audit entry. After
+// acknowledgment the disclosure is suppressed — the section header
+// "Risk disclosure acknowledged" replaces it.
 // ──────────────────────────────────────────────────────────────────────
 
-function RiskDisclosure() {
+function RiskDisclosure({ acknowledged }: { acknowledged: boolean }) {
+  if (acknowledged) {
+    return (
+      <div
+        data-testid="vault-risk-disclosure-acknowledged"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "10px 16px",
+          background: "var(--vessel-surface)",
+          border: "1px solid var(--vessel-border)",
+          borderRadius: 2,
+          marginBottom: 24,
+        }}
+      >
+        <div
+          aria-hidden
+          style={{
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 10,
+            fontWeight: 700,
+            color: "var(--ok)",
+            letterSpacing: "0.20em",
+            textTransform: "uppercase",
+            border: "1px solid var(--ok)",
+            padding: "3px 7px",
+            borderRadius: 2,
+            flexShrink: 0,
+          }}
+        >
+          [OK] Risk
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--font-sora)",
+            fontSize: 13,
+            color: "var(--ink-2)",
+          }}
+        >
+          Risk disclosure acknowledged. Yield is variable and not guaranteed; Compass cannot guarantee a bill will be paid if funding, protocol, provider, or settlement conditions fail.
+        </div>
+      </div>
+    );
+  }
   return (
     <aside
       role="alert"
@@ -251,10 +317,9 @@ function RiskDisclosure() {
             settlement risks apply. Yield is variable and not guaranteed.
             Compass cannot guarantee a bill will be paid if funding, protocol,
             provider, or settlement conditions fail. By continuing past this
-            notice you acknowledge these risks. The disclosure is shown on
-            every visit in this preview build; persistence of the
-            acknowledgment ships in a later phase.
+            notice you acknowledge these risks.
           </div>
+          <RiskAckButton />
         </div>
       </div>
     </aside>
@@ -313,7 +378,7 @@ function AlertBanner({ state }: { state: VaultAlertState }) {
         borderTop: `2px solid ${color}`,
         borderRadius: 2,
         padding: "16px 24px",
-        marginBottom: 32,
+        marginBottom: 16,
       }}
     >
       <span
@@ -343,6 +408,42 @@ function AlertBanner({ state }: { state: VaultAlertState }) {
       >
         {copy.detail}
       </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// 2b. Vault pause row (Phase 2.5) — pause/resume the vault as a
+// whole. The toggle sits between the alert banner and the status
+// strip so it's the first thing the user can act on.
+// ──────────────────────────────────────────────────────────────────────
+
+function VaultPauseRow({ vault }: { vault: VaultAccount }) {
+  return (
+    <div
+      data-testid="vault-pause-row"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 16,
+        marginBottom: 32,
+        padding: "10px 0",
+        borderBottom: "1px solid var(--line-soft)",
+      }}
+    >
+      <div
+        style={{
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 9.5,
+          letterSpacing: "0.20em",
+          textTransform: "uppercase",
+          color: "var(--ink-3)",
+        }}
+      >
+        // vault control · {vault.status === "PAUSED" ? "PAUSED" : vault.status === "RECOVERY_MODE" ? "RECOVERY" : "ARMED"}
+      </div>
+      <VaultPauseToggle status={vault.status} />
     </div>
   );
 }
@@ -547,86 +648,93 @@ function BillRow({ bill, isLast }: { bill: ScheduledBill; isLast: boolean }) {
   const billTone = toneForBadge(bill.status);
   return (
     <div
+      data-testid={`vault-bill-row-${bill.id}`}
       style={{
-        display: "grid",
-        gridTemplateColumns: "1.4fr 0.7fr 0.9fr 1fr 0.9fr 0.9fr",
-        alignItems: "center",
-        gap: 20,
-        padding: "14px 24px",
+        padding: "14px 24px 8px",
         borderBottom: isLast ? "none" : "1px solid var(--line-soft)",
       }}
     >
-      <div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1.4fr 0.7fr 0.9fr 1fr 0.9fr 0.9fr",
+          alignItems: "center",
+          gap: 20,
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontFamily: "var(--font-sora)",
+              fontSize: 15,
+              fontWeight: 500,
+              color: "var(--ink)",
+              lineHeight: 1.2,
+            }}
+          >
+            {bill.billerName}
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 10.5,
+              color: "var(--ink-3)",
+              marginTop: 3,
+              letterSpacing: "0.04em",
+            }}
+          >
+            {bill.maskedAccountNumber} · {bill.frequency}
+          </div>
+        </div>
         <div
           style={{
-            fontFamily: "var(--font-sora)",
-            fontSize: 15,
-            fontWeight: 500,
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 14,
             color: "var(--ink)",
-            lineHeight: 1.2,
+            textAlign: "right",
+            fontFeatureSettings: '"tnum" 1, "zero" 1',
+            fontWeight: 500,
           }}
         >
-          {bill.billerName}
+          {formatMoney(bill.amount)}
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 12,
+            color: "var(--ink-2)",
+            textAlign: "right",
+          }}
+        >
+          {formatShortDate(bill.dueDate)}
         </div>
         <div
           style={{
             fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 10.5,
             color: "var(--ink-3)",
-            marginTop: 3,
             letterSpacing: "0.04em",
           }}
         >
-          {bill.maskedAccountNumber} · {bill.frequency}
+          {formatShortDate(bill.executionWindowStart)} →{" "}
+          {formatShortDate(bill.executionWindowEnd)}
+        </div>
+        <div>
+          <StatusBadge label={label} tone={billTone} />
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 10.5,
+            color: "var(--ink-3)",
+            textAlign: "right",
+            letterSpacing: "0.04em",
+          }}
+        >
+          {bill.providerPreference ?? "auto"}
         </div>
       </div>
-      <div
-        style={{
-          fontFamily: "var(--font-jetbrains), monospace",
-          fontSize: 14,
-          color: "var(--ink)",
-          textAlign: "right",
-          fontFeatureSettings: '"tnum" 1, "zero" 1',
-          fontWeight: 500,
-        }}
-      >
-        {formatMoney(bill.amount)}
-      </div>
-      <div
-        style={{
-          fontFamily: "var(--font-jetbrains), monospace",
-          fontSize: 12,
-          color: "var(--ink-2)",
-          textAlign: "right",
-        }}
-      >
-        {formatShortDate(bill.dueDate)}
-      </div>
-      <div
-        style={{
-          fontFamily: "var(--font-jetbrains), monospace",
-          fontSize: 10.5,
-          color: "var(--ink-3)",
-          letterSpacing: "0.04em",
-        }}
-      >
-        {formatShortDate(bill.executionWindowStart)} →{" "}
-        {formatShortDate(bill.executionWindowEnd)}
-      </div>
-      <div>
-        <StatusBadge label={label} tone={billTone} />
-      </div>
-      <div
-        style={{
-          fontFamily: "var(--font-jetbrains), monospace",
-          fontSize: 10.5,
-          color: "var(--ink-3)",
-          textAlign: "right",
-          letterSpacing: "0.04em",
-        }}
-      >
-        {bill.providerPreference ?? "auto"}
-      </div>
+      <BillTransitionMenu billId={bill.id} status={bill.status} />
     </div>
   );
 }
@@ -846,7 +954,40 @@ function YieldAttribution({
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// 6. Off-ramp adapter status
+// 6. Yield-routing picker (Phase 2.5) — the user's choice about
+//    what happens to accrued yield. 4 strategies, persisted to
+//    VaultPreferences.yieldRoutingStrategy, audit-logged on change.
+// ──────────────────────────────────────────────────────────────────────
+
+function YieldRoutingSection({
+  current,
+}: {
+  current: import("@/lib/vault/types").YieldRoutingStrategy;
+}) {
+  return (
+    <section style={{ marginBottom: 48 }}>
+      <SectionHeader
+        eyebrow="// yield · routing"
+        title="Yield routing"
+        em="where accrued yield goes when the strategy pays out."
+        accent="gold"
+      />
+      <div
+        style={{
+          background: "var(--surface)",
+          border: "1px solid var(--line)",
+          borderRadius: 2,
+          padding: "20px 24px",
+        }}
+      >
+        <YieldRoutingPicker current={current} />
+      </div>
+    </section>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// 7. Off-ramp adapter status
 // ──────────────────────────────────────────────────────────────────────
 
 function OffRampPanel({ adapters }: { adapters: OffRampAdapterStatus[] }) {

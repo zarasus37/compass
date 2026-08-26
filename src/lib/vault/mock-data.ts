@@ -98,6 +98,13 @@ export interface VaultSnapshot {
   totalAttributedYield: number;
   /** Bills grouped by user-facing status language, for the table. */
   billsByLabel: Record<string, ScheduledBill[]>;
+  /**
+   * Phase 2.5 — The user's vault preferences. Surfaces the
+   * yield-routing strategy and the risk-disclosure ack timestamp
+   * so the page can render pickers + conditional disclosure
+   * without a round-trip.
+   */
+  preferences: import("./types").VaultPreferences;
   /** Top-line KPIs for the 5-cell status strip. */
   kpis: {
     /** `vault.availableBalance` (cents). */
@@ -395,6 +402,18 @@ export function deriveMockVault(userId: string = "user-mom"): VaultSnapshot {
     alert,
     totalAttributedYield: totalAttributed,
     billsByLabel,
+    // Phase 1.0 in-memory mock has no DB-backed preferences; the
+    // page reads from `loadCurrentVaultSnapshot` (DB-sourced) for
+    // real data. This stub exists so the type stays complete and
+    // the unit tests can still construct a VaultSnapshot.
+    preferences: {
+      id: "mock-prefs",
+      userId: "mock-user",
+      yieldRoutingStrategy: "COMPOUND",
+      riskAcknowledgedAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
     kpis: {
       vaultPrincipal: vault.availableBalance,
       billsCovered,

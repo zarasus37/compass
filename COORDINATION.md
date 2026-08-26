@@ -1407,3 +1407,121 @@ ecordPaymentAttempt looks up by (providerName, idempotencyKey) and updates if fo
 - The SyncButton is the only client component on /vault today. If we add more interactive controls (state-machine transition buttons, yield-routing toggles, bill editor), we should colocate them under src/components/vault/ and have the server actions live next to them in src/lib/vault/actions.ts.
 - getOrCreateVault is now called from two places (server.ts and seed.ts). If we ever want to make the vault userId column indexable for fast lookups in a multi-user world, add @@index([userId]) — already covered by @@unique([userId]) on VaultAccount, so the index is automatic.
 - The Phase 1 in-memory mock (src/lib/vault/mock-data.ts) is now unused by the page. It's still a useful fixture for unit tests; we should keep it but mark it as such in a top-of-file comment in the next slice.
+
+### Vault Phase 2.5 — Make it interactive (2026-08-25, xKryptic sign-off)
+
+Phase 2.0 was the simulation: a read-only `/vault` page, all the data in Prisma but no user actions wired. Phase 2.5 is the visible-UI half of "the chat-to-vault pipeline" — it takes the existing surface and makes it interactive. Three controls that share the new `VaultPreferences` table.
+
+**Files added**
+- `prisma/schema.prisma` — new `VaultPreferences` model (1 row per user, `userId @unique`, `yieldRoutingStrategy` String @default("COMPOUND"), `riskAcknowledgedAt DateTime?`); back-relation on `User`.
+- `src/components/vault/YieldRoutingPicker.tsx` — 4-strategy card grid (COMPOUND / APPLY_TO_NEXT_BILL / MOVE_TO_AVAILABLE / SPLIT_BY_ENVELOPE), `[OK] CURRENT` chip on the active one, optimistic UI + `useTransition` + `router.refresh()`. Vessel-accent active border + neon glow.
+- `src/components/vault/BillTransitionMenu.tsx` — per-bill action buttons filtered by `legalNextStates(status)` so an illegal transition is impossible from the UI. A `SIMULATE →` button picks the first legal event (the dev affordance called out in the Phase 2.0 handoff). High-stakes events (`CANCEL`, `INSUFFICIENT_FUNDS`, `FAIL_FINAL`) confirm via `window.confirm`. `[WARN] <error>` renders inline on failure.
+- `src/components/vault/RiskAckButton.tsx` — `[OK] I understand` button inside the risk disclosure. Calls the action, suppresses the disclosure on next render.
+- `src/components/vault/VaultPauseToggle.tsx` — small button that toggles `VaultAccount.status` between `ACTIVE` and `PAUSED`. `[OK] Resume` on the next visit. Disabled in `RECOVERY_MODE` (Phase 3 work).
+
+**Files modified**
+- `src/lib/vault/types.ts` — new `VaultPreferences` interface + `YIELD_ROUTING_LABEL` + `YIELD_ROUTING_DESC` lookup tables. Re-exported `BillEvent` from `state-machine.ts` so callers can import everything vault-typed from one module.
+- `src/lib/vault/db.ts` — new accessors: `getOrCreateVaultPreferences`, `setYieldRoutingStrategy`, `acknowledgeRisk`, `setVaultAccountStatus`, `transitionBillDb`. The transition function applies the pure `transitionBill` from `state-machine.ts`, persists, and writes a `vault.bill_state_changed` audit entry. The `VaultDbSnapshot` interface grew a `preferences` field; `loadVaultSnapshot` populates it. The `recordVaultAudit` union gained 4 new action types.
+- `src/lib/vault/server.ts` — 6 new server actions: `setYieldRoutingAction`, `acknowledgeRiskAction`, `pauseVaultAction`, `resumeVaultAction`, `transitionBillServerAction`, `simulateNextStateAction`. All validate inputs (strategy against the TS union, event against the `USER_FACING_BILL_EVENTS` whitelist) before writing. All wrap writes in audit-log entries.
+- `src/lib/vault/actions.ts` — re-exports the 6 new server actions with the "From Page" naming convention (so client components import a thin `actions.ts` boundary).
+- `src/lib/vault/mock-data.ts` — `deriveMockVault` stub adds a default `preferences` row so the `VaultSnapshot` type stays complete (the user-facing path uses `loadCurrentVaultSnapshot`, which is DB-sourced; the in-memory mock is for unit tests only).
+- `src/app/(app)/vault/page.tsx` — wires the 4 new client components. Page order now: risk disclosure → alert banner → pause row → status strip → bill schedule (each row has a transition menu) → yield attribution → yield-routing picker → off-ramp panel → strategy allocation → audit footer. The risk disclosure renders a `[OK] Risk acknowledged` summary after acknowledgment instead of the full notice.
+- `tests/integration-vault.mjs` — +17 checks (was 32, now 49). Covers the new preferences row on sync, default strategy, risk-ack persistence, vault pause/resume, bill state transitions through the DB, and the new components' presence in the rendered HTML.
+- `tests/smoke-vault.mjs` — +16 checks (was 33, now 49). Covers all 4 strategy cards, the `[OK] CURRENT` chip on the active one, the risk-disclosure + ack button on fresh sync, the pause row + toggle, every bill row's transition menu with the `SIMULATE →` button, and at least one of each legal-event button (`BEGIN_SETTLEMENT`, `PAUSE`) for EARNING bills.
+
+**Verification**
+- `npx prisma db push` — clean. `VaultPreferences` table added; existing 6 vault tables unchanged.
+- `npx tsc --noEmit` — clean across the full project (40+ source files).
+- `node tests/integration-vault.mjs` — **49/49 green** (was 32/32).
+- `node tests/smoke-vault.mjs` — **49/49 green** (was 33/33).
+- `node tests/smoke-sidebar.mjs` — 63/63 green (unchanged).
+- `node tests/smoke-reset-seed.mjs` — 8/8 green (unchanged).
+- `node tests/smoke-deprecated.mjs` — 42/42 green (unchanged).
+- Dev server returns 200 on `/vault`; the 4 new client components hydrate and the page is interactive end-to-end.
+
+**Decisions locked during the build**
+- **One preferences row per user, not per vault.** The unique key is `userId`, not `vaultId`. If a future slice adds a second vault per user (recovery vault, joint vault), the preferences stay user-scoped. The `user` back-relation is `@unique` so Prisma's `upsert` makes the read-or-create atomic.
+- **Validation at the server-action boundary, not the DB.** The `setYieldRoutingAction` validates against the TS union *before* writing; the DB just stores a `String`. The `transitionBillServerAction` validates the event type against the `USER_FACING_BILL_EVENTS` whitelist — `FUND` and `ENTER_EARN` are keeper-driven in production and not user-actionable.
+- **Audit log = existing `AuditLog` model.** No new `VaultEvent` table. New action types: `vault.yield_routing_changed`, `vault.risk_acknowledged`, `vault.paused`, `vault.resumed`, plus `vault.bill_state_changed` (which the integration test asserts on).
+- **`SIMULATE →` is explicit and labeled.** It's a dev affordance, not a user feature. The button label is the literal "SIMULATE →" and a `title` attribute says "Run the first legal next event (dev affordance)". When Phase 3 wires a real keeper cron, this button gets a `display: none` (or moves to a `?dev=1` query-gated surface).
+- **`pauseVaultAction` is disabled in `RECOVERY_MODE`.** RECOVERY_MODE is a Phase 3 concept (off-ramp gateway fell back to MANUAL_ACTION_REQUIRED across every provider). The user shouldn't be able to toggle themselves out of it without manual recovery.
+- **Risk disclosure is hidden, not minimized.** After `riskAcknowledgedAt` is set, the disclosure is replaced with a single `[OK] Risk` summary line. No "show again" affordance in 2.5; the spec says a re-prompt is required only on certain triggers (new bill, settings change) which is a future slice.
+
+**Out of scope (Phase 3+)**
+- Safe smart-account deployment, real yield adapter, keeper cron (the `SIMULATE →` button is the placeholder until the keeper lands)
+- Real off-ramp provider API integration
+- Closed beta, legal/compliance, contract audit
+- Yield-routing strategy's actual effect (the strategy is *chosen*; what it *does* is a Phase 3 wire-up)
+- Re-prompting the risk disclosure on new-bill or settings-change triggers
+- Multi-vault-per-user (the preferences row is per-user, so this is a 1-line model change)
+- Per-bill *custom* transitions (e.g. "raise max authorized amount") — the menu shows the legal events, not arbitrary actions
+
+**What to flag for the next slice**
+- The SectionHeader component is now used in 8 places on the page. If we want to use it elsewhere, it should move from page.tsx-local to `src/components/alchemy/SectionHeader.tsx` alongside PageHead. Same call-out as Phase 2.0.
+- The `legalNextStates` import in `BillTransitionMenu.tsx` is a client component importing a pure function from the state machine — fine today, but if the state machine grows server-only helpers (e.g. needing DB access), the import will need to be split. Worth a one-line refactor when that happens.
+- `transitionBillServerAction` calls `buildEvent` to construct the CONFIRM_SETTLED payload with a fake `transactionId`. When the real off-ramp gateway lands (Phase 3), this function should be replaced with a call to the gateway; the rest of the action stays unchanged.
+- The pause toggle is a single button, not a confirmation-step toggle. If the user wants a more explicit "I really mean it" affordance, that's a 5-minute add (window.confirm, which `pauseVaultAction` already does).
+
+### HANDOFF — Cluster Vault 2.5+ (next session)
+
+**Picked up by**: next fresh session. The visible-UI half of the vault is done. The next cluster is the data-layer half:
+
+**Cluster Vault 3.0 — Real yield adapter (Ollama-style stub for now)**
+- Replace the hardcoded `simulatedApy = 0.0352` with a read from a `YieldAdapter` interface
+- `SkyAdapter` (the example in the spec) + `AaveAdapter` + a `MockAdapter` for tests
+- Real cron that calls the adapter every N minutes, writes `YieldEvent` rows
+- The vault UI surfaces the new APY value (currently hardcoded)
+- Out: Safe deployment, real off-ramp API calls (still Phase 4)
+
+**Cluster Vault 3.1 — Yield routing actually does something**
+- Implement the 4 strategies' effects: COMPOUND writes more YieldEvents, APPLY_TO_NEXT_BILL bumps a per-bill credit, MOVE_TO_AVAILABLE moves money into `availableBalance`, SPLIT_BY_ENVELOPE distributes by capital share
+- The picker becomes a real lever, not just a setting
+
+**Cluster Vault 3.5 — Per-bill editor**
+- Add/edit/delete bills on /vault (the user is the source of truth, not the in-memory `liveBills()` mirror)
+- The "new bill" form on /obligations/new can wire to the vault's `ScheduledBill` table
+
+**Cluster Vault 4.0 — Safe deployment (the big one)**
+- Real Safe smart-account deployment
+- USDC testnet deposits via the adapter
+- Real yield strategy on testnet
+- Closed beta
+
+The 5.2.6 widgets 4–6 (allocation, insights, accounts) work is in the working tree (uncommitted) and untouched. When that work resumes, the `Vault` entry on the sidebar is the only thing that overlaps; the two clusters can ship independently.
+
+---
+
+## HANDOFF — Vault 2.5 + Vault 3.0 (next session)
+
+**From session `mvs_0231e88821e04a47b450a77f70e6e1d0` (2026-08-26, ~1h focused)**: shipped two commits for the vault.
+
+- `d9e3dc9` **Cluster Vault 2.0** — Backend ledger. 6 new Prisma tables (VaultAccount, VaultEnvelope, ScheduledBill, YieldEvent, PaymentAttempt, ProviderEvent), DB-sourced /vault page, idempotency on (providerName, idempotencyKey), 32/32 integration + 33/33 smoke green.
+- `<pending>` **Cluster Vault 2.5** — Make it interactive. New VaultPreferences table, 4-strategy yield-routing picker, per-bill state-transition menus, risk-disclosure persistence, vault pause/resume toggle. 49/49 integration + 49/49 smoke green. tsc clean.
+
+**What just shipped (Phase 2.5 surface, in detail)**
+- New `VaultPreferences` Prisma model: `yieldRoutingStrategy` (String @default("COMPOUND")), `riskAcknowledgedAt` (DateTime?), `userId @unique`. Back-relation on User.
+- `YieldRoutingPicker` (4 strategies, `[OK] CURRENT` chip, optimistic UI + useTransition + router.refresh)
+- `BillTransitionMenu` (per-bill action buttons filtered by `legalNextStates()`, `SIMULATE →` dev affordance, `window.confirm` on CANCEL/INSUFFICIENT_FUNDS/FAIL_FINAL)
+- `RiskAckButton` (inside the disclosure; clicking it persists `riskAcknowledgedAt = now()` and the disclosure is suppressed on the next render)
+- `VaultPauseToggle` (toggles `VaultAccount.status` between ACTIVE/PAUSED; disabled in RECOVERY_MODE)
+- 6 new server actions in `src/lib/vault/server.ts` + re-exports in `actions.ts` for client use
+- `transitionBillDb` (db.ts) — applies the pure 13-state machine, persists, audit-logs each transition
+- 5 new audit-log action types: `vault.yield_routing_changed`, `vault.risk_acknowledged`, `vault.paused`, `vault.resumed`, `vault.bill_state_changed`
+
+**Where Compass is right now** (smoke summary)
+- integration-vault: 49/49 · smoke-vault: 49/49 · smoke-sidebar: 63/63 · smoke-reset-seed: 8/8 · smoke-deprecated: 42/42 · `tsc --noEmit` clean.
+- Untested smokes in this session (unchanged from the COORDINATION.md baseline): smoke-auth (pre-existing fail), smoke-alert-bay, smoke-bottom-dock, smoke-engine-toggle, smoke-glossary, smoke-goals, smoke-horizon-strip, smoke-onboarding-agent, smoke-period, smoke-rebalance, smoke-topbar, smoke-vessel-feed, smoke-visual-finish.
+- The 5.2.6 widgets 4–6 (allocation, insights, accounts) are still in the working tree, uncommitted. They're orthogonal to the vault work; the next session can either commit them or revert.
+
+**Recommended next cluster (Vault 3.0)**
+- **Real yield adapter (Ollama-style stub for now)** — replace hardcoded `simulatedApy = 0.0352` with a `YieldAdapter` interface; `SkyAdapter` + `AaveAdapter` + `MockAdapter`; real cron calling the adapter; the UI surfaces the new APY value. Out: Safe, real off-ramp.
+- **Cluster Vault 3.1 — Yield routing actually does something** — implement the 4 strategies' effects so the picker becomes a real lever.
+- **Cluster Vault 3.5 — Per-bill editor** — add/edit/delete bills on /vault; the "new bill" form on /obligations/new can wire to ScheduledBill.
+
+**How to pick up**
+1. `git log --oneline -10` to see the two new commits.
+2. Read this handoff + the "Vault Phase 2.5 — Make it interactive" section above + the "Vault Phase 2.0 — SHIPPED" section.
+3. Sign in as `mom@compass.local` / `correct-horse-battery-staple`; visit `/vault` to see the interactive page. The risk disclosure appears; click "[OK] I understand" to suppress it. Pick a yield-routing strategy. Drive a bill through a state with the SIMULATE → button. Pause the vault.
+4. Pick a cluster from the Vault 3.x list above.
+
+The COORDINATION.md is now ahead of git; the next session should commit it as the handoff baseline before starting work.

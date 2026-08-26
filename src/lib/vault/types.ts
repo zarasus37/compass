@@ -294,9 +294,9 @@ export interface IOffRampAdapter {
 // ──────────────────────────────────────────────────────────────────────
 
 /**
- * The four user-facing yield routing strategies. The default in
- * Phase 1.0 is COMPOUND (under $1) and COMPOUND (≥ $1) per spec.
- * Future slices may persist the user's choice.
+ * The four user-facing yield routing strategies. Default per spec
+ * is COMPOUND. Persisted in `VaultPreferences.yieldRoutingStrategy`
+ * starting Phase 2.5.
  */
 export type YieldRoutingStrategy =
   | "COMPOUND"
@@ -331,3 +331,49 @@ export interface OffRampAdapterStatus {
   /** Human-readable reason (e.g. "mock — always succeeds"). */
   note: string;
 }
+
+// ──────────────────────────────────────────────────────────────────────
+// Phase 2.5 — Vault user preferences
+// ──────────────────────────────────────────────────────────────────────
+
+/** Human-readable label + em-tail for each strategy. The page renders
+ *  the label as the primary text and the em as the secondary line. */
+export const YIELD_ROUTING_LABEL: Record<YieldRoutingStrategy, string> = {
+  COMPOUND: "Compound",
+  APPLY_TO_NEXT_BILL: "Apply to next bill",
+  MOVE_TO_AVAILABLE: "Move to available",
+  SPLIT_BY_ENVELOPE: "Split by envelope",
+};
+
+/** One-line description of what the strategy does. */
+export const YIELD_ROUTING_DESC: Record<YieldRoutingStrategy, string> = {
+  COMPOUND:
+    "Reinvest accrued yield back into the strategy. Principal reserved for bills is never reduced.",
+  APPLY_TO_NEXT_BILL:
+    "Route accrued yield to the next bill in the execution window.",
+  MOVE_TO_AVAILABLE:
+    "Move accrued yield into the available balance (redeemable now).",
+  SPLIT_BY_ENVELOPE:
+    "Distribute accrued yield across envelopes in proportion to their principal share.",
+};
+
+/**
+ * The user's vault preferences. One row per user. Populated by
+ * `getOrCreateVaultPreferences` in db.ts and surfaced on the
+ * snapshot so the page can render pickers + persist without a
+ * round-trip.
+ */
+export interface VaultPreferences {
+  id: string;
+  userId: string;
+  yieldRoutingStrategy: YieldRoutingStrategy;
+  /** ISO timestamp of when the user acknowledged the risk disclosure.
+   *  Null = not yet acknowledged → the disclosure renders. */
+  riskAcknowledgedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Re-export the bill event union from state-machine so callers can
+ *  import everything vault-typed from a single module. */
+export type { BillEvent } from "./state-machine";

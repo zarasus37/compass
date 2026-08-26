@@ -338,6 +338,93 @@ async function main() {
       /liquid\s*buffer/i.test(text),
   );
 
+  // ── Phase 2.5 — interactive surfaces ───────────────────────────
+  // Yield-routing picker (4 strategies + [OK] CURRENT chip on
+  // the active one).
+  check(
+    "yield-routing picker is on the page",
+    /data-testid="vault-yield-picker"/.test(text),
+  );
+  const strategyNames = [
+    "COMPOUND",
+    "APPLY_TO_NEXT_BILL",
+    "MOVE_TO_AVAILABLE",
+    "SPLIT_BY_ENVELOPE",
+  ];
+  for (const s of strategyNames) {
+    check(
+      `yield-picker card "${s}" is on the page`,
+      new RegExp(`data-testid="yield-picker-${s}"`).test(text),
+    );
+  }
+  // The smoke syncs fresh each run, so the strategy should be
+  // COMPOUND by default — and the [OK] CURRENT chip should be on
+  // that card.
+  check(
+    "yield-picker COMPOUND card carries the [OK] CURRENT chip",
+    /data-current="true"[^>]*data-testid="yield-picker-COMPOUND"|data-testid="yield-picker-COMPOUND"[^>]*data-current="true"/.test(
+      text,
+    ),
+  );
+
+  // Risk disclosure — fresh sync = no acknowledgment yet, so the
+  // disclosure + the "I understand" button are both present.
+  check(
+    "risk disclosure + [OK] I understand button visible on fresh sync",
+    /data-testid="vault-risk-disclosure"/.test(text) &&
+      /data-testid="vault-risk-ack-button"/.test(text),
+  );
+  check(
+    "risk disclosure copy includes the I-understand subtitle",
+    /Acknowledging hides this notice on future visits/i.test(text),
+  );
+
+  // Vault pause row + pause/resume toggle.
+  check(
+    "vault pause row is on the page",
+    /data-testid="vault-pause-row"/.test(text),
+  );
+  check(
+    "vault pause toggle button is on the page",
+    /data-testid="vault-pause-toggle-button"/.test(text),
+  );
+  check(
+    "vault pause toggle label is PAUSE VAULT (active state)",
+    />PAUSE VAULT</.test(text),
+  );
+
+  // Per-bill transition menus. Every bill gets one with a
+  // SIMULATE → affordance and at least one legal-event button.
+  const transitionMatches = text.match(/data-testid="bill-transitions-[^"]+"/g) ?? [];
+  check(
+    "every bill row has a transition menu",
+    transitionMatches.length >= 6,
+    `count=${transitionMatches.length}`,
+  );
+  check(
+    "every transition menu has a SIMULATE → button",
+    /data-testid="bill-transition-[^"]+-SIMULATE"/.test(text),
+  );
+  // EARNING bills in the seed have legal events BEGIN_SETTLEMENT,
+  // PAUSE, CANCEL. At least one button with each label should be
+  // present.
+  check(
+    "BEGIN_SETTLEMENT button rendered for EARNING bills",
+    /data-testid="bill-transition-[^"]+-BEGIN_SETTLEMENT"/.test(text),
+  );
+  check(
+    "PAUSE button rendered for EARNING bills",
+    /data-testid="bill-transition-[^"]+-PAUSE"/.test(text),
+  );
+
+  // Yield-routing section header is on the page. The eyebrow
+  // uses a literal middle dot; match either the unicode or the
+  // raw character.
+  check(
+    "yield-routing section header is on the page",
+    /yield[^<]{0,3}routing/i.test(text),
+  );
+
   // ── Tally ──────────────────────────────────────────────────────
   console.log("\n--- checks ---");
   const pass = results.filter((r) => r.ok).length;

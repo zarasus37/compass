@@ -11,7 +11,16 @@
 
 "use server";
 
-import { syncVaultAction, clearVaultAction } from "./server";
+import {
+  syncVaultAction,
+  clearVaultAction,
+  setYieldRoutingAction,
+  acknowledgeRiskAction,
+  pauseVaultAction,
+  resumeVaultAction,
+  transitionBillServerAction,
+  simulateNextStateAction,
+} from "./server";
 
 /**
  * Server action: sync the vault from the live envelopes + bills.
@@ -29,4 +38,60 @@ export async function syncVaultFromEnvelopes() {
  */
 export async function clearVault() {
   return clearVaultAction();
+}
+
+/**
+ * Server action: set the user's yield-routing strategy.
+ * Validates the input against the TS union; rejects unknown
+ * values with a structured error.
+ */
+export async function setYieldRoutingStrategyAction(strategy: string) {
+  return setYieldRoutingAction(strategy);
+}
+
+/**
+ * Server action: mark the risk disclosure as acknowledged.
+ * Persists `riskAcknowledgedAt = now()` on the preferences row
+ * and writes a `vault.risk_acknowledged` audit entry.
+ */
+export async function acknowledgeRiskDisclosureAction() {
+  return acknowledgeRiskAction();
+}
+
+/**
+ * Server action: pause the vault. Sets `VaultAccount.status = PAUSED`.
+ * The page surfaces this via the alert banner and the bills' state.
+ */
+export async function pauseVaultFromPage() {
+  return pauseVaultAction();
+}
+
+/**
+ * Server action: resume a paused vault. Sets `VaultAccount.status = ACTIVE`.
+ */
+export async function resumeVaultFromPage() {
+  return resumeVaultAction();
+}
+
+/**
+ * Server action: apply a single user-facing event to a bill.
+ * Validates the event type against the whitelist; rejects unknown
+ * events with a structured error. Returns the from/to/event on
+ * success for the optimistic UI.
+ */
+export async function transitionBillFromPage(
+  billId: string,
+  eventType: string,
+) {
+  return transitionBillServerAction(billId, eventType);
+}
+
+/**
+ * Server action: "simulate next state" — runs the first legal
+ * event for a bill. The dev affordance called out in
+ * COORDINATION.md (line 1401). Terminal states (SETTLED,
+ * CANCELLED) are no-ops.
+ */
+export async function simulateNextBillStateFromPage(billId: string) {
+  return simulateNextStateAction(billId);
 }

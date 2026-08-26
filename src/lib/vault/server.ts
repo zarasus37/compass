@@ -17,12 +17,22 @@ import { requireUser } from "@/server/auth/user";
 import {
   loadVaultSnapshot,
   getOrCreateVault,
+  getOrCreateVaultPreferences,
+  setYieldRoutingStrategy,
+  acknowledgeRisk,
+  setVaultAccountStatus,
+  transitionBillDb,
+  recordVaultAudit,
   userHasVaultData,
+  USER_FACING_BILL_EVENTS,
   type VaultDbSnapshot,
+  type UserFacingBillEvent,
 } from "./db";
 import { seedVaultFromEnvelopes, type SeedResult } from "./seed";
 import { deriveMockVault } from "./mock-data";
+import { legalNextStates } from "./state-machine";
 import type { VaultSnapshot } from "./mock-data";
+import type { BillEvent, YieldRoutingStrategy } from "./types";
 
 /**
  * Load the vault snapshot for the current user. Returns the DB
@@ -80,6 +90,7 @@ function projectDbToLegacy(db: VaultDbSnapshot): VaultSnapshot {
     alert: db.alert,
     totalAttributedYield: db.totals.attributedYield,
     billsByLabel,
+    preferences: db.preferences,
     kpis: {
       vaultPrincipal: db.vault.availableBalance,
       billsCovered: db.totals.billsCovered,
@@ -184,3 +195,259 @@ export async function clearVaultAction(): Promise<{
 
 /** Convenience re-export. */
 export { userHasVaultData };
+
+// ──────────────────────────────────────────────────────────────────────
+// Phase 2.5 — Server actions for the interactive /vault page
+//
+// Each action is thin: it resolves the user, calls the right
+// db.ts accessor, writes an audit-log entry, and returns a typed
+// result. The page calls them from client components via the
+// `use server` re-exports in actions.ts.
+//
+// All actions follow the same shape: `{ ok: true, ... }` on success,
+// `{ ok: false, error: string }` on failure. The client components
+// branch on `ok` and surface the error inline.
+// ──────────────────────────────────────────────────────────────────────
+
+const STRATEGY_VALUES = new Set<YieldRoutingStrategy>([
+  "COMPOUND",
+  "APPLY_TO_NEXT_BILL",
+  "MOVE_TO_AVAILABLE",
+  "SPLIT_BY_ENVELOPE",
+]);
+
+/**
+ * Set the user's yield-routing strategy. Validates the input
+ * against the TS union; unknown values are rejected before the
+ * write so a malformed form payload can't poison the column.
+ */
+export async function setYieldRoutingAction(
+  rawStrategy: string,
+): Promise<{ ok: true; strategy: YieldRoutingStrategy } | { ok: false; error: string }> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  if (!STRATEGY_VALUES.has(rawStrategy as YieldRoutingStrategy)) {
+    return { ok: false, error: `unknown strategy: ${rawStrategy}` };
+  }
+  const strategy = rawStrategy as YieldRoutingStrategy;
+  try {
+    const prev = await getOrCreateVaultPreferences(user.id);
+    await setYieldRoutingStrategy(user.id, strategy);
+    await recordVaultAudit({
+      userId: user.id,
+      actionType: "vault.yield_routing_changed",
+      payload: { from: prev.yieldRoutingStrategy, to: strategy },
+    });
+    return { ok: true, strategy };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] setYieldRouting failed:", message);
+    return { ok: false, error: message };
+  }
+}
+
+/**
+ * Mark the risk disclosure as acknowledged. Sets
+ * `riskAcknowledgedAt = now()` on the user's preferences row and
+ * writes a `vault.risk_acknowledged` audit entry.
+ */
+export async function acknowledgeRiskAction(): Promise<
+  { ok: true; acknowledgedAt: string } | { ok: false; error: string }
+> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  try {
+    const prefs = await acknowledgeRisk(user.id);
+    await recordVaultAudit({
+      userId: user.id,
+      actionType: "vault.risk_acknowledged",
+      payload: { acknowledgedAt: prefs.riskAcknowledgedAt },
+    });
+    return { ok: true, acknowledgedAt: prefs.riskAcknowledgedAt! };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] acknowledgeRisk failed:", message);
+    return { ok: false, error: message };
+  }
+}
+
+/**
+ * Pause the vault. Sets `VaultAccount.status = PAUSED` and writes
+ * a `vault.paused` audit entry. The page reads `vault.status` and
+ * the snapshot's alert state reflects this immediately.
+ */
+export async function pauseVaultAction(): Promise<
+  { ok: true } | { ok: false; error: string }
+> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  try {
+    await setVaultAccountStatus(user.id, "PAUSED");
+    await recordVaultAudit({
+      userId: user.id,
+      actionType: "vault.paused",
+      payload: { at: new Date().toISOString() },
+    });
+    return { ok: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] pause failed:", message);
+    return { ok: false, error: message };
+  }
+}
+
+/**
+ * Resume a paused vault. Sets `VaultAccount.status = ACTIVE` and
+ * writes a `vault.resumed` audit entry.
+ */
+export async function resumeVaultAction(): Promise<
+  { ok: true } | { ok: false; error: string }
+> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  try {
+    await setVaultAccountStatus(user.id, "ACTIVE");
+    await recordVaultAudit({
+      userId: user.id,
+      actionType: "vault.resumed",
+      payload: { at: new Date().toISOString() },
+    });
+    return { ok: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] resume failed:", message);
+    return { ok: false, error: message };
+  }
+}
+
+/**
+ * Build a `BillEvent` object from an event type + the bill's
+ * current context. For events that take no payload this is a
+ * straight `{ type }` object. For CONFIRM_SETTLED we generate
+ * a fake transactionId and use the bill's providerPreference
+ * as the providerName — Phase 2.5's "Simulate next state" is
+ * a dev affordance, not a real provider call.
+ */
+function buildEvent(
+  eventType: UserFacingBillEvent,
+  ctx: { providerPreference: string | null; amount: number; billId: string },
+): BillEvent {
+  switch (eventType) {
+    case "CONFIRM_SETTLED":
+      return {
+        type: "CONFIRM_SETTLED",
+        transactionId: `sim-${ctx.billId.slice(0, 8)}-${Date.now()}`,
+        providerName: ctx.providerPreference ?? "spritz",
+      };
+    default:
+      // The remaining events are no-arg.
+      return { type: eventType } as BillEvent;
+  }
+}
+
+/**
+ * Apply a single user-facing event to a bill. Validates the
+ * event type against the whitelist, builds the event payload,
+ * calls `transitionBillDb`, returns the result. The client
+ * component uses this for the per-bill action buttons.
+ */
+export async function transitionBillServerAction(
+  billId: string,
+  eventType: string,
+): Promise<
+  | { ok: true; from: string; to: string; event: string }
+  | { ok: false; error: string }
+> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  if (
+    !USER_FACING_BILL_EVENTS.includes(eventType as UserFacingBillEvent)
+  ) {
+    return { ok: false, error: `unknown event: ${eventType}` };
+  }
+  try {
+    const bill = await prisma.scheduledBill.findUnique({
+      where: { id: billId },
+    });
+    if (!bill) {
+      return { ok: false, error: `bill not found: ${billId}` };
+    }
+    const event = buildEvent(eventType as UserFacingBillEvent, {
+      providerPreference: bill.providerPreference,
+      amount: bill.amount,
+      billId,
+    });
+    const from = bill.status;
+    const result = await transitionBillDb(user.id, billId, event);
+    if (!result.ok) {
+      return { ok: false, error: result.error };
+    }
+    return { ok: true, from, to: result.bill.status, event: eventType };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] transitionBill failed:", message);
+    return { ok: false, error: message };
+  }
+}
+
+/**
+ * "Simulate next state" — picks the first legal next event for
+ * the bill and runs it. The dev affordance called out in
+ * COORDINATION.md line 1401 ("we add the manual 'simulate next
+ * state' button in 2.0b if needed"). On a SETTLED or CANCELLED
+ * bill this is a no-op (terminal states have no legal events).
+ */
+export async function simulateNextStateAction(
+  billId: string,
+): Promise<
+  | { ok: true; from: string; to: string; event: string }
+  | { ok: false; error: string }
+> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  try {
+    const bill = await prisma.scheduledBill.findUnique({
+      where: { id: billId },
+    });
+    if (!bill) {
+      return { ok: false, error: `bill not found: ${billId}` };
+    }
+    const legal = legalNextStates(bill.status as import("./types").BillStatus);
+    const first = legal[0];
+    if (!first) {
+      return {
+        ok: false,
+        error: `terminal state: ${bill.status} (no legal transitions)`,
+      };
+    }
+    return await transitionBillServerAction(billId, first);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] simulateNextState failed:", message);
+    return { ok: false, error: message };
+  }
+}

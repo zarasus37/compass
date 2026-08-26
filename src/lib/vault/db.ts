@@ -44,8 +44,11 @@ import type {
   OffRampResult,
   OffRampAdapterStatus,
   VaultAlertState,
+  VaultPreferences,
+  YieldRoutingStrategy,
+  BillEvent,
 } from "./types";
-import { deriveAlertState } from "./state-machine";
+import { deriveAlertState, transitionBill as transitionBillPure } from "./state-machine";
 
 // ──────────────────────────────────────────────────────────────────────
 // Vault
@@ -387,7 +390,11 @@ export async function recordVaultAudit(args: {
     | "vault.payment_attempted"
     | "vault.payment_settled"
     | "vault.payment_failed"
-    | "vault.adapter_fallback";
+    | "vault.adapter_fallback"
+    | "vault.yield_routing_changed"
+    | "vault.risk_acknowledged"
+    | "vault.paused"
+    | "vault.resumed";
   payload: unknown;
 }): Promise<void> {
   await prisma.auditLog.create({
@@ -397,6 +404,181 @@ export async function recordVaultAudit(args: {
       payload: JSON.stringify(args.payload ?? {}),
     },
   });
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Vault preferences (Phase 2.5)
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Get the user's vault preferences, creating them with the
+ * canonical defaults if they don't exist yet. Idempotent.
+ * One row per user (`userId` is `@unique` on the schema).
+ */
+export async function getOrCreateVaultPreferences(
+  userId: string,
+): Promise<VaultPreferences> {
+  const existing = await prisma.vaultPreferences.findUnique({
+    where: { userId },
+  });
+  if (existing) return toVaultPreferences(existing);
+  const created = await prisma.vaultPreferences.create({
+    data: {
+      userId,
+      yieldRoutingStrategy: "COMPOUND",
+      riskAcknowledgedAt: null,
+    },
+  });
+  return toVaultPreferences(created);
+}
+
+/**
+ * Update the user's yield-routing strategy. Validates the input
+ * against the TS union — unknown strategies are rejected before
+ * the write so a malformed form payload can't poison the column.
+ */
+export async function setYieldRoutingStrategy(
+  userId: string,
+  strategy: YieldRoutingStrategy,
+): Promise<VaultPreferences> {
+  // Idempotent create-if-missing so the first setter wins correctly.
+  await getOrCreateVaultPreferences(userId);
+  const row = await prisma.vaultPreferences.update({
+    where: { userId },
+    data: { yieldRoutingStrategy: strategy },
+  });
+  return toVaultPreferences(row);
+}
+
+/**
+ * Mark the risk disclosure as acknowledged. Sets
+ * `riskAcknowledgedAt = now()`. Idempotent: re-acknowledging just
+ * bumps the timestamp (a future slice can re-prompt on certain
+ * triggers; that's not in Phase 2.5).
+ */
+export async function acknowledgeRisk(
+  userId: string,
+): Promise<VaultPreferences> {
+  await getOrCreateVaultPreferences(userId);
+  const row = await prisma.vaultPreferences.update({
+    where: { userId },
+    data: { riskAcknowledgedAt: new Date() },
+  });
+  return toVaultPreferences(row);
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Vault status (Phase 2.5 — pause / resume)
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Set the vault's account-level status. The legal transitions
+ * follow the spec: ACTIVE ⇄ PAUSED; ACTIVE → RECOVERY_MODE is
+ * reserved for the off-ramp gateway when every adapter fell back
+ * to MANUAL_ACTION_REQUIRED (Phase 3 work).
+ */
+export async function setVaultAccountStatus(
+  userId: string,
+  status: "ACTIVE" | "PAUSED" | "RECOVERY_MODE",
+): Promise<VaultAccount> {
+  await getOrCreateVault(userId);
+  const row = await prisma.vaultAccount.update({
+    where: { userId },
+    data: { status, updatedAt: new Date() },
+  });
+  return toVaultAccount(row);
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Bill state transitions (Phase 2.5 — interactive state machine)
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * The set of bill events that the user can drive from the UI.
+ * The other events (FUND, ENTER_EARN) are keeper-driven in
+ * production; they're still in the transition table for the
+ * state machine's tests but are not exposed as user actions.
+ */
+export const USER_FACING_BILL_EVENTS = [
+  "BEGIN_SETTLEMENT",
+  "EXECUTE",
+  "CONFIRM_SETTLED",
+  "INSUFFICIENT_FUNDS",
+  "PAUSE",
+  "RESUME",
+  "REQUIRES_REVIEW",
+  "MANUAL_ACTION_REQUIRED",
+  "RETRY",
+  "FAIL_FINAL",
+  "CANCEL",
+] as const;
+
+export type UserFacingBillEvent = (typeof USER_FACING_BILL_EVENTS)[number];
+
+/**
+ * Apply a bill state transition: pure state-machine call +
+ * persist the result + audit log. Returns the updated bill in
+ * the domain shape, or a structured error on an illegal
+ * transition.
+ *
+ * `eventArgs` carries the per-event payload (e.g. CONFIRM_SETTLED
+ * needs `transactionId` + `providerName`). For events that don't
+ * take a payload, callers pass an empty object.
+ *
+ * The audit-log `actionType` is `vault.bill_state_changed` with
+ * the from/to/event captured in the payload.
+ */
+export async function transitionBillDb(
+  userId: string,
+  billId: string,
+  event: BillEvent,
+): Promise<
+  | { ok: true; bill: ScheduledBill }
+  | { ok: false; error: string; from: BillStatus; event: BillEvent["type"] }
+> {
+  const row = await prisma.scheduledBill.findUnique({ where: { id: billId } });
+  if (!row) {
+    return {
+      ok: false,
+      error: `bill not found: ${billId}`,
+      from: "DRAFT",
+      event: event.type,
+    };
+  }
+  const bill = toScheduledBill(row);
+  const result = transitionBillPure(bill, event);
+  if (!result.ok) return result;
+
+  // Persist the new state. The pure function's output carries any
+  // updated fields (settlementReference, lastAttemptAt, updatedAt)
+  // — we apply them all in one write.
+  const updated = await prisma.scheduledBill.update({
+    where: { id: billId },
+    data: {
+      status: result.bill.status,
+      settlementReference: result.bill.settlementReference ?? null,
+      lastAttemptAt: result.bill.lastAttemptAt
+        ? new Date(result.bill.lastAttemptAt)
+        : null,
+      updatedAt: new Date(),
+    },
+  });
+
+  // Audit log. One entry per transition; the from/to/event
+  // captured for replay.
+  await recordVaultAudit({
+    userId,
+    actionType: "vault.bill_state_changed",
+    payload: {
+      billId,
+      billerName: row.billerName,
+      from: bill.status,
+      to: result.bill.status,
+      event: event.type,
+    },
+  });
+
+  return { ok: true, bill: toScheduledBill(updated) };
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -414,6 +596,7 @@ export interface VaultDbSnapshot {
   bills: ScheduledBill[];
   yieldEvents: YieldEvent[];
   alert: VaultAlertState;
+  preferences: VaultPreferences;
   totals: {
     billsCovered: number;
     billsScheduledCount: number;
@@ -447,6 +630,7 @@ export async function loadVaultSnapshot(
   const envelopes = vault.envelopes.map(toVaultEnvelope);
   const bills = vault.bills.map(toScheduledBill);
   const yieldEvents = vault.yieldEvents.map(toYieldEvent);
+  const preferences = await getOrCreateVaultPreferences(userId);
   const alert = deriveAlertState(
     vault.status as "ACTIVE" | "PAUSED" | "RECOVERY_MODE",
     bills,
@@ -490,6 +674,7 @@ export async function loadVaultSnapshot(
     bills,
     yieldEvents,
     alert,
+    preferences,
     totals: {
       billsCovered,
       billsScheduledCount,
@@ -666,6 +851,26 @@ function toYieldEvent(row: {
     source: row.source as YieldSource,
     action: row.action as YieldAction,
     occurredAt: row.occurredAt.toISOString(),
+  };
+}
+
+function toVaultPreferences(row: {
+  id: string;
+  userId: string;
+  yieldRoutingStrategy: string;
+  riskAcknowledgedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): VaultPreferences {
+  return {
+    id: row.id,
+    userId: row.userId,
+    yieldRoutingStrategy: row.yieldRoutingStrategy as YieldRoutingStrategy,
+    riskAcknowledgedAt: row.riskAcknowledgedAt
+      ? row.riskAcknowledgedAt.toISOString()
+      : null,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
   };
 }
 
