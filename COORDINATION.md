@@ -1496,7 +1496,7 @@ The 5.2.6 widgets 4–6 (allocation, insights, accounts) work is in the working 
 **From session `mvs_0231e88821e04a47b450a77f70e6e1d0` (2026-08-26, ~1h focused)**: shipped two commits for the vault.
 
 - `d9e3dc9` **Cluster Vault 2.0** — Backend ledger. 6 new Prisma tables (VaultAccount, VaultEnvelope, ScheduledBill, YieldEvent, PaymentAttempt, ProviderEvent), DB-sourced /vault page, idempotency on (providerName, idempotencyKey), 32/32 integration + 33/33 smoke green.
-- `<pending>` **Cluster Vault 2.5** — Make it interactive. New VaultPreferences table, 4-strategy yield-routing picker, per-bill state-transition menus, risk-disclosure persistence, vault pause/resume toggle. 49/49 integration + 49/49 smoke green. tsc clean.
+- `a43b3d8` **Cluster Vault 2.5** — Make it interactive. New VaultPreferences table, 4-strategy yield-routing picker, per-bill state-transition menus, risk-disclosure persistence, vault pause/resume toggle. 49/49 integration + 49/49 smoke green. tsc clean.
 
 **What just shipped (Phase 2.5 surface, in detail)**
 - New `VaultPreferences` Prisma model: `yieldRoutingStrategy` (String @default("COMPOUND")), `riskAcknowledgedAt` (DateTime?), `userId @unique`. Back-relation on User.
