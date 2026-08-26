@@ -1,47 +1,78 @@
 /**
- * Advisor agent orchestrator — `runAdvisor` for v1.
+ * Advisor agent orchestrator — `runAdvisor` for v2.
  *
- * Cluster 5.3. The post-onboarding "ask me anything" surface. Single
- * LLM call per user turn, no tool loop, no state mutation beyond
- * appending to the chat log.
+ * Cluster 5.3.1. v1 was a single LLM call per turn with no tools;
+ * the identity was inlined into the system prompt and the LLM
+ * answered from context. v2 keeps the inlined identity (it's a
+ * small, fixed shape and the LLM should always see it) AND adds
+ * a 7-tool read-only toolset so the advisor can fetch live data
+ * slices on demand. This unlocks the "ask me anything" vision:
  *
- * What's different from the onboarding agent (`onboarding/agent.ts`):
+ *   - "How much on lights past 4 months?" → queryTransactions
+ *   - "Average grocery bill?"          → queryTransactions (groupBy)
+ *   - "What about a trip on date X?"   → queryGoals + simulatePaycheck
+ *   - "Cut to pay more debt?"          → summarizeSpending + queryDebts
+ *   - "Safe to spend this month?"      → queryBills + queryEnvelopes +
+ *                                        simulatePaycheck
  *
- *   - **No tools.** The advisor is read-only. The identity is
- *     prepended to the system prompt as a deterministic summary;
- *     the LLM answers questions about it without needing to look
- *     anything up.
- *   - **Single LLM round.** The onboarding agent loops up to 6
- *     rounds (because the LLM may call multiple tools before
- *     producing the final answer). The advisor doesn't, so one
- *     call is enough.
- *   - **Shared history with onboarding.** The advisor and the
- *     onboarding chat both write to the same OnboardingMessage
- *     log. The user can ask a question during onboarding, then
- *     continue in /advisor — the history is one thread. The
- *     FinancialIdentity is the single source of truth, and the
- *     OnboardingMessage log is the single conversation log.
- *   - **Read-only identity.** The agent's `runAdvisor` never
- *     mutates the identity, the goals, or any production table.
- *     The chat history is the only side effect.
+ * Multi-round orchestrator (cap 3 rounds):
  *
- * The L1 rules fallback (Mavis / Ollama error → mock) still
- * applies — the dispatcher in `lib/llm` handles it, and we surface
- * `meta.fellBack` on the result so the chat UI can show a banner.
- * The mock's deterministic seed becomes the same per-conversation
- * `advisor-<userId>` so a user who flips providers mid-conversation
- * keeps the same context.
+ *   userMessage + history → LLM call (round 1)
+ *     ├─ no tool calls → final text, return
+ *     └─ tool calls → run them, append results, loop
+ *                       → LLM call (round 2)
+ *                         ├─ no tool calls → final text, return
+ *                         └─ tool calls → run them, append results, loop
+ *                                           → LLM call (round 3)
+ *                                             → final text (or polite
+ *                                               close if the LLM
+ *                                               still wants more tools)
+ *
+ * The cap of 3 is intentionally tight: a well-prompted model
+ * usually answers in 1-2 rounds. 3 covers the longest realistic
+ * chain (e.g. "how much can I safely spend this month" → queryBills
+ * + queryEnvelopes + simulatePaycheck → answer). If the LLM still
+ * wants more tools after 3, the orchestrator uses whatever the
+ * last response was and surfaces a polite close — the user can
+ * re-ask in a follow-up turn.
+ *
+ * What stays the same from v1:
+ *
+ *   - **Read-only identity.** The advisor never mutates
+ *     FinancialIdentity / production tables. The chat history is
+ *     the only side effect.
+ *   - **Shared OnboardingMessage log.** The advisor and the
+ *     onboarding chat both write to the same log. The user can
+ *     flip between them without losing context.
+ *   - **L1 rules fallback.** The dispatcher in `lib/llm` falls
+ *     through to the mock if the primary provider errors. The
+ *     mock's deterministic seed becomes `l1-fallback-advisor` so
+ *     a user who flips between providers mid-conversation keeps
+ *     the same context.
+ *
+ * What changed from v1:
+ *
+ *   - **Tool loop.** The orchestrator now runs tools and feeds
+ *     results back. The LLMRequest `tools` field is populated.
+ *   - **Max rounds = 3.** Hard cap to prevent runaway loops.
+ *   - **Result includes `toolCalls`.** Each entry has the tool
+ *     name + args + the handler's publicView. The chat UI can
+ *     surface "I checked your envelopes and bills…" if it wants.
+ *   - **Result includes `rounds`.** So the smoke can assert the
+ *     loop terminated within the cap.
  */
 
 import "server-only";
-import type { LLMMessage, LLMRequest, LLMResponse } from "../llm/types";
-import { callLLM } from "../llm";
+import type { LLMMessage, LLMRequest, LLMResponse, LLMToolCall } from "../llm/types";
+import { callLLMForAdvisor } from "../llm";
 import { buildAdvisorSystemPrompt, type AdvisorIdentitySummary } from "./system-prompt";
+import { ADVISOR_TOOLS } from "./tools";
+import { runAdvisorTool, type AdvisorToolResult } from "./handlers";
 import { loadConversation, saveConversation, type OnboardingState } from "../onboarding/state";
 
-// ───────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────
 // Public types
-// ───────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────
 
 export interface RunAdvisorInput {
   userId: string;
@@ -58,8 +89,12 @@ export interface RunAdvisorInput {
 export interface RunAdvisorResult {
   /** The final assistant text the user sees. */
   agentMessage: string;
+  /** Every tool call the agent made, in order, with its result. */
+  toolCalls: Array<LLMToolCall & { result: AdvisorToolResult }>;
   /** The conversation state after the turn. */
   state: OnboardingState;
+  /** How many LLM round-trips this turn took (1 if no tool calls). */
+  rounds: number;
   /** The provider that produced the final response. */
   provider: "mavis" | "ollama" | "mock";
   /** True if the LLM primary errored and the L1 rules fallback ran. */
@@ -68,22 +103,13 @@ export interface RunAdvisorResult {
   fallbackError: string | null;
 }
 
-// ───────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────
 // The agent
-// ───────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────
 
-/**
- * Run one advisor turn. Loads the user's identity + history, builds
- * a system prompt with the identity inline, makes a single LLM call,
- * and saves the new messages back to the OnboardingMessage log.
- *
- * Requires the user to have a completed identity (the advisor
- * answers questions about the identity — if it's empty, the user
- * should finish onboarding first). The function does NOT enforce
- * that gate; the API route /api/advisor/run checks it before
- * calling runAdvisor (so the chat UI can render a helpful "go
- * finish onboarding" message instead of an exception).
- */
+/** Hard cap on LLM round-trips per user turn. Prevents infinite tool loops. */
+const MAX_ROUNDS = 3;
+
 export async function runAdvisor(input: RunAdvisorInput): Promise<RunAdvisorResult> {
   const state = await loadConversation(input.userId);
 
@@ -111,33 +137,96 @@ export async function runAdvisor(input: RunAdvisorInput): Promise<RunAdvisorResu
     { role: "user", content: input.userMessage },
   ];
 
-  const req: LLMRequest = {
-    systemPrompt: buildAdvisorSystemPrompt({ context: summary }),
-    messages: nextHistory,
-    // No tools in v1 — the identity is inline, the LLM answers
-    // from context. A future cluster can add a single read-only
-    // tool (e.g. `querySnapshot` for current balances) if the
-    // context-window budget can't fit the identity.
-    tools: [],
-    temperature: 0.6, // slightly lower than onboarding (0.7) — the advisor is more factual
-    maxTokens: 800,   // shorter replies (the advisor is conversational, not a long-form intake)
-  };
+  // Per-turn tool loop. The LLM may call 1+ tools in a round, get
+  // the results, and call more. We cap rounds so a runaway model
+  // can't loop forever; the LLM's `finishReason: "length"` or
+  // `"error"` also breaks the loop.
+  const allToolCalls: Array<LLMToolCall & { result: AdvisorToolResult }> = [];
+  let rounds = 0;
+  let finalResponse: LLMResponse | null = null;
+  let fellBack = false;
+  let fallbackError: string | null = null;
+  let workingHistory: LLMMessage[] = nextHistory;
 
-  const res: LLMResponse = await callLLM(req);
+  while (rounds < MAX_ROUNDS) {
+    rounds += 1;
+    const req: LLMRequest = {
+      systemPrompt: buildAdvisorSystemPrompt({ context: summary }),
+      messages: workingHistory,
+      tools: ADVISOR_TOOLS,
+      temperature: 0.6, // slightly lower than onboarding (0.7) — the advisor is more factual
+      maxTokens: 800,   // shorter replies (the advisor is conversational, not a long-form intake)
+    };
 
-  // The L1 rules fallback (real provider errored) is reported via
-  // res.meta.fellBack. We surface it on the result so the chat UI
-  // can show a "we had trouble reaching Mavis; using a backup"
-  // banner, matching the onboarding flow's behavior.
-  const fellBack = res.meta?.fellBack === true;
-  const fallbackError =
-    (res.meta?.l1Error as string | undefined) ?? null;
+    const res = await callLLMForAdvisor(req);
 
-  // Append the assistant's final response to the working history.
-  const workingHistory: LLMMessage[] = [
-    ...nextHistory,
-    { role: "assistant", content: res.content },
-  ];
+    // Track L1 fallback telemetry from any round of this turn. The
+    // dispatcher sets meta.fellBack=true when the primary (Mavis /
+    // Ollama) errored and the mock engine produced the response.
+    if (res.meta?.fellBack === true) {
+      fellBack = true;
+      fallbackError =
+        (res.meta.l1Error as string | undefined) ?? fallbackError ?? "unknown error";
+    }
+
+    // No tool calls → this is the final response.
+    if (res.toolCalls.length === 0) {
+      finalResponse = res;
+      workingHistory = [
+        ...workingHistory,
+        { role: "assistant", content: res.content },
+      ];
+      break;
+    }
+
+    // Has tool calls. Run each one, then ask the LLM again.
+    // First, append the assistant message that contained the tool calls.
+    workingHistory = [
+      ...workingHistory,
+      {
+        role: "assistant",
+        content: res.content,
+        toolCalls: res.toolCalls,
+      },
+    ];
+
+    for (const tc of res.toolCalls) {
+      const result = await runAdvisorTool(input.userId, tc);
+      allToolCalls.push({ ...tc, result });
+
+      // Append the tool result to the history so the LLM sees it
+      // on the next round. The handler's publicView is JSON-safe.
+      workingHistory = [
+        ...workingHistory,
+        {
+          role: "tool",
+          toolCallId: tc.id,
+          content: JSON.stringify(result.publicView),
+        },
+      ];
+    }
+  }
+
+  if (!finalResponse) {
+    // Hit MAX_ROUNDS without a final response. The LLM kept wanting
+    // more tools. Use whatever the last response said (even though
+    // it was an assistant message with tool calls) as a polite
+    // close so the user isn't staring at silence. The user can
+    // re-ask in a follow-up turn if they want more depth.
+    finalResponse = {
+      content:
+        "I want to keep digging but I'm going to stop here so I can answer you now. " +
+        "What would you like to know — try asking a more specific question if you can.",
+      toolCalls: [],
+      finishReason: "length",
+      provider: "mock",
+      meta: { reason: "max_rounds_exceeded" },
+    };
+    workingHistory = [
+      ...workingHistory,
+      { role: "assistant", content: finalResponse.content },
+    ];
+  }
 
   // Persist the new messages. The orchestrator computes the diff
   // (everything past the loaded `history`) and the storage layer
@@ -146,7 +235,7 @@ export async function runAdvisor(input: RunAdvisorInput): Promise<RunAdvisorResu
   const updatedState: OnboardingState = {
     ...state,
     messages: workingHistory,
-    lastProvider: res.provider,
+    lastProvider: finalResponse.provider,
     lastFellBack: fellBack,
     lastErrorMessage: fallbackError,
     lastTouchedAt: new Date().toISOString(),
@@ -154,19 +243,21 @@ export async function runAdvisor(input: RunAdvisorInput): Promise<RunAdvisorResu
   await saveConversation(updatedState, newMessages);
 
   return {
-    agentMessage: res.content,
+    agentMessage: finalResponse.content,
+    toolCalls: allToolCalls,
     state: updatedState,
-    provider: res.provider,
+    rounds,
+    provider: finalResponse.provider,
     fellBack,
     fallbackError,
   };
 }
 
-// ───────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────
 // Identity summary — the rendered form the LLM sees inline in the
 // system prompt. Plain text, fixed order, no JSON (smaller context
 // variance + more reliable parsing by small models).
-// ───────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────
 
 /**
  * Render the user's OnboardingState into a plain-text identity

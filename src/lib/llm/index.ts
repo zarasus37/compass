@@ -14,6 +14,12 @@
  * in the response's `meta` so the orchestrator + chat UI can
  * surface a "we had trouble reaching Mavis; using a backup" banner.
  *
+ * Cluster 5.3.1 added the **advisor-specific dispatcher** —
+ * `callLLMForAdvisor`. The advisor uses a separate env var
+ * (`LLM_PROVIDER_ADVISOR`, default `ollama`) so the post-onboarding
+ * advisor can run on a small local model independently of the
+ * extraction flow's `LLM_PROVIDER`. Same L1 fallback semantics.
+ *
  * The dispatcher is intentionally a thin layer: load config
  * once (cached), pick the branch, delegate.
  */
@@ -57,64 +63,103 @@ export function resetLLMConfig(): void {
  */
 export async function callLLM(req: LLMRequest): Promise<LLMResponse> {
   const c = config();
+  return dispatch(req, c.provider, c, "l1-fallback-default");
+}
+
+/**
+ * Cluster 5.3.1. Call the LLM for the post-onboarding advisor
+ * surface. Uses the advisor-specific provider
+ * (`LLM_PROVIDER_ADVISOR`, default `ollama`). Same L1 fallback
+ * semantics as `callLLM`. Independent of the global provider,
+ * so you can run Mavis on onboarding + Ollama on the advisor.
+ *
+ * If the advisor's selected provider is misconfigured (e.g.
+ * ollama is selected but the Ollama env is missing), this
+ * function falls through to the mock on the FIRST call
+ * (rather than throwing at config-load time) so a misconfigured
+ * dev environment can still serve advisor traffic (with a
+ * warning in the meta).
+ */
+export async function callLLMForAdvisor(req: LLMRequest): Promise<LLMResponse> {
+  const c = config();
+  const wanted = c.advisor.provider;
+  // The user picked Mavis/Ollama but the env is missing — the
+  // dispatcher logs a warning and falls through to the mock. We
+  // surface this as meta.fellBack so the advisor can show a
+  // "running on backup" banner (same UX as the main flow).
+  if (wanted === "mavis" && c.advisor.mavisMissing) {
+    return fallbackToMock(req, wanted, "Mavis env missing — falling back to L1 mock for advisor");
+  }
+  if (wanted === "ollama" && c.advisor.ollamaMissing) {
+    return fallbackToMock(req, wanted, "Ollama env missing — falling back to L1 mock for advisor");
+  }
+  return dispatch(req, wanted, c, "l1-fallback-advisor");
+}
+
+/**
+ * Internal — shared dispatch logic. `fallbackSeed` namespaces the
+ * mock's per-seed topic tracking so a user who flips between
+ * the main flow and the advisor doesn't carry topic state
+ * across surfaces.
+ */
+async function dispatch(
+  req: LLMRequest,
+  provider: "mavis" | "ollama" | "mock",
+  c: LLMConfig,
+  fallbackSeed: string,
+): Promise<LLMResponse> {
   try {
-    switch (c.provider) {
+    switch (provider) {
       case "mavis":
         if (!c.mavis) {
-          // loadLLMConfig already throws on this case, but keep the
-          // null-check for type-safety.
           throw new Error(
-            "[llm] LLM_PROVIDER=mavis but Mavis config is null. Check .env.local.",
+            "[llm] Mavis config is null at dispatch time. Check .env.local.",
           );
         }
         return await callMavis(c.mavis, req);
       case "ollama":
         if (!c.ollama) {
           throw new Error(
-            "[llm] LLM_PROVIDER=ollama but Ollama config is null. Check .env.local.",
+            "[llm] Ollama config is null at dispatch time. Check .env.local.",
           );
         }
         return await callOllama(c.ollama, req);
       case "mock":
         return await callMock(req);
       default: {
-        // Exhaustiveness check.
-        const _exhaustive: never = c.provider;
+        const _exhaustive: never = provider;
         throw new Error(`[llm] Unknown provider: ${String(_exhaustive)}`);
       }
     }
   } catch (err) {
-    // L1 rules fallback: a real provider (Mavis or Ollama) errored.
-    // The mock provider has no fallback (it IS the rules engine);
-    // if it throws, propagate.
-    if (c.provider === "mavis" || c.provider === "ollama") {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      console.warn(
-        `[llm] ${c.provider} failed; falling back to L1 rules engine: ${errorMsg}`,
-      );
-      // Stable per-(primary-provider) seed so the mock's per-seed
-      // topic tracking survives across turns within a conversation.
-      // Different primaries get different seeds so a user who flips
-      // Mavis → Ollama mid-onboarding doesn't carry topic state.
-      const fallbackSeed = `l1-fallback-${c.provider}`;
-      const fallbackReq: LLMRequest = { ...req, model: fallbackSeed };
-      const fallbackRes = await callMock(fallbackReq);
-      return {
-        ...fallbackRes,
-        // Keep `provider` as the one that actually produced the
-        // response (mock), so callers can route on it. The
-        // original primary that failed is in `meta.originalProvider`.
-        provider: fallbackRes.provider,
-        meta: {
-          ...(fallbackRes.meta ?? {}),
-          fellBack: true,
-          originalProvider: c.provider,
-          l1Error: errorMsg,
-        },
-      };
+    if (provider === "mavis" || provider === "ollama") {
+      return fallbackToMock(req, provider, err instanceof Error ? err.message : String(err), fallbackSeed);
     }
     throw err;
   }
+}
+
+async function fallbackToMock(
+  req: LLMRequest,
+  originalProvider: "mavis" | "ollama" | "mock",
+  errorMsg: string,
+  seed: string = "l1-fallback-advisor",
+): Promise<LLMResponse> {
+  console.warn(
+    `[llm/advisor] ${originalProvider} failed; falling back to L1 rules engine: ${errorMsg}`,
+  );
+  const fallbackReq: LLMRequest = { ...req, model: seed };
+  const fallbackRes = await callMock(fallbackReq);
+  return {
+    ...fallbackRes,
+    provider: fallbackRes.provider,
+    meta: {
+      ...(fallbackRes.meta ?? {}),
+      fellBack: true,
+      originalProvider,
+      l1Error: errorMsg,
+    },
+  };
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -123,5 +168,5 @@ export async function callLLM(req: LLMRequest): Promise<LLMResponse> {
 // ──────────────────────────────────────────────────────────────────────
 
 export type { LLMProvider, LLMRequest, LLMResponse, LLMMessage, LLMTool, LLMToolCall } from "./types";
-export type { LLMConfig, MavisConfig, OllamaConfig, MockConfig } from "./config";
+export type { LLMConfig, MavisConfig, OllamaConfig, MockConfig, AdvisorConfig } from "./config";
 export { loadLLMConfig } from "./config";

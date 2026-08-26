@@ -78,6 +78,12 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({
       agentMessage: result.agentMessage,
+      // Cluster 5.3.1 — surface the tool calls + rounds so the
+      // chat UI can show "I checked your envelopes and bills…"
+      // and so the smoke can assert the multi-round loop fired
+      // (or stayed in a single round when no tools were needed).
+      toolCalls: result.toolCalls,
+      rounds: result.rounds,
       state: result.state,
       provider: result.provider,
       fellBack: result.fellBack,

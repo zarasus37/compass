@@ -64,6 +64,28 @@ export async function callMock(req: LLMRequest): Promise<LLMResponse> {
     };
   }
 
+  // Cluster 5.3.1 — the advisor's L1 fallback seed is
+  // `l1-fallback-advisor`. The advisor is read-only; it should
+  // NEVER call the onboarding tools (saveIncomeSource, saveGoal,
+  // etc.). The mock is hard-coded with onboarding topic patterns
+  // for deterministic smoke runs, so when we're being asked from
+  // the advisor path, return a simple text-only response
+  // regardless of what keywords the user message contains. The
+  // handler-level smoke tests exercise the advisor's 7 read-only
+  // tools directly (not through the mock).
+  if (seed === "l1-fallback-advisor") {
+    return {
+      content:
+        "Here's what I see in your identity. " +
+        "Ask me anything specific — like 'how much on lights past 4 months' or " +
+        "'which debt should I pay off first' — and I'll dig in. (Advisor L1 mock: " +
+        "set LLM_PROVIDER_ADVISOR=ollama or mavis for a real answer.)",
+      toolCalls: [],
+      finishReason: "stop",
+      provider: "mock",
+    };
+  }
+
   state.userTurnCount += 1;
   const t = lastUser.content.toLowerCase();
 
