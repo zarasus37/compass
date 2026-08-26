@@ -16,7 +16,10 @@ import * as React from "react";
 import { PLANET_COLORS, type PlanetId } from "@/components/alchemy/VesselGlyph";
 
 export interface GoalSparklineProps {
-  planet: PlanetId;
+  // Cluster 5.2.6 widget switch: planet is PlanetId | null
+  // (custom goals can have a null planet). When null, the line
+  // uses neutral ink.
+  planet: PlanetId | null;
   currentCents: number;
   targetCents: number;
   perPaycheckCents: number;
@@ -78,7 +81,7 @@ export function GoalSparkline({
   const startY = y(startPct);
   const isFlat = perPaycheckCents <= 0 || currentCents >= targetCents;
   const reached = currentCents >= targetCents;
-  const color = reached ? "var(--ok)" : PLANET_COLORS[planet];
+  const color = reached ? "var(--ok)" : planet ? PLANET_COLORS[planet] : "var(--ink-3)";
 
   return (
     <svg

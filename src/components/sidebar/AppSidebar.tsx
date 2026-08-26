@@ -14,7 +14,7 @@ import { usePathname } from "next/navigation";
  *
  *   // OVERVIEW  — Dashboard, Period, Calendar, Insights
  *   // LEDGER    — Accounts, Transactions, Envelopes, Allocation,
- *                 Obligations, Debts, Holdings
+ *                 Obligations, Vault, Debts, Holdings
  *   // AIMS      — Goals
  *   // LEARN     — Field Guide, Your Numbers, Glossary, Habit Quiz
  *
@@ -58,6 +58,7 @@ const NAV: NavChapter[] = [
       { href: "/envelopes",    label: "Envelopes" },
       { href: "/allocation",   label: "Allocation", badge: { text: "AUTO", tone: "auto" } },
       { href: "/obligations",  label: "Obligations" },
+      { href: "/vault",        label: "Vault",   badge: { text: "BETA", tone: "auto" } },
       { href: "/debts",        label: "Debts" },
       { href: "/holdings",     label: "Holdings" },
     ],

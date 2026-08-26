@@ -20,7 +20,7 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { addBill, setBillPaid, type Bill } from "@/lib/store";
+import { addBill, addBillDb, setBillPaid, setBillPaidDb, type Bill } from "@/lib/store";
 import { requireUser } from "@/server/auth/user";
 
 export interface ToggleBillResult {
@@ -33,7 +33,14 @@ export async function toggleBillPaid(
   _prev: ToggleBillResult | null,
   formData: FormData,
 ): Promise<ToggleBillResult> {
-  await requireUser();
+  // Cluster 5.2.6 widget switch: the toggle now writes to the
+  // durable Prisma `Bill` table (via `setBillPaidDb`) so the
+  // /recurring + dashboard + /calendar widgets — all of which now
+  // read from Prisma — see the new state. The previous
+  // `setBillPaid` (in-memory) is still used by the legacy
+  // `PaycheckBreakdown` engine; `setBillPaidDb` mirrors the write
+  // to the in-memory store so that engine still computes correctly.
+  const user = await requireUser();
 
   const id = String(formData.get("billId") ?? "");
   const paidRaw = String(formData.get("paid") ?? "");
@@ -43,7 +50,7 @@ export async function toggleBillPaid(
     return { ok: false, reason: "Missing bill id." };
   }
 
-  const updated = setBillPaid(id, paid);
+  const updated = await setBillPaidDb(user.id, id, paid);
   if (!updated) {
     return { ok: false, reason: "Bill not found." };
   }
@@ -73,7 +80,12 @@ export async function logBill(
   _prev: AddBillResult | null,
   formData: FormData,
 ): Promise<AddBillResult> {
-  await requireUser();
+  // Cluster 5.2.6 widget switch: the new-bill form now writes to
+  // the durable Prisma `Bill` table (via `addBillDb`) so the new
+  // row shows up in the /recurring + dashboard + /calendar widgets
+  // (which now read from Prisma). The in-memory mirror is kept
+  // in sync by `addBillDb` so the legacy engine still works.
+  const user = await requireUser();
 
   const name = String(formData.get("name") ?? "").trim();
   const amountDollars = Number.parseFloat(String(formData.get("amount") ?? ""));
@@ -91,7 +103,7 @@ export async function logBill(
     return { ok: false, reason: "Due day must be between 1 and 31." };
   }
 
-  const result = addBill({
+  const result = await addBillDb(user.id, {
     name,
     amountCents: Math.round(amountDollars * 100),
     dueDay,

@@ -30,12 +30,23 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/server/auth/user";
 import { resetUserEnvelopesToSeed, resetStore } from "@/lib/store";
+import { ensureUserBillsSeeded } from "@/lib/seed-bills";
+import { ensureUserGoalsSeeded } from "@/lib/seed-goals";
 import { revalidatePath } from "next/cache";
 
 export async function POST() {
   const user = await requireUser();
   try {
     await resetUserEnvelopesToSeed(user.id);
+    // Cluster 5.2.6: also (re)seed the Bill table so the
+    // /recurring + dashboard + /calendar widgets have the 6
+    // canonical BILLS_SEED rows. Idempotent: subsequent calls are
+    // a no-op.
+    await ensureUserBillsSeeded(user.id);
+    // Same for Goal — the /goals page now reads from the Prisma
+    // Goal table, and the canonical 4 GOALS_SEED rows need to be
+    // migrated for the page to render the right data.
+    await ensureUserGoalsSeeded(user.id);
     // Also wipe + reseed the in-memory store. The single-user v1
     // model has no userId scoping here (the store is global), but
     // the action authenticates the user, so a stranger can't
@@ -46,7 +57,7 @@ export async function POST() {
     revalidatePath("/", "layout");
     return NextResponse.json({
       ok: true,
-      message: "Envelopes + live store reset to seed.",
+      message: "Envelopes + bills + goals + live store reset to seed.",
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error.";

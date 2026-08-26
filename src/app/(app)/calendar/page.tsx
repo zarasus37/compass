@@ -4,6 +4,7 @@ import {
   liveGoals,
   liveTransactions,
   liveBills,
+  liveBillsFromDb,
   liveSnapshot,
   NEXT_PAY_DATE,
   TODAY,
@@ -14,6 +15,7 @@ import { billsDueInPeriod } from "@/lib/store";
 import { formatShortDate, formatPeriodRange } from "@/lib/format";
 import { formatMoney } from "@/lib/money";
 import { VesselGlyph, type PlanetId } from "@/components/alchemy/VesselGlyph";
+import { requireUser } from "@/server/auth/user";
 
 export const dynamic = "force-dynamic";
 
@@ -24,11 +26,16 @@ export const dynamic = "force-dynamic";
  * for amounts, mono caps headers with // prefix. Paydays (gold) and
  * Goal targets (jupiter) preserved as semantic colors. The bills-due
  * warning card uses terminal markers.
+ *
+ * Cluster 5.2.6 widget switch: BILLS now come from Prisma (the
+ * Bill table) instead of the in-memory BILLS_SEED. The first
+ * call lazily seeds the 6 canonical rows for the user.
  */
-export default function CalendarPage() {
+export default async function CalendarPage() {
+  const user = await requireUser();
   const GOALS = liveGoals();
   const TRANSACTIONS = liveTransactions();
-  const BILLS = liveBills();
+  const BILLS = await liveBillsFromDb(user.id);
   const SNAPSHOT = liveSnapshot();
   const month = "September";
   const year = 2025;

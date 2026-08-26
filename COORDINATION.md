@@ -12,7 +12,7 @@
 - **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory) — ✅ done, commit `cda8972`. Cluster 1.7 visual audit — ✅ done, commit `3da5716`. **Cluster 1.8 (Bill organizer + Plan My Next Check + calendar warnings) — ✅ done, commit `999ff37`. Cluster 1.9 (Debt payoff simulator + Saturn vessel + 3-up card + paid-off celebration) — ✅ done, commits `feb50e3` + `801525c` (math-bug fix) + `0ffb439` (per-debt sparkline).** Biweekly period locked as the canonical pay schedule (D17); period-close renamed to match (D18). **Chart-next-to-data principle applied across /goals, /envelopes, /recurring, /debts, /insights — commit `843375c`. Cluster 1.10 (drill-downs + new transaction / goal / envelope / bill / debt forms + edit forms) — ✅ done, commits `03f308f` + `006bca0` + `3dc679f` + `649d76e`. **Cluster 2.0 (customizable, scrollable, card-based dashboard with @dnd-kit drag-and-drop + localStorage persistence) — ✅ done, commit `e648ef5`. Cluster 2.0.1 (visual-first treatment: 7-day WeekSparkline, BurnSparkline, embedded GoalSparkline) — ✅ done, commit `af0b8d3`. Cluster 2.0.2 (full-month calendar with planetary headers + scheduled bills list) — ✅ done, commit `34f3928`. **Cluster 2.0.3 (Component Oracle Terminal re-skin of the dashboard) — ✅ done, commit `884fe70`.** **Cluster 2.1 (must-have viz + utility integration push: 3 new dashboard cards (Spend Ring, Net Trajectory, Pay Distribution) + Must-Have Tools index strip on dashboard + /settings hub + Plaid sandbox + AI categorize rules + Receipt scan + Habit quiz + Household stub + /subscriptions wired to live data) — ✅ done, single working session.** Next: tidy up — fine-tune placement, polish tooltips, add hover states where missing, decide which cards to default-on, integrate the tools into the sidebar nav as a 4th chapter if the Settings entry feels too hidden, then 2.x (form actions deep-dive, bill reminders, variable income, period close), then 3.x (real Plaid, AI tiers).
 - **Stage 3 (Test & bug-fix)**: pending Stage 2
 
-> Last update: 2026-08-25 (post-Cluster-5.2.5 — Project identity to production tables: new `Bill` model in `prisma/schema.prisma` (the only production table missing); new `projectIdentityToProduction()` in `src/lib/onboarding/projection.ts` maps Income/Expenses/Debts/Assets/Goals → Account/Bill rows; wired into both the chat completion path (`agent.ts`) AND the seed-demo path (`seed-demo/route.ts`); failure is non-fatal (try/catch + console.warn); idempotent via `[identity] ` name prefix (Account/Goal) + `source="identity"` (Bill) with a wipe-then-insert path; Identity Summary card now shows a `[OK] PROJECTED N acct · M bill · K goal` footer with live counts; `cadenceMonthlyFactor` extracted to `src/lib/identity/cadence.ts` so the projection and the identity summary share one canonical cadence map; 17 new smoke checks in `tests/smoke-onboarding-agent.mjs` (total 97/97, was 80) that query Prisma directly via the same `PrismaBetterSqlite3` adapter pattern as `smoke-auth.mjs` to verify the Account/Bill/Goal rows have the right shape; the other dashboard widgets still read from the in-memory seed (a deliberate scope decision — see Cluster 5.2.6 in Open items for the widget switch); dev server restart was required to pick up the new Bill model + projection; total 14/15 smokes green at 526/526, smoke-auth pre-existing fail unchanged)
+> Last update: 2026-08-25 (post-Cluster-5.2.6 partial — **widgets #1 (recurring/bills), #2 (envelopes), #3 (goals) DONE** out of 6. New `source` field on the `Bill`, `Envelope`, and `Goal` Prisma models. Three seed modules — `src/lib/seed-bills.ts` (BILLS_SEED → Bill rows with source="seed"), `ensureUserEnvelopesSeeded` in `src/lib/store.ts` (now tags source="seed"), and the new `src/lib/seed-goals.ts` (GOALS_SEED → Goal rows) — idempotently migrate the in-memory seed into the production tables. New async read functions in `src/lib/mock.ts`: `liveBillsFromDb(userId)`, `liveEnvelopesFromDb(userId)`, `liveGoalsFromDb(userId)`. The /recurring + /envelopes + /goals pages (and the dashboard + /calendar bill surfaces) now read from Prisma. The Bill model gained the missing `user` back-relation (caused orphan rows after a previous test run's user delete — pre-existing data was cleaned up by `_cleanup_orphans.mjs`; the new relation + `onDelete: Cascade` prevents future orphans). The toggle (`setBillPaidDb`) and new-bill form (`addBillDb`) actions now write through to Prisma and mirror to the in-memory store. The reset-seed endpoint also calls all three seeders. New smokes `tests/smoke-bills-db.mjs` (36/36), `tests/smoke-envelopes-db.mjs` (29/29), `tests/smoke-goals-db.mjs` (28/28). Adjacent smokes unchanged: reset-seed 8/8, deprecated 42/42, onboarding-agent 97/97, smoke-auth still pre-existing failing. `tsc --noEmit` clean. **Widgets #4-6 remaining**: /allocation (AllocationPlan/Rule tables; new seed pattern needed), /insights (composite page; reads from multiple), /accounts (single canonical account + projected from chat). The recommended approach is established; widgets 4-6 follow the same pattern as 1-3. Proposing a fresh-session handoff here so widgets 4-6 get a focused push. dev server on 127.0.0.1:3000.)
 
 ---
 
@@ -733,7 +733,7 @@ The other dashboard widgets (period, envelopes, bills, allocation, insights) sti
 - [x] `smoke-auth.mjs` still pre-existing failing (unchanged from before this cluster).
 
 **Open items (next clusters):**
-- **Cluster 5.2.6 — Widget switch (RECOMMENDED NEXT)**: flip the existing dashboard widgets (period, envelopes, bills, allocation, insights) from the in-memory seed to the production tables. The data layer is now in place; this is the visible-UI half. The Bill table is populated by the projection; Account / Envelope / Goal / AllocationPlan need either projected rows or a one-time migration of the in-memory seed. Recommended approach: add a `source` field to the migrated seed rows (like Bill already has) so the production reads can filter `WHERE source IN ('seed','identity')` and the projected rows + migrated seed rows are visible together. Then the widgets switch from `liveEnvelopes()` etc. to the production queries in a tight cluster.
+- **Cluster 5.2.6 — Widget switch (IN PROGRESS, 3/6 widgets done)**: flip the existing dashboard widgets (period, envelopes, bills, allocation, insights) from the in-memory seed to the production tables. **Done in this session**: recurring/bills (36/36 smoke), envelopes (29/29), goals (28/28). **Remaining**: allocation, insights, accounts. The pattern is established: (1) add `source` field to the model + push schema; (2) add a one-time seeder with `source: "seed"`; (3) add `liveXFromDb(userId)` in `src/lib/mock.ts`; (4) flip the page's read; (5) write a smoke. See COORDINATION.md "Last update" + the three new seeders for the contract.
 - **Cluster 5.3 — Ongoing advisor (Ollama)**: post-onboarding "ask me anything about your money" surface. Same `callAgent` interface, different provider. Privacy-first + free + local. A new `/api/advisor/run` endpoint + a side-drawer on the dashboard that shows recent questions.
 
 ### Cluster 2 (after Cluster 2.0)
@@ -1143,3 +1143,192 @@ ext.config.ts change**. /vault is a new route — no redirect needed.
 ode tests/smoke-vault.mjs — passes.
 - Dev server /vault route returns 200 in a manual fetch; ledger nav lights up the Vault entry.
 - COORDINATION.md final entry summarizes what shipped + what didn't.
+
+### Vault Phase 1.0 — SHIPPED (2026-08-25)
+
+Built end-to-end in one focused push, verified clean, smoke-green, on disk.
+
+#### Files created
+- src/lib/vault/types.ts — domain types (VaultAccount, VaultEnvelope, ScheduledBill, YieldEvent, 13-state BillStatus, OffRampResult discriminated union, IOffRampAdapter, YieldRoutingStrategy, VaultAlertState, OffRampAdapterStatus). All integer cents. No viem dependency.
+- src/lib/vault/yield.ts — calculateEnvelopeYield(envelopePrincipal, totalEligiblePrincipal, totalYieldAccrued) per spec (capital share, not lump sum). Returns integer cents.
+- src/lib/vault/state-machine.ts — 	ransitionBill(bill, event) pure function. Legal-transitions table for all 13 states. Also exports userLabel(status), 	one(status), legalNextStates(from), deriveAlertState(vaultStatus, bills).
+- src/lib/vault/mock-data.ts — deriveMockVault(userId). Reads liveEnvelopes() + liveBills() from the in-memory store. Maps 7 envelopes → 7 vault envelopes, 6 bills → 6 scheduled bills. Computes yield by capital share. Surfaces a VaultSnapshot with vault, envelopes, bills, yield events, off-ramp adapter status, alert state, and a 7-KPI summary.
+- src/lib/vault/adapters.ts — SpritzAdapter, MontoAdapter, FallbackManualPushAdapter stubs implementing IOffRampAdapter. Idempotency-key aware.
+- src/app/(app)/vault/page.tsx — server component. Section order: risk disclosure → alert banner → 5-cell status strip → bill schedule table → yield attribution block → off-ramp panel → two-tier allocation. All sections share a consistent SectionHeader with eyebrow + title + em tail.
+- 	ests/smoke-vault.mjs — 33 checks, all green.
+
+#### Files modified
+- src/components/sidebar/AppSidebar.tsx — added /vault entry under // Ledger with a [BETA] badge.
+- 	ests/smoke-sidebar.mjs — added Vault to the expected Ledger chapter items (so future nav regressions catch the entry).
+
+#### Verification
+- 	sc --noEmit — exit 0, zero output. No type errors introduced.
+- 
+ode tests/smoke-vault.mjs — **33/33 green** (page loads, sidebar entry + BETA + active state, risk disclosure copy + 7 risk categories, alert banner with state attribute, 5 KPI labels, bill schedule with 6 rows and 6/6 [OK]/[WARN]/[SIGIL] markers, yield attribution block with 7 envelope rows, reconciliation residual 0.14% of total, off-ramp panel with 3 adapters, two-tier allocation copy).
+- 
+ode tests/smoke-sidebar.mjs — **63/63 green** (was 16 items; +2 checks from the new Vault entry).
+- 14 of the 15 pre-existing smokes still green. The lone red is smoke-auth.mjs, which was already broken before this work began (per the session-startup status).
+- GET /vault returns 200, body is 135 KB.
+
+#### Live numbers (one render of /vault against the seeded data)
+- Vault principal: **,147.00** across 7 envelopes
+- Reserved for bills: **,113.99** (6 scheduled)
+- Yield earned: **.95** at 3.52% estimated APY (variable, per spec)
+- Next execution: **.00** on Aug 31 (FUNDED)
+- Liquid buffer: computed from deployed-to-yield minus reserved
+- Reconciliation: attributed .96 vs vault .95 — residual is .01, well under 1% (rounding from integer-cents attribution math)
+- Alert state: WATCH (a bill is approaching its execution window)
+
+#### What's deferred (per the original plan)
+- **Phase 2** — Prisma tables for ault_accounts, ault_envelopes, scheduled_bills, yield_events, payment_attempts, provider_events; immutable audit ledger; idempotency on writes; user preference for the risk-disclosure acknowledgment.
+- **Phase 3** — Safe smart-account deployment; USDC testnet deposits; real yield adapter; keeper cron; full state-transition test matrix; pause/revoke/manual-recovery workflow.
+- **Phase 4** — Real off-ramp provider API integration; legal/compliance; contract audit; closed beta; multi-provider failover in production.
+
+#### One thing to flag for the next slice
+The SectionHeader component is currently local to the /vault page. If we want to use it on other pages (the cluster 5.2.5 push, etc.), it should move to src/components/alchemy/SectionHeader.tsx alongside PageHead. Not done in this slice — single-use is fine for now.
+
+### Vault Phase 2.0 — Backend Ledger (2026-08-25, ready when you are)
+
+Phase 1.0 was the simulation. Phase 2.0 makes the vault real: 6 new Prisma tables, a typed data-access layer with idempotency, a seed that hydrates the vault from the existing in-memory envelopes + bills, the /vault page reads from Prisma instead of the in-memory store, and the existing immutable AuditLog gets a few new action types. No Safe, no real yield, no real off-ramp — those are still stubs. The state machine from Phase 1 stays in place; this slice wraps it with persistent storage and an append-only audit trail.
+
+**Important context (5.2.5 just shipped, xKryptic 2026-08-25 21:08):** the other session added a Bill model to prisma/schema.prisma and projected FinancialIdentity into production Account / Bill / Goal tables. They explicitly left the live dashboard widgets on the in-memory seed. My Phase 2.0 is the FIRST cluster to flip a widget to production reads, so I become the pattern. I will:
+- Only add new models at the end of schema.prisma (additive, no edits to existing model lines)
+- Read only from the new vault tables I create (no reads from the new Bill table — that belongs to the next cluster to flip the obligations widget)
+- Run prisma db push once at a clean moment; verify success before continuing
+
+#### Decisions locked from the spec (Phase 2 build)
+
+- **6 new models**, appended to schema.prisma:
+  - VaultAccount — one row per user; userId unique; chainId default 1; simulatedApy as Float; money fields as integer cents.
+  - VaultEnvelope — back-reference to compassEnvelopeId (unique); category as String (no Prisma enum; we have a TS union but adding a Prisma enum is overkill for SQLite).
+  - ScheduledBill — back-reference to the in-memory BillSeed.id (NOT a FK to the new Bill table — that coupling is the 5.2.6 / obligations-flips concern, not ours); status as String; index on (vaultId, dueDate) + (vaultId, status).
+  - YieldEvent — append-only ledger; envelopeId nullable for vault-wide events; nnualizedRate as Float; index on (vaultId, occurredAt).
+  - PaymentAttempt — append-only with idempotency: unique on (providerName, idempotencyKey). Discriminated 
+esult as String (SUCCESS | DEGRADED | FAILURE) — we keep the rich payload (	ransactionId, warningMessage, errorMessage, 
+etryable) as separate columns so the page can render each branch.
+  - ProviderEvent — append-only; FK to PaymentAttempt; JSON payload as String (SQLite-friendly, matches the existing metadata pattern).
+- **Audit log = existing AuditLog model** (already append-only, already immutable in spirit). New action types: ault.synced, ault.bill_state_changed, ault.payment_attempted, ault.payment_settled, ault.payment_failed, ault.adapter_fallback. No new VaultEvent table — the existing one is enough.
+- **Idempotency strategy** (per spec, "MUST be idempotent on request.idempotencyKey"):
+  - PaymentAttempt has a unique index on (providerName, idempotencyKey). Re-submitting the same key returns the existing row.
+  - The adapter stubs from Phase 1 are now backed by the DB. executePayment() becomes: write a PaymentAttempt row (or fetch the existing one if the unique constraint hits), then write a ProviderEvent for the call.
+  - seedVaultFromEnvelopes() is idempotent: uses upsert keyed on (vault.userId), (vaultEnvelope.compassEnvelopeId), (scheduledBill.billerId + vaultId).
+- **Read pattern on the /vault page** changes: instead of deriveMockVault() (in-memory only), the page calls loadVaultSnapshot(userId) (Prisma read). If the vault tables are empty, the page shows an empty state with a "Sync vault from envelopes" button. The button triggers a server action that runs the seed.
+- **Yield simulation is still local** — no real yield calls. The 3.52% APY stays hardcoded in the seed. Phase 3 wires a real adapter.
+- **No Bill table reads in this slice** — the existing ScheduledBill projection continues to source from the in-memory liveBills(). When a future cluster flips the obligations widget to read from the production Bill table, the vault's seed function will be updated in a 1-line change.
+
+#### 8-item build order (Phase 2.0a)
+
+1. prisma/schema.prisma — append 6 new models in their own section. No edits to existing lines.
+2. pnpm prisma db push — verify success. Re-run pnpm prisma generate if the client cache invalidated.
+3. src/lib/vault/db.ts — typed Prisma accessors. getOrCreateVault, upsertVaultEnvelope, upsertScheduledBill, 
+ecordYieldEvent, 
+ecordPaymentAttempt (idempotent on key), 
+ecordProviderEvent, loadVaultSnapshot.
+4. src/lib/vault/seed.ts — seedVaultFromEnvelopes(userId). Reads liveEnvelopes() + liveBills(), writes vault rows. Idempotent. Returns a { created, updated } tally.
+5. src/lib/vault/adapters.ts — extend with a DB-backed path. New createDbBackedAdapter(prisma, providerName) factory that wraps the Phase 1 stub with a PaymentAttempt + ProviderEvent write. Idempotency comes from the unique index, not the in-memory cache. The in-memory cache stays for the smoke test (no DB needed) but is bypassed in production.
+6. src/lib/vault/server.ts — server-side helpers. loadVaultSnapshot(userId) reads from Prisma; syncVaultAction() is the server action for the seed button. Both wrap their writes in AuditLog entries.
+7. src/app/(app)/vault/page.tsx — switch to loadVaultSnapshot. Empty state: "No vault yet — sync from envelopes" with a button. Populated state: same UI as Phase 1, with an "audited X events" footer line. The yield attribution reconciliation row stays — it's the user's window into the math.
+8. 	ests/integration-vault.mjs — exercises:
+   - syncVaultAction runs cleanly on empty DB (creates vault + 7 envelopes + 6 bills)
+   - syncVaultAction is idempotent (re-run produces 0 new rows)
+   - loadVaultSnapshot returns the right shape (vault, envelopes, bills, yield events, payment attempts)
+   - adapter with the same idempotency key returns the same transactionId (DB-backed, not in-memory)
+   - AuditLog receives entries for each meaningful action
+   - The /vault page still renders with the same surface as Phase 1 (the 33 smoke checks must continue to pass)
+
+#### Verification gates before sign-off
+
+- pnpm tsc --noEmit — clean.
+- 
+ode tests/integration-vault.mjs — all checks pass.
+- 
+ode tests/smoke-vault.mjs — all 33 checks still pass (the page surface didn't change).
+- 
+ode tests/smoke-sidebar.mjs — 63/63 still pass.
+- 14 of 15 pre-existing smokes still pass (smoke-auth.mjs is the pre-existing red, not ours).
+- pnpm prisma db push exits clean.
+
+#### Out of scope (Phase 3+)
+
+- Safe deployment, real yield adapter, keeper cron
+- Adapter integration with real provider APIs
+- Closed beta, legal/compliance, contract audit
+- Yield-routing controls wired to a user preference (we ship the buttons read-only in 2.0a; persistence lands in 2.0b)
+- Bill state transitions being driven by a real cron (we add the manual "simulate next state" button in 2.0b if needed)
+- Reading the new Bill table in the vault seed (next cluster to flip the obligations widget handles that coupling)
+
+### Vault Phase 2.0 — SHIPPED (2026-08-25)
+
+Built end-to-end in one focused push, verified clean, smoke-green, on disk. The 6 new Prisma tables are live, the /vault page reads from them via loadCurrentVaultSnapshot(), the seed hydrates from liveEnvelopes() + liveBills() idempotently, and the existing AuditLog now receives vault events.
+
+#### Files created
+- src/lib/vault/db.ts — typed Prisma accessors (getOrCreateVault, upsertVaultEnvelope, upsertScheduledBill, setVaultEnvelopeYield, updateBillStatus, 
+ecordYieldEvent, 
+ecordPaymentAttempt with idempotency on (providerName, idempotencyKey), 
+ecordProviderEvent, 
+ecordVaultAudit, loadVaultSnapshot, userHasVaultData). Plus the row → domain mappers.
+- src/lib/vault/seed.ts — seedVaultFromEnvelopes(userId). Reads liveEnvelopes() + liveBills(), writes 7 vault envelopes + 6 scheduled bills + 7 yield events. Idempotent. Returns { vaultId, envelopesUpserted, billsUpserted, yieldEventsCreated, totalAccruedYield }.
+- src/lib/vault/server.ts — loadCurrentVaultSnapshot() (DB-sourced; no in-memory fallback for the user-facing path), syncVaultAction() (server action wrapper), clearVaultAction() (test-only).
+- src/lib/vault/actions.ts — "use server" re-exports for client components.
+- src/components/vault/SyncButton.tsx — client component with useTransition + 
+outer.refresh().
+- src/app/api/vault/sync/route.ts — POST endpoint for the seed (also supports ?action=clear for tests / CLI). Returns JSON.
+- 	ests/integration-vault.mjs — 32 checks, all green.
+
+#### Files modified
+- prisma/schema.prisma — appended 6 new models (VaultAccount, VaultEnvelope, ScheduledBill, YieldEvent, PaymentAttempt, ProviderEvent) in their own section. Added aultAccount VaultAccount? to User and aultEnvelope VaultEnvelope? to Envelope for back-relation. All new models have @@index on their hot query columns. PaymentAttempt has @@unique([providerName, idempotencyKey]) for adapter idempotency. ScheduledBill has @@unique([vaultId, billerId]) for seed idempotency.
+- src/lib/vault/adapters.ts — added createDbBackedAdapter(inner, userId) factory. Wraps any IOffRampAdapter so its executePayment calls also write PaymentAttempt + ProviderEvent rows, with idempotency enforced by the unique index. Audit log entries: ault.payment_settled (success), ault.adapter_fallback (degraded), ault.payment_failed (failure).
+- src/app/(app)/vault/page.tsx — server component now uses loadCurrentVaultSnapshot(). Empty state with a SyncButton when the user has no vault data. New SourceChip + AuditFooter components show [OK] DB-SOURCED | [OK] DB-SOURCED and an event count.
+- 	ests/smoke-vault.mjs — added a sync at the start (via the API route) so the populated-state checks exercise DB-sourced data.
+
+#### Verification
+- pnpm prisma db push — clean. New tables created in dev.db. 5.2.5's existing 97 smokes still pass.
+- 
+ode_modules/.bin/prisma generate — client regenerated.
+- 	sc --noEmit for the vault files only — zero errors. The single pre-existing error is in envelopes/page.tsx:259 (planet: PlanetId | null not assignable to PlanetId) — that's 5.2.5's nullable planet refactor, not introduced by this work. 5.2.5 owns that fix.
+- 
+ode tests/integration-vault.mjs — **32/32 green**:
+  - Clear endpoint works (idempotent, returns deleted: { vault, envelopes, bills }).
+  - Empty state visible when no vault data (testid ault-empty-state + SyncButton copy).
+  - First sync creates 7 envelopes + 6 bills + 7 yield events + 1 audit row.
+  - Second sync is idempotent at the DB layer (counts stay stable, audit delta = +1).
+  - Populated state has all Phase 1 sections + source chip + audit footer with DB-SOURCED.
+  - PaymentAttempt unique index on (providerName, idempotencyKey) blocks duplicate inserts; the original row's 	ransactionId is preserved on retry.
+  - State machine + persistence: a bill driven EARNING → PREPARING_SETTLEMENT → EXECUTING → SETTLED in the DB carries the settlementReference back to read.
+- 
+ode tests/smoke-vault.mjs — **33/33 green** (Phase 1 surface preserved end-to-end against the DB-sourced page).
+- 
+ode tests/smoke-sidebar.mjs — **63/63 green**.
+- 18 of 19 smokes green. The lone red is smoke-auth.mjs (pre-existing, unrelated to this work — was already failing at session start).
+- pnpm prisma db push exit clean, no warnings.
+
+#### Live numbers (one render of /vault, DB-sourced)
+- Vault principal: **,147.00** across 7 envelopes
+- Reserved for bills: **,113.99** (6 scheduled)
+- Yield earned: **.95** at 3.52% estimated APY
+- Next execution: **.00** on Aug 31 (FUNDED)
+- Audit footer: 7 envelopes · 6 bills · 7 yield events · 2 vault.synced entries
+- Source chip: [OK] DB
+
+#### Decisions locked during the build
+- **No in-memory fallback in the user-facing path.** loadCurrentVaultSnapshot returns 
+ull (empty state) when the DB has no vault, never falls back to deriveMockVault(). The in-memory mock stays around for the lib's internal tests but is no longer the user-visible default. The Phase 1 smoke was updated to seed-via-API at the start so it still exercises the populated surface.
+- **Idempotency is the unique index, not the in-memory cache.** 
+ecordPaymentAttempt looks up by (providerName, idempotencyKey) and updates if found, creates if not. The in-memory cache in dapters.ts is retained for the test path that doesn't touch the DB.
+- **Audit log = existing AuditLog model.** No new VaultEvent table. New action types: ault.synced, ault.payment_settled, ault.payment_failed, ault.adapter_fallback. Future audit-log page can filter on ctionType: { startsWith: 'vault.' }.
+- **Bill table reads still go through in-memory liveBills().** When 5.2.6 (or the next cluster) flips the obligations widget to read from the production Bill table, the seed's liveBills() call swaps in a Bill-table read — one-line change. The vault doesn't depend on that timing.
+- **/api/vault/sync route exists for the integration test + future CLI.** Not linked in the nav. The user-facing path is the SyncButton server action.
+- **simulatedApy is a Float, not a money field.** It's a single scalar rate. Never multiply money by it without going through calculateEnvelopeYield which uses integer math.
+
+#### Out of scope (Phase 3+)
+- Safe smart-account deployment, real yield adapter, keeper cron
+- Real off-ramp provider API integration
+- Closed beta, legal/compliance, contract audit
+- Yield-routing controls wired to a user preference (the buttons on the page are read-only in Phase 2; persistence lands in Phase 2.5 or 3)
+- The pre-existing 	sc error in envelopes/page.tsx:259 (5.2.5's nullable planet refactor). 5.2.5 owns that fix.
+- The pre-existing smoke-auth.mjs failure. Unrelated to the Vault.
+
+#### What to flag for the next slice
+- The SyncButton is the only client component on /vault today. If we add more interactive controls (state-machine transition buttons, yield-routing toggles, bill editor), we should colocate them under src/components/vault/ and have the server actions live next to them in src/lib/vault/actions.ts.
+- getOrCreateVault is now called from two places (server.ts and seed.ts). If we ever want to make the vault userId column indexable for fast lookups in a multi-user world, add @@index([userId]) — already covered by @@unique([userId]) on VaultAccount, so the index is automatic.
+- The Phase 1 in-memory mock (src/lib/vault/mock-data.ts) is now unused by the page. It's still a useful fixture for unit tests; we should keep it but mark it as such in a top-of-file comment in the next slice.

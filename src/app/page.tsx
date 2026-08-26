@@ -28,6 +28,7 @@ import {
   liveGoals,
   liveSnapshot,
   liveBills,
+  liveBillsFromDb,
   livePlan,
   liveTransactions,
   getCurrentPayPeriod,
@@ -79,7 +80,11 @@ export default async function Dashboard() {
   const ENVELOPES = liveEnvelopes();
   const GOALS = liveGoals();
   const SNAPSHOT = liveSnapshot();
-  const BILLS = liveBills();
+  // Cluster 5.2.6 widget switch: BILLS now come from the Prisma
+  // Bill table (via liveBillsFromDb). The shape is a superset of
+  // the legacy in-memory Bill type (it has cadence too), so the
+  // paycheckBreakdown engine accepts it via structural typing.
+  const BILLS = await liveBillsFromDb(user.id);
   const PLAN = livePlan();
   const TRANSACTIONS = liveTransactions();
   const NEXT_PAYCHECK_CENTS = SNAPSHOT.nextPaycheckCents;

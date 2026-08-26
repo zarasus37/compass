@@ -11,7 +11,11 @@ import * as React from "react";
 import { PLANET_COLORS, type PlanetId } from "@/components/alchemy/VesselGlyph";
 
 export interface EnvelopeMiniBarProps {
-  planet: PlanetId;
+  // Cluster 5.2.6 widget switch: planet is now PlanetId | null
+  // (the Prisma Envelope.planet column allows null for custom
+  // envelopes; the legacy in-memory store was always non-null).
+  // When null, the bar renders in neutral ink.
+  planet: PlanetId | null;
   currentCents: number;
   targetCents: number;
   width?: number;
@@ -32,7 +36,9 @@ export function EnvelopeMiniBar({
     ? "var(--neg)"
     : pct >= 85
     ? "var(--warn)"
-    : PLANET_COLORS[planet];
+    : planet
+    ? PLANET_COLORS[planet]
+    : "var(--ink-3)";
 
   return (
     <svg

@@ -6,9 +6,17 @@ import { VesselGlyph, type PlanetId } from "@/components/alchemy/VesselGlyph";
 import { EnvelopeMiniBar } from "@/components/viz/EnvelopeMiniBar";
 import { BudgetVsActual, type BudgetVsActualRow } from "@/components/viz/BudgetVsActual";
 import { RebalanceForm } from "@/components/envelopes/RebalanceForm";
-import { liveEnvelopes, liveTransactions, TODAY, PERIOD_START, PERIOD_END } from "@/lib/mock";
+import {
+  liveEnvelopes,
+  liveEnvelopesFromDb,
+  liveTransactions,
+  TODAY,
+  PERIOD_START,
+  PERIOD_END,
+} from "@/lib/mock";
 import { formatMoney, formatMoneySigned } from "@/lib/money";
 import { formatShortDate, addDays, daysBetween, dayOfPeriod, periodLength } from "@/lib/format";
+import { requireUser } from "@/server/auth/user";
 
 export const dynamic = "force-dynamic";
 
@@ -19,11 +27,18 @@ export const dynamic = "force-dynamic";
  * Mono for amounts and labels, mono caps section headers with // prefix.
  * Primary "New" CTA in terminal-cyan. Status accents (over = neg,
  * near = warn, ok = ok-green) preserved as semantic mapping.
+ *
+ * Cluster 5.2.6 widget switch: the envelope list now comes from the
+ * Prisma `Envelope` table (via `liveEnvelopesFromDb`). The first
+ * call lazily seeds the 7 canonical vessels
+ * (ensureUserEnvelopesSeeded). TRANSACTIONS still come from the
+ * in-memory store — that's a separate widget switch.
  */
-export default function EnvelopesPage() {
+export default async function EnvelopesPage() {
+  const user = await requireUser();
   // Live reads: the bar chart and over-limit count reflect the current
   // store state, including any allocations from the paycheck simulator.
-  const ENVELOPES = liveEnvelopes();
+  const ENVELOPES = await liveEnvelopesFromDb(user.id);
   const TRANSACTIONS = liveTransactions();
   const overLimit = ENVELOPES.filter((e) => e.current > e.target && e.target > 0);
   const nearLimit = ENVELOPES.filter(
@@ -110,10 +125,15 @@ export default function EnvelopesPage() {
           meta="Atomic — both balances update or neither does. Audited."
         />
         <RebalanceForm
-          envelopes={ENVELOPES.map((e) => ({
+          envelopes={ENVELOPES.filter((e) => e.planet !== null).map((e) => ({
             id: e.id,
             name: e.name,
-            planet: e.planet,
+            // The filter above narrows `planet` to `PlanetId`; the
+            // legacy seed always had a planet, so the 7 canonical
+            // vessels all pass through. Custom envelopes with no
+            // planet are dropped from the rebalance picker (they
+            // don't have a planetary glyph to render).
+            planet: e.planet as PlanetId,
             currentCents: e.current,
             targetCents: e.target,
           }))}
@@ -441,7 +461,7 @@ function EnvelopeDetail({
   transactions,
   compact = false,
 }: {
-  envelope: ReturnType<typeof liveEnvelopes>[number];
+  envelope: Awaited<ReturnType<typeof liveEnvelopesFromDb>>[number];
   transactions: ReturnType<typeof liveTransactions>;
   compact?: boolean;
 }) {

@@ -41,6 +41,10 @@ import {
  * Ensure the DB has the 7 default envelopes for the given user. Called
  * by the rebalance engine on first use so the action always has rows
  * to mutate. Idempotent — no-op if the user already has envelopes.
+ *
+ * Cluster 5.2.6 widget switch: the seeded rows are tagged with
+ * `source="seed"` so production reads can filter canonical vessels
+ * apart from any future user- or identity-projected envelopes.
  */
 export async function ensureUserEnvelopesSeeded(userId: string): Promise<void> {
   const count = await prisma.envelope.count({ where: { userId } });
@@ -53,6 +57,7 @@ export async function ensureUserEnvelopesSeeded(userId: string): Promise<void> {
       planet: e.planet,
       currentBalance: e.currentCents,
       targetBalance: e.targetCents,
+      source: "seed",
     })),
   });
 }
@@ -61,6 +66,9 @@ export async function ensureUserEnvelopesSeeded(userId: string): Promise<void> {
  * Drop all envelopes + audit logs for the user and re-insert the seed
  * envelopes. Used by the /api/reset-seed admin endpoint when test
  * drift corrupts the live state.
+ *
+ * Cluster 5.2.6 widget switch: the re-inserted rows are tagged with
+ * `source="seed"` so the production read filter stays consistent.
  */
 export async function resetUserEnvelopesToSeed(userId: string): Promise<void> {
   await prisma.$transaction(async (tx) => {
@@ -74,6 +82,7 @@ export async function resetUserEnvelopesToSeed(userId: string): Promise<void> {
         planet: e.planet,
         currentBalance: e.currentCents,
         targetBalance: e.targetCents,
+        source: "seed",
       })),
     });
   });
@@ -801,6 +810,86 @@ export function addBill(input: {
 }
 
 /**
+ * Cluster 5.2.6 widget switch — durable Prisma-backed bill create.
+ *
+ * Same contract as `addBill` (above) but writes through to the
+ * `Bill` table with `source="user"` so the new bill shows up in
+ * the /recurring + dashboard + /calendar widgets (which now read
+ * from Prisma). The in-memory mirror is kept in sync so the
+ * legacy `PaycheckBreakdown` engine still computes correctly.
+ */
+export async function addBillDb(
+  userId: string,
+  input: {
+    name: string;
+    amountCents: number;
+    dueDay: number;
+    autopay: boolean;
+    envelopeId: string | null;
+  },
+): Promise<{ ok: boolean; reason?: string; bill?: Bill }> {
+  if (!input.name || input.name.trim().length === 0) {
+    return { ok: false, reason: "Give the bill a name." };
+  }
+  if (!Number.isFinite(input.amountCents) || input.amountCents < 0) {
+    return { ok: false, reason: "Amount must be $0 or more." };
+  }
+  if (!Number.isFinite(input.dueDay) || input.dueDay < 1 || input.dueDay > 31) {
+    return { ok: false, reason: "Due day must be between 1 and 31." };
+  }
+
+  // Compute next sortOrder based on the DB rows.
+  const maxSortRow = await prisma.bill.findFirst({
+    where: { userId },
+    orderBy: { sortOrder: "desc" },
+    select: { sortOrder: true },
+  });
+  const sortOrder = (maxSortRow?.sortOrder ?? 0) + 1;
+
+  const created = await prisma.bill.create({
+    data: {
+      userId,
+      name: input.name.trim(),
+      amountCents: Math.round(input.amountCents),
+      // User-entered bills are always monthly for v1. A future
+      // cluster can extend the form to take a cadence.
+      cadence: "monthly",
+      dueDay: Math.floor(input.dueDay),
+      autopay: input.autopay,
+      paidAt: null,
+      source: "user",
+      envelopeId: input.envelopeId,
+      sortOrder,
+    },
+  });
+
+  // Mirror to in-memory store so the legacy engine still works.
+  const s = getState();
+  const mirror: Bill = {
+    id: created.id,
+    name: created.name,
+    amountCents: created.amountCents,
+    dueDay: created.dueDay ?? 0,
+    autopay: created.autopay,
+    paidAt: created.paidAt ? created.paidAt.toISOString() : null,
+    envelopeId: created.envelopeId,
+    accountId: created.accountId,
+    sortOrder: created.sortOrder,
+  };
+  s.bills.push(mirror);
+
+  s.audit.unshift({
+    id: nextId("aud-bill"),
+    at: new Date(),
+    kind: "manual-adjust",
+    summary: `Added bill "${mirror.name}" ($${(mirror.amountCents / 100).toFixed(2)} due day ${mirror.dueDay}).`,
+    meta: { billId: mirror.id, amountCents: mirror.amountCents, dueDay: mirror.dueDay, via: "db" },
+  });
+
+  return { ok: true, bill: { ...mirror } };
+}
+
+/**
  * Add a new debt to the live store. Used by the "+ Add debt"
  * button on /debts (Cluster 1.10).
  */
@@ -1003,6 +1092,78 @@ export function setBillPaid(billId: string, paid: boolean): Bill | null {
     meta: { billId, paid },
   });
   return { ...bill };
+}
+
+/**
+ * Cluster 5.2.6 widget switch — durable Prisma-backed bill toggle.
+ *
+ * Same contract as `setBillPaid` (above) but writes through to the
+ * `Bill` table so the dashboard / /recurring / /calendar widgets
+ * see the new state across dev server restarts and HMR cycles.
+ * The in-memory mirror is kept in sync so the legacy
+ * `PaycheckBreakdown` engine (which still reads from
+ * `liveBills()`) computes the right number.
+ *
+ * `userId` scopes the update so a stale bill id from one user
+ * can't write to another user's row.
+ *
+ * Returns the updated bill (display shape, with `paidAt` as an
+ * ISO string) or `null` if the bill wasn't found.
+ */
+export async function setBillPaidDb(
+  userId: string,
+  billId: string,
+  paid: boolean,
+): Promise<Bill | null> {
+  const paidAt = paid ? new Date() : null;
+  const updated = await prisma.bill.updateMany({
+    where: { id: billId, userId },
+    data: { paidAt },
+  });
+  if (updated.count === 0) return null;
+
+  // Mirror to the in-memory store so the legacy read path stays
+  // consistent. The BILLS_SEED ids ("bill-rent", "bill-spectrum",
+  // etc.) are the same as the DB ids (we set them explicitly in
+  // ensureUserBillsSeeded), so a lookup by id works.
+  const s = getState();
+  const memBill = s.bills.find((b) => b.id === billId);
+  if (memBill) {
+    memBill.paidAt = paidAt ? paidAt.toISOString() : null;
+  }
+
+  // Audit entry — same shape as the in-memory path so future
+  // audit-log UIs (a future cluster) see the right summary.
+  s.audit.unshift({
+    id: nextId("aud-bill"),
+    at: new Date(),
+    kind: "manual-adjust",
+    summary: paid
+      ? `Marked ${memBill?.name ?? billId} as paid.`
+      : `Reset ${memBill?.name ?? billId} to unpaid.`,
+    meta: { billId, paid, via: "db" },
+  });
+
+  if (memBill) {
+    return { ...memBill };
+  }
+  // Edge case: DB had the bill but the in-memory mirror doesn't.
+  // Return a minimal display shape from the DB row.
+  const row = await prisma.bill.findFirst({
+    where: { id: billId, userId },
+  });
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    amountCents: row.amountCents,
+    dueDay: row.dueDay ?? 0,
+    autopay: row.autopay,
+    paidAt: row.paidAt ? row.paidAt.toISOString() : null,
+    envelopeId: row.envelopeId,
+    accountId: row.accountId,
+    sortOrder: row.sortOrder,
+  };
 }
 
 // ---------------------------------------------------------------------------

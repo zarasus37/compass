@@ -25,6 +25,7 @@ import {
   readDebts,
   readSnapshot,
   readPlan,
+  ensureUserEnvelopesSeeded,
   type Envelope,
   type Goal,
   type Transaction,
@@ -202,8 +203,86 @@ export const DEBTS = readDebts().map(toDisplayDebt);
 export function liveEnvelopes() {
   return readEnvelopes().map(toDisplayEnvelope);
 }
+
+// ---------------------------------------------------------------------------
+// Cluster 5.2.6 widget switch — DB-backed envelope reads.
+//
+// The /envelopes page, dashboard "Envelope Status" + "Next Step"
+// cards, /period vessel feed, /allocation envelopes list, /insights
+// "Every envelope" row, and the /goals + /recurring + /debts page
+// filters all read from the in-memory `ENVELOPES_SEED` (via
+// `liveEnvelopes()`). After this cluster they read from the
+// Prisma `Envelope` table.
+//
+// The seeder (`ensureUserEnvelopesSeeded` in `./store.ts`) runs
+// lazily on the rebalance engine; the read function below also
+// runs it lazily on first call for safety (so a fresh user who
+// hits the /envelopes page directly still gets the 7 canonical
+// vessels).
+// ---------------------------------------------------------------------------
+
+/**
+ * Read the user's envelopes from the Prisma `Envelope` table.
+ * Idempotently seeds the canonical 7 vessels on first call so
+ * the page has data immediately. Returns the same display shape
+ * as `liveEnvelopes()` so page components can swap one import
+ * for the other with no other changes.
+ */
+export async function liveEnvelopesFromDb(userId: string) {
+  // ensureUserEnvelopesSeeded is idempotent: a no-op once the
+  // user has envelopes. Calling it on every read costs one cheap
+  // COUNT query.
+  await ensureUserEnvelopesSeeded(userId);
+  const rows = await prisma.envelope.findMany({
+    where: { userId, isArchived: false },
+    orderBy: { sortOrder: "asc" },
+  });
+  return rows.map((e) => ({
+    id: e.id,
+    name: e.name,
+    planet: e.planet as PlanetId | null,
+    current: e.currentBalance,
+    target: e.targetBalance,
+  }));
+}
 export function liveGoals() {
   return readGoals().map(toDisplayGoal);
+}
+
+// ---------------------------------------------------------------------------
+// Cluster 5.2.6 widget switch — DB-backed goal reads.
+// ---------------------------------------------------------------------------
+
+/**
+ * Read the user's goals from the Prisma `Goal` table. Idempotently
+ * seeds the canonical GOALS_SEED rows on first call so the page
+ * has data immediately.
+ *
+ * Returns the same display shape as `liveGoals()` so page
+ * components can swap one import for the other with no other
+ * changes.
+ */
+export async function liveGoalsFromDb(userId: string) {
+  const { ensureUserGoalsSeeded } = await import("./seed-goals");
+  await ensureUserGoalsSeeded(userId);
+  const rows = await prisma.goal.findMany({
+    where: { userId, isArchived: false },
+    orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+  return rows.map((g) => ({
+    id: g.id,
+    name: g.name,
+    description: g.description ?? "",
+    planet: g.planet as PlanetId | null,
+    targetCents: g.targetAmount,
+    currentCents: g.currentAmount,
+    targetDate: g.targetDate,
+    envelopeId: g.envelopeId,
+    perPaycheckCents: 0, // Not in the Goal model — derived from the linked envelope's allocation rule
+    isPrimary: g.isPrimary,
+    kind: g.kind,
+    goalType: g.goalType,
+  }));
 }
 export function liveTransactions() {
   return readTransactions().map(toDisplayTransaction);
@@ -216,6 +295,55 @@ export function liveAccount() {
 }
 export function liveBills() {
   return readBills().map(toDisplayBill);
+}
+
+// ---------------------------------------------------------------------------
+// Cluster 5.2.6 widget switch — DB-backed bill reads.
+//
+// The /recurring (=/obligations?tab=bills), dashboard, and /calendar
+// widgets now read from the Prisma `Bill` table instead of the
+// in-memory BILLS_SEED. The seeder (`ensureUserBillsSeeded` in
+// `./seed-bills.ts`) runs lazily on the first call per user so the
+// first read of a fresh user gets the 6 canonical rows migrated.
+//
+// The legacy `liveBills()` (in-memory) is kept for non-widget code
+// paths that still depend on it (e.g. the PaycheckBreakdown engine
+// in store.ts which uses bill shapes to compute the 5-way split).
+// Those callers are out of scope for this cluster.
+// ---------------------------------------------------------------------------
+
+/**
+ * Read the user's bills from the Prisma `Bill` table. Idempotently
+ * seeds the canonical BILLS_SEED rows on first call so the page has
+ * data immediately.
+ *
+ * Returns the same display shape as `liveBills()` (the legacy
+ * function), so page components can swap one import for the other
+ * with no other changes.
+ */
+export async function liveBillsFromDb(userId: string) {
+  const { ensureUserBillsSeeded } = await import("./seed-bills");
+  await ensureUserBillsSeeded(userId);
+  const rows = await prisma.bill.findMany({
+    where: { userId, isArchived: false },
+    orderBy: { sortOrder: "asc" },
+  });
+  return rows.map((b) => ({
+    id: b.id,
+    name: b.name,
+    amountCents: b.amountCents,
+    cadence: b.cadence,
+    dueDay: b.dueDay ?? 0,
+    autopay: b.autopay,
+    // The Prisma `paidAt` is a Date | null; the legacy shape uses
+    // ISO string | null so the page can compare with `b.paidAt` and
+    // do `new Date(b.paidAt)` when rendering. Keep the legacy
+    // contract for the page.
+    paidAt: b.paidAt ? b.paidAt.toISOString() : null,
+    envelopeId: b.envelopeId,
+    accountId: b.accountId,
+    sortOrder: b.sortOrder,
+  }));
 }
 export function liveDebts() {
   return readDebts().map(toDisplayDebt);

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { formatMoney } from "@/lib/money";
 import {
-  liveBills,
+  liveBillsFromDb,
   TODAY,
   PERIOD_START,
   PERIOD_END,
@@ -12,6 +12,7 @@ import { billsDueInPeriod } from "@/lib/store";
 import { BillPaidToggle } from "@/components/recurring/BillPaidToggle";
 import { formatShortDate } from "@/lib/format";
 import { detectSubscriptions, type DetectedSubscription } from "@/lib/detect-subscriptions";
+import { requireUser } from "@/server/auth/user";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,11 @@ export default async function ObligationsPage({
 }) {
   const params = await searchParams;
   const tab: TabKey = params.tab === "subs" ? "subs" : "bills";
+  // Cluster 5.2.6 widget switch: requireUser (not optional) so
+  // the page has the userId to scope the Prisma read. The
+  // (app) layout already redirects unauthenticated users to /login
+  // so this is mostly a TypeScript guard.
+  const user = await requireUser();
 
   return (
     <div>
@@ -91,7 +97,7 @@ export default async function ObligationsPage({
 
       <TabSwitcher current={tab} />
 
-      {tab === "bills" ? <BillsTab /> : <SubsTab />}
+      {tab === "bills" ? <BillsTab userId={user.id} /> : <SubsTab />}
     </div>
   );
 }
@@ -162,10 +168,25 @@ function TabSwitcher({ current }: { current: TabKey }) {
 
 // ──────────────────────────────────────────────────────────────────────
 // Bills tab — direct port of the old /recurring page content.
+// Cluster 5.2.6 widget switch: BILLS now come from Prisma (via
+// liveBillsFromDb) instead of the in-memory BILLS_SEED. The first
+// call lazily seeds the 6 canonical rows (ensureUserBillsSeeded).
 // ──────────────────────────────────────────────────────────────────────
 
-function BillsTab() {
-  const BILLS = liveBills();
+/**
+ * The shape BillSection + BillsTimeline need from a bill. Both
+ * are now DB-shaped (the data comes from liveBillsFromDb which
+ * has `cadence` plus everything the legacy `Bill` type had). The
+ * two consumers (BillSection + BillsTimeline) only need the
+ * subset below — using a structural type here means the
+ * `billsDueInPeriod(...)` engine can still return its legacy
+ * `Bill[]` for the engine-internal math and we don't have to
+ * rewrite the engine.
+ */
+type BillView = Awaited<ReturnType<typeof liveBillsFromDb>>[number];
+
+async function BillsTab({ userId }: { userId: string }) {
+  const BILLS = await liveBillsFromDb(userId);
   const total = BILLS.reduce((s, b) => s + b.amountCents, 0);
   const due = billsDueInPeriod(BILLS, PERIOD_START, PERIOD_END);
   const dueThisPeriod = due.filter((d) => !d.paidThisPeriod);
@@ -224,7 +245,7 @@ function BillsTab() {
           title="Due this period"
           em="before your next check."
           accent="warn"
-          bills={dueThisPeriod.map((d) => d.bill)}
+          bills={dueThisPeriod.map((d) => d.bill as BillView)}
           dueDates={Object.fromEntries(dueThisPeriod.map((d) => [d.bill.id, d.dueDate]))}
         />
       )}
@@ -234,7 +255,7 @@ function BillsTab() {
           title="Paid this period"
           em="cleared from this paycheck."
           accent="ok"
-          bills={paidThisPeriod.map((d) => d.bill)}
+          bills={paidThisPeriod.map((d) => d.bill as BillView)}
           dueDates={Object.fromEntries(paidThisPeriod.map((d) => [d.bill.id, d.dueDate]))}
         />
       )}
@@ -244,7 +265,7 @@ function BillsTab() {
           title="Not this period"
           em="due later this month or next period."
           accent="ink-3"
-          bills={notThisPeriod}
+          bills={notThisPeriod as BillView[]}
           dueDates={{}}
         />
       )}
@@ -262,7 +283,7 @@ function BillSection({
   title: string;
   em: string;
   accent: "warn" | "ok" | "ink-3";
-  bills: ReturnType<typeof liveBills>;
+  bills: BillView[];
   dueDates: Record<string, Date>;
 }) {
   const accentColor =
@@ -489,7 +510,7 @@ function SummaryCell({
   );
 }
 
-function BillsTimeline({ bills }: { bills: ReturnType<typeof liveBills> }) {
+function BillsTimeline({ bills }: { bills: BillView[] }) {
   const maxAmount = Math.max(...bills.map((b) => b.amountCents), 1);
   const minR = 4;
   const maxR = 12;

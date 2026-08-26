@@ -1,12 +1,13 @@
 import * as React from "react";
 import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
-import { VesselGlyph } from "@/components/alchemy/VesselGlyph";
+import { VesselGlyph, type PlanetId } from "@/components/alchemy/VesselGlyph";
 import { GoalTrajectory, type GoalTrajectoryInput } from "@/components/viz/GoalTrajectory";
 import { GoalSparkline } from "@/components/viz/GoalSparkline";
-import { liveGoals, TODAY } from "@/lib/mock";
+import { liveGoals, liveGoalsFromDb, TODAY } from "@/lib/mock";
 import { formatMoney } from "@/lib/money";
 import { formatShortDate } from "@/lib/format";
+import { requireUser } from "@/server/auth/user";
 
 export const dynamic = "force-dynamic";
 
@@ -42,20 +43,29 @@ export default async function GoalsPage({
       ? (params.kind as KindFilter)
       : "all";
 
-  const GOALS = liveGoals();
+  // Cluster 5.2.6 widget switch: GOALS now come from the Prisma
+  // `Goal` table (via liveGoalsFromDb). The first call lazily
+  // seeds the 4 canonical GOALS_SEED rows (ensureUserGoalsSeeded).
+  const user = await requireUser();
+  const GOALS = await liveGoalsFromDb(user.id);
   // The trajectory chart always reads ALL goals (the comparison
   // is the point of the chart — narrowing it would lose the
   // "this goal is moving, that one isn't" signal).
-  const goalTrajectories: GoalTrajectoryInput[] = GOALS.map((g) => ({
-    id: g.id,
-    name: g.name,
-    planet: g.planet,
-    currentCents: g.currentCents,
-    targetCents: g.targetCents,
-    perPaycheckCents: g.perPaycheckCents,
-    targetDate: g.targetDate.toISOString(),
-    anchorDate: TODAY,
-  }));
+  // Filter to goals with non-null planet + targetDate (the chart
+  // needs both to render). The canonical 4 GOALS_SEED rows all
+  // have both; custom goals may not.
+  const goalTrajectories: GoalTrajectoryInput[] = GOALS
+    .filter((g) => g.planet !== null && g.targetDate !== null)
+    .map((g) => ({
+      id: g.id,
+      name: g.name,
+      planet: g.planet as PlanetId,
+      currentCents: g.currentCents,
+      targetCents: g.targetCents,
+      perPaycheckCents: g.perPaycheckCents,
+      targetDate: (g.targetDate as Date).toISOString(),
+      anchorDate: TODAY,
+    }));
 
   // The goal list below filters by the kind param.
   const filtered = GOALS.filter((g) => {
@@ -448,7 +458,7 @@ export default async function GoalsPage({
                         fontWeight: 500,
                       }}
                     >
-                      {formatShortDate(g.targetDate)}
+                      {g.targetDate ? formatShortDate(g.targetDate) : "—"}
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
                       {!g.isPrimary && (
