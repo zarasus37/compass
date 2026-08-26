@@ -105,6 +105,18 @@ export interface VaultSnapshot {
    * without a round-trip.
    */
   preferences: import("./types").VaultPreferences;
+  /**
+   * Phase 3.0 — The active yield adapter's display info. The
+   * [SYNC] REFRESH button reads `name` + `lastRefreshedAt` to
+   * render the source label + the "refreshed HH:MM:SS" line.
+   * `source` is the YieldSource enum value (SKY / AAVE / OTHER)
+   * for future per-envelope yield routing.
+   */
+  yieldAdapter: {
+    name: string;
+    source: import("./types").YieldSource;
+    lastRefreshedAt: string | null;
+  };
   /** Top-line KPIs for the 5-cell status strip. */
   kpis: {
     /** `vault.availableBalance` (cents). */
@@ -413,6 +425,14 @@ export function deriveMockVault(userId: string = "user-mom"): VaultSnapshot {
       riskAcknowledgedAt: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+    },
+    // Phase 3.0 — the in-memory mock always reports the Mock
+    // adapter with no last-refresh timestamp. The user-facing
+    // path reads the live adapter via `loadCurrentVaultSnapshot`.
+    yieldAdapter: {
+      name: "Mock",
+      source: "OTHER",
+      lastRefreshedAt: null,
     },
     kpis: {
       vaultPrincipal: vault.availableBalance,

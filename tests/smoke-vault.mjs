@@ -425,6 +425,36 @@ async function main() {
     /yield[^<]{0,3}routing/i.test(text),
   );
 
+  // ── Phase 3.0 — yield adapter refresh affordance ──────────────
+  // The [SYNC] REFRESH button lives in the yield-attribution
+  // block. Account for the React `<!-- -->` separator between
+  // adjacent text nodes when matching.
+  check(
+    "yield-attribution block has the [SYNC] REFRESH button",
+    /data-testid="vault-refresh-apy"/.test(text) &&
+      /data-testid="vault-refresh-apy-button"/.test(text),
+  );
+  check(
+    "yield-attribution [SYNC] REFRESH button shows the [SYNC] marker",
+    /\[SYNC\]\s+REFRESH APY/.test(text),
+  );
+  // The button's title attribute surfaces the active adapter.
+  check(
+    "yield-attribution REFRESH button title surfaces the active adapter",
+    /title="Refresh APY from the active yield adapter \((?:Mock|Sky|Aave)\)"/.test(
+      text,
+    ),
+  );
+  // The "variable estimated APY · 3.52%" label is the live
+  // APY display. React inserts `<!-- -->` between adjacent
+  // text nodes, so the regex has to walk over those.
+  check(
+    "yield-attribution shows the live APY (3.52% by default)",
+    /Variable\s+estimated APY\s*(?:<!--\s*-->)?\s*·\s*(?:<!--\s*-->)?\s*3\.52/.test(
+      text,
+    ),
+  );
+
   // ── Tally ──────────────────────────────────────────────────────
   console.log("\n--- checks ---");
   const pass = results.filter((r) => r.ok).length;

@@ -24,6 +24,7 @@ import {
   transitionBillDb,
   recordVaultAudit,
   userHasVaultData,
+  refreshVaultAggregates,
   USER_FACING_BILL_EVENTS,
   type VaultDbSnapshot,
   type UserFacingBillEvent,
@@ -31,6 +32,7 @@ import {
 import { seedVaultFromEnvelopes, type SeedResult } from "./seed";
 import { deriveMockVault } from "./mock-data";
 import { legalNextStates } from "./state-machine";
+import { getActiveYieldAdapter } from "./yield-adapters";
 import type { VaultSnapshot } from "./mock-data";
 import type { BillEvent, YieldRoutingStrategy } from "./types";
 
@@ -91,6 +93,7 @@ function projectDbToLegacy(db: VaultDbSnapshot): VaultSnapshot {
     totalAttributedYield: db.totals.attributedYield,
     billsByLabel,
     preferences: db.preferences,
+    yieldAdapter: db.yieldAdapter,
     kpis: {
       vaultPrincipal: db.vault.availableBalance,
       billsCovered: db.totals.billsCovered,
@@ -195,6 +198,93 @@ export async function clearVaultAction(): Promise<{
 
 /** Convenience re-export. */
 export { userHasVaultData };
+
+// ──────────────────────────────────────────────────────────────────────
+// Phase 3.0 — Yield adapter refresh
+//
+// The "manual cron" — calls the active IYieldAdapter, updates
+// the VaultAccount.simulatedApy, recomputes per-envelope yield,
+// writes audit-log entries. In production a real cron runs
+// this every N minutes; for Phase 3.0 the user triggers it from
+// the [SYNC] REFRESH button on the /vault page.
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Server action: refresh the vault's APY from the active yield
+ * adapter. On success: writes a `vault.apy_refreshed` audit
+ * entry, recomputes the per-envelope attribution via the
+ * `seedVaultFromEnvelopes` reapportionment (or just refreshes
+ * the aggregate), and returns the new APY. On failure: writes
+ * a `vault.apy_refresh_failed` entry and returns the error.
+ */
+export async function refreshVaultApyAction(): Promise<
+  | {
+      ok: true;
+      apy: number;
+      source: string;
+      apyRefreshedAt: string;
+    }
+  | { ok: false; error: string }
+> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  const vault = await prisma.vaultAccount.findUnique({
+    where: { userId: user.id },
+  });
+  if (!vault) {
+    return { ok: false, error: "no vault yet — sync first" };
+  }
+  const adapter = getActiveYieldAdapter();
+  let apy: number;
+  try {
+    apy = await adapter.getCurrentApy();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await recordVaultAudit({
+      userId: user.id,
+      actionType: "vault.apy_refresh_failed",
+      payload: {
+        adapter: adapter.name,
+        source: adapter.source,
+        error: message,
+      },
+    });
+    return { ok: false, error: `adapter ${adapter.name} failed: ${message}` };
+  }
+  const now = new Date();
+  await prisma.vaultAccount.update({
+    where: { id: vault.id },
+    data: { simulatedApy: apy, updatedAt: now },
+  });
+  // Recompute the per-envelope attribution at the new APY. The
+  // seed function is idempotent — re-running with the same
+  // envelope list keeps the row count stable and writes fresh
+  // YieldEvent rows for the new APY.
+  await seedVaultFromEnvelopes(user.id);
+  // Refresh the vault's top-level money aggregates.
+  await refreshVaultAggregates(vault.id);
+  await recordVaultAudit({
+    userId: user.id,
+    actionType: "vault.apy_refreshed",
+    payload: {
+      adapter: adapter.name,
+      source: adapter.source,
+      previousApy: vault.simulatedApy,
+      newApy: apy,
+      refreshedAt: now.toISOString(),
+    },
+  });
+  return {
+    ok: true,
+    apy,
+    source: adapter.name,
+    apyRefreshedAt: now.toISOString(),
+  };
+}
 
 // ──────────────────────────────────────────────────────────────────────
 // Phase 2.5 — Server actions for the interactive /vault page

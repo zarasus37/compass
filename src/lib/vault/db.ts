@@ -394,7 +394,9 @@ export async function recordVaultAudit(args: {
     | "vault.yield_routing_changed"
     | "vault.risk_acknowledged"
     | "vault.paused"
-    | "vault.resumed";
+    | "vault.resumed"
+    | "vault.apy_refreshed"
+    | "vault.apy_refresh_failed";
   payload: unknown;
 }): Promise<void> {
   await prisma.auditLog.create({
@@ -597,6 +599,18 @@ export interface VaultDbSnapshot {
   yieldEvents: YieldEvent[];
   alert: VaultAlertState;
   preferences: VaultPreferences;
+  /**
+   * Phase 3.0 — The active yield adapter's display info, for
+   * the [SYNC] REFRESH button on the page. `name` is the adapter
+   * ("Mock" / "Sky" / "Aave"); `lastRefreshedAt` is the ISO
+   * timestamp of the most recent `vault.apy_refreshed` audit
+   * entry, or null if the user has never clicked refresh.
+   */
+  yieldAdapter: {
+    name: string;
+    source: YieldSource;
+    lastRefreshedAt: string | null;
+  };
   totals: {
     billsCovered: number;
     billsScheduledCount: number;
@@ -635,6 +649,29 @@ export async function loadVaultSnapshot(
     vault.status as "ACTIVE" | "PAUSED" | "RECOVERY_MODE",
     bills,
   );
+  // Phase 3.0 — the most recent `vault.apy_refreshed` audit
+  // entry drives the "refreshed at HH:MM:SS" label on the
+  // [SYNC] REFRESH button. The adapter name + source come from
+  // the server-side `getActiveYieldAdapter()` (the client never
+  // sees the env var directly).
+  const { getActiveYieldAdapter } = await import("./yield-adapters");
+  const activeAdapter = getActiveYieldAdapter();
+  const lastRefreshAudit = await prisma.auditLog.findFirst({
+    where: { userId, actionType: "vault.apy_refreshed" },
+    orderBy: { createdAt: "desc" },
+  });
+  const lastRefreshedAt = lastRefreshAudit
+    ? (() => {
+        try {
+          const payload = JSON.parse(lastRefreshAudit.payload);
+          return typeof payload?.refreshedAt === "string"
+            ? payload.refreshedAt
+            : lastRefreshAudit.createdAt.toISOString();
+        } catch {
+          return lastRefreshAudit.createdAt.toISOString();
+        }
+      })()
+    : null;
 
   const billsCovered = bills.reduce((s, b) => s + b.amount, 0);
   const billsScheduledCount = bills.filter((b) =>
@@ -675,6 +712,11 @@ export async function loadVaultSnapshot(
     yieldEvents,
     alert,
     preferences,
+    yieldAdapter: {
+      name: activeAdapter.name,
+      source: activeAdapter.source,
+      lastRefreshedAt,
+    },
     totals: {
       billsCovered,
       billsScheduledCount,

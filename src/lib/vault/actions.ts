@@ -20,6 +20,7 @@ import {
   resumeVaultAction,
   transitionBillServerAction,
   simulateNextStateAction,
+  refreshVaultApyAction,
 } from "./server";
 
 /**
@@ -94,4 +95,15 @@ export async function transitionBillFromPage(
  */
 export async function simulateNextBillStateFromPage(billId: string) {
   return simulateNextStateAction(billId);
+}
+
+/**
+ * Server action: refresh the vault's APY from the active yield
+ * adapter. The "manual cron" called out in the Phase 3.0
+ * handoff. In production a real cron runs this every N
+ * minutes; for Phase 3.0 the user triggers it from the
+ * [SYNC] REFRESH button on the /vault page.
+ */
+export async function refreshVaultApyFromPage() {
+  return refreshVaultApyAction();
 }

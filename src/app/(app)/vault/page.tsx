@@ -16,6 +16,7 @@ import { SyncButton } from "@/components/vault/SyncButton";
 import { YieldRoutingPicker } from "@/components/vault/YieldRoutingPicker";
 import { BillTransitionMenu } from "@/components/vault/BillTransitionMenu";
 import { RiskAckButton } from "@/components/vault/RiskAckButton";
+import { RefreshApyButton } from "@/components/vault/RefreshApyButton";
 import { VaultPauseToggle } from "@/components/vault/VaultPauseToggle";
 
 export const dynamic = "force-dynamic";
@@ -93,6 +94,7 @@ export default async function VaultPage() {
         totalAccrued={snap.vault.accruedYield}
         totalAttributed={snap.totalAttributedYield}
         apy={snap.vault.simulatedApy}
+        adapter={snap.yieldAdapter}
       />
 
       <YieldRoutingSection current={snap.preferences.yieldRoutingStrategy} />
@@ -789,11 +791,17 @@ function YieldAttribution({
   totalAccrued,
   totalAttributed,
   apy,
+  adapter,
 }: {
   envelopes: VaultEnvelope[];
   totalAccrued: number;
   totalAttributed: number;
   apy: number;
+  adapter: {
+    name: string;
+    source: import("@/lib/vault/types").YieldSource;
+    lastRefreshedAt: string | null;
+  };
 }) {
   const sorted = [...envelopes].sort((a, b) => b.accruedYield - a.accruedYield);
   const max = Math.max(1, ...sorted.map((e) => e.accruedYield));
@@ -821,6 +829,8 @@ function YieldAttribution({
             justifyContent: "space-between",
             alignItems: "baseline",
             marginBottom: 16,
+            flexWrap: "wrap",
+            gap: 12,
           }}
         >
           <div
@@ -848,6 +858,19 @@ function YieldAttribution({
           >
             {formatMoney(totalAccrued)}
           </div>
+        </div>
+        <div
+          style={{
+            marginBottom: 20,
+            paddingTop: 12,
+            borderTop: "1px solid var(--line-soft)",
+          }}
+        >
+          <RefreshApyButton
+            currentApy={apy}
+            source={adapter.name}
+            lastRefreshedAt={adapter.lastRefreshedAt}
+          />
         </div>
         {sorted.map((e) => {
           const share = totalAccrued > 0 ? e.accruedYield / totalAccrued : 0;

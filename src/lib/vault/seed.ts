@@ -31,13 +31,13 @@ import {
   recordVaultAudit,
 } from "./db";
 import { calculateEnvelopeYield } from "./yield";
+import { getActiveYieldAdapter } from "./yield-adapters";
 
 // ──────────────────────────────────────────────────────────────────────
-// Constants (same as Phase 1.0 mock-data; single source of truth
-// would land in Phase 3 when a config table exists).
+// Constants (the APY is now sourced from the active yield adapter;
+// the other constants stay local for now).
 // ──────────────────────────────────────────────────────────────────────
 
-const SIMULATED_APY = 0.0352;
 const DAYS_DEPLOYED = 14;
 const MAX_HEADROOM = 0.05;
 const EXEC_WINDOW_DAYS_BEFORE = 3;
@@ -73,6 +73,21 @@ export async function seedVaultFromEnvelopes(
   const sourceEnvelopes = liveEnvelopes();
   const sourceBills = liveBills();
 
+  // Read the active yield adapter's APY for the seed. The adapter
+  // may throw (env misconfigured, etc.) — we fall back to 0 so
+  // the seed still completes; the audit log entry below records
+  // the fallback.
+  let apy: number;
+  let adapterName: string;
+  try {
+    const adapter = getActiveYieldAdapter();
+    apy = await adapter.getCurrentApy();
+    adapterName = adapter.name;
+  } catch {
+    apy = 0;
+    adapterName = "fallback";
+  }
+
   // Index bills by envelopeId once so the envelope pass is O(1)
   // per envelope.
   const billsByEnvelope = new Map<
@@ -89,6 +104,15 @@ export async function seedVaultFromEnvelopes(
   // Get or create the vault row.
   const vault = await getOrCreateVault(userId);
   const vaultId = vault.id;
+  // Phase 3.0 — ensure the vault's cached simulatedApy matches
+  // the active adapter's APY on every seed.
+  if (vault.simulatedApy !== apy) {
+    const { prisma } = await import("@/server/db");
+    await prisma.vaultAccount.update({
+      where: { id: vault.id },
+      data: { simulatedApy: apy },
+    });
+  }
 
   // Pass 1: upsert every envelope, with `reservedForBills`
   // computed from the linked bills.
@@ -126,7 +150,7 @@ export async function seedVaultFromEnvelopes(
   // accruedYield, write one YieldEvent per envelope.
   const totalEligible = sourceEnvelopes.reduce((s, e) => s + e.current, 0);
   const totalAccrued = Math.round(
-    (totalEligible * SIMULATED_APY * DAYS_DEPLOYED) / 365,
+    (totalEligible * apy * DAYS_DEPLOYED) / 365,
   );
   let yieldEventsCreated = 0;
   for (const e of sourceEnvelopes) {
@@ -143,13 +167,23 @@ export async function seedVaultFromEnvelopes(
     if (!vEnv) continue;
     await setVaultEnvelopeYield(vEnv.id, envelopeYield);
     if (envelopeYield > 0) {
+      // Phase 3.0 — the YieldEvent's `source` now matches the
+      // active adapter (SKY / AAVE / OTHER). The asset stays
+      // sUSDS for the Sky adapter; future AaveAdapter can
+      // override this if needed.
+      const yieldSource: "AAVE" | "SKY" | "OTHER" =
+        adapterName === "Sky"
+          ? "SKY"
+          : adapterName === "Aave"
+            ? "AAVE"
+            : "OTHER";
       await recordYieldEvent({
         vaultId,
         envelopeId: vEnv.id,
         asset: "sUSDS",
         amount: envelopeYield,
-        annualizedRate: SIMULATED_APY,
-        source: "SKY",
+        annualizedRate: apy,
+        source: yieldSource,
         action: "ACCRUED",
       });
       yieldEventsCreated += 1;
@@ -283,7 +317,6 @@ function pickNextDue(
 
 // Re-export for the test that needs the seed entry point in isolation.
 export const _seedInternals = {
-  SIMULATED_APY,
   DAYS_DEPLOYED,
   MAX_HEADROOM,
 };

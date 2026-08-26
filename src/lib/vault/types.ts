@@ -377,3 +377,39 @@ export interface VaultPreferences {
 /** Re-export the bill event union from state-machine so callers can
  *  import everything vault-typed from a single module. */
 export type { BillEvent } from "./state-machine";
+
+// ──────────────────────────────────────────────────────────────────────
+// Phase 3.0 — Yield adapter interface
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * The yield-adapter contract. The vault reads the current APY
+ * from the active adapter (configured via `VAULT_YIELD_ADAPTER`),
+ * rather than the Phase 1.0 hardcoded `simulatedApy = 0.0352`.
+ *
+ * Phase 3.0 ships 3 stub adapters (`MockYieldAdapter`,
+ * `SkyAdapter`, `AaveAdapter`) that read from env vars. Phase 4
+ * swaps in real provider API integrations. The interface
+ * intentionally mirrors the off-ramp adapter contract
+ * (`IOffRampAdapter` in `types.ts`) so the two gateway patterns
+ * stay symmetric.
+ */
+export interface IYieldAdapter {
+  /** Stable adapter name (e.g. "Mock", "Sky", "Aave"). */
+  readonly name: string;
+  /** Yield source — maps to the `YieldSource` enum. */
+  readonly source: YieldSource;
+  /**
+   * The current annualised yield as a decimal (0.0352 = 3.52%).
+   * Throws on provider error so the caller can record a
+   * `vault.apy_refresh_failed` audit entry.
+   */
+  getCurrentApy(): Promise<number>;
+  /**
+   * A short human-readable note about where the APY came from.
+   * The page surfaces this next to the live APY so the user
+   * knows whether the value is real (Sky Savings Rate) or
+   * simulated (a test value).
+   */
+  describe(): string;
+}
