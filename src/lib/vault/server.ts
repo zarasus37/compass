@@ -31,6 +31,9 @@ import {
   updateBillMetadata,
   deleteBill,
   setVaultSafeAddress,
+  setOnChainBalance,
+  recordFunded,
+  findFundedByIdempotencyKey,
   USER_FACING_BILL_EVENTS,
   type VaultDbSnapshot,
   type UserFacingBillEvent,
@@ -44,6 +47,12 @@ import {
   isMockSafeAddress,
   MOCK_SAFE_ADDRESS,
 } from "./safe-deploy";
+import {
+  fundSafeWithUsdc,
+  getOnChainUsdcBalance,
+  centsFromUsdcUnits,
+  fundingIdempotencyKey,
+} from "./funding";
 import type { VaultSnapshot } from "./mock-data";
 import type { BillEvent, YieldRoutingStrategy } from "./types";
 
@@ -113,6 +122,12 @@ function projectDbToLegacy(db: VaultDbSnapshot): VaultSnapshot {
       yieldEarned: db.totals.yieldEarned,
       nextExecution: db.totals.nextExecution,
       liquidBuffer: db.totals.liquidBuffer,
+      // Phase 4.0 (M2) — on-chain USDC balance surfaced on the
+      // status strip with a [LIVE] badge. The cache lives on
+      // `VaultAccount.onChainUsdcBalanceCents` and is updated by
+      // `refreshSafeBalanceAction`.
+      onChainUsdcBalanceCents: db.vault.onChainUsdcBalanceCents,
+      onChainBalanceRefreshedAt: db.vault.onChainBalanceRefreshedAt,
     },
   };
 }
@@ -972,5 +987,283 @@ export async function deploySafeAction(): Promise<
     chainId: deployed.chainId,
     signerAddress: deployed.signerAddress,
     txHash: deployed.txHash === "0x" ? null : deployed.txHash,
+  };
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Phase 4.0 — USDC funding + on-chain balance read (M2)
+//
+// The [FUND] $X USDC button on /vault calls `fundSafeAction`.
+// The [REFRESH] BALANCE button calls `refreshSafeBalanceAction`.
+// Both are guarded by the deployed-Safe check (a MOCK Safe
+// address means the user hasn't deployed yet) and write
+// audit-log entries on success or failure.
+// ──────────────────────────────────────────────────────────────────────
+
+/** Read the funding cap from env. Default = $10,000 (1_000_000 cents). */
+function getFundMaxCents(): number {
+  const raw = process.env.VAULT_FUND_MAX_CENTS;
+  if (!raw) return 1_000_000_00; // $10,000
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n) || n <= 0) return 1_000_000_00;
+  return n;
+}
+
+/** Read the funding minimum. Default = $1 (100 cents).
+ *  Below 1 cent risks being a typo or rounding loss. */
+function getFundMinCents(): number {
+  return 100; // $1.00
+}
+
+/**
+ * Server action: transfer testnet USDC from the server-side
+ * signer to the user's deployed Safe.
+ *
+ * The flow:
+ *   1. Resolve user + vault. Reject if the Safe is MOCK
+ *      (deploy first).
+ *   2. Validate the amount (positive integer, within the
+ *      configured min/max).
+ *   3. Idempotency check via the per-request nonce. If a prior
+ *      `vault.funded` row already carries the same nonce,
+ *      return that row's result (no double-broadcast).
+ *   4. Call `fundSafeWithUsdc` — the lib's pre-flight (signer
+ *      USDC balance) and on-chain broadcast.
+ *   5. Persist the new on-chain balance cache + write the
+ *      `vault.funded` audit entry.
+ *   6. Revalidate /vault so the next render shows the new
+ *      balance.
+ */
+export async function fundSafeAction(
+  amountCents: number,
+  nonce: string,
+): Promise<
+  | {
+      ok: true;
+      txHash: string;
+      amountCents: number;
+      postBalanceCents: number;
+      nonce: string;
+    }
+  | { ok: false; error: string }
+> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  if (!Number.isFinite(amountCents) || !Number.isInteger(amountCents)) {
+    return { ok: false, error: "amount must be a positive integer (cents)" };
+  }
+  const min = getFundMinCents();
+  const max = getFundMaxCents();
+  if (amountCents < min) {
+    return {
+      ok: false,
+      error: `amount must be at least $${(min / 100).toFixed(2)}`,
+    };
+  }
+  if (amountCents > max) {
+    return {
+      ok: false,
+      error: `amount exceeds cap of $${(max / 100).toFixed(2)}`,
+    };
+  }
+  if (typeof nonce !== "string" || nonce.length === 0 || nonce.length > 80) {
+    return { ok: false, error: "nonce must be a non-empty string ≤ 80 chars" };
+  }
+  const vault = await prisma.vaultAccount.findUnique({
+    where: { userId: user.id },
+  });
+  if (!vault) {
+    return { ok: false, error: "no vault yet — sync first" };
+  }
+  if (isMockSafeAddress(vault.smartAccountAddress)) {
+    return {
+      ok: false,
+      error: "Safe is not deployed yet — click [DEPLOY] Safe first",
+    };
+  }
+  // Idempotency check. A double-click re-submits with the same
+  // nonce, so the second call short-circuits to the prior row's
+  // tx hash.
+  const prior = await findFundedByIdempotencyKey(user.id, nonce);
+  if (prior) {
+    const txHash =
+      typeof prior.payload.txHash === "string" ? prior.payload.txHash : null;
+    const priorAmount =
+      typeof prior.payload.amountCents === "number"
+        ? prior.payload.amountCents
+        : amountCents;
+    const priorPostBalance =
+      typeof prior.payload.postBalanceCents === "number"
+        ? prior.payload.postBalanceCents
+        : 0;
+    if (txHash) {
+      return {
+        ok: true,
+        txHash,
+        amountCents: priorAmount,
+        postBalanceCents: priorPostBalance,
+        nonce,
+      };
+    }
+  }
+  let result;
+  try {
+    result = await fundSafeWithUsdc({
+      safeAddress: vault.smartAccountAddress,
+      amountCents,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] fundSafe failed:", message);
+    // Audit-log the failure too — the user deserves a record
+    // of why the broadcast didn't happen (most commonly: signer
+    // is out of testnet USDC).
+    try {
+      await recordVaultAudit({
+        userId: user.id,
+        actionType: "vault.funded",
+        payload: {
+          vaultId: vault.id,
+          safeAddress: vault.smartAccountAddress,
+          amountCents,
+          nonce,
+          failed: true,
+          error: message,
+          at: new Date().toISOString(),
+        },
+      });
+    } catch {
+      // best-effort; don't mask the original error
+    }
+    return { ok: false, error: message };
+  }
+  const postBalanceCents = centsFromUsdcUnits(result.postBalanceUnits);
+  try {
+    await setOnChainBalance({
+      vaultId: vault.id,
+      onChainUsdcBalanceCents: postBalanceCents,
+      refreshedAt: new Date(),
+    });
+    await recordFunded({
+      userId: user.id,
+      vaultId: vault.id,
+      safeAddress: result.safeAddress,
+      signerAddress: result.signerAddress,
+      amountCents: result.amountCents,
+      amountUnits: result.amountUnits.toString(),
+      txHash: result.txHash,
+      nonce,
+      fundedAt: new Date(),
+      postBalanceCents,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] fundSafe persist failed:", message);
+    return {
+      ok: false,
+      error: `funded on-chain but DB write failed: ${message}. The tx is at ${result.txHash}; re-refresh to recover.`,
+    };
+  }
+  revalidatePath("/vault");
+  return {
+    ok: true,
+    txHash: result.txHash,
+    amountCents: result.amountCents,
+    postBalanceCents,
+    nonce,
+  };
+}
+
+/**
+ * Server action: read the deployed Safe's on-chain USDC balance
+ * via viem and persist it to the denormalized cache on
+ * `VaultAccount.onChainUsdcBalanceCents`. Writes a
+ * `vault.balance_refreshed` audit entry.
+ *
+ * Rejects if the Safe is MOCK (deploy first). On RPC failure,
+ * returns a structured error so the button can surface a clear
+ * "RPC unreachable" line.
+ */
+export async function refreshSafeBalanceAction(): Promise<
+  | {
+      ok: true;
+      onChainUsdcBalanceCents: number;
+      refreshedAt: string;
+    }
+  | { ok: false; error: string }
+> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  const vault = await prisma.vaultAccount.findUnique({
+    where: { userId: user.id },
+  });
+  if (!vault) {
+    return { ok: false, error: "no vault yet — sync first" };
+  }
+  if (isMockSafeAddress(vault.smartAccountAddress)) {
+    return {
+      ok: false,
+      error: "Safe is not deployed yet — click [DEPLOY] Safe first",
+    };
+  }
+  const refreshedAt = new Date();
+  let balanceUnits: bigint;
+  try {
+    balanceUnits = await getOnChainUsdcBalance(vault.smartAccountAddress);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] refreshSafeBalance failed:", message);
+    try {
+      await recordVaultAudit({
+        userId: user.id,
+        actionType: "vault.balance_refreshed",
+        payload: {
+          vaultId: vault.id,
+          safeAddress: vault.smartAccountAddress,
+          failed: true,
+          error: message,
+          at: refreshedAt.toISOString(),
+        },
+      });
+    } catch {
+      // best-effort
+    }
+    return { ok: false, error: `RPC read failed: ${message}` };
+  }
+  const onChainUsdcBalanceCents = centsFromUsdcUnits(balanceUnits);
+  try {
+    await setOnChainBalance({
+      vaultId: vault.id,
+      onChainUsdcBalanceCents,
+      refreshedAt,
+    });
+    await recordVaultAudit({
+      userId: user.id,
+      actionType: "vault.balance_refreshed",
+      payload: {
+        vaultId: vault.id,
+        safeAddress: vault.smartAccountAddress,
+        onChainUsdcBalanceCents,
+        refreshedAt: refreshedAt.toISOString(),
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] setOnChainBalance failed:", message);
+    return { ok: false, error: `DB write failed: ${message}` };
+  }
+  revalidatePath("/vault");
+  return {
+    ok: true,
+    onChainUsdcBalanceCents,
+    refreshedAt: refreshedAt.toISOString(),
   };
 }

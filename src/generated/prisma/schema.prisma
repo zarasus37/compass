@@ -815,30 +815,43 @@ model OnboardingMessage {
 /// without going through calculateEnvelopeYield which uses integer
 /// math.
 model VaultAccount {
-  id                  String   @id @default(cuid())
-  userId              String   @unique
-  chainId             Int      @default(1)
+  id                        String    @id @default(cuid())
+  userId                    String    @unique
+  chainId                   Int       @default(1)
   /// Placeholder Safe address in Phase 1/2; replaced by the
   /// real CREATE2-deployed Safe address in Phase 3 (Cluster
   /// Vault 4.0). When this is the literal `MOCK` placeholder
   /// string, the [DEPLOY] button is shown on /vault.
-  smartAccountAddress String
+  smartAccountAddress       String
   /// The EOA that owns the Safe. Set during the [DEPLOY] flow
   /// (Cluster Vault 4.0). Persists the signer used at deploy
   /// time so the audit log + the post-deploy chip can show
   /// which key holds the Safe.
-  signerAddress       String?
+  signerAddress             String?
   /// "USDC" in Phase 1/2; widens in Phase 3.
-  baseAsset           String   @default("USDC")
+  baseAsset                 String    @default("USDC")
   /// ACTIVE | PAUSED | RECOVERY_MODE
-  status              String   @default("ACTIVE")
-  availableBalance    Int      @default(0)
-  settlementReserve   Int      @default(0)
-  deployedToYield     Int      @default(0)
-  accruedYield        Int      @default(0)
-  simulatedApy        Float    @default(0.0352)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  status                    String    @default("ACTIVE")
+  availableBalance          Int       @default(0)
+  settlementReserve         Int       @default(0)
+  deployedToYield           Int       @default(0)
+  accruedYield              Int       @default(0)
+  simulatedApy              Float     @default(0.0352)
+  /// Cluster Vault 4.0 M2 — on-chain USDC balance for the deployed
+  /// Safe, in integer cents (matches the rest of Compass's money
+  /// convention). 0 until the first [REFRESH] BALANCE call after
+  /// deploy; updated by `setOnChainBalance` in `src/lib/vault/db.ts`
+  /// (called from `refreshSafeBalanceAction`). Distinct from the
+  /// in-DB `availableBalance` (which is the *simulated* sum of
+  /// envelope principal) so the two views stay comparable on the
+  /// status strip.
+  onChainUsdcBalanceCents   Int       @default(0)
+  /// Last time the on-chain USDC balance was refreshed. Null until
+  /// the first refresh. The page surfaces "refreshed HH:MM:SS" next
+  /// to the [REFRESH] BALANCE button.
+  onChainBalanceRefreshedAt DateTime?
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
 
   user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   envelopes   VaultEnvelope[]

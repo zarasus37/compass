@@ -550,6 +550,43 @@ async function main() {
     ),
   );
 
+  // ── Phase 4.0 M2 — USDC funding + on-chain balance (MOCK) ───
+  // In MOCK state the [FUND] + [REFRESH] BALANCE buttons are
+  // hidden (the [DEPLOY] Safe CTA goes first). The smoke
+  // locks in the absence so a future refactor can't accidentally
+  // show funding controls before a Safe is deployed.
+  check(
+    "Phase 4.0 M2 — [FUND] button is hidden in MOCK state",
+    !/data-testid="vault-fund-safe-wrap"/.test(mockStateText),
+  );
+  check(
+    "Phase 4.0 M2 — [REFRESH] BALANCE button is hidden in MOCK state",
+    !/data-testid="vault-refresh-balance-wrap"/.test(mockStateText),
+  );
+  check(
+    "Phase 4.0 M2 — [OK] SAFE DEPLOYED status is hidden in MOCK state",
+    !/data-testid="vault-safe-deployed-status"/.test(mockStateText),
+  );
+  check(
+    "Phase 4.0 M2 — [OK] LIVE badge is hidden in MOCK state",
+    !/data-testid="kpi-cell-badge"/.test(mockStateText),
+  );
+  // The vault principal cell shows the simulated total + the
+  // envelope count in MOCK state. The on-chain sub line only
+  // appears post-deploy.
+  check(
+    "Phase 4.0 M2 — vault principal sub line does NOT mention on-chain in MOCK state",
+    !mockStateText.includes("on-chain $"),
+  );
+  // The yield-attribution [SYNC] REFRESH APY button (Phase 3.0)
+  // is unrelated to the M2 on-chain refresh — it stays visible
+  // in MOCK state because the yield adapter is independent of
+  // the Safe deploy.
+  check(
+    "Phase 4.0 M2 — yield-attribution [SYNC] REFRESH APY button is still visible in MOCK state",
+    /data-testid="vault-refresh-apy"/.test(mockStateText),
+  );
+
   // ── Tally ──────────────────────────────────────────────────────
   console.log("\n--- checks ---");
   const pass = results.filter((r) => r.ok).length;

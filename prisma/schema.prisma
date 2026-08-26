@@ -837,6 +837,19 @@ model VaultAccount {
   deployedToYield       Int      @default(0)
   accruedYield          Int      @default(0)
   simulatedApy          Float    @default(0.0352)
+  /// Cluster Vault 4.0 M2 — on-chain USDC balance for the deployed
+  /// Safe, in integer cents (matches the rest of Compass's money
+  /// convention). 0 until the first [REFRESH] BALANCE call after
+  /// deploy; updated by `setOnChainBalance` in `src/lib/vault/db.ts`
+  /// (called from `refreshSafeBalanceAction`). Distinct from the
+  /// in-DB `availableBalance` (which is the *simulated* sum of
+  /// envelope principal) so the two views stay comparable on the
+  /// status strip.
+  onChainUsdcBalanceCents     Int      @default(0)
+  /// Last time the on-chain USDC balance was refreshed. Null until
+  /// the first refresh. The page surfaces "refreshed HH:MM:SS" next
+  /// to the [REFRESH] BALANCE button.
+  onChainBalanceRefreshedAt   DateTime?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 

@@ -133,6 +133,18 @@ export interface VaultSnapshot {
     nextExecution: ScheduledBill | null;
     /** Funds immediately available for redemption (cents). */
     liquidBuffer: number;
+    /**
+     * Phase 4.0 (M2) — on-chain USDC balance, in integer cents. The
+     * in-memory mock always returns 0 (no chain); the DB-sourced
+     * path returns the cached value from `VaultAccount`.
+     */
+    onChainUsdcBalanceCents: number;
+    /**
+     * Phase 4.0 (M2) — last time the on-chain USDC balance was
+     * refreshed. Null until the first refresh. The page surfaces
+     * "refreshed HH:MM:SS" next to the [REFRESH] BALANCE button.
+     */
+    onChainBalanceRefreshedAt: string | null;
   };
 }
 
@@ -346,6 +358,10 @@ export function deriveMockVault(userId: string = "user-mom"): VaultSnapshot {
     deployedToYield,
     accruedYield: totalAccrued,
     simulatedApy: SIMULATED_APY,
+    // Phase 4.0 (M2) — the in-memory mock has no on-chain
+    // balance. Always 0 / null.
+    onChainUsdcBalanceCents: 0,
+    onChainBalanceRefreshedAt: null,
     createdAt: new Date(PERIOD_START).toISOString(),
     updatedAt: new Date(TODAY).toISOString(),
   };
@@ -442,6 +458,12 @@ export function deriveMockVault(userId: string = "user-mom"): VaultSnapshot {
       yieldEarned: vault.accruedYield,
       nextExecution,
       liquidBuffer,
+      // Phase 4.0 (M2) — the in-memory mock has no on-chain
+      // balance. The DB-sourced path (used in production) reads
+      // these from `VaultAccount.onChainUsdcBalanceCents` /
+      // `onChainBalanceRefreshedAt`.
+      onChainUsdcBalanceCents: 0,
+      onChainBalanceRefreshedAt: null,
     },
   };
 }

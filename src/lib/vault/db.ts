@@ -142,6 +142,114 @@ export async function setVaultSafeAddress(args: {
   });
 }
 
+// ──────────────────────────────────────────────────────────────────────
+// Phase 4.0 — On-chain USDC funding + balance (M2)
+//
+// The [FUND] $X USDC button on /vault transfers testnet USDC
+// from the server-side signer to the user's deployed Safe, and
+// the [REFRESH] BALANCE button reads the Safe's on-chain USDC
+// balance back into the DB. The two actions both write to the
+// audit log + the new `onChainUsdcBalanceCents` + 
+// `onChainBalanceRefreshedAt` columns on `VaultAccount`.
+//
+// Idempotency: the [FUND] action takes a `nonce` (the server
+// action generates one) so a re-submit with the same nonce
+// short-circuits to the prior audit row. This prevents
+// double-funds on a double-click or a re-submit.
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Update the on-chain USDC balance cache on the vault. Called
+ * from `refreshSafeBalanceAction` after `getOnChainUsdcBalance`
+ * returns. Does NOT touch `availableBalance` (the simulated
+ * envelope-derived total) — the two are distinct views, surfaced
+ * separately on the page.
+ */
+export async function setOnChainBalance(args: {
+  vaultId: string;
+  onChainUsdcBalanceCents: number;
+  refreshedAt: Date;
+}): Promise<void> {
+  await prisma.vaultAccount.update({
+    where: { id: args.vaultId },
+    data: {
+      onChainUsdcBalanceCents: args.onChainUsdcBalanceCents,
+      onChainBalanceRefreshedAt: args.refreshedAt,
+      updatedAt: args.refreshedAt,
+    },
+  });
+}
+
+/**
+ * Record a successful USDC funding call. Writes a `vault.funded`
+ * audit entry with the full funding context (tx hash, amount,
+ * from/to addresses, nonce). The nonce is part of the payload
+ * so the idempotency check can match re-submits.
+ */
+export async function recordFunded(args: {
+  userId: string;
+  vaultId: string;
+  safeAddress: string;
+  signerAddress: string;
+  amountCents: number;
+  amountUnits: string; // BigInt as string for JSON
+  txHash: string;
+  nonce: string;
+  fundedAt: Date;
+  /** The on-chain USDC balance of the Safe *after* the transfer. */
+  postBalanceCents: number;
+}): Promise<void> {
+  await recordVaultAudit({
+    userId: args.userId,
+    actionType: "vault.funded",
+    payload: {
+      vaultId: args.vaultId,
+      safeAddress: args.safeAddress,
+      signerAddress: args.signerAddress,
+      amountCents: args.amountCents,
+      amountUnits: args.amountUnits,
+      txHash: args.txHash,
+      nonce: args.nonce,
+      postBalanceCents: args.postBalanceCents,
+      fundedAt: args.fundedAt.toISOString(),
+    },
+  });
+}
+
+/**
+ * Look up a previous `vault.funded` audit row by its idempotency
+ * nonce. Used by `fundSafeAction` to short-circuit re-submits.
+ * The match is on the `nonce` field inside the JSON payload
+ * (Prisma's audit log is a flat table; the nonce is one of the
+ * payload's discriminated fields). Returns null on miss.
+ */
+export async function findFundedByIdempotencyKey(
+  userId: string,
+  nonce: string,
+): Promise<{
+  id: string;
+  payload: Record<string, unknown>;
+  createdAt: Date;
+} | null> {
+  const rows = await prisma.auditLog.findMany({
+    where: { userId, actionType: "vault.funded" },
+    orderBy: { createdAt: "desc" },
+    take: 25,
+  });
+  for (const row of rows) {
+    try {
+      const payload = JSON.parse(row.payload) as Record<string, unknown>;
+      if (payload && payload.nonce === nonce) {
+        return { id: row.id, payload, createdAt: row.createdAt };
+      }
+    } catch {
+      // Bad JSON in a prior row — skip; this isn't a code path
+      // we ever write to with malformed JSON.
+    }
+  }
+  return null;
+}
+
 /**
  * Refresh the vault's top-level money aggregates from its envelopes
  * + bills. Called after a seed or a yield accrual.
@@ -636,7 +744,9 @@ export async function recordVaultAudit(args: {
     | "vault.bill_updated"
     | "vault.bill_deleted"
     | "vault.safe_deployed"
-    | "vault.safe_deploy_failed";
+    | "vault.safe_deploy_failed"
+    | "vault.funded"
+    | "vault.balance_refreshed";
   payload: unknown;
 }): Promise<void> {
   await prisma.auditLog.create({
@@ -1276,6 +1386,8 @@ function toVaultAccount(row: {
   deployedToYield: number;
   accruedYield: number;
   simulatedApy: number;
+  onChainUsdcBalanceCents: number;
+  onChainBalanceRefreshedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }): VaultAccount {
@@ -1292,6 +1404,10 @@ function toVaultAccount(row: {
     deployedToYield: row.deployedToYield,
     accruedYield: row.accruedYield,
     simulatedApy: row.simulatedApy,
+    onChainUsdcBalanceCents: row.onChainUsdcBalanceCents,
+    onChainBalanceRefreshedAt: row.onChainBalanceRefreshedAt
+      ? row.onChainBalanceRefreshedAt.toISOString()
+      : null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

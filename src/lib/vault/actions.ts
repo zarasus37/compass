@@ -25,6 +25,8 @@ import {
   updateBillAction,
   deleteBillAction,
   deploySafeAction,
+  fundSafeAction,
+  refreshSafeBalanceAction,
 } from "./server";
 
 /**
@@ -157,4 +159,30 @@ export async function deleteBillFromPage(billId: string) {
  */
 export async function deploySafeFromPage() {
   return deploySafeAction();
+}
+
+/**
+ * Server action: transfer testnet USDC from the server-side
+ * signer to the user's deployed Safe. Called from the
+ * [FUND] $X USDC button on /vault.
+ *
+ * `amountCents` is a positive integer (e.g. `10000` for $100).
+ * `nonce` is a per-click string the client generates; the same
+ * nonce + the same amount + the same vault re-resolves to the
+ * prior audit row (no double-broadcast on a re-submit).
+ */
+export async function fundSafeFromPage(
+  amountCents: number,
+  nonce: string,
+) {
+  return fundSafeAction(amountCents, nonce);
+}
+
+/**
+ * Server action: read the deployed Safe's on-chain USDC
+ * balance via viem and persist it to the denormalized cache.
+ * Called from the [REFRESH] BALANCE button on /vault.
+ */
+export async function refreshSafeBalanceFromPage() {
+  return refreshSafeBalanceAction();
 }

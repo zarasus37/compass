@@ -19,6 +19,9 @@ import { RiskAckButton } from "@/components/vault/RiskAckButton";
 import { RefreshApyButton } from "@/components/vault/RefreshApyButton";
 import { VaultPauseToggle } from "@/components/vault/VaultPauseToggle";
 import { DeploySafeButton } from "@/components/vault/DeploySafeButton";
+import { FundSafeButton } from "@/components/vault/FundSafeButton";
+import { RefreshBalanceButton } from "@/components/vault/RefreshBalanceButton";
+import { isMockSafeAddress } from "@/lib/vault/safe-deploy";
 
 export const dynamic = "force-dynamic";
 
@@ -84,7 +87,13 @@ export default async function VaultPage() {
 
       <AlertBanner state={snap.alert} />
 
-      <VaultPauseRow vault={snap.vault} />
+      <VaultPauseRow
+        vault={snap.vault}
+        kpis={{
+          onChainUsdcBalanceCents: snap.kpis.onChainUsdcBalanceCents,
+          onChainBalanceRefreshedAt: snap.kpis.onChainBalanceRefreshedAt,
+        }}
+      />
 
       <StatusStrip snap={snap} />
 
@@ -421,7 +430,17 @@ function AlertBanner({ state }: { state: VaultAlertState }) {
 // strip so it's the first thing the user can act on.
 // ──────────────────────────────────────────────────────────────────────
 
-function VaultPauseRow({ vault }: { vault: VaultAccount }) {
+function VaultPauseRow({
+  vault,
+  kpis,
+}: {
+  vault: VaultAccount;
+  kpis: {
+    onChainUsdcBalanceCents: number;
+    onChainBalanceRefreshedAt: string | null;
+  };
+}) {
+  const deployed = !isMockSafeAddress(vault.smartAccountAddress);
   return (
     <div
       data-testid="vault-pause-row"
@@ -433,6 +452,7 @@ function VaultPauseRow({ vault }: { vault: VaultAccount }) {
         marginBottom: 32,
         padding: "10px 0",
         borderBottom: "1px solid var(--line-soft)",
+        flexWrap: "wrap",
       }}
     >
       <div
@@ -445,12 +465,22 @@ function VaultPauseRow({ vault }: { vault: VaultAccount }) {
         }}
       >
         // vault control · {vault.status === "PAUSED" ? "PAUSED" : vault.status === "RECOVERY_MODE" ? "RECOVERY" : "ARMED"}
+        {deployed && (
+          <span
+            data-testid="vault-safe-deployed-status"
+            style={{ color: "var(--ok)", marginLeft: 12 }}
+          >
+            · [OK] SAFE DEPLOYED
+          </span>
+        )}
       </div>
       <div
         style={{
           display: "flex",
           alignItems: "center",
           gap: 12,
+          flexWrap: "wrap",
+          justifyContent: "flex-end",
         }}
       >
         <DeploySafeButton
@@ -458,6 +488,19 @@ function VaultPauseRow({ vault }: { vault: VaultAccount }) {
           signerAddress={vault.signerAddress}
           chainId={vault.chainId}
         />
+        {deployed && (
+          <>
+            <FundSafeButton
+              safeAddress={vault.smartAccountAddress}
+              signerAddress={vault.signerAddress}
+            />
+            <RefreshBalanceButton
+              lastRefreshedAt={kpis.onChainBalanceRefreshedAt}
+              onChainBalanceCents={kpis.onChainUsdcBalanceCents}
+              safeAddress={vault.smartAccountAddress}
+            />
+          </>
+        )}
         <VaultPauseToggle status={vault.status} />
       </div>
     </div>
@@ -474,6 +517,7 @@ function StatusStrip({
   snap: NonNullable<Awaited<ReturnType<typeof loadCurrentVaultSnapshot>>["snapshot"]>;
 }) {
   const { kpis, vault } = snap;
+  const deployed = !isMockSafeAddress(vault.smartAccountAddress);
   return (
     <div
       data-testid="vault-status-strip"
@@ -489,8 +533,13 @@ function StatusStrip({
       <KpiCell
         label="vault principal"
         value={formatMoney(kpis.vaultPrincipal)}
-        sub={`across ${snap.envelopes.length} envelopes`}
+        sub={
+          deployed
+            ? `on-chain ${formatMoney(kpis.onChainUsdcBalanceCents)} · ${snap.envelopes.length} envelopes`
+            : `across ${snap.envelopes.length} envelopes`
+        }
         tone="cyan"
+        badge={deployed ? "LIVE" : null}
       />
       <KpiCell
         label="reserved for bills"
@@ -537,12 +586,16 @@ function KpiCell({
   sub,
   tone,
   isLast,
+  badge,
 }: {
   label: string;
   value: string;
   sub: string;
   tone: "ok" | "warn" | "cyan" | "ink";
   isLast?: boolean;
+  /** Optional small chip rendered after the value (e.g. "LIVE" for
+   *  the on-chain vault principal). Terminal voice, mono caps. */
+  badge?: string | null;
 }) {
   const color =
     tone === "ok"
@@ -568,9 +621,31 @@ function KpiCell({
           letterSpacing: "0.18em",
           textTransform: "uppercase",
           marginBottom: 10,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 6,
         }}
       >
-        <span style={{ color: "var(--ink-4)" }}>//</span> {label}
+        <span>
+          <span style={{ color: "var(--ink-4)" }}>//</span> {label}
+        </span>
+        {badge && (
+          <span
+            data-testid="kpi-cell-badge"
+            style={{
+              fontSize: 9,
+              fontWeight: 700,
+              color: "var(--ok)",
+              border: "1px solid var(--ok)",
+              padding: "2px 6px",
+              borderRadius: 2,
+              letterSpacing: "0.18em",
+            }}
+          >
+            [OK] {badge}
+          </span>
+        )}
       </div>
       <div
         style={{

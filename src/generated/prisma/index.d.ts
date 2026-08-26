@@ -31864,6 +31864,7 @@ export namespace Prisma {
     deployedToYield: number | null
     accruedYield: number | null
     simulatedApy: number | null
+    onChainUsdcBalanceCents: number | null
   }
 
   export type VaultAccountSumAggregateOutputType = {
@@ -31873,6 +31874,7 @@ export namespace Prisma {
     deployedToYield: number | null
     accruedYield: number | null
     simulatedApy: number | null
+    onChainUsdcBalanceCents: number | null
   }
 
   export type VaultAccountMinAggregateOutputType = {
@@ -31888,6 +31890,8 @@ export namespace Prisma {
     deployedToYield: number | null
     accruedYield: number | null
     simulatedApy: number | null
+    onChainUsdcBalanceCents: number | null
+    onChainBalanceRefreshedAt: Date | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -31905,6 +31909,8 @@ export namespace Prisma {
     deployedToYield: number | null
     accruedYield: number | null
     simulatedApy: number | null
+    onChainUsdcBalanceCents: number | null
+    onChainBalanceRefreshedAt: Date | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -31922,6 +31928,8 @@ export namespace Prisma {
     deployedToYield: number
     accruedYield: number
     simulatedApy: number
+    onChainUsdcBalanceCents: number
+    onChainBalanceRefreshedAt: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -31935,6 +31943,7 @@ export namespace Prisma {
     deployedToYield?: true
     accruedYield?: true
     simulatedApy?: true
+    onChainUsdcBalanceCents?: true
   }
 
   export type VaultAccountSumAggregateInputType = {
@@ -31944,6 +31953,7 @@ export namespace Prisma {
     deployedToYield?: true
     accruedYield?: true
     simulatedApy?: true
+    onChainUsdcBalanceCents?: true
   }
 
   export type VaultAccountMinAggregateInputType = {
@@ -31959,6 +31969,8 @@ export namespace Prisma {
     deployedToYield?: true
     accruedYield?: true
     simulatedApy?: true
+    onChainUsdcBalanceCents?: true
+    onChainBalanceRefreshedAt?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -31976,6 +31988,8 @@ export namespace Prisma {
     deployedToYield?: true
     accruedYield?: true
     simulatedApy?: true
+    onChainUsdcBalanceCents?: true
+    onChainBalanceRefreshedAt?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -31993,6 +32007,8 @@ export namespace Prisma {
     deployedToYield?: true
     accruedYield?: true
     simulatedApy?: true
+    onChainUsdcBalanceCents?: true
+    onChainBalanceRefreshedAt?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -32097,6 +32113,8 @@ export namespace Prisma {
     deployedToYield: number
     accruedYield: number
     simulatedApy: number
+    onChainUsdcBalanceCents: number
+    onChainBalanceRefreshedAt: Date | null
     createdAt: Date
     updatedAt: Date
     _count: VaultAccountCountAggregateOutputType | null
@@ -32133,6 +32151,8 @@ export namespace Prisma {
     deployedToYield?: boolean
     accruedYield?: boolean
     simulatedApy?: boolean
+    onChainUsdcBalanceCents?: boolean
+    onChainBalanceRefreshedAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
@@ -32155,6 +32175,8 @@ export namespace Prisma {
     deployedToYield?: boolean
     accruedYield?: boolean
     simulatedApy?: boolean
+    onChainUsdcBalanceCents?: boolean
+    onChainBalanceRefreshedAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
@@ -32173,6 +32195,8 @@ export namespace Prisma {
     deployedToYield?: boolean
     accruedYield?: boolean
     simulatedApy?: boolean
+    onChainUsdcBalanceCents?: boolean
+    onChainBalanceRefreshedAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
@@ -32191,11 +32215,13 @@ export namespace Prisma {
     deployedToYield?: boolean
     accruedYield?: boolean
     simulatedApy?: boolean
+    onChainUsdcBalanceCents?: boolean
+    onChainBalanceRefreshedAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type VaultAccountOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "chainId" | "smartAccountAddress" | "signerAddress" | "baseAsset" | "status" | "availableBalance" | "settlementReserve" | "deployedToYield" | "accruedYield" | "simulatedApy" | "createdAt" | "updatedAt", ExtArgs["result"]["vaultAccount"]>
+  export type VaultAccountOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "chainId" | "smartAccountAddress" | "signerAddress" | "baseAsset" | "status" | "availableBalance" | "settlementReserve" | "deployedToYield" | "accruedYield" | "simulatedApy" | "onChainUsdcBalanceCents" | "onChainBalanceRefreshedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["vaultAccount"]>
   export type VaultAccountInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
     envelopes?: boolean | VaultAccount$envelopesArgs<ExtArgs>
@@ -32249,6 +32275,23 @@ export namespace Prisma {
       deployedToYield: number
       accruedYield: number
       simulatedApy: number
+      /**
+       * Cluster Vault 4.0 M2 — on-chain USDC balance for the deployed
+       * Safe, in integer cents (matches the rest of Compass's money
+       * convention). 0 until the first [REFRESH] BALANCE call after
+       * deploy; updated by `setOnChainBalance` in `src/lib/vault/db.ts`
+       * (called from `refreshSafeBalanceAction`). Distinct from the
+       * in-DB `availableBalance` (which is the *simulated* sum of
+       * envelope principal) so the two views stay comparable on the
+       * status strip.
+       */
+      onChainUsdcBalanceCents: number
+      /**
+       * Last time the on-chain USDC balance was refreshed. Null until
+       * the first refresh. The page surfaces "refreshed HH:MM:SS" next
+       * to the [REFRESH] BALANCE button.
+       */
+      onChainBalanceRefreshedAt: Date | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["vaultAccount"]>
@@ -32690,6 +32733,8 @@ export namespace Prisma {
     readonly deployedToYield: FieldRef<"VaultAccount", 'Int'>
     readonly accruedYield: FieldRef<"VaultAccount", 'Int'>
     readonly simulatedApy: FieldRef<"VaultAccount", 'Float'>
+    readonly onChainUsdcBalanceCents: FieldRef<"VaultAccount", 'Int'>
+    readonly onChainBalanceRefreshedAt: FieldRef<"VaultAccount", 'DateTime'>
     readonly createdAt: FieldRef<"VaultAccount", 'DateTime'>
     readonly updatedAt: FieldRef<"VaultAccount", 'DateTime'>
   }
@@ -40821,6 +40866,8 @@ export namespace Prisma {
     deployedToYield: 'deployedToYield',
     accruedYield: 'accruedYield',
     simulatedApy: 'simulatedApy',
+    onChainUsdcBalanceCents: 'onChainUsdcBalanceCents',
+    onChainBalanceRefreshedAt: 'onChainBalanceRefreshedAt',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -43008,6 +43055,8 @@ export namespace Prisma {
     deployedToYield?: IntFilter<"VaultAccount"> | number
     accruedYield?: IntFilter<"VaultAccount"> | number
     simulatedApy?: FloatFilter<"VaultAccount"> | number
+    onChainUsdcBalanceCents?: IntFilter<"VaultAccount"> | number
+    onChainBalanceRefreshedAt?: DateTimeNullableFilter<"VaultAccount"> | Date | string | null
     createdAt?: DateTimeFilter<"VaultAccount"> | Date | string
     updatedAt?: DateTimeFilter<"VaultAccount"> | Date | string
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
@@ -43029,6 +43078,8 @@ export namespace Prisma {
     deployedToYield?: SortOrder
     accruedYield?: SortOrder
     simulatedApy?: SortOrder
+    onChainUsdcBalanceCents?: SortOrder
+    onChainBalanceRefreshedAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     user?: UserOrderByWithRelationInput
@@ -43053,6 +43104,8 @@ export namespace Prisma {
     deployedToYield?: IntFilter<"VaultAccount"> | number
     accruedYield?: IntFilter<"VaultAccount"> | number
     simulatedApy?: FloatFilter<"VaultAccount"> | number
+    onChainUsdcBalanceCents?: IntFilter<"VaultAccount"> | number
+    onChainBalanceRefreshedAt?: DateTimeNullableFilter<"VaultAccount"> | Date | string | null
     createdAt?: DateTimeFilter<"VaultAccount"> | Date | string
     updatedAt?: DateTimeFilter<"VaultAccount"> | Date | string
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
@@ -43074,6 +43127,8 @@ export namespace Prisma {
     deployedToYield?: SortOrder
     accruedYield?: SortOrder
     simulatedApy?: SortOrder
+    onChainUsdcBalanceCents?: SortOrder
+    onChainBalanceRefreshedAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: VaultAccountCountOrderByAggregateInput
@@ -43099,6 +43154,8 @@ export namespace Prisma {
     deployedToYield?: IntWithAggregatesFilter<"VaultAccount"> | number
     accruedYield?: IntWithAggregatesFilter<"VaultAccount"> | number
     simulatedApy?: FloatWithAggregatesFilter<"VaultAccount"> | number
+    onChainUsdcBalanceCents?: IntWithAggregatesFilter<"VaultAccount"> | number
+    onChainBalanceRefreshedAt?: DateTimeNullableWithAggregatesFilter<"VaultAccount"> | Date | string | null
     createdAt?: DateTimeWithAggregatesFilter<"VaultAccount"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"VaultAccount"> | Date | string
   }
@@ -45878,6 +45935,8 @@ export namespace Prisma {
     deployedToYield?: number
     accruedYield?: number
     simulatedApy?: number
+    onChainUsdcBalanceCents?: number
+    onChainBalanceRefreshedAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutVaultAccountInput
@@ -45899,6 +45958,8 @@ export namespace Prisma {
     deployedToYield?: number
     accruedYield?: number
     simulatedApy?: number
+    onChainUsdcBalanceCents?: number
+    onChainBalanceRefreshedAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     envelopes?: VaultEnvelopeUncheckedCreateNestedManyWithoutVaultInput
@@ -45918,6 +45979,8 @@ export namespace Prisma {
     deployedToYield?: IntFieldUpdateOperationsInput | number
     accruedYield?: IntFieldUpdateOperationsInput | number
     simulatedApy?: FloatFieldUpdateOperationsInput | number
+    onChainUsdcBalanceCents?: IntFieldUpdateOperationsInput | number
+    onChainBalanceRefreshedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutVaultAccountNestedInput
@@ -45939,6 +46002,8 @@ export namespace Prisma {
     deployedToYield?: IntFieldUpdateOperationsInput | number
     accruedYield?: IntFieldUpdateOperationsInput | number
     simulatedApy?: FloatFieldUpdateOperationsInput | number
+    onChainUsdcBalanceCents?: IntFieldUpdateOperationsInput | number
+    onChainBalanceRefreshedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     envelopes?: VaultEnvelopeUncheckedUpdateManyWithoutVaultNestedInput
@@ -45959,6 +46024,8 @@ export namespace Prisma {
     deployedToYield?: number
     accruedYield?: number
     simulatedApy?: number
+    onChainUsdcBalanceCents?: number
+    onChainBalanceRefreshedAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -45975,6 +46042,8 @@ export namespace Prisma {
     deployedToYield?: IntFieldUpdateOperationsInput | number
     accruedYield?: IntFieldUpdateOperationsInput | number
     simulatedApy?: FloatFieldUpdateOperationsInput | number
+    onChainUsdcBalanceCents?: IntFieldUpdateOperationsInput | number
+    onChainBalanceRefreshedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -45992,6 +46061,8 @@ export namespace Prisma {
     deployedToYield?: IntFieldUpdateOperationsInput | number
     accruedYield?: IntFieldUpdateOperationsInput | number
     simulatedApy?: FloatFieldUpdateOperationsInput | number
+    onChainUsdcBalanceCents?: IntFieldUpdateOperationsInput | number
+    onChainBalanceRefreshedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -48270,6 +48341,8 @@ export namespace Prisma {
     deployedToYield?: SortOrder
     accruedYield?: SortOrder
     simulatedApy?: SortOrder
+    onChainUsdcBalanceCents?: SortOrder
+    onChainBalanceRefreshedAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -48281,6 +48354,7 @@ export namespace Prisma {
     deployedToYield?: SortOrder
     accruedYield?: SortOrder
     simulatedApy?: SortOrder
+    onChainUsdcBalanceCents?: SortOrder
   }
 
   export type VaultAccountMaxOrderByAggregateInput = {
@@ -48296,6 +48370,8 @@ export namespace Prisma {
     deployedToYield?: SortOrder
     accruedYield?: SortOrder
     simulatedApy?: SortOrder
+    onChainUsdcBalanceCents?: SortOrder
+    onChainBalanceRefreshedAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -48313,6 +48389,8 @@ export namespace Prisma {
     deployedToYield?: SortOrder
     accruedYield?: SortOrder
     simulatedApy?: SortOrder
+    onChainUsdcBalanceCents?: SortOrder
+    onChainBalanceRefreshedAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -48324,6 +48402,7 @@ export namespace Prisma {
     deployedToYield?: SortOrder
     accruedYield?: SortOrder
     simulatedApy?: SortOrder
+    onChainUsdcBalanceCents?: SortOrder
   }
 
   export type VaultAccountScalarRelationFilter = {
@@ -51301,6 +51380,8 @@ export namespace Prisma {
     deployedToYield?: number
     accruedYield?: number
     simulatedApy?: number
+    onChainUsdcBalanceCents?: number
+    onChainBalanceRefreshedAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     envelopes?: VaultEnvelopeCreateNestedManyWithoutVaultInput
@@ -51320,6 +51401,8 @@ export namespace Prisma {
     deployedToYield?: number
     accruedYield?: number
     simulatedApy?: number
+    onChainUsdcBalanceCents?: number
+    onChainBalanceRefreshedAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     envelopes?: VaultEnvelopeUncheckedCreateNestedManyWithoutVaultInput
@@ -51760,6 +51843,8 @@ export namespace Prisma {
     deployedToYield?: IntFieldUpdateOperationsInput | number
     accruedYield?: IntFieldUpdateOperationsInput | number
     simulatedApy?: FloatFieldUpdateOperationsInput | number
+    onChainUsdcBalanceCents?: IntFieldUpdateOperationsInput | number
+    onChainBalanceRefreshedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     envelopes?: VaultEnvelopeUpdateManyWithoutVaultNestedInput
@@ -51779,6 +51864,8 @@ export namespace Prisma {
     deployedToYield?: IntFieldUpdateOperationsInput | number
     accruedYield?: IntFieldUpdateOperationsInput | number
     simulatedApy?: FloatFieldUpdateOperationsInput | number
+    onChainUsdcBalanceCents?: IntFieldUpdateOperationsInput | number
+    onChainBalanceRefreshedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     envelopes?: VaultEnvelopeUncheckedUpdateManyWithoutVaultNestedInput
@@ -55998,6 +56085,8 @@ export namespace Prisma {
     deployedToYield?: number
     accruedYield?: number
     simulatedApy?: number
+    onChainUsdcBalanceCents?: number
+    onChainBalanceRefreshedAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutVaultAccountInput
@@ -56018,6 +56107,8 @@ export namespace Prisma {
     deployedToYield?: number
     accruedYield?: number
     simulatedApy?: number
+    onChainUsdcBalanceCents?: number
+    onChainBalanceRefreshedAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     bills?: ScheduledBillUncheckedCreateNestedManyWithoutVaultInput
@@ -56185,6 +56276,8 @@ export namespace Prisma {
     deployedToYield?: IntFieldUpdateOperationsInput | number
     accruedYield?: IntFieldUpdateOperationsInput | number
     simulatedApy?: FloatFieldUpdateOperationsInput | number
+    onChainUsdcBalanceCents?: IntFieldUpdateOperationsInput | number
+    onChainBalanceRefreshedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutVaultAccountNestedInput
@@ -56205,6 +56298,8 @@ export namespace Prisma {
     deployedToYield?: IntFieldUpdateOperationsInput | number
     accruedYield?: IntFieldUpdateOperationsInput | number
     simulatedApy?: FloatFieldUpdateOperationsInput | number
+    onChainUsdcBalanceCents?: IntFieldUpdateOperationsInput | number
+    onChainBalanceRefreshedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     bills?: ScheduledBillUncheckedUpdateManyWithoutVaultNestedInput
@@ -56306,6 +56401,8 @@ export namespace Prisma {
     deployedToYield?: number
     accruedYield?: number
     simulatedApy?: number
+    onChainUsdcBalanceCents?: number
+    onChainBalanceRefreshedAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutVaultAccountInput
@@ -56326,6 +56423,8 @@ export namespace Prisma {
     deployedToYield?: number
     accruedYield?: number
     simulatedApy?: number
+    onChainUsdcBalanceCents?: number
+    onChainBalanceRefreshedAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     envelopes?: VaultEnvelopeUncheckedCreateNestedManyWithoutVaultInput
@@ -56440,6 +56539,8 @@ export namespace Prisma {
     deployedToYield?: IntFieldUpdateOperationsInput | number
     accruedYield?: IntFieldUpdateOperationsInput | number
     simulatedApy?: FloatFieldUpdateOperationsInput | number
+    onChainUsdcBalanceCents?: IntFieldUpdateOperationsInput | number
+    onChainBalanceRefreshedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutVaultAccountNestedInput
@@ -56460,6 +56561,8 @@ export namespace Prisma {
     deployedToYield?: IntFieldUpdateOperationsInput | number
     accruedYield?: IntFieldUpdateOperationsInput | number
     simulatedApy?: FloatFieldUpdateOperationsInput | number
+    onChainUsdcBalanceCents?: IntFieldUpdateOperationsInput | number
+    onChainBalanceRefreshedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     envelopes?: VaultEnvelopeUncheckedUpdateManyWithoutVaultNestedInput
@@ -56559,6 +56662,8 @@ export namespace Prisma {
     deployedToYield?: number
     accruedYield?: number
     simulatedApy?: number
+    onChainUsdcBalanceCents?: number
+    onChainBalanceRefreshedAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutVaultAccountInput
@@ -56579,6 +56684,8 @@ export namespace Prisma {
     deployedToYield?: number
     accruedYield?: number
     simulatedApy?: number
+    onChainUsdcBalanceCents?: number
+    onChainBalanceRefreshedAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     envelopes?: VaultEnvelopeUncheckedCreateNestedManyWithoutVaultInput
@@ -56654,6 +56761,8 @@ export namespace Prisma {
     deployedToYield?: IntFieldUpdateOperationsInput | number
     accruedYield?: IntFieldUpdateOperationsInput | number
     simulatedApy?: FloatFieldUpdateOperationsInput | number
+    onChainUsdcBalanceCents?: IntFieldUpdateOperationsInput | number
+    onChainBalanceRefreshedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutVaultAccountNestedInput
@@ -56674,6 +56783,8 @@ export namespace Prisma {
     deployedToYield?: IntFieldUpdateOperationsInput | number
     accruedYield?: IntFieldUpdateOperationsInput | number
     simulatedApy?: FloatFieldUpdateOperationsInput | number
+    onChainUsdcBalanceCents?: IntFieldUpdateOperationsInput | number
+    onChainBalanceRefreshedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     envelopes?: VaultEnvelopeUncheckedUpdateManyWithoutVaultNestedInput

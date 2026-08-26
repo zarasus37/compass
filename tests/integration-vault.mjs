@@ -1433,6 +1433,268 @@ async function main() {
     },
   });
 
+  // ── Phase 4.0 M2 — USDC funding + on-chain balance read ─────
+  // Same approach as M1: we don't broadcast a real on-chain
+  // transfer from the test (no signer key + no testnet USDC in
+  // CI), but we verify the surface end-to-end:
+  //   - new `onChainUsdcBalanceCents` + `onChainBalanceRefreshedAt`
+  //     columns are present + zero in MOCK state
+  //   - new audit action types (`vault.funded`,
+  //     `vault.balance_refreshed`) are accepted + writable
+  //   - the [FUND] + [REFRESH] BALANCE buttons are on the page
+  //     in deployed state, hidden in MOCK state
+  //   - the [OK] LIVE badge shows on the vault principal cell
+  //     once a real balance is cached
+  //   - the on-chain sub line on the status strip reads from
+  //     the cache
+  //   - the findFundedByIdempotencyKey lookup matches by nonce
+  console.log("\n--- Phase 4.0 M2 — USDC funding + on-chain balance ---\n");
+
+  // Schema: new on-chain columns present, default 0/null.
+  const mockVault = await prisma.vaultAccount.findUnique({
+    where: { userId },
+  });
+  check(
+    "VaultAccount.onChainUsdcBalanceCents column exists",
+    "onChainUsdcBalanceCents" in (mockVault ?? {}),
+    `present=${"onChainUsdcBalanceCents" in (mockVault ?? {})}`,
+  );
+  check(
+    "onChainUsdcBalanceCents is 0 in MOCK state",
+    mockVault?.onChainUsdcBalanceCents === 0,
+    `got=${mockVault?.onChainUsdcBalanceCents}`,
+  );
+  check(
+    "VaultAccount.onChainBalanceRefreshedAt column exists",
+    "onChainBalanceRefreshedAt" in (mockVault ?? {}),
+    `present=${"onChainBalanceRefreshedAt" in (mockVault ?? {})}`,
+  );
+  check(
+    "onChainBalanceRefreshedAt is null in MOCK state",
+    mockVault?.onChainBalanceRefreshedAt === null,
+    `got=${mockVault?.onChainBalanceRefreshedAt}`,
+  );
+
+  // MOCK-state page surface: fund + refresh buttons hidden.
+  const mockText = await (await get("/vault")).text();
+  check(
+    "[FUND] button hidden in MOCK state",
+    !/data-testid="vault-fund-safe-wrap"/.test(mockText),
+  );
+  check(
+    "[REFRESH] BALANCE button hidden in MOCK state",
+    !/data-testid="vault-refresh-balance-wrap"/.test(mockText),
+  );
+  check(
+    "[OK] SAFE DEPLOYED status hidden in MOCK state",
+    !/data-testid="vault-safe-deployed-status"/.test(mockText),
+  );
+  check(
+    "[OK] LIVE badge on vault principal cell hidden in MOCK state",
+    !/data-testid="kpi-cell-badge"/.test(mockText),
+  );
+
+  // Simulate the deploy + a balance refresh + a funding, all
+  // at the DB layer. We mirror what the server actions write
+  // so the test exercises the same shape the page reads.
+  // (The fakeSafe / fakeSigner are the same as the M1 test
+  // — the M1 reset below restored them to MOCK; we redeploy
+  // for the M2 surface check.)
+  const fakeFundNonce = `m2-test-${Date.now()}-fund`;
+  const fakeFundTxHash = "0xfeedface" + "0".repeat(56);
+  const fakeFundAmountCents = 100_00; // $100
+  const fakeRefreshedAt = new Date();
+
+  // Step 1: simulated deploy.
+  await prisma.vaultAccount.update({
+    where: { userId },
+    data: {
+      smartAccountAddress: fakeSafe,
+      signerAddress: fakeSigner,
+      chainId: 84532,
+    },
+  });
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      actionType: "vault.safe_deployed",
+      payload: JSON.stringify({
+        smartAccountAddress: fakeSafe,
+        signerAddress: fakeSigner,
+        chainId: 84532,
+        txHash: "0xdeadbeef" + "0".repeat(56),
+        at: new Date().toISOString(),
+      }),
+    },
+  });
+
+  // Step 2: simulated balance refresh.
+  const refreshAuditBefore = await prisma.auditLog.count({
+    where: { userId, actionType: "vault.balance_refreshed" },
+  });
+  await prisma.vaultAccount.update({
+    where: { userId },
+    data: {
+      onChainUsdcBalanceCents: 0,
+      onChainBalanceRefreshedAt: fakeRefreshedAt,
+    },
+  });
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      actionType: "vault.balance_refreshed",
+      payload: JSON.stringify({
+        vaultId: mockVault.id,
+        safeAddress: fakeSafe,
+        onChainUsdcBalanceCents: 0,
+        refreshedAt: fakeRefreshedAt.toISOString(),
+      }),
+    },
+  });
+  const refreshAuditAfter = await prisma.auditLog.count({
+    where: { userId, actionType: "vault.balance_refreshed" },
+  });
+  check(
+    "vault.balance_refreshed audit entry written",
+    refreshAuditAfter === refreshAuditBefore + 1,
+    `delta=${refreshAuditAfter - refreshAuditBefore}`,
+  );
+
+  // Step 3: simulated funding.
+  const fundAuditBefore = await prisma.auditLog.count({
+    where: { userId, actionType: "vault.funded" },
+  });
+  await prisma.vaultAccount.update({
+    where: { userId },
+    data: {
+      onChainUsdcBalanceCents: fakeFundAmountCents,
+      onChainBalanceRefreshedAt: new Date(),
+    },
+  });
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      actionType: "vault.funded",
+      payload: JSON.stringify({
+        vaultId: mockVault.id,
+        safeAddress: fakeSafe,
+        signerAddress: fakeSigner,
+        amountCents: fakeFundAmountCents,
+        amountUnits: "100000000", // $100 in 6-decimal USDC
+        txHash: fakeFundTxHash,
+        nonce: fakeFundNonce,
+        postBalanceCents: fakeFundAmountCents,
+        fundedAt: new Date().toISOString(),
+      }),
+    },
+  });
+  const fundAuditAfter = await prisma.auditLog.count({
+    where: { userId, actionType: "vault.funded" },
+  });
+  check(
+    "vault.funded audit entry written",
+    fundAuditAfter === fundAuditBefore + 1,
+    `delta=${fundAuditAfter - fundAuditBefore}`,
+  );
+
+  // Step 4: deployed-state page surface.
+  const deployedText = await (await get("/vault")).text();
+  check(
+    "[FUND] button is on the page (deployed state)",
+    /data-testid="vault-fund-safe-wrap"/.test(deployedText),
+  );
+  check(
+    "[REFRESH] BALANCE button is on the page (deployed state)",
+    /data-testid="vault-refresh-balance-wrap"/.test(deployedText),
+  );
+  check(
+    "[OK] SAFE DEPLOYED status is on the page (deployed state)",
+    /data-testid="vault-safe-deployed-status"/.test(deployedText),
+  );
+  check(
+    "[OK] LIVE badge on vault principal cell is on the page (deployed state)",
+    /data-testid="kpi-cell-badge"/.test(deployedText),
+  );
+  check(
+    "[FUND] button has the $100.00 USDC label when $100 preset is active",
+    /data-testid="vault-fund-preset-10000"/.test(deployedText),
+  );
+  check(
+    "[REFRESH] BALANCE button shows the refreshed-at HH:MM:SS line",
+    // React's server-side rendering inserts `<!-- -->` comments
+    // between the static `$` prefix and the dynamic value, so
+    // we match the two pieces separately.
+    /\/\/ on-chain: \$<!-- -->100\.00<!-- --> USDC/.test(deployedText) &&
+      /refreshed <!-- -->\d{2}:\d{2}:\d{2}/.test(deployedText),
+  );
+  check(
+    "[REFRESH] BALANCE button is the [REFRESH] marker label",
+    /\[\s*REFRESH\s*\]\s*BALANCE/.test(deployedText),
+  );
+
+  // Step 5: verify the cached balance is the live value.
+  const afterFunding = await prisma.vaultAccount.findUnique({
+    where: { userId },
+  });
+  check(
+    "on-chain balance cache updated after simulated fund",
+    afterFunding?.onChainUsdcBalanceCents === fakeFundAmountCents,
+    `got=${afterFunding?.onChainUsdcBalanceCents}`,
+  );
+  check(
+    "on-chain balance refreshed-at is non-null after simulated fund",
+    afterFunding?.onChainBalanceRefreshedAt !== null,
+    `got=${afterFunding?.onChainBalanceRefreshedAt}`,
+  );
+
+  // Step 6: idempotency lookup. The findFundedByIdempotencyKey
+  // function lives in db.ts (server-only); we mirror the query
+  // here to verify the row shape matches what the server action
+  // expects.
+  const recentFunded = await prisma.auditLog.findMany({
+    where: { userId, actionType: "vault.funded" },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+  });
+  let matchedByNonce = null;
+  for (const row of recentFunded) {
+    try {
+      const payload = JSON.parse(row.payload);
+      if (payload?.nonce === fakeFundNonce) {
+        matchedByNonce = payload;
+        break;
+      }
+    } catch {
+      // skip malformed rows
+    }
+  }
+  check(
+    "vault.funded row matches the simulated nonce",
+    matchedByNonce !== null && matchedByNonce.txHash === fakeFundTxHash,
+    `matched=${matchedByNonce !== null} txHash=${
+      matchedByNonce?.txHash ?? "—"
+    }`,
+  );
+
+  // Step 7: reset for the next test run.
+  await prisma.vaultAccount.update({
+    where: { userId },
+    data: {
+      smartAccountAddress: "0xMOCK0000000000000000000000000000000000DEAD",
+      signerAddress: null,
+      chainId: 1,
+      onChainUsdcBalanceCents: 0,
+      onChainBalanceRefreshedAt: null,
+    },
+  });
+  // Drop the simulated M2 audit rows so the next run starts clean.
+  await prisma.auditLog.deleteMany({
+    where: {
+      userId,
+      actionType: { in: ["vault.funded", "vault.balance_refreshed"] },
+    },
+  });
+
   // ── Final summary ─────────────────────────────────────────────
   console.log("\n--- checks ---");
   console.log(`checks: ${pass} pass / ${miss} miss`);

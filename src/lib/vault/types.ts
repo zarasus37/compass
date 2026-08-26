@@ -76,6 +76,20 @@ export interface VaultAccount {
    * governance-set and can change.
    */
   simulatedApy: number;
+  /**
+   * Phase 4.0 (M2) — on-chain USDC balance for the deployed Safe,
+   * in integer cents. 0 until the first [REFRESH] BALANCE call
+   * after deploy. Distinct from `availableBalance` (the *simulated*
+   * sum of envelope principal) so the two views stay comparable on
+   * the page.
+   */
+  onChainUsdcBalanceCents: number;
+  /**
+   * Phase 4.0 (M2) — last time the on-chain USDC balance was
+   * refreshed (null until the first refresh). The page surfaces
+   * "refreshed HH:MM:SS" next to the [REFRESH] BALANCE button.
+   */
+  onChainBalanceRefreshedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
