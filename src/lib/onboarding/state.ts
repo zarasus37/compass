@@ -72,6 +72,23 @@ export interface AssetEntry {
   label: string;
   kind: string;
   balanceDollars: number;
+  // Cluster 5.3.2 — investment-detail meta. Optional. For
+  // 401k/403b: employerMatchPercent (e.g. 4.0 for 4%), vestingYears.
+  // For 401k/IRA/brokerage: fundChoices, expenseRatioPct.
+  employerMatchPercent: number | null;
+  vestingYears: number | null;
+  fundChoices: string | null;
+  expenseRatioPct: number | null;
+}
+
+/// Cluster 5.3.2 — a spending habit the user shared. Qualitative
+/// context, not a transaction. "I do a Costco run weekly" / "Date
+/// night Friday" / "Starbucks 5x/week". The advisor reads this
+/// to make personalized observations later.
+export interface SpendingHabitEntry {
+  category: string;
+  habit: string;
+  frequency: string | null;
 }
 
 export interface GoalEntry {
@@ -131,6 +148,8 @@ export interface OnboardingState {
   risk: RiskProfile;
   events: PlannedEvent[];
   household: HouseholdMember[];
+  /** Cluster 5.3.2 — qualitative spending patterns. */
+  spendingHabits: SpendingHabitEntry[];
   preferences: Preferences;
   audit: AuditData | null;
   completedAt: string | null;
@@ -167,6 +186,8 @@ export async function loadConversation(userId: string): Promise<OnboardingState>
       goals: { orderBy: { sortOrder: "asc" } },
       events: { orderBy: { sortOrder: "asc" } },
       household: { orderBy: { sortOrder: "asc" } },
+      // Cluster 5.3.2
+      spendingHabits: { orderBy: { sortOrder: "asc" } },
       messages: { orderBy: { seq: "asc" } },
     },
   });
@@ -223,6 +244,8 @@ export async function saveConversation(
       tx.identityGoal.deleteMany({ where: { identityId: identity.id } }),
       tx.identityEvent.deleteMany({ where: { identityId: identity.id } }),
       tx.identityHouseholdMember.deleteMany({ where: { identityId: identity.id } }),
+      // Cluster 5.3.2
+      tx.identitySpendingHabit.deleteMany({ where: { identityId: identity.id } }),
     ]);
 
     if (state.income.length > 0) {
@@ -269,6 +292,23 @@ export async function saveConversation(
           label: e.label,
           kind: e.kind,
           balanceDollars: e.balanceDollars,
+          // Cluster 5.3.2 — investment-detail meta
+          employerMatchPercent: e.employerMatchPercent,
+          vestingYears: e.vestingYears,
+          fundChoices: e.fundChoices,
+          expenseRatioPct: e.expenseRatioPct,
+          sortOrder: i,
+        })),
+      });
+    }
+    // Cluster 5.3.2 — spending habits (qualitative context, not transactions)
+    if (state.spendingHabits.length > 0) {
+      await tx.identitySpendingHabit.createMany({
+        data: state.spendingHabits.map((h, i) => ({
+          identityId: identity.id,
+          category: h.category,
+          habit: h.habit,
+          frequency: h.frequency,
           sortOrder: i,
         })),
       });
@@ -368,6 +408,8 @@ function freshState(userId: string): OnboardingState {
     risk: { timeHorizonYears: null, riskTolerance: null, notes: null },
     events: [],
     household: [],
+    // Cluster 5.3.2
+    spendingHabits: [],
     preferences: { aiTier: null, riskComfort: null, currency: "USD" },
     audit: null,
     completedAt: null,
@@ -398,6 +440,8 @@ async function loadIdentityRaw(userId: string) {
       goals: { orderBy: { sortOrder: "asc" } },
       events: { orderBy: { sortOrder: "asc" } },
       household: { orderBy: { sortOrder: "asc" } },
+      // Cluster 5.3.2
+      spendingHabits: { orderBy: { sortOrder: "asc" } },
       messages: { orderBy: { seq: "asc" } },
     },
   });
@@ -453,6 +497,16 @@ function mapIdentityToState(identity: IdentityWithChildren): OnboardingState {
       label: e.label,
       kind: e.kind,
       balanceDollars: e.balanceDollars,
+      // Cluster 5.3.2 — investment-detail meta
+      employerMatchPercent: e.employerMatchPercent,
+      vestingYears: e.vestingYears,
+      fundChoices: e.fundChoices,
+      expenseRatioPct: e.expenseRatioPct,
+    })),
+    spendingHabits: identity.spendingHabits.map((h) => ({
+      category: h.category,
+      habit: h.habit,
+      frequency: h.frequency,
     })),
     goals: identity.goals.map((e) => ({
       label: e.label,
@@ -577,6 +631,8 @@ export function snapshotState(state: OnboardingState): OnboardingState {
     risk: { ...state.risk },
     events: state.events.map((e) => ({ ...e })),
     household: state.household.map((e) => ({ ...e })),
+    // Cluster 5.3.2
+    spendingHabits: state.spendingHabits.map((h) => ({ ...h })),
     preferences: { ...state.preferences },
     audit: state.audit ? { ...state.audit } : null,
     messages: [...state.messages],

@@ -247,7 +247,7 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
 // Tool dispatcher — turns the LLM's tool calls into state mutations.
 // ──────────────────────────────────────────────────────────────────────
 
-function runToolCall(state: OnboardingState, tc: LLMToolCall): ToolResult {
+export function runToolCall(state: OnboardingState, tc: LLMToolCall): ToolResult {
   const a = tc.args as Record<string, unknown>;
   switch (tc.name) {
     case "saveIdentityBasics":
@@ -270,6 +270,9 @@ function runToolCall(state: OnboardingState, tc: LLMToolCall): ToolResult {
       return saveHouseholdMemberImpl(state, a);
     case "savePreferences":
       return savePreferencesImpl(state, a);
+    // Cluster 5.3.2
+    case "saveSpendingHabits":
+      return saveSpendingHabitsImpl(state, a);
     case "buildAudit":
       return buildAuditImpl(state, a);
     case "markOnboardingComplete":
@@ -334,9 +337,38 @@ function saveAssetImpl(state: OnboardingState, a: Record<string, unknown>): Tool
     label: (a.label as string | undefined) ?? "Asset",
     kind: (a.kind as string | undefined) ?? "other",
     balanceDollars: numberOrZero(a.balanceDollars),
+    // Cluster 5.3.2 — investment-detail meta. Only meaningful for
+    // 401k/403b/IRA/brokerage. The agent passes them when the
+    // user volunteers; null otherwise. The advisor reads them
+    // later for things like "you're leaving $X of match on the
+    // table" or "your expense ratio is 0.6%."
+    employerMatchPercent: typeof a.employerMatchPercent === "number" ? a.employerMatchPercent : null,
+    vestingYears: typeof a.vestingYears === "number" ? a.vestingYears : null,
+    fundChoices: (a.fundChoices as string | undefined) ?? null,
+    expenseRatioPct: typeof a.expenseRatioPct === "number" ? a.expenseRatioPct : null,
   };
   state.assets.push(entry);
   return ack(state, "asset saved", { count: state.assets.length });
+}
+
+/// Cluster 5.3.2 — save a qualitative spending habit. The agent
+/// calls this when the user volunteers a pattern ("I do a Costco
+/// run weekly" / "Starbucks 5x/week"). The advisor reads this
+/// later to make personalized observations.
+function saveSpendingHabitsImpl(state: OnboardingState, a: Record<string, unknown>): ToolResult {
+  const habit = (a.habit as string | undefined)?.trim();
+  if (!habit) {
+    return {
+      publicView: { ok: false, error: "habit is required" },
+    };
+  }
+  const entry = {
+    category: (a.category as string | undefined) ?? "other",
+    habit,
+    frequency: (a.frequency as string | undefined) ?? null,
+  };
+  state.spendingHabits.push(entry);
+  return ack(state, "spending habit saved", { count: state.spendingHabits.length });
 }
 
 function saveGoalImpl(state: OnboardingState, a: Record<string, unknown>): ToolResult {

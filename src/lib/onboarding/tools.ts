@@ -195,7 +195,7 @@ export const saveDebt: LLMTool = {
 export const saveAsset: LLMTool = {
   name: "saveAsset",
   description:
-    "Save one asset — checking, savings, retirement, taxable investment, home equity. Use the kind field to mark the type so Compass can bucket it correctly (liquid vs. retirement, etc.).",
+    "Save one asset — checking, savings, retirement, taxable investment, home equity. Use the kind field to mark the type so Compass can bucket it correctly (liquid vs. retirement, etc.). Cluster 5.3.2 added optional investment-detail fields — pass them when the user volunteers (401k match %, vesting schedule, fund choices, expense ratio). Skip them if the user doesn't know or doesn't mention them; the assistant can refine later.",
   parameters: {
     type: "object",
     properties: {
@@ -224,6 +224,32 @@ export const saveAsset: LLMTool = {
       balanceDollars: {
         type: "number",
         description: "Current balance in dollars. Approximate is fine.",
+      },
+      // Cluster 5.3.2 — investment-detail meta. Only meaningful for
+      // 401k / 403b / IRA / brokerage; the agent should only set
+      // these when the user volunteers the info. The advisor
+      // reads them later to give advice like "you're leaving
+      // $X of employer match on the table" or "your expense
+      // ratio is 0.6% — that's a drag on long-term returns."
+      employerMatchPercent: {
+        type: "number",
+        description:
+          "For 401k/403b: employer's matching contribution as a percent of salary (e.g. 4.0 for '4% match'). Skip if the user doesn't know or doesn't mention it.",
+      },
+      vestingYears: {
+        type: "integer",
+        description:
+          "For 401k/403b: years until the employer's contributions are fully vested (e.g. 4 for '4-year vest' or 0 for 'immediate'). Skip if the user doesn't know.",
+      },
+      fundChoices: {
+        type: "string",
+        description:
+          "Free-form description of what the account is invested in. 'Target Date 2050' / 'VTSAX 80% / BND 20%' / 'S&P 500 index'. Skip if the user doesn't mention it.",
+      },
+      expenseRatioPct: {
+        type: "number",
+        description:
+          "Expense ratio in percent (e.g. 0.04 for 0.04% or 0.6 for 0.6%). Skip if the user doesn't know.",
       },
     },
     required: ["label", "kind"],
@@ -419,6 +445,47 @@ export const savePreferences: LLMTool = {
 };
 
 // ──────────────────────────────────────────────────────────────────────
+// 12. saveSpendingHabits — qualitative spending patterns (Cluster 5.3.2).
+// ──────────────────────────────────────────────────────────────────────
+export const saveSpendingHabits: LLMTool = {
+  name: "saveSpendingHabits",
+  description:
+    "Save one spending habit the user shared. Qualitative context (not transactions): 'I do a Costco run weekly', 'Date night every Friday', 'Starbucks 5x/week', '80mi round-trip commute'. The advisor reads this later to make personalized observations ('you mentioned you do a Costco run weekly — is the Groceries envelope tracking?'). Cluster 5.3.2: capture this when the user volunteers — many onboarding conversations will skip it. Call once per habit.",
+  parameters: {
+    type: "object",
+    properties: {
+      category: {
+        type: "string",
+        enum: [
+          "groceries",
+          "dining",
+          "coffee",
+          "transportation",
+          "entertainment",
+          "shopping",
+          "subscriptions",
+          "personal_care",
+          "other",
+        ],
+        description: "Which spending bucket the habit belongs to.",
+        default: "other",
+      },
+      habit: {
+        type: "string",
+        description:
+          'Free-form description. One short sentence. "Costco weekly run", "Date night Friday", "Starbucks 5x/week", "80mi round-trip commute".',
+      },
+      frequency: {
+        type: "string",
+        enum: ["daily", "weekly", "monthly", "quarterly", "occasional"],
+        description: "How often the habit fires. Optional — null if it's not a regular cadence.",
+      },
+    },
+    required: ["habit"],
+  },
+};
+
+// ──────────────────────────────────────────────────────────────────────
 // 11. buildAudit — close out the conversation with a structured summary.
 // ──────────────────────────────────────────────────────────────────────
 export const buildAudit: LLMTool = {
@@ -491,6 +558,8 @@ export const ONBOARDING_TOOLS: LLMTool[] = [
   savePlannedEvent,
   saveHouseholdMember,
   savePreferences,
+  // Cluster 5.3.2 — qualitative spending patterns
+  saveSpendingHabits,
   buildAudit,
   markOnboardingComplete,
 ];

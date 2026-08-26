@@ -567,6 +567,11 @@ model FinancialIdentity {
   goals             IdentityGoal[]
   events            IdentityEvent[]
   household         IdentityHouseholdMember[]
+  /// Cluster 5.3.2 — qualitative spending patterns the user shared
+  /// during onboarding. Not transaction data; "I do a Costco run
+  /// weekly" / "Date night every Friday" / "Starbucks 5x/week".
+  /// The advisor reads this in the read-only layer.
+  spendingHabits    IdentitySpendingHabit[]
   messages          OnboardingMessage[]
 
   @@index([userId])
@@ -653,6 +658,22 @@ model IdentityAsset {
   sortOrder      Int      @default(0)
   createdAt      DateTime @default(now())
 
+  // Cluster 5.3.2 — investment-detail meta. Optional; the agent
+  // captures them when the user volunteers the info (most
+  // onboarding conversations will skip these). For 401k / 403b:
+  //   employerMatchPercent (e.g. 4.0 for "4% match")
+  //   vestingYears         (e.g. 4 for "4-year vest")
+  // For 401k / IRA / brokerage:
+  //   fundChoices          (free-form: "Target Date 2050" or
+  //                         "VTSAX 80% / BND 20%")
+  //   expenseRatioPct      (e.g. 0.04 for 0.04%)
+  // Kept on the identity (not projected to production Account)
+  // because they're CFP-grade context, not display data.
+  employerMatchPercent Float?
+  vestingYears         Int?
+  fundChoices          String?
+  expenseRatioPct      Float?
+
   identity       FinancialIdentity @relation(fields: [identityId], references: [id], onDelete: Cascade)
 
   @@index([identityId])
@@ -697,6 +718,35 @@ model IdentityEvent {
   createdAt            DateTime @default(now())
 
   identity             FinancialIdentity @relation(fields: [identityId], references: [id], onDelete: Cascade)
+
+  @@index([identityId])
+}
+
+/// Cluster 5.3.2 — one spending habit the user shared during
+/// onboarding. Qualitative context (not transactions): "I do a
+/// Costco run weekly" / "Date night every Friday" / "Starbucks
+/// 5x/week" / "80-mile round-trip commute". The advisor reads
+/// this in the read-only layer to make personalized observations
+/// ("you mentioned you do a Costco run weekly — is the Groceries
+/// envelope tracking?"). Captured during onboarding because
+/// the user is more willing to share this kind of context when
+/// the agent asks in a natural way.
+model IdentitySpendingHabit {
+  id          String   @id @default(cuid())
+  identityId  String
+  /// groceries | dining | coffee | transportation | entertainment
+  /// | shopping | subscriptions | personal_care | other
+  category    String
+  /// Free-form description of the habit. "Costco weekly run",
+  /// "Date night Friday", "Starbucks 5x/week", "80mi round-trip
+  /// commute". Keep tight — one short sentence.
+  habit       String
+  /// daily | weekly | monthly | quarterly | occasional | null
+  frequency   String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  identity    FinancialIdentity @relation(fields: [identityId], references: [id], onDelete: Cascade)
 
   @@index([identityId])
 }
