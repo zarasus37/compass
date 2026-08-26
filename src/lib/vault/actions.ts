@@ -27,6 +27,9 @@ import {
   deploySafeAction,
   fundSafeAction,
   refreshSafeBalanceAction,
+  depositSafeUsdcAction,
+  withdrawSafeUsdcAction,
+  refreshAUsdcBalanceAction,
 } from "./server";
 
 /**
@@ -185,4 +188,36 @@ export async function fundSafeFromPage(
  */
 export async function refreshSafeBalanceFromPage() {
   return refreshSafeBalanceAction();
+}
+
+/**
+ * Server action: deposit Aave-USDC from the Safe into Aave V3.
+ * Called from the [DEPOSIT] $X USDC button on /vault.
+ */
+export async function depositSafeUsdcFromPage(
+  amountCents: number,
+  nonce: string,
+) {
+  return depositSafeUsdcAction(amountCents, nonce);
+}
+
+/**
+ * Server action: withdraw Aave-USDC from the Safe's aUSDC
+ * position back to the Safe. Called from the [WITHDRAW] $X
+ * USDC button on /vault.
+ */
+export async function withdrawSafeUsdcFromPage(
+  amountCents: number,
+  nonce: string,
+) {
+  return withdrawSafeUsdcAction(amountCents, nonce);
+}
+
+/**
+ * Server action: read the Safe's aUSDC balance via viem and
+ * persist the cache. Called from the [REFRESH] AAVE button
+ * on /vault.
+ */
+export async function refreshAUsdcBalanceFromPage() {
+  return refreshAUsdcBalanceAction();
 }

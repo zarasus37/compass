@@ -13,6 +13,7 @@
 
 import "server-only";
 import { revalidatePath } from "next/cache";
+import { getAddress, type Address } from "viem";
 import { prisma } from "@/server/db";
 import { requireUser } from "@/server/auth/user";
 import {
@@ -32,8 +33,13 @@ import {
   deleteBill,
   setVaultSafeAddress,
   setOnChainBalance,
+  setAUsdcBalance,
   recordFunded,
   findFundedByIdempotencyKey,
+  recordAaveSupply,
+  recordAaveWithdraw,
+  findAaveSupplyByIdempotencyKey,
+  findAaveWithdrawByIdempotencyKey,
   USER_FACING_BILL_EVENTS,
   type VaultDbSnapshot,
   type UserFacingBillEvent,
@@ -53,6 +59,13 @@ import {
   centsFromUsdcUnits,
   fundingIdempotencyKey,
 } from "./funding";
+import {
+  supplySafeUsdc,
+  withdrawSafeUsdc,
+  getAUsdcBalance,
+  getAaveUsdcBalance,
+  getAUsdcTokenAddress,
+} from "./aave";
 import type { VaultSnapshot } from "./mock-data";
 import type { BillEvent, YieldRoutingStrategy } from "./types";
 
@@ -128,6 +141,13 @@ function projectDbToLegacy(db: VaultDbSnapshot): VaultSnapshot {
       // `refreshSafeBalanceAction`.
       onChainUsdcBalanceCents: db.vault.onChainUsdcBalanceCents,
       onChainBalanceRefreshedAt: db.vault.onChainBalanceRefreshedAt,
+      // Phase 4.0 (M3) — aUSDC balance surfaced on the status
+      // strip + the [DEPOSIT] / [WITHDRAW] buttons. The cache
+      // lives on `VaultAccount.onChainAUsdcBalanceCents` and is
+      // updated by `depositSafeUsdcAction` +
+      // `withdrawSafeUsdcAction` + `refreshAUsdcBalanceAction`.
+      onChainAUsdcBalanceCents: db.vault.onChainAUsdcBalanceCents,
+      aUsdcBalanceRefreshedAt: db.vault.aUsdcBalanceRefreshedAt,
     },
   };
 }
@@ -1264,6 +1284,476 @@ export async function refreshSafeBalanceAction(): Promise<
   return {
     ok: true,
     onChainUsdcBalanceCents,
+    refreshedAt: refreshedAt.toISOString(),
+  };
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Phase 4.0 — Aave V3 deposit + withdraw + aUSDC refresh (M3)
+//
+// The [DEPOSIT] $X USDC button on /vault calls
+// `depositSafeUsdcAction`. The [WITHDRAW] $X USDC button calls
+// `withdrawSafeUsdcAction`. The on-chain aUSDC balance cache
+// is also refreshable via `refreshAUsdcBalanceAction` (the
+// post-tx reads in the deposit/withdraw flows already update
+// the cache, so this is for the manual [REFRESH] button).
+// ──────────────────────────────────────────────────────────────────────
+
+/** Read the deposit cap from env. Default = $10,000 (1_000_000 cents). */
+function getDepositMaxCents(): number {
+  const raw = process.env.VAULT_DEPOSIT_MAX_CENTS;
+  if (!raw) return 1_000_000_00; // $10,000
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n) || n <= 0) return 1_000_000_00;
+  return n;
+}
+
+/** Read the deposit minimum. Default = $1 (100 cents). */
+function getDepositMinCents(): number {
+  return 100; // $1.00
+}
+
+/**
+ * Server action: deposit Aave-USDC from the Safe into Aave V3.
+ * The Safe is the actor; the server-side signer EOA is the
+ * relayer (pays gas, signs the meta-tx). On the first deposit
+ * we also issue an unlimited approval — subsequent deposits
+ * skip the approval tx.
+ *
+ * 1. Validate the amount.
+ * 2. Idempotency check (per-request nonce).
+ * 3. Pre-flight: the Safe has enough Aave-USDC.
+ * 4. Call `supplySafeUsdc` (lib) which broadcasts the approve
+ *    (if needed) + supply txs via the Protocol Kit.
+ * 5. Persist the new aUSDC balance + write the audit.
+ * 6. Revalidate /vault.
+ */
+export async function depositSafeUsdcAction(
+  amountCents: number,
+  nonce: string,
+): Promise<
+  | {
+      ok: true;
+      txHash: string;
+      amountCents: number;
+      postBalanceCents: number;
+      aUsdcTokenAddress: string;
+      nonce: string;
+    }
+  | { ok: false; error: string }
+> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  if (!Number.isFinite(amountCents) || !Number.isInteger(amountCents)) {
+    return { ok: false, error: "amount must be a positive integer (cents)" };
+  }
+  const min = getDepositMinCents();
+  const max = getDepositMaxCents();
+  if (amountCents < min) {
+    return {
+      ok: false,
+      error: `amount must be at least $${(min / 100).toFixed(2)}`,
+    };
+  }
+  if (amountCents > max) {
+    return {
+      ok: false,
+      error: `amount exceeds cap of $${(max / 100).toFixed(2)}`,
+    };
+  }
+  if (typeof nonce !== "string" || nonce.length === 0 || nonce.length > 80) {
+    return { ok: false, error: "nonce must be a non-empty string ≤ 80 chars" };
+  }
+  const vault = await prisma.vaultAccount.findUnique({
+    where: { userId: user.id },
+  });
+  if (!vault) {
+    return { ok: false, error: "no vault yet — sync first" };
+  }
+  if (isMockSafeAddress(vault.smartAccountAddress)) {
+    return {
+      ok: false,
+      error: "Safe is not deployed yet — click [DEPLOY] Safe first",
+    };
+  }
+  // Idempotency check. The nonce is a per-button-press string
+  // the client generates. A double-click re-submits with the
+  // same nonce, so the second call short-circuits to the prior
+  // row's tx hash.
+  const prior = await findAaveSupplyByIdempotencyKey(user.id, nonce);
+  if (prior) {
+    const txHash =
+      typeof prior.payload.supplyTxHash === "string"
+        ? prior.payload.supplyTxHash
+        : null;
+    const priorAmount =
+      typeof prior.payload.amountCents === "number"
+        ? prior.payload.amountCents
+        : amountCents;
+    const priorPostBalance =
+      typeof prior.payload.postBalanceCents === "number"
+        ? prior.payload.postBalanceCents
+        : 0;
+    const priorAToken =
+      typeof prior.payload.aUsdcTokenAddress === "string"
+        ? prior.payload.aUsdcTokenAddress
+        : "";
+    if (txHash) {
+      return {
+        ok: true,
+        txHash,
+        amountCents: priorAmount,
+        postBalanceCents: priorPostBalance,
+        aUsdcTokenAddress: priorAToken,
+        nonce,
+      };
+    }
+  }
+  let result;
+  try {
+    result = await supplySafeUsdc({
+      safeAddress: vault.smartAccountAddress,
+      amountCents,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] depositSafeUsdc failed:", message);
+    try {
+      await recordVaultAudit({
+        userId: user.id,
+        actionType: "vault.aave_supply",
+        payload: {
+          vaultId: vault.id,
+          safeAddress: vault.smartAccountAddress,
+          amountCents,
+          nonce,
+          failed: true,
+          error: message,
+          at: new Date().toISOString(),
+        },
+      });
+    } catch {
+      // best-effort
+    }
+    return { ok: false, error: message };
+  }
+  const postBalanceCents = centsFromUsdcUnits(result.postBalanceUnits);
+  try {
+    await setAUsdcBalance({
+      vaultId: vault.id,
+      onChainAUsdcBalanceCents: postBalanceCents,
+      refreshedAt: new Date(),
+      aUsdcTokenAddress: result.aUsdcAddress,
+    });
+    await recordAaveSupply({
+      userId: user.id,
+      vaultId: vault.id,
+      safeAddress: result.safeAddress,
+      poolAddress: result.poolAddress,
+      amountCents: result.amountCents,
+      amountUnits: result.amountUnits.toString(),
+      approveTxHash: result.approveTxHash,
+      supplyTxHash: result.supplyTxHash,
+      aUsdcTokenAddress: result.aUsdcAddress,
+      postBalanceCents,
+      nonce,
+      suppliedAt: new Date(),
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] depositSafeUsdc persist failed:", message);
+    return {
+      ok: false,
+      error: `deposited on-chain but DB write failed: ${message}. The tx is at ${result.supplyTxHash}; re-refresh to recover.`,
+    };
+  }
+  revalidatePath("/vault");
+  return {
+    ok: true,
+    txHash: result.supplyTxHash,
+    amountCents: result.amountCents,
+    postBalanceCents,
+    aUsdcTokenAddress: result.aUsdcAddress,
+    nonce,
+  };
+}
+
+/**
+ * Server action: withdraw Aave-USDC from the Safe's aUSDC
+ * position back to the Safe. Burns the aUSDC and sends the
+ * underlying USDC to the Safe. Per-request nonce idempotency.
+ */
+export async function withdrawSafeUsdcAction(
+  amountCents: number,
+  nonce: string,
+): Promise<
+  | {
+      ok: true;
+      txHash: string;
+      amountCents: number;
+      postUsdcBalanceCents: number;
+      postAUsdcBalanceCents: number;
+      nonce: string;
+    }
+  | { ok: false; error: string }
+> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  if (!Number.isFinite(amountCents) || !Number.isInteger(amountCents)) {
+    return { ok: false, error: "amount must be a positive integer (cents)" };
+  }
+  const min = getDepositMinCents();
+  const max = getDepositMaxCents();
+  if (amountCents < min) {
+    return {
+      ok: false,
+      error: `amount must be at least $${(min / 100).toFixed(2)}`,
+    };
+  }
+  if (amountCents > max) {
+    return {
+      ok: false,
+      error: `amount exceeds cap of $${(max / 100).toFixed(2)}`,
+    };
+  }
+  if (typeof nonce !== "string" || nonce.length === 0 || nonce.length > 80) {
+    return { ok: false, error: "nonce must be a non-empty string ≤ 80 chars" };
+  }
+  const vault = await prisma.vaultAccount.findUnique({
+    where: { userId: user.id },
+  });
+  if (!vault) {
+    return { ok: false, error: "no vault yet — sync first" };
+  }
+  if (isMockSafeAddress(vault.smartAccountAddress)) {
+    return {
+      ok: false,
+      error: "Safe is not deployed yet — click [DEPLOY] Safe first",
+    };
+  }
+  // Idempotency check.
+  const prior = await findAaveWithdrawByIdempotencyKey(user.id, nonce);
+  if (prior) {
+    const txHash =
+      typeof prior.payload.withdrawTxHash === "string"
+        ? prior.payload.withdrawTxHash
+        : null;
+    const priorAmount =
+      typeof prior.payload.amountCents === "number"
+        ? prior.payload.amountCents
+        : amountCents;
+    const priorPostUsdc =
+      typeof prior.payload.postUsdcBalanceCents === "number"
+        ? prior.payload.postUsdcBalanceCents
+        : 0;
+    const priorPostAUsdc =
+      typeof prior.payload.postAUsdcBalanceCents === "number"
+        ? prior.payload.postAUsdcBalanceCents
+        : 0;
+    if (txHash) {
+      return {
+        ok: true,
+        txHash,
+        amountCents: priorAmount,
+        postUsdcBalanceCents: priorPostUsdc,
+        postAUsdcBalanceCents: priorPostAUsdc,
+        nonce,
+      };
+    }
+  }
+  let result;
+  try {
+    result = await withdrawSafeUsdc({
+      safeAddress: vault.smartAccountAddress,
+      amountCents,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] withdrawSafeUsdc failed:", message);
+    try {
+      await recordVaultAudit({
+        userId: user.id,
+        actionType: "vault.aave_withdraw",
+        payload: {
+          vaultId: vault.id,
+          safeAddress: vault.smartAccountAddress,
+          amountCents,
+          nonce,
+          failed: true,
+          error: message,
+          at: new Date().toISOString(),
+        },
+      });
+    } catch {
+      // best-effort
+    }
+    return { ok: false, error: message };
+  }
+  const postUsdcBalanceCents = centsFromUsdcUnits(result.postUsdcBalanceUnits);
+  const postAUsdcBalanceCents = centsFromUsdcUnits(result.postAUsdcBalanceUnits);
+  try {
+    await setOnChainBalance({
+      vaultId: vault.id,
+      onChainUsdcBalanceCents: postUsdcBalanceCents,
+      refreshedAt: new Date(),
+    });
+    await setAUsdcBalance({
+      vaultId: vault.id,
+      onChainAUsdcBalanceCents: postAUsdcBalanceCents,
+      refreshedAt: new Date(),
+    });
+    await recordAaveWithdraw({
+      userId: user.id,
+      vaultId: vault.id,
+      safeAddress: result.safeAddress,
+      poolAddress: result.poolAddress,
+      amountCents: result.amountCents,
+      amountUnits: result.amountUnits.toString(),
+      withdrawTxHash: result.withdrawTxHash,
+      postUsdcBalanceCents,
+      postAUsdcBalanceCents,
+      nonce,
+      withdrawnAt: new Date(),
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] withdrawSafeUsdc persist failed:", message);
+    return {
+      ok: false,
+      error: `withdrawn on-chain but DB write failed: ${message}. The tx is at ${result.withdrawTxHash}; re-refresh to recover.`,
+    };
+  }
+  revalidatePath("/vault");
+  return {
+    ok: true,
+    txHash: result.withdrawTxHash,
+    amountCents: result.amountCents,
+    postUsdcBalanceCents,
+    postAUsdcBalanceCents,
+    nonce,
+  };
+}
+
+/**
+ * Server action: read the Safe's aUSDC balance via viem and
+ * persist the cache. The deposit/withdraw flows already
+ * update the cache on success, so this is for the manual
+ * [REFRESH] button (and the post-aave-approval recovery
+ * case).
+ */
+export async function refreshAUsdcBalanceAction(): Promise<
+  | {
+      ok: true;
+      onChainAUsdcBalanceCents: number;
+      aUsdcTokenAddress: string;
+      refreshedAt: string;
+    }
+  | { ok: false; error: string }
+> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  const vault = await prisma.vaultAccount.findUnique({
+    where: { userId: user.id },
+  });
+  if (!vault) {
+    return { ok: false, error: "no vault yet — sync first" };
+  }
+  if (isMockSafeAddress(vault.smartAccountAddress)) {
+    return {
+      ok: false,
+      error: "Safe is not deployed yet — click [DEPLOY] Safe first",
+    };
+  }
+  const refreshedAt = new Date();
+  // Resolve the aToken address — prefer the cached value on
+  // the vault row, fall back to a fresh Pool read.
+  let aUsdcTokenAddress: Address;
+  if (vault.aUsdcTokenAddress) {
+    aUsdcTokenAddress = getAddress(vault.aUsdcTokenAddress);
+  } else {
+    aUsdcTokenAddress = await getAUsdcTokenAddress();
+  }
+  let balanceUnits: bigint;
+  let aUsdcBalanceUnits: bigint;
+  let usdcBalanceUnits: bigint;
+  try {
+    aUsdcBalanceUnits = await getAUsdcBalance(
+      vault.smartAccountAddress as Address,
+      aUsdcTokenAddress,
+    );
+    usdcBalanceUnits = await getAaveUsdcBalance(
+      vault.smartAccountAddress as Address,
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] refreshAUsdcBalance read failed:", message);
+    try {
+      await recordVaultAudit({
+        userId: user.id,
+        actionType: "vault.aave_supply",
+        payload: {
+          vaultId: vault.id,
+          safeAddress: vault.smartAccountAddress,
+          failed: true,
+          error: message,
+          at: refreshedAt.toISOString(),
+        },
+      });
+    } catch {
+      // best-effort
+    }
+    return { ok: false, error: `RPC read failed: ${message}` };
+  }
+  const onChainAUsdcBalanceCents = centsFromUsdcUnits(aUsdcBalanceUnits);
+  const onChainUsdcBalanceCents = centsFromUsdcUnits(usdcBalanceUnits);
+  balanceUnits = aUsdcBalanceUnits;
+  void balanceUnits;
+  try {
+    await setOnChainBalance({
+      vaultId: vault.id,
+      onChainUsdcBalanceCents,
+      refreshedAt,
+    });
+    await setAUsdcBalance({
+      vaultId: vault.id,
+      onChainAUsdcBalanceCents,
+      refreshedAt,
+      aUsdcTokenAddress,
+    });
+    await recordVaultAudit({
+      userId: user.id,
+      actionType: "vault.aave_supply",
+      payload: {
+        vaultId: vault.id,
+        safeAddress: vault.smartAccountAddress,
+        kind: "balance_refreshed",
+        aUsdcTokenAddress,
+        onChainAUsdcBalanceCents,
+        refreshedAt: refreshedAt.toISOString(),
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] setAUsdcBalance failed:", message);
+    return { ok: false, error: `DB write failed: ${message}` };
+  }
+  revalidatePath("/vault");
+  return {
+    ok: true,
+    onChainAUsdcBalanceCents,
+    aUsdcTokenAddress,
     refreshedAt: refreshedAt.toISOString(),
   };
 }

@@ -587,6 +587,29 @@ async function main() {
     /data-testid="vault-refresh-apy"/.test(mockStateText),
   );
 
+  // ── Phase 4.0 M3 — Aave V3 deposit / withdraw (MOCK) ────────
+  // In MOCK state the [DEPOSIT] + [WITHDRAW] Aave buttons are
+  // hidden (the [DEPLOY] Safe CTA goes first, then the M2
+  // [FUND] button funds the Safe with USDC). The smoke locks
+  // in the absence so a future refactor can't accidentally
+  // show Aave controls before a Safe is deployed.
+  check(
+    "Phase 4.0 M3 — [DEPOSIT] AAVE button is hidden in MOCK state",
+    !/data-testid="vault-deposit-aave-wrap"/.test(mockStateText),
+  );
+  check(
+    "Phase 4.0 M3 — [WITHDRAW] AAVE button is hidden in MOCK state",
+    !/data-testid="vault-withdraw-aave-wrap"/.test(mockStateText),
+  );
+  // The aUSDC sub line ("· aUSDC $X.XX earning") only renders
+  // when the Safe is deployed AND the aUSDC balance > 0. In
+  // MOCK state both conditions fail, so the sub line should
+  // be absent.
+  check(
+    "Phase 4.0 M3 — vault principal sub line does NOT mention aUSDC in MOCK state",
+    !/aUSDC \$/.test(mockStateText),
+  );
+
   // ── Tally ──────────────────────────────────────────────────────
   console.log("\n--- checks ---");
   const pass = results.filter((r) => r.ok).length;

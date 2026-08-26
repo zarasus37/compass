@@ -180,6 +180,183 @@ export async function setOnChainBalance(args: {
   });
 }
 
+// ──────────────────────────────────────────────────────────────────────
+// Phase 4.0 — Aave V3 supply / withdraw (M3)
+//
+// The [DEPOSIT] $X USDC button on /vault sends a Safe-side
+// supply tx to Aave V3's Pool on Base Sepolia, and the
+// [WITHDRAW] $X USDC button sends a Safe-side withdraw tx.
+// Both are idempotent on a per-action nonce (the server
+// action generates one).
+//
+// The aUSDC balance cache + the aToken address live on
+// `VaultAccount.onChainAUsdcBalanceCents` +
+// `aUsdcBalanceRefreshedAt` + `aUsdcTokenAddress`.
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Update the on-chain aUSDC balance cache on the vault. Called
+ * after a successful supply / withdraw (the post-tx balance
+ * read) and from `refreshAUsdcBalanceAction`. The aUSDC
+ * balance is the interest-bearing receipt the Safe receives
+ * from Aave; distinct from `onChainUsdcBalanceCents` (the raw
+ * USDC the Safe holds before deposit).
+ *
+ * `aUsdcTokenAddress` is the resolved aToken address from
+ * Aave's `Pool.getReserveData(asset).aTokenAddress`. We cache
+ * it on the row so subsequent reads skip the Pool hop.
+ */
+export async function setAUsdcBalance(args: {
+  vaultId: string;
+  onChainAUsdcBalanceCents: number;
+  refreshedAt: Date;
+  aUsdcTokenAddress?: string;
+}): Promise<void> {
+  await prisma.vaultAccount.update({
+    where: { id: args.vaultId },
+    data: {
+      onChainAUsdcBalanceCents: args.onChainAUsdcBalanceCents,
+      aUsdcBalanceRefreshedAt: args.refreshedAt,
+      aUsdcTokenAddress: args.aUsdcTokenAddress ?? undefined,
+      updatedAt: args.refreshedAt,
+    },
+  });
+}
+
+/**
+ * Record a successful Aave V3 supply call. Writes a
+ * `vault.aave_supply` audit entry with the full supply
+ * context (supply tx hash, optional approve tx hash, amount,
+ * aToken address, post-balance).
+ */
+export async function recordAaveSupply(args: {
+  userId: string;
+  vaultId: string;
+  safeAddress: string;
+  poolAddress: string;
+  amountCents: number;
+  amountUnits: string; // BigInt as string for JSON
+  approveTxHash: string | null;
+  supplyTxHash: string;
+  aUsdcTokenAddress: string;
+  postBalanceCents: number;
+  nonce: string;
+  suppliedAt: Date;
+}): Promise<void> {
+  await recordVaultAudit({
+    userId: args.userId,
+    actionType: "vault.aave_supply",
+    payload: {
+      vaultId: args.vaultId,
+      safeAddress: args.safeAddress,
+      poolAddress: args.poolAddress,
+      amountCents: args.amountCents,
+      amountUnits: args.amountUnits,
+      approveTxHash: args.approveTxHash,
+      supplyTxHash: args.supplyTxHash,
+      aUsdcTokenAddress: args.aUsdcTokenAddress,
+      postBalanceCents: args.postBalanceCents,
+      nonce: args.nonce,
+      suppliedAt: args.suppliedAt.toISOString(),
+    },
+  });
+}
+
+/**
+ * Record a successful Aave V3 withdraw call. Writes a
+ * `vault.aave_withdraw` audit entry.
+ */
+export async function recordAaveWithdraw(args: {
+  userId: string;
+  vaultId: string;
+  safeAddress: string;
+  poolAddress: string;
+  amountCents: number;
+  amountUnits: string;
+  withdrawTxHash: string;
+  postUsdcBalanceCents: number;
+  postAUsdcBalanceCents: number;
+  nonce: string;
+  withdrawnAt: Date;
+}): Promise<void> {
+  await recordVaultAudit({
+    userId: args.userId,
+    actionType: "vault.aave_withdraw",
+    payload: {
+      vaultId: args.vaultId,
+      safeAddress: args.safeAddress,
+      poolAddress: args.poolAddress,
+      amountCents: args.amountCents,
+      amountUnits: args.amountUnits,
+      withdrawTxHash: args.withdrawTxHash,
+      postUsdcBalanceCents: args.postUsdcBalanceCents,
+      postAUsdcBalanceCents: args.postAUsdcBalanceCents,
+      nonce: args.nonce,
+      withdrawnAt: args.withdrawnAt.toISOString(),
+    },
+  });
+}
+
+/**
+ * Look up the most-recent `vault.aave_supply` audit row by
+ * its nonce. Used by `depositSafeUsdcAction` to short-circuit
+ * a re-submit (no double supply). Mirrors
+ * `findFundedByIdempotencyKey` from M2.
+ */
+export async function findAaveSupplyByIdempotencyKey(
+  userId: string,
+  nonce: string,
+): Promise<{
+  id: string;
+  payload: Record<string, unknown>;
+  createdAt: Date;
+} | null> {
+  const rows = await prisma.auditLog.findMany({
+    where: { userId, actionType: "vault.aave_supply" },
+    orderBy: { createdAt: "desc" },
+    take: 25,
+  });
+  for (const row of rows) {
+    try {
+      const payload = JSON.parse(row.payload) as Record<string, unknown>;
+      if (payload && payload.nonce === nonce) {
+        return { id: row.id, payload, createdAt: row.createdAt };
+      }
+    } catch {
+      // skip malformed rows
+    }
+  }
+  return null;
+}
+
+/** Like `findAaveSupplyByIdempotencyKey` but for the
+ *  withdraw action. */
+export async function findAaveWithdrawByIdempotencyKey(
+  userId: string,
+  nonce: string,
+): Promise<{
+  id: string;
+  payload: Record<string, unknown>;
+  createdAt: Date;
+} | null> {
+  const rows = await prisma.auditLog.findMany({
+    where: { userId, actionType: "vault.aave_withdraw" },
+    orderBy: { createdAt: "desc" },
+    take: 25,
+  });
+  for (const row of rows) {
+    try {
+      const payload = JSON.parse(row.payload) as Record<string, unknown>;
+      if (payload && payload.nonce === nonce) {
+        return { id: row.id, payload, createdAt: row.createdAt };
+      }
+    } catch {
+      // skip malformed rows
+    }
+  }
+  return null;
+}
+
 /**
  * Record a successful USDC funding call. Writes a `vault.funded`
  * audit entry with the full funding context (tx hash, amount,
@@ -746,7 +923,9 @@ export async function recordVaultAudit(args: {
     | "vault.safe_deployed"
     | "vault.safe_deploy_failed"
     | "vault.funded"
-    | "vault.balance_refreshed";
+    | "vault.balance_refreshed"
+    | "vault.aave_supply"
+    | "vault.aave_withdraw";
   payload: unknown;
 }): Promise<void> {
   await prisma.auditLog.create({
@@ -1388,6 +1567,9 @@ function toVaultAccount(row: {
   simulatedApy: number;
   onChainUsdcBalanceCents: number;
   onChainBalanceRefreshedAt: Date | null;
+  onChainAUsdcBalanceCents: number;
+  aUsdcBalanceRefreshedAt: Date | null;
+  aUsdcTokenAddress: string | null;
   createdAt: Date;
   updatedAt: Date;
 }): VaultAccount {
@@ -1408,6 +1590,11 @@ function toVaultAccount(row: {
     onChainBalanceRefreshedAt: row.onChainBalanceRefreshedAt
       ? row.onChainBalanceRefreshedAt.toISOString()
       : null,
+    onChainAUsdcBalanceCents: row.onChainAUsdcBalanceCents,
+    aUsdcBalanceRefreshedAt: row.aUsdcBalanceRefreshedAt
+      ? row.aUsdcBalanceRefreshedAt.toISOString()
+      : null,
+    aUsdcTokenAddress: row.aUsdcTokenAddress ?? undefined,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

@@ -1,11 +1,8 @@
 /**
- * Compass Vault — yield adapters (Phase 3.0).
+ * Compass Vault — yield adapters (Phase 3.0 → 4.0).
  *
- * Three stub adapters + a factory that picks the active one from
- * the `VAULT_YIELD_ADAPTER` env var. The adapters are stubs —
- * they read their APY from env vars (not from a real provider
- * API). Phase 4 swaps in real Sky/Aave API integrations behind
- * the same `IYieldAdapter` interface.
+ * Three adapters + a factory that picks the active one from
+ * the `VAULT_YIELD_ADAPTER` env var.
  *
  * Adapter selection:
  *   - `VAULT_YIELD_ADAPTER=mock`  (default) — `MockYieldAdapter`,
@@ -13,23 +10,27 @@
  *     adapter that has zero external dependencies.
  *   - `VAULT_YIELD_ADAPTER=sky`   — `SkyAdapter`. Reads
  *     `VAULT_SKY_APY` (decimal, default 0.0352). The Sky Savings
- *     Rate example from the spec.
- *   - `VAULT_YIELD_ADAPTER=aave`  — `AaveAdapter`. Reads
- *     `VAULT_AAVE_APY` (decimal, default 0.0425). The Aave USDC
- *     supply rate example.
+ *     Rate example from the spec. (Still a stub in M3 — a
+ *     real SSR read is a future cluster.)
+ *   - `VAULT_YIELD_ADAPTER=aave`  — `AaveAdapter`. **Real on-chain
+ *     read** of Aave V3's `currentLiquidityRate` for the USDC
+ *     reserve on Base Sepolia (Cluster Vault 4.0 M3). The env
+ *     var `VAULT_AAVE_APY` is retained as a static fallback for
+ *     tests that want a deterministic rate without an RPC
+ *     connection.
  *
- * Why stubs in 3.0: the spec says "Mock or testnet yield-strategy
- * adapter" in Phase 3 and "Replace hardcoded mocked APY with
- * provider-fed 'variable estimated APY'" in Phase 4. The env-var
- * approach lets us switch adapters without code changes AND
- * gives the test suite a way to inject a known APY.
+ * The 3.0 env-var pattern is preserved so the test suite
+ * still has a way to inject a known APY (the integration
+ * tests write `VAULT_AAVE_APY=0.0425` + clear the
+ * `getActiveYieldAdapter` cache to force the stub).
  *
  * All adapters return a Promise so the interface matches the
- * future real-provider shape (a fetch is async). The stubs are
- * trivially resolvable but the async signature is the contract.
+ * real-provider shape. The stubs are trivially resolvable; the
+ * Aave adapter hits a viem `readContract` on every call.
  */
 
 import "server-only";
+import { getReserveApy } from "./aave";
 import type { IYieldAdapter, YieldSource } from "./types";
 
 /**
@@ -95,26 +96,49 @@ export class SkyAdapter implements IYieldAdapter {
 }
 
 /**
- * Aave USDC supply rate stub. In production this would fetch
- * the current Aave USDC liquidity rate from Aave's subgraph or
- * the Aave protocol contracts. Phase 3.0 reads from
- * `VAULT_AAVE_APY`.
+ * Aave USDC supply rate adapter. **Cluster Vault 4.0 M3** —
+ * reads the live `currentLiquidityRate` from Aave V3's Pool
+ * contract on Base Sepolia. The env var `VAULT_AAVE_APY` is
+ * still read as a **static fallback** for tests that pin the
+ * rate (e.g. the integration suite). The fallback path is hit
+ * when `getReserveApy()` throws — RPC down, reserve
+ * unlisted, etc. — so the test suite + the page can both
+ * surface a rate without an RPC round-trip.
+ *
+ * Two `describe()` modes:
+ *   - On-chain mode: describes the live read + the chain id.
+ *   - Fallback mode: notes the env var value as the source.
  */
 export class AaveAdapter implements IYieldAdapter {
   readonly name = "Aave";
   readonly source: YieldSource = "AAVE";
-  private readonly apy: number;
+  private readonly fallbackApy: number;
   constructor(apy?: number) {
-    this.apy = parseApyEnv(
+    this.fallbackApy = parseApyEnv(
       process.env.VAULT_AAVE_APY,
       apy ?? DEFAULT_AAVE_APY,
     );
   }
   async getCurrentApy(): Promise<number> {
-    return this.apy;
+    // Cluster 4.0 M3: real on-chain read. Falls back to the
+    // env-var value if the RPC is unreachable / reserve is
+    // unlisted. The fallback is silent (no console error) so
+    // the page keeps rendering with the last-known rate.
+    try {
+      const apy = await getReserveApy();
+      // Sanity: clamp to a reasonable range (0-100% APY).
+      // Anything outside is almost certainly a contract bug
+      // or a chain that doesn't match the unit conversion.
+      if (apy < 0 || apy > 1) {
+        return this.fallbackApy;
+      }
+      return apy;
+    } catch {
+      return this.fallbackApy;
+    }
   }
   describe(): string {
-    return `Aave USDC supply — ${(this.apy * 100).toFixed(2)}% (env-configured, on-chain in production)`;
+    return `Aave V3 USDC supply — on-chain read (Base Sepolia) with env-configured fallback ${(this.fallbackApy * 100).toFixed(2)}%`;
   }
 }
 

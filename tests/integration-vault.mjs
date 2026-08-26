@@ -1695,6 +1695,363 @@ async function main() {
     },
   });
 
+  // ── Phase 4.0 M3 — Aave V3 deposit / withdraw (on-chain) ───
+  // Same shape as M2: we don't broadcast real supply / withdraw
+  // txs from the test (no signer key + no testnet USDC in CI),
+  // but we verify the surface end-to-end:
+  //   - the 3 new aUSDC schema columns are present + zero/null
+  //     in MOCK state
+  //   - the new audit action types (`vault.aave_supply`,
+  //     `vault.aave_withdraw`) are accepted + writable
+  //   - the [DEPOSIT] + [WITHDRAW] buttons are on the page in
+  //     deployed state, hidden in MOCK state
+  //   - the aUSDC sub line on the status strip reads from the
+  //     cache
+  //   - the findAaveSupplyByIdempotencyKey +
+  //     findAaveWithdrawByIdempotencyKey lookups match by nonce
+  console.log("\n--- Phase 4.0 M3 — Aave V3 deposit/withdraw ---\n");
+
+  // Schema: the 3 new aUSDC columns are present + defaulted.
+  const m3MockVault = await prisma.vaultAccount.findUnique({
+    where: { userId },
+  });
+  check(
+    "VaultAccount.onChainAUsdcBalanceCents column exists",
+    "onChainAUsdcBalanceCents" in (m3MockVault ?? {}),
+    `present=${"onChainAUsdcBalanceCents" in (m3MockVault ?? {})}`,
+  );
+  check(
+    "onChainAUsdcBalanceCents is 0 in MOCK state",
+    m3MockVault?.onChainAUsdcBalanceCents === 0,
+    `got=${m3MockVault?.onChainAUsdcBalanceCents}`,
+  );
+  check(
+    "VaultAccount.aUsdcBalanceRefreshedAt column exists",
+    "aUsdcBalanceRefreshedAt" in (m3MockVault ?? {}),
+    `present=${"aUsdcBalanceRefreshedAt" in (m3MockVault ?? {})}`,
+  );
+  check(
+    "aUsdcBalanceRefreshedAt is null in MOCK state",
+    m3MockVault?.aUsdcBalanceRefreshedAt === null,
+    `got=${m3MockVault?.aUsdcBalanceRefreshedAt}`,
+  );
+  check(
+    "VaultAccount.aUsdcTokenAddress column exists",
+    "aUsdcTokenAddress" in (m3MockVault ?? {}),
+    `present=${"aUsdcTokenAddress" in (m3MockVault ?? {})}`,
+  );
+  check(
+    "aUsdcTokenAddress is null in MOCK state",
+    m3MockVault?.aUsdcTokenAddress === null,
+    `got=${m3MockVault?.aUsdcTokenAddress}`,
+  );
+
+  // MOCK-state page surface: deposit + withdraw buttons hidden.
+  // The M2 reset restored the vault to MOCK; re-fetch /vault
+  // from a fresh perspective so the page reads the cleared state.
+  const m3MockText = await (await get("/vault")).text();
+  check(
+    "[DEPOSIT] AAVE button hidden in MOCK state",
+    !/data-testid="vault-deposit-aave-wrap"/.test(m3MockText),
+  );
+  check(
+    "[WITHDRAW] AAVE button hidden in MOCK state",
+    !/data-testid="vault-withdraw-aave-wrap"/.test(m3MockText),
+  );
+  // The aUSDC sub line ("· aUSDC $X.XX earning") only renders
+  // when the Safe is deployed AND the aUSDC balance > 0. In
+  // MOCK state neither is true, so the sub line should be
+  // absent.
+  check(
+    "vault principal sub line does NOT mention aUSDC in MOCK state",
+    !/aUSDC \$/.test(m3MockText),
+  );
+
+  // Simulated deploy. The vault was reset to MOCK at the end
+  // of M2; redeploy with the same fake safe + signer so the
+  // deposit/withdraw buttons render.
+  await prisma.vaultAccount.update({
+    where: { userId },
+    data: {
+      smartAccountAddress: fakeSafe,
+      signerAddress: fakeSigner,
+      chainId: 84532,
+    },
+  });
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      actionType: "vault.safe_deployed",
+      payload: JSON.stringify({
+        smartAccountAddress: fakeSafe,
+        signerAddress: fakeSigner,
+        chainId: 84532,
+        txHash: "0xdeadbeef" + "0".repeat(56),
+        at: new Date().toISOString(),
+      }),
+    },
+  });
+
+  // Deployed-state page surface: both buttons + aUSDC sub line
+  // absent (cache is still 0).
+  const m3DeployedText = await (await get("/vault")).text();
+  check(
+    "[DEPOSIT] AAVE button is on the page (deployed state)",
+    /data-testid="vault-deposit-aave-wrap"/.test(m3DeployedText) &&
+      /data-testid="vault-deposit-button"/.test(m3DeployedText),
+  );
+  check(
+    "[WITHDRAW] AAVE button is on the page (deployed state)",
+    /data-testid="vault-withdraw-aave-wrap"/.test(m3DeployedText) &&
+      /data-testid="vault-withdraw-button"/.test(m3DeployedText),
+  );
+  check(
+    "[DEPOSIT] button has the $100.00 USDC label when $100 preset is active",
+    /data-testid="vault-deposit-preset-10000"/.test(m3DeployedText),
+  );
+  check(
+    "[WITHDRAW] button has the $100.00 USDC label when $100 preset is active",
+    /data-testid="vault-withdraw-preset-10000"/.test(m3DeployedText),
+  );
+  // The deposit status line (`// aave-usdc: ready | needs faucet`)
+  // sits above the chips. With the Safe holding 0 Aave-USDC it
+  // shows "needs faucet".
+  check(
+    "[DEPOSIT] aave-usdc status line shows the needs-faucet label",
+    /aave-usdc: <!--\s*-->needs faucet/i.test(m3DeployedText) ||
+      /aave-usdc: needs faucet/i.test(m3DeployedText),
+  );
+  // aUSDC sub line is still absent (cache is 0).
+  check(
+    "vault principal sub line does NOT mention aUSDC when balance is 0",
+    !/aUSDC \$/.test(m3DeployedText),
+  );
+
+  // Simulate a supply: write the aUSDC balance + a
+  // `vault.aave_supply` audit row. Mirror the
+  // `recordAaveSupply` + `setAUsdcBalance` writes.
+  const supplyNonce = `m3-test-${Date.now()}-supply`;
+  const supplyTxHash = "0xsuppl" + "0".repeat(58);
+  const supplyAmountCents = 50_00; // $50
+  const supplyPostBalanceCents = 50_00;
+  const aUsdcTokenAddr =
+    "0x10F1A9D11cd9b7F9D46f8B6f8C5E2dF6e0c5F2a2C";
+  const aavePoolAddr = "0x8bAB6d1b75f19e9eD9fCe8b9BD338844fF79aE27";
+
+  const supplyAuditBefore = await prisma.auditLog.count({
+    where: { userId, actionType: "vault.aave_supply" },
+  });
+  await prisma.vaultAccount.update({
+    where: { userId },
+    data: {
+      onChainAUsdcBalanceCents: supplyPostBalanceCents,
+      aUsdcBalanceRefreshedAt: new Date(),
+      aUsdcTokenAddress: aUsdcTokenAddr,
+    },
+  });
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      actionType: "vault.aave_supply",
+      payload: JSON.stringify({
+        vaultId: m3MockVault.id,
+        safeAddress: fakeSafe,
+        poolAddress: aavePoolAddr,
+        amountCents: supplyAmountCents,
+        amountUnits: "50000000", // $50 in 6-decimal USDC
+        approveTxHash: null,
+        supplyTxHash,
+        aUsdcTokenAddress: aUsdcTokenAddr,
+        postBalanceCents: supplyPostBalanceCents,
+        nonce: supplyNonce,
+        suppliedAt: new Date().toISOString(),
+      }),
+    },
+  });
+  const supplyAuditAfter = await prisma.auditLog.count({
+    where: { userId, actionType: "vault.aave_supply" },
+  });
+  check(
+    "vault.aave_supply audit entry written",
+    supplyAuditAfter === supplyAuditBefore + 1,
+    `delta=${supplyAuditAfter - supplyAuditBefore}`,
+  );
+  const afterSupply = await prisma.vaultAccount.findUnique({
+    where: { userId },
+  });
+  check(
+    "onChainAUsdcBalanceCents cache updated after simulated supply",
+    afterSupply?.onChainAUsdcBalanceCents === supplyPostBalanceCents,
+    `got=${afterSupply?.onChainAUsdcBalanceCents}`,
+  );
+  check(
+    "aUsdcTokenAddress cached on the row after simulated supply",
+    afterSupply?.aUsdcTokenAddress === aUsdcTokenAddr,
+    `got=${afterSupply?.aUsdcTokenAddress}`,
+  );
+  check(
+    "aUsdcBalanceRefreshedAt is non-null after simulated supply",
+    afterSupply?.aUsdcBalanceRefreshedAt !== null,
+    `got=${afterSupply?.aUsdcBalanceRefreshedAt}`,
+  );
+
+  // After the supply, the page should show the aUSDC sub line.
+  const m3SuppliedText = await (await get("/vault")).text();
+  check(
+    "vault principal sub line shows aUSDC $50.00 after simulated supply",
+    /aUSDC \$<!-- -->50\.00<!-- --> earning/.test(m3SuppliedText) ||
+      /aUSDC \$50\.00 earning/.test(m3SuppliedText),
+  );
+  // The deposit status line flips to "ready" now that the
+  // pre-flight cache is satisfied.
+  check(
+    "[DEPOSIT] aave-usdc status line shows the ready label after supply",
+    /aave-usdc: <!--\s*-->ready/i.test(m3SuppliedText) ||
+      /aave-usdc: ready/i.test(m3SuppliedText),
+  );
+
+  // Simulate a partial withdraw: bring aUSDC down to $25.
+  const withdrawNonce = `m3-test-${Date.now()}-withdraw`;
+  const withdrawTxHash = "0xwithd" + "0".repeat(58);
+  const withdrawAmountCents = 25_00; // $25 out of $50
+  const postWithdrawAUsdcCents = 25_00;
+  const postWithdrawUsdcCents = 25_00;
+
+  const withdrawAuditBefore = await prisma.auditLog.count({
+    where: { userId, actionType: "vault.aave_withdraw" },
+  });
+  await prisma.vaultAccount.update({
+    where: { userId },
+    data: {
+      onChainAUsdcBalanceCents: postWithdrawAUsdcCents,
+      onChainUsdcBalanceCents: postWithdrawUsdcCents,
+      aUsdcBalanceRefreshedAt: new Date(),
+    },
+  });
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      actionType: "vault.aave_withdraw",
+      payload: JSON.stringify({
+        vaultId: m3MockVault.id,
+        safeAddress: fakeSafe,
+        poolAddress: aavePoolAddr,
+        amountCents: withdrawAmountCents,
+        amountUnits: "25000000",
+        withdrawTxHash,
+        postUsdcBalanceCents: postWithdrawUsdcCents,
+        postAUsdcBalanceCents: postWithdrawAUsdcCents,
+        nonce: withdrawNonce,
+        withdrawnAt: new Date().toISOString(),
+      }),
+    },
+  });
+  const withdrawAuditAfter = await prisma.auditLog.count({
+    where: { userId, actionType: "vault.aave_withdraw" },
+  });
+  check(
+    "vault.aave_withdraw audit entry written",
+    withdrawAuditAfter === withdrawAuditBefore + 1,
+    `delta=${withdrawAuditAfter - withdrawAuditBefore}`,
+  );
+  const afterWithdraw = await prisma.vaultAccount.findUnique({
+    where: { userId },
+  });
+  check(
+    "onChainAUsdcBalanceCents cache decremented after simulated withdraw",
+    afterWithdraw?.onChainAUsdcBalanceCents === postWithdrawAUsdcCents,
+    `got=${afterWithdraw?.onChainAUsdcBalanceCents}`,
+  );
+  check(
+    "onChainUsdcBalanceCents cache reflects the redeemed USDC",
+    afterWithdraw?.onChainUsdcBalanceCents === postWithdrawUsdcCents,
+    `got=${afterWithdraw?.onChainUsdcBalanceCents}`,
+  );
+
+  // After the partial withdraw, the aUSDC sub line should now
+  // show $25.00.
+  const m3WithdrawnText = await (await get("/vault")).text();
+  check(
+    "vault principal sub line shows aUSDC $25.00 after simulated withdraw",
+    /aUSDC \$<!-- -->25\.00<!-- --> earning/.test(m3WithdrawnText) ||
+      /aUSDC \$25\.00 earning/.test(m3WithdrawnText),
+  );
+
+  // Idempotency lookup. Mirror findAaveSupplyByIdempotencyKey +
+  // findAaveWithdrawByIdempotencyKey from db.ts: walk the
+  // recent audit rows, parse the payload, match by nonce.
+  function findByNonce(actionType, nonce) {
+    return prisma.auditLog
+      .findMany({
+        where: { userId, actionType },
+        orderBy: { createdAt: "desc" },
+        take: 25,
+      })
+      .then((rows) => {
+        for (const row of rows) {
+          try {
+            const payload = JSON.parse(row.payload);
+            if (payload && payload.nonce === nonce) return payload;
+          } catch {
+            // skip malformed
+          }
+        }
+        return null;
+      });
+  }
+
+  const supplyMatch = await findByNonce("vault.aave_supply", supplyNonce);
+  check(
+    "vault.aave_supply row matches the simulated supply nonce",
+    supplyMatch !== null && supplyMatch.supplyTxHash === supplyTxHash,
+    `matched=${supplyMatch !== null} txHash=${
+      supplyMatch?.supplyTxHash ?? "—"
+    }`,
+  );
+  const withdrawMatch = await findByNonce(
+    "vault.aave_withdraw",
+    withdrawNonce,
+  );
+  check(
+    "vault.aave_withdraw row matches the simulated withdraw nonce",
+    withdrawMatch !== null && withdrawMatch.withdrawTxHash === withdrawTxHash,
+    `matched=${withdrawMatch !== null} txHash=${
+      withdrawMatch?.withdrawTxHash ?? "—"
+    }`,
+  );
+  // Unknown nonce returns null (negative check).
+  const missMatch = await findByNonce(
+    "vault.aave_supply",
+    "never-used-nonce-zzz",
+  );
+  check(
+    "findAaveSupplyByIdempotencyKey returns null for an unknown nonce",
+    missMatch === null,
+    `got=${missMatch === null ? "null" : "unexpected match"}`,
+  );
+
+  // Reset for the next test run: clear the M3 aUSDC columns
+  // + drop the M3 audit rows + restore the MOCK deploy state.
+  await prisma.vaultAccount.update({
+    where: { userId },
+    data: {
+      smartAccountAddress: "0xMOCK0000000000000000000000000000000000DEAD",
+      signerAddress: null,
+      chainId: 1,
+      onChainUsdcBalanceCents: 0,
+      onChainBalanceRefreshedAt: null,
+      onChainAUsdcBalanceCents: 0,
+      aUsdcBalanceRefreshedAt: null,
+      aUsdcTokenAddress: null,
+    },
+  });
+  await prisma.auditLog.deleteMany({
+    where: {
+      userId,
+      actionType: { in: ["vault.aave_supply", "vault.aave_withdraw"] },
+    },
+  });
+
   // ── Final summary ─────────────────────────────────────────────
   console.log("\n--- checks ---");
   console.log(`checks: ${pass} pass / ${miss} miss`);

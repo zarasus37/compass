@@ -145,6 +145,16 @@ export interface VaultSnapshot {
      * "refreshed HH:MM:SS" next to the [REFRESH] BALANCE button.
      */
     onChainBalanceRefreshedAt: string | null;
+    /**
+     * Phase 4.0 (M3) — aUSDC balance, in integer cents. Same
+     * 0 / null story in the in-memory mock.
+     */
+    onChainAUsdcBalanceCents: number;
+    /**
+     * Phase 4.0 (M3) — last time the aUSDC balance was refreshed.
+     * Null until the first supply.
+     */
+    aUsdcBalanceRefreshedAt: string | null;
   };
 }
 
@@ -362,6 +372,9 @@ export function deriveMockVault(userId: string = "user-mom"): VaultSnapshot {
     // balance. Always 0 / null.
     onChainUsdcBalanceCents: 0,
     onChainBalanceRefreshedAt: null,
+    // Phase 4.0 (M3) — same story for the aUSDC balance.
+    onChainAUsdcBalanceCents: 0,
+    aUsdcBalanceRefreshedAt: null,
     createdAt: new Date(PERIOD_START).toISOString(),
     updatedAt: new Date(TODAY).toISOString(),
   };
@@ -464,6 +477,13 @@ export function deriveMockVault(userId: string = "user-mom"): VaultSnapshot {
       // `onChainBalanceRefreshedAt`.
       onChainUsdcBalanceCents: 0,
       onChainBalanceRefreshedAt: null,
+      // Phase 4.0 (M3) — same story for the aUSDC balance.
+      // The DB-sourced path reads from
+      // `VaultAccount.onChainAUsdcBalanceCents` /
+      // `aUsdcBalanceRefreshedAt`. The in-memory mock always
+      // returns 0 / null.
+      onChainAUsdcBalanceCents: 0,
+      aUsdcBalanceRefreshedAt: null,
     },
   };
 }

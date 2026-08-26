@@ -850,6 +850,20 @@ model VaultAccount {
   /// the first refresh. The page surfaces "refreshed HH:MM:SS" next
   /// to the [REFRESH] BALANCE button.
   onChainBalanceRefreshedAt DateTime?
+  /// Cluster Vault 4.0 M3 — the Safe's aUSDC balance (the
+  /// interest-bearing receipt the Safe receives from Aave V3
+  /// after a successful supply). Distinct from `onChainUsdcBalanceCents`
+  /// (the raw USDC held by the Safe). Together they describe the
+  /// Safe's total earning position. 0 until the first deposit.
+  onChainAUsdcBalanceCents  Int       @default(0)
+  /// Last time the aUSDC balance was refreshed. Null until the
+  /// first refresh. The page surfaces this next to the
+  /// [REFRESH] AAVE BALANCE button.
+  aUsdcBalanceRefreshedAt   DateTime?
+  /// The aToken (aUSDC) address, resolved dynamically from the
+  /// Aave V3 Pool's getReserveData(asset).aTokenAddress on first
+  /// deposit + cached here. Null until the first deposit.
+  aUsdcTokenAddress         String?
   createdAt                 DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
 

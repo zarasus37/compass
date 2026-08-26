@@ -21,6 +21,8 @@ import { VaultPauseToggle } from "@/components/vault/VaultPauseToggle";
 import { DeploySafeButton } from "@/components/vault/DeploySafeButton";
 import { FundSafeButton } from "@/components/vault/FundSafeButton";
 import { RefreshBalanceButton } from "@/components/vault/RefreshBalanceButton";
+import { DepositButton } from "@/components/vault/DepositButton";
+import { WithdrawButton } from "@/components/vault/WithdrawButton";
 import { isMockSafeAddress } from "@/lib/vault/safe-deploy";
 
 export const dynamic = "force-dynamic";
@@ -92,6 +94,8 @@ export default async function VaultPage() {
         kpis={{
           onChainUsdcBalanceCents: snap.kpis.onChainUsdcBalanceCents,
           onChainBalanceRefreshedAt: snap.kpis.onChainBalanceRefreshedAt,
+          onChainAUsdcBalanceCents: snap.kpis.onChainAUsdcBalanceCents,
+          aUsdcBalanceRefreshedAt: snap.kpis.aUsdcBalanceRefreshedAt,
         }}
       />
 
@@ -438,6 +442,8 @@ function VaultPauseRow({
   kpis: {
     onChainUsdcBalanceCents: number;
     onChainBalanceRefreshedAt: string | null;
+    onChainAUsdcBalanceCents: number;
+    aUsdcBalanceRefreshedAt: string | null;
   };
 }) {
   const deployed = !isMockSafeAddress(vault.smartAccountAddress);
@@ -499,6 +505,14 @@ function VaultPauseRow({
               onChainBalanceCents={kpis.onChainUsdcBalanceCents}
               safeAddress={vault.smartAccountAddress}
             />
+            <DepositButton
+              safeAddress={vault.smartAccountAddress}
+              onAaveUsdc={vault.aUsdcTokenAddress != null}
+            />
+            <WithdrawButton
+              safeAddress={vault.smartAccountAddress}
+              hasAUsdc={kpis.onChainAUsdcBalanceCents > 0}
+            />
           </>
         )}
         <VaultPauseToggle status={vault.status} />
@@ -535,7 +549,11 @@ function StatusStrip({
         value={formatMoney(kpis.vaultPrincipal)}
         sub={
           deployed
-            ? `on-chain ${formatMoney(kpis.onChainUsdcBalanceCents)} · ${snap.envelopes.length} envelopes`
+            ? `on-chain ${formatMoney(kpis.onChainUsdcBalanceCents)}${
+                kpis.onChainAUsdcBalanceCents > 0
+                  ? ` · aUSDC ${formatMoney(kpis.onChainAUsdcBalanceCents)} earning`
+                  : ""
+              } · ${snap.envelopes.length} envelopes`
             : `across ${snap.envelopes.length} envelopes`
         }
         tone="cyan"

@@ -90,6 +90,27 @@ export interface VaultAccount {
    * "refreshed HH:MM:SS" next to the [REFRESH] BALANCE button.
    */
   onChainBalanceRefreshedAt: string | null;
+  /**
+   * Phase 4.0 (M3) — the Safe's aUSDC balance (the
+   * interest-bearing receipt from Aave V3). 0 until the first
+   * supply. Distinct from `onChainUsdcBalanceCents` (the raw
+   * USDC the Safe holds before deposit). Together they describe
+   * the Safe's total earning position.
+   */
+  onChainAUsdcBalanceCents: number;
+  /**
+   * Phase 4.0 (M3) — last time the aUSDC balance was refreshed.
+   * Null until the first supply. The page surfaces this next
+   * to the [REFRESH] AAVE BALANCE button.
+   */
+  aUsdcBalanceRefreshedAt: string | null;
+  /**
+   * Phase 4.0 (M3) — the aUSDC token address, resolved
+   * dynamically from Aave V3's Pool.getReserveData(asset)
+   * on the first supply and cached on the row. Subsequent
+   * reads skip the Pool hop.
+   */
+  aUsdcTokenAddress?: string;
   createdAt: string;
   updatedAt: string;
 }

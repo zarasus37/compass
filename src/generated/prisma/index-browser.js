@@ -436,6 +436,9 @@ exports.Prisma.VaultAccountScalarFieldEnum = {
   simulatedApy: 'simulatedApy',
   onChainUsdcBalanceCents: 'onChainUsdcBalanceCents',
   onChainBalanceRefreshedAt: 'onChainBalanceRefreshedAt',
+  onChainAUsdcBalanceCents: 'onChainAUsdcBalanceCents',
+  aUsdcBalanceRefreshedAt: 'aUsdcBalanceRefreshedAt',
+  aUsdcTokenAddress: 'aUsdcTokenAddress',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };

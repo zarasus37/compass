@@ -153,7 +153,7 @@ export function getChainConfig(): ChainConfig {
 
 /** Read the signer private key from env (no `0x` prefix;
  *  both the Protocol Kit and viem accept either form). */
-function getSafeSignerKey(): Hex {
+export function getSafeSignerKey(): Hex {
   const raw = process.env.VAULT_SAFE_SIGNER_PRIVATE_KEY;
   if (!raw) {
     throw new Error(
