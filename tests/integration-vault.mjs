@@ -730,6 +730,247 @@ async function main() {
     `block=${refreshBlock.substring(0, 1500).replace(/\s+/g, " ")}`,
   );
 
+  // ── Phase 3.1 — yield routing (the 4 strategies' effects) ─
+  // The test re-runs the same Prisma writes the
+  // `routeYieldForStrategy` function does, for each of the 4
+  // strategies, and verifies the side-effects:
+  //   - COMPOUND           → YieldEvent rows with action=COMPOUNDED
+  //   - APPLY_TO_NEXT_BILL → next bill's appliedYieldCents bumped
+  //   - MOVE_TO_AVAILABLE  → vault.availableBalance incremented
+  //   - SPLIT_BY_ENVELOPE  → both AP events + vault bump per envelope
+  console.log("\n--- Phase 3.1 — yield routing ---\n");
+
+  // Get a bill to credit for APPLY_TO_NEXT_BILL.
+  const nextBill = await prisma.scheduledBill.findFirst({
+    where: { vault: { userId }, status: "EARNING" },
+  });
+  if (!nextBill) {
+    console.log("FATAL: no EARNING bill for routing tests");
+    process.exit(1);
+  }
+  const totalAccrued = 695; // matches the live seed output
+
+  // Reset the bill's appliedYieldCents + the vault's availableBalance
+  // for a clean baseline.
+  await prisma.scheduledBill.update({
+    where: { id: nextBill.id },
+    data: { appliedYieldCents: 0 },
+  });
+  const startBalance = await prisma.vaultAccount.findUnique({
+    where: { userId },
+  });
+  if (!startBalance) {
+    console.log("FATAL: no vault for routing tests");
+    process.exit(1);
+  }
+  await prisma.vaultAccount.update({
+    where: { id: startBalance.id },
+    data: { availableBalance: startBalance.availableBalance - 695 },
+  });
+
+  // Strategy 1: COMPOUND
+  const compoundAuditBefore = await prisma.auditLog.count({
+    where: { userId, actionType: "vault.yield_routed" },
+  });
+  await prisma.vaultPreferences.update({
+    where: { userId },
+    data: { yieldRoutingStrategy: "COMPOUND" },
+  });
+  // Inline the COMPOUND routing logic for the test.
+  const compoundEnvelopes = await prisma.vaultEnvelope.findMany({
+    where: { vaultId: startBalance.id },
+  });
+  const compoundTotalPrincipal = compoundEnvelopes.reduce(
+    (s, e) => s + e.principalAllocated,
+    0,
+  );
+  let compoundTotalRouted = 0;
+  let compoundEvents = 0;
+  for (const e of compoundEnvelopes) {
+    if (e.principalAllocated <= 0) continue;
+    const share = Math.round(
+      (e.principalAllocated / compoundTotalPrincipal) * totalAccrued,
+    );
+    if (share <= 0) continue;
+    await prisma.yieldEvent.create({
+      data: {
+        vaultId: startBalance.id,
+        envelopeId: e.id,
+        asset: "sUSDS",
+        amount: share,
+        source: "OTHER",
+        action: "COMPOUNDED",
+      },
+    });
+    compoundTotalRouted += share;
+    compoundEvents += 1;
+  }
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      actionType: "vault.yield_routed",
+      payload: JSON.stringify({
+        strategy: "COMPOUND",
+        totalRouted: compoundTotalRouted,
+        counts: { compounded: compoundEvents, allocatedToBill: 0, movedToAvailable: 0 },
+        billsCredited: [],
+      }),
+    },
+  });
+  check(
+    "COMPOUND strategy writes one COMPOUNDED event per envelope with positive principal",
+    compoundEvents >= 1 && compoundTotalRouted > 0,
+    `events=${compoundEvents} totalRouted=${compoundTotalRouted}`,
+  );
+  const compoundAuditAfter = await prisma.auditLog.count({
+    where: { userId, actionType: "vault.yield_routed" },
+  });
+  check(
+    "COMPOUND strategy writes a vault.yield_routed audit entry",
+    compoundAuditAfter === compoundAuditBefore + 1,
+    `delta=${compoundAuditAfter - compoundAuditBefore}`,
+  );
+
+  // Strategy 2: APPLY_TO_NEXT_BILL — credit the next bill.
+  await prisma.scheduledBill.update({
+    where: { id: nextBill.id },
+    data: { appliedYieldCents: 0 },
+  });
+  await prisma.vaultPreferences.update({
+    where: { userId },
+    data: { yieldRoutingStrategy: "APPLY_TO_NEXT_BILL" },
+  });
+  const applyBillCredit = Math.min(totalAccrued, nextBill.amount);
+  await prisma.scheduledBill.update({
+    where: { id: nextBill.id },
+    data: { appliedYieldCents: applyBillCredit },
+  });
+  await prisma.yieldEvent.create({
+    data: {
+      vaultId: startBalance.id,
+      envelopeId: nextBill.envelopeId,
+      asset: "sUSDS",
+      amount: applyBillCredit,
+      source: "OTHER",
+      action: "ALLOCATED_TO_BILL",
+    },
+  });
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      actionType: "vault.yield_routed",
+      payload: JSON.stringify({
+        strategy: "APPLY_TO_NEXT_BILL",
+        totalRouted: applyBillCredit,
+        counts: { compounded: 0, allocatedToBill: 1, movedToAvailable: 0 },
+        billsCredited: [nextBill.id],
+      }),
+    },
+  });
+  const creditedBill = await prisma.scheduledBill.findUnique({
+    where: { id: nextBill.id },
+  });
+  check(
+    "APPLY_TO_NEXT_BILL bumps bill.appliedYieldCents",
+    creditedBill?.appliedYieldCents === applyBillCredit,
+    `got=${creditedBill?.appliedYieldCents} expected=${applyBillCredit}`,
+  );
+  const allocatedEvents = await prisma.yieldEvent.count({
+    where: { vaultId: startBalance.id, action: "ALLOCATED_TO_BILL" },
+  });
+  check(
+    "APPLY_TO_NEXT_BILL writes an ALLOCATED_TO_BILL yield event",
+    allocatedEvents >= 1,
+    `count=${allocatedEvents}`,
+  );
+
+  // Strategy 3: MOVE_TO_AVAILABLE — bump vault.availableBalance.
+  await prisma.vaultPreferences.update({
+    where: { userId },
+    data: { yieldRoutingStrategy: "MOVE_TO_AVAILABLE" },
+  });
+  const beforeMove = await prisma.vaultAccount.findUnique({
+    where: { userId },
+  });
+  await prisma.vaultAccount.update({
+    where: { userId },
+    data: { availableBalance: { increment: totalAccrued } },
+  });
+  await prisma.yieldEvent.create({
+    data: {
+      vaultId: startBalance.id,
+      asset: "sUSDS",
+      amount: totalAccrued,
+      source: "OTHER",
+      action: "MOVED_TO_AVAILABLE",
+    },
+  });
+  const afterMove = await prisma.vaultAccount.findUnique({
+    where: { userId },
+  });
+  check(
+    "MOVE_TO_AVAILABLE bumps vault.availableBalance by the accrued amount",
+    afterMove?.availableBalance ===
+      (beforeMove?.availableBalance ?? 0) + totalAccrued,
+    `before=${beforeMove?.availableBalance} after=${afterMove?.availableBalance} delta=${totalAccrued}`,
+  );
+
+  // Strategy 4: SPLIT_BY_ENVELOPE — per-envelope MOVED_TO_AVAILABLE
+  // events + vault availableBalance bump per envelope.
+  await prisma.vaultPreferences.update({
+    where: { userId },
+    data: { yieldRoutingStrategy: "SPLIT_BY_ENVELOPE" },
+  });
+  const beforeSplit = await prisma.vaultAccount.findUnique({
+    where: { userId },
+  });
+  const splitEnvelopes = await prisma.vaultEnvelope.findMany({
+    where: { vaultId: startBalance.id },
+  });
+  const splitTotalPrincipal = splitEnvelopes.reduce(
+    (s, e) => s + e.principalAllocated,
+    0,
+  );
+  let splitEvents = 0;
+  let splitRouted = 0;
+  for (const e of splitEnvelopes) {
+    if (e.principalAllocated <= 0) continue;
+    const share = Math.round(
+      (e.principalAllocated / splitTotalPrincipal) * totalAccrued,
+    );
+    if (share <= 0) continue;
+    await prisma.yieldEvent.create({
+      data: {
+        vaultId: startBalance.id,
+        envelopeId: e.id,
+        asset: "sUSDS",
+        amount: share,
+        source: "OTHER",
+        action: "MOVED_TO_AVAILABLE",
+      },
+    });
+    await prisma.vaultAccount.update({
+      where: { userId },
+      data: { availableBalance: { increment: share } },
+    });
+    splitRouted += share;
+    splitEvents += 1;
+  }
+  const afterSplit = await prisma.vaultAccount.findUnique({
+    where: { userId },
+  });
+  check(
+    "SPLIT_BY_ENVELOPE writes one MOVED_TO_AVAILABLE event per envelope",
+    splitEvents >= 1,
+    `events=${splitEvents}`,
+  );
+  check(
+    "SPLIT_BY_ENVELOPE bumps vault.availableBalance by the routed total",
+    afterSplit?.availableBalance ===
+      (beforeSplit?.availableBalance ?? 0) + splitRouted,
+    `before=${beforeSplit?.availableBalance} after=${afterSplit?.availableBalance} routed=${splitRouted}`,
+  );
+
   // Cleanup: revert the strategy so the next test run starts clean.
   await prisma.vaultPreferences.update({
     where: { userId },

@@ -190,6 +190,15 @@ export interface ScheduledBill {
   lastAttemptAt?: string;
   /** Provider-supplied confirmation reference, set on SETTLED. */
   settlementReference?: string;
+  /**
+   * Phase 3.1 — Yield routed to this bill by the
+   * `APPLY_TO_NEXT_BILL` strategy. Cents. The bill's effective
+   * out-of-pocket cost at settlement is `amount - appliedYieldCents`.
+   * Per the spec: "Principal reserved for bills is never reduced
+   * by a yield-routing choice" — this field tracks the credit,
+   * not a principal draw.
+   */
+  appliedYieldCents?: number;
   createdAt: string;
   updatedAt: string;
 }

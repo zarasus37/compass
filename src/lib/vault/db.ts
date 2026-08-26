@@ -396,7 +396,8 @@ export async function recordVaultAudit(args: {
     | "vault.paused"
     | "vault.resumed"
     | "vault.apy_refreshed"
-    | "vault.apy_refresh_failed";
+    | "vault.apy_refresh_failed"
+    | "vault.yield_routed";
   payload: unknown;
 }): Promise<void> {
   await prisma.auditLog.create({
@@ -581,6 +582,267 @@ export async function transitionBillDb(
   });
 
   return { ok: true, bill: toScheduledBill(updated) };
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Yield routing (Phase 3.1) — dispatch the accrued yield per
+// the user's `VaultPreferences.yieldRoutingStrategy`. Called
+// from `refreshVaultApyAction` after the adapter returns; the
+// strategies' effects are persisted via `YieldEvent` rows +
+// `Bill.appliedYieldCents` (for APPLY_TO_NEXT_BILL) and an
+// `availableBalance` increment (for MOVE_TO_AVAILABLE).
+//
+// Per the spec ("Principal reserved for bills is never reduced
+// by a yield-routing choice"): all 4 strategies preserve the
+// envelope `principalAllocated`. The strategies differ in
+// where the yield *credit* lands, not in how the principal is
+// drawn.
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Find the next bill in (or approaching) its execution window.
+ * Used by `APPLY_TO_NEXT_BILL` to know which bill to credit.
+ * Prefers bills in EARNING / FUNDED / PREPARING_SETTLEMENT
+ * status; falls back to EXECUTING if no other candidates.
+ * Returns null if the vault has no actionable bills.
+ */
+export async function getNextExecutableBill(
+  vaultId: string,
+): Promise<ScheduledBill | null> {
+  const candidates = await prisma.scheduledBill.findMany({
+    where: {
+      vaultId,
+      status: {
+        in: ["EARNING", "FUNDED", "PREPARING_SETTLEMENT", "EXECUTING"],
+      },
+    },
+    orderBy: { executionWindowStart: "asc" },
+  });
+  if (candidates.length === 0) return null;
+  // Prefer the earliest non-EXECUTING bill; fall back to the
+  // first EXECUTING bill if no others qualify.
+  const nonExecuting = candidates.find((b) => b.status !== "EXECUTING");
+  const target = nonExecuting ?? candidates[0];
+  if (!target) return null;
+  return toScheduledBill(target);
+}
+
+/**
+ * The yield-routing result. Per-bill + per-envelope + vault-level
+ * movements are summarized so the caller (server action + tests)
+ * can audit-log the work in a single batched write.
+ */
+export interface YieldRoutingResult {
+  strategy: YieldRoutingStrategy;
+  /** Total accrued yield that was available to route (cents). */
+  totalRouted: number;
+  /** Counts of each YieldEvent action written. */
+  counts: {
+    compounded: number;
+    allocatedToBill: number;
+    movedToAvailable: number;
+  };
+  /** Bill IDs that received an `appliedYieldCents` increment. */
+  billsCredited: string[];
+  /** Whether the vault's `availableBalance` was incremented. */
+  vaultBalanceBumped: boolean;
+}
+
+/**
+ * Dispatch the accrued yield per the user's strategy. Idempotent
+ * in the sense that re-running with the same inputs produces the
+ * same YieldEvent + appliedYieldCents totals (the audit log will
+ * have duplicate entries, which is acceptable for a manual cron).
+ *
+ * `totalAccruedCents` is the total yield that needs to be routed
+ * — typically the per-envelope attribution sum from the seed
+ * pass that just ran. The dispatcher splits this amount across
+ * envelopes (for COMPOUND / SPLIT_BY_ENVELOPE) or a single bill
+ * (for APPLY_TO_NEXT_BILL) or the vault balance (for
+ * MOVE_TO_AVAILABLE).
+ */
+export async function routeYieldForStrategy(args: {
+  vaultId: string;
+  userId: string;
+  strategy: YieldRoutingStrategy;
+  totalAccruedCents: number;
+  adapterName: string;
+  adapterSource: YieldSource;
+}): Promise<YieldRoutingResult> {
+  const { vaultId, userId, strategy, totalAccruedCents, adapterName, adapterSource } = args;
+  const result: YieldRoutingResult = {
+    strategy,
+    totalRouted: 0,
+    counts: { compounded: 0, allocatedToBill: 0, movedToAvailable: 0 },
+    billsCredited: [],
+    vaultBalanceBumped: false,
+  };
+  if (totalAccruedCents <= 0) return result;
+
+  switch (strategy) {
+    case "COMPOUND": {
+      // Re-invest the yield back into the strategy. Per-envelope
+      // attribution is already done by the seed; the COMPOUNDED
+      // event row records the action without changing any money
+      // totals.
+      const envelopes = await prisma.vaultEnvelope.findMany({
+        where: { vaultId },
+      });
+      const totalPrincipal = envelopes.reduce(
+        (s, e) => s + e.principalAllocated,
+        0,
+      );
+      if (totalPrincipal <= 0) break;
+      for (const e of envelopes) {
+        if (e.principalAllocated <= 0) continue;
+        const share = Math.round(
+          (e.principalAllocated / totalPrincipal) * totalAccruedCents,
+        );
+        if (share <= 0) continue;
+        await recordYieldEvent({
+          vaultId,
+          envelopeId: e.id,
+          asset: "sUSDS",
+          amount: share,
+          annualizedRate: undefined,
+          source: adapterSource,
+          action: "COMPOUNDED",
+        });
+        result.counts.compounded += 1;
+        result.totalRouted += share;
+      }
+      break;
+    }
+    case "APPLY_TO_NEXT_BILL": {
+      // Find the next bill in (or approaching) its execution
+      // window. Credit the entire accrued yield to that bill;
+      // the bill's effective out-of-pocket cost at settlement is
+      // `amount - appliedYieldCents`.
+      const nextBill = await getNextExecutableBill(vaultId);
+      if (!nextBill) break;
+      // Cap the credit at the bill's amount (don't credit more
+      // than the bill needs; leftover is logged as COMPOUNDED
+      // instead).
+      const credit = Math.min(totalAccruedCents, nextBill.amount);
+      if (credit <= 0) break;
+      const leftover = totalAccruedCents - credit;
+      const updated = await prisma.scheduledBill.update({
+        where: { id: nextBill.id },
+        data: { appliedYieldCents: { increment: credit } },
+      });
+      await recordYieldEvent({
+        vaultId,
+        envelopeId: nextBill.envelopeId,
+        asset: "sUSDS",
+        amount: credit,
+        annualizedRate: undefined,
+        source: adapterSource,
+        action: "ALLOCATED_TO_BILL",
+      });
+      result.counts.allocatedToBill += 1;
+      result.billsCredited.push(nextBill.id);
+      result.totalRouted += credit;
+      if (leftover > 0) {
+        // Any yield that didn't fit the bill gets compounded.
+        await recordYieldEvent({
+          vaultId,
+          envelopeId: undefined,
+          asset: "sUSDS",
+          amount: leftover,
+          annualizedRate: undefined,
+          source: adapterSource,
+          action: "COMPOUNDED",
+        });
+        result.counts.compounded += 1;
+        result.totalRouted += leftover;
+      }
+      void updated;
+      break;
+    }
+    case "MOVE_TO_AVAILABLE": {
+      // Move the yield into the vault's available balance
+      // (immediately redeemable). The off-ramp gateway can draw
+      // from this pool without touching the principal.
+      const vault = await prisma.vaultAccount.findUnique({
+        where: { id: vaultId },
+      });
+      if (!vault) break;
+      await prisma.vaultAccount.update({
+        where: { id: vaultId },
+        data: { availableBalance: { increment: totalAccruedCents } },
+      });
+      await recordYieldEvent({
+        vaultId,
+        envelopeId: undefined,
+        asset: "sUSDS",
+        amount: totalAccruedCents,
+        annualizedRate: undefined,
+        source: adapterSource,
+        action: "MOVED_TO_AVAILABLE",
+      });
+      result.counts.movedToAvailable += 1;
+      result.vaultBalanceBumped = true;
+      result.totalRouted = totalAccruedCents;
+      break;
+    }
+    case "SPLIT_BY_ENVELOPE": {
+      // Same as COMPOUND (per-envelope attribution IS by capital
+      // share) but the action recorded is MOVED_TO_AVAILABLE per
+      // envelope — the yield becomes immediately available on
+      // each envelope, rather than staying in the strategy.
+      const envelopes = await prisma.vaultEnvelope.findMany({
+        where: { vaultId },
+      });
+      const totalPrincipal = envelopes.reduce(
+        (s, e) => s + e.principalAllocated,
+        0,
+      );
+      if (totalPrincipal <= 0) break;
+      for (const e of envelopes) {
+        if (e.principalAllocated <= 0) continue;
+        const share = Math.round(
+          (e.principalAllocated / totalPrincipal) * totalAccruedCents,
+        );
+        if (share <= 0) continue;
+        await recordYieldEvent({
+          vaultId,
+          envelopeId: e.id,
+          asset: "sUSDS",
+          amount: share,
+          annualizedRate: undefined,
+          source: adapterSource,
+          action: "MOVED_TO_AVAILABLE",
+        });
+        // Also bump the vault's available balance by the same
+        // amount so the value is reflected in the top-level KPI.
+        await prisma.vaultAccount.update({
+          where: { id: vaultId },
+          data: { availableBalance: { increment: share } },
+        });
+        result.counts.movedToAvailable += 1;
+        result.totalRouted += share;
+      }
+      result.vaultBalanceBumped = true;
+      break;
+    }
+    default:
+      break;
+  }
+
+  // Audit-log the routing summary.
+  await recordVaultAudit({
+    userId,
+    actionType: "vault.yield_routed",
+    payload: {
+      strategy,
+      adapter: adapterName,
+      source: adapterSource,
+      totalRouted: result.totalRouted,
+      counts: result.counts,
+      billsCredited: result.billsCredited,
+    },
+  });
+  return result;
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -844,6 +1106,7 @@ function toScheduledBill(row: {
   providerPreference: string | null;
   lastAttemptAt: Date | null;
   settlementReference: string | null;
+  appliedYieldCents: number;
   createdAt: Date;
   updatedAt: Date;
 }): ScheduledBill {
@@ -867,6 +1130,7 @@ function toScheduledBill(row: {
       ? row.lastAttemptAt.toISOString()
       : undefined,
     settlementReference: row.settlementReference ?? undefined,
+    appliedYieldCents: row.appliedYieldCents ?? 0,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

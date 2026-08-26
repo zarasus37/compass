@@ -25,6 +25,7 @@ import {
   recordVaultAudit,
   userHasVaultData,
   refreshVaultAggregates,
+  routeYieldForStrategy,
   USER_FACING_BILL_EVENTS,
   type VaultDbSnapshot,
   type UserFacingBillEvent,
@@ -223,6 +224,17 @@ export async function refreshVaultApyAction(): Promise<
       apy: number;
       source: string;
       apyRefreshedAt: string;
+      strategy: YieldRoutingStrategy;
+      yieldRouted: {
+        totalRouted: number;
+        counts: {
+          compounded: number;
+          allocatedToBill: number;
+          movedToAvailable: number;
+        };
+        billsCredited: string[];
+        vaultBalanceBumped: boolean;
+      };
     }
   | { ok: false; error: string }
 > {
@@ -264,8 +276,26 @@ export async function refreshVaultApyAction(): Promise<
   // seed function is idempotent — re-running with the same
   // envelope list keeps the row count stable and writes fresh
   // YieldEvent rows for the new APY.
-  await seedVaultFromEnvelopes(user.id);
-  // Refresh the vault's top-level money aggregates.
+  const seedResult = await seedVaultFromEnvelopes(user.id);
+  // Phase 3.1 — dispatch the accrued yield per the user's
+  // strategy. The router reads the freshly-computed per-envelope
+  // attribution total from the seed result and writes either
+  // COMPOUNDED / ALLOCATED_TO_BILL / MOVED_TO_AVAILABLE events
+  // (plus an `appliedYieldCents` increment on the next bill for
+  // APPLY_TO_NEXT_BILL, or a `vaultAccount.availableBalance`
+  // bump for MOVE_TO_AVAILABLE / SPLIT_BY_ENVELOPE).
+  const preferences = await getOrCreateVaultPreferences(user.id);
+  const routingResult = await routeYieldForStrategy({
+    vaultId: vault.id,
+    userId: user.id,
+    strategy: preferences.yieldRoutingStrategy,
+    totalAccruedCents: seedResult.totalAccruedYield,
+    adapterName: adapter.name,
+    adapterSource: adapter.source,
+  });
+  // Refresh the vault's top-level money aggregates. The
+  // router may have bumped `availableBalance`; this picks up
+  // the new value.
   await refreshVaultAggregates(vault.id);
   await recordVaultAudit({
     userId: user.id,
@@ -276,6 +306,13 @@ export async function refreshVaultApyAction(): Promise<
       previousApy: vault.simulatedApy,
       newApy: apy,
       refreshedAt: now.toISOString(),
+      strategy: preferences.yieldRoutingStrategy,
+      yieldRouted: {
+        totalRouted: routingResult.totalRouted,
+        counts: routingResult.counts,
+        billsCredited: routingResult.billsCredited,
+        vaultBalanceBumped: routingResult.vaultBalanceBumped,
+      },
     },
   });
   return {
@@ -283,6 +320,13 @@ export async function refreshVaultApyAction(): Promise<
     apy,
     source: adapter.name,
     apyRefreshedAt: now.toISOString(),
+    strategy: preferences.yieldRoutingStrategy,
+    yieldRouted: {
+      totalRouted: routingResult.totalRouted,
+      counts: routingResult.counts,
+      billsCredited: routingResult.billsCredited,
+      vaultBalanceBumped: routingResult.vaultBalanceBumped,
+    },
   };
 }
 
