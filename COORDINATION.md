@@ -12,7 +12,7 @@
 - **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory) — ✅ done, commit `cda8972`. Cluster 1.7 visual audit — ✅ done, commit `3da5716`. **Cluster 1.8 (Bill organizer + Plan My Next Check + calendar warnings) — ✅ done, commit `999ff37`. Cluster 1.9 (Debt payoff simulator + Saturn vessel + 3-up card + paid-off celebration) — ✅ done, commits `feb50e3` + `801525c` (math-bug fix) + `0ffb439` (per-debt sparkline).** Biweekly period locked as the canonical pay schedule (D17); period-close renamed to match (D18). **Chart-next-to-data principle applied across /goals, /envelopes, /recurring, /debts, /insights — commit `843375c`. Cluster 1.10 (drill-downs + new transaction / goal / envelope / bill / debt forms + edit forms) — ✅ done, commits `03f308f` + `006bca0` + `3dc679f` + `649d76e`. **Cluster 2.0 (customizable, scrollable, card-based dashboard with @dnd-kit drag-and-drop + localStorage persistence) — ✅ done, commit `e648ef5`. Cluster 2.0.1 (visual-first treatment: 7-day WeekSparkline, BurnSparkline, embedded GoalSparkline) — ✅ done, commit `af0b8d3`. Cluster 2.0.2 (full-month calendar with planetary headers + scheduled bills list) — ✅ done, commit `34f3928`. **Cluster 2.0.3 (Component Oracle Terminal re-skin of the dashboard) — ✅ done, commit `884fe70`.** **Cluster 2.1 (must-have viz + utility integration push: 3 new dashboard cards (Spend Ring, Net Trajectory, Pay Distribution) + Must-Have Tools index strip on dashboard + /settings hub + Plaid sandbox + AI categorize rules + Receipt scan + Habit quiz + Household stub + /subscriptions wired to live data) — ✅ done, single working session.** Next: tidy up — fine-tune placement, polish tooltips, add hover states where missing, decide which cards to default-on, integrate the tools into the sidebar nav as a 4th chapter if the Settings entry feels too hidden, then 2.x (form actions deep-dive, bill reminders, variable income, period close), then 3.x (real Plaid, AI tiers).
 - **Stage 3 (Test & bug-fix)**: pending Stage 2
 
-> Last update: 2026-08-26 (Cluster Vault 3.5 ✅ DONE — Per-bill editor shipped as commit `7ea2a60`). The user can now add / edit / delete their own bills on /vault via a modal-driven editor (`[+] Add bill` button + per-row Edit/Delete). User-added bills carry `source: "user"` and survive a re-sync (the seed only writes `source: "seed"` rows). 3 new server actions (`createBillAction` / `updateBillAction` / `deleteBillAction`) with ownership guards + 3 new audit action types (`vault.bill_added` / `_updated` / `_deleted`). The bill-schedule block became a client island (`<BillScheduleClient>`) that owns the editor state. `SectionHeader` extracted from `vault/page.tsx` to `src/components/alchemy/SectionHeader.tsx` (was page-local in 2.0, called out as future cleanup). integration-vault 80/80 (was 63), smoke-vault 61/61 (was 53), tsc clean. **Predecessor: Cluster 5.3.2 (`24dcbc3`) — onboarding depth + `saveSpendingHabits` tool (12th) + 4 investment-detail fields. Pre-predecessor: Cluster 5.3.1 (`269d4ff`) — advisor v2 with 7 read-only tools. Cluster 5.3 (`8eef08b`) — `/advisor` page. Cluster 5.2.6 (`e1e9066`) — DB-backed widget switch (6 widgets). Cluster Vault 3.1 (`8618077`) — yield routing actually does something. Cluster Vault 3.0 (`c3a4c15`) — real yield adapter. Cluster Vault 2.5 (`a43b3d8`) — make it interactive. Cluster Vault 2.0 (`d9e3dc9`) — backend ledger. dev server on 127.0.0.1:3000.
+> Last update: 2026-08-26 (Cluster Vault 4.0 M1 ✅ DONE — Safe deploy shipped as commit `da71ae5`). The `[DEPLOY] Safe` button on /vault broadcasts a CREATE2 Safe to Base Sepolia via the Protocol Kit v8 + viem. The deployed address + signer + tx hash persist on `VaultAccount`, the [DEPLOY] button is replaced with a `[OK] Safe 0x12…34` chip, and a `vault.safe_deployed` audit entry is written. Pre-flight checks the signer has ETH for gas and fails with a clear 'get testnet ETH' message. The user picks: full cluster, Base Sepolia, server-side key in `.env`, explicit [DEPLOY] button. integration-vault 96/96 (was 80, +16 for M1), smoke-vault 65/65 (was 61, +4 for M1), tsc clean. **The remaining M2/M3/M4 milestones: M2 = USDC funding + on-chain balance read; M3 = real yield via Aave V3 on Base Sepolia; M4 = off-ramp gateway (or deferred to a later cluster). Predecessors: Vault 3.5 (`7ea2a60`) — per-bill editor. Cluster 5.3.2 (`24dcbc3`) — onboarding depth. Cluster 5.3.1 (`269d4ff`) — advisor v2. Cluster 5.3 (`8eef08b`) — `/advisor` page. Cluster 5.2.6 (`e1e9066`) — DB-backed widget switch. Cluster Vault 3.1 (`8618077`) — yield routing actually does something. Cluster Vault 3.0 (`c3a4c15`) — real yield adapter. Cluster Vault 2.5 (`a43b3d8`) — make it interactive. Cluster Vault 2.0 (`d9e3dc9`) — backend ledger. dev server on 127.0.0.1:3000.
 
 ---
 
@@ -1562,10 +1562,28 @@ Phase 2.0 was the simulation: a read-only `/vault` page, all the data in Prisma 
 - The "new bill" form on /obligations/new can wire to the vault's `ScheduledBill` table
 
 **Cluster Vault 4.0 — Safe deployment (the big one)**
-- Real Safe smart-account deployment
-- USDC testnet deposits via the adapter
-- Real yield strategy on testnet
-- Closed beta
+
+The cluster is split into 4 milestones. M1 is the deploy path; M2/M3/M4 layer on funding, yield, and off-ramp. The first push (this cluster) is M1 only.
+
+- **Vault 4.0 M1 — Safe deploy on Base Sepolia** ✅ DONE (commit `da71ae5`)
+  - `[DEPLOY] Safe` button on /vault broadcasts a CREATE2 Safe to Base Sepolia
+  - Protocol Kit v8 + viem 2.55.19 (typed chain + signed tx + receipt)
+  - Server-side signer in `.env` (pragmatic for the closed beta, NOT for mainnet)
+  - Persists the deployed address + signer + chainId on `VaultAccount` + writes a `vault.safe_deployed` audit
+  - Post-deploy `[OK] Safe 0x12…34` chip replaces the button
+  - Out: funding, yield, off-ramp
+- **Vault 4.0 M2 — USDC funding + on-chain balance read**
+  - New `[FUND] $X USDC` button (visible post-deploy) — transfers testnet USDC from the signer to the Safe
+  - `vault.funded` audit + new `vault.balance_refreshed` audit
+  - `VaultAccount.availableBalance` becomes a denormalized cache, refreshed by a new server action
+  - The status strip's `vault principal` reads from the on-chain USDC balance (viem `getBalance`)
+- **Vault 4.0 M3 — real yield (Aave V3 on Base Sepolia)**
+  - `AaveAdapter` (`yield-adapters.ts`) reads the real on-chain `currentLiquidityRate` for USDC via the Aave V3 Pool
+  - The Safe deposits USDC into Aave V3 (a new Safe transaction: `pool.supply(...)` on the Aave V3 Pool contract on Base Sepolia)
+  - The 4-strategy yield routing still works (the Safe is the actor for `APPLY_TO_NEXT_BILL` / `SPLIT_BY_ENVELOPE`)
+- **Vault 4.0 M4 — off-ramp gateway (likely deferred)**
+  - Real off-ramp API integration (Spritz / Monto / etc.)
+  - Currently the off-ramp panel still shows the Phase 1.0 stubs ("Phase 4 — would call Spritz here")
 
 The 5.2.6 widgets 4–6 (allocation, insights, accounts) work is in the working tree (uncommitted) and untouched. When that work resumes, the `Vault` entry on the sidebar is the only thing that overlaps; the two clusters can ship independently.
 
@@ -1650,3 +1668,50 @@ The COORDINATION.md is now ahead of git; the next session should commit it as th
 3. Sign in as `mom@compass.local` / `correct-horse-battery-staple`; visit `/vault` to see the new editor. Click `[+] Add bill` to open the modal. Add a bill — it shows up in the schedule with a `[USER]` chip. Click `Edit` on the new row — the modal re-opens with the current values. Click `Delete` — a confirm dialog fires before the destructive call. Re-sync the vault via the `SyncButton` (or hit the `/api/vault/sync` endpoint) and confirm the user bill survives.
 4. The dev server is on `127.0.0.1:3000` and the background `npx next dev` task may have been reaped (30-min cap) but the Next process itself is independent.
 5. The COORDINATION.md is committed; this handoff is the contract for Vault 4.0.
+
+---
+
+## HANDOFF — Vault 4.0 M1 (next session)
+
+**From session `mvs_0231e88821e04a47b450a77f70e6e1d0` (2026-08-26, ~2h focused)**: shipped one commit for the vault.
+
+- `da71ae5` **Cluster Vault 4.0 M1** — Safe deploy on Base Sepolia. The `[DEPLOY] Safe` button on /vault broadcasts a CREATE2 Safe to Base Sepolia via the Protocol Kit v8 + viem. The deployed address + signer + chainId + tx hash persist on `VaultAccount`, the button is replaced with a `[OK] Safe 0x12…34` chip, and a `vault.safe_deployed` audit entry is written. Pre-flight checks the signer has ETH for gas and fails with a clear 'get testnet ETH' message. 96/96 integration + 65/65 smoke green. tsc clean.
+
+**What just shipped (M1 surface, in detail)**
+
+- **Stack**: `viem 2.55.19` + `@safe-global/protocol-kit 8.0.6`. The Protocol Kit v8 surface is materially different from v6: no `SafeFactory` class. Instead, the flow is `SafeProvider` (constructor) + `predictSafeAddress` (standalone function) + `Safe.init({ predictedSafe: { safeAccountConfig, safeDeploymentConfig } })` + `safe.createSafeDeploymentTransaction()` to get the calldata, broadcast via viem's `walletClient.sendTransaction` for a clean tx hash + receipt.
+- **`VaultAccount.signerAddress` column** (String?, nullable). Persists the EOA that owns the Safe, set at deploy time. The audit log carries the full deploy context.
+- **`src/lib/vault/safe-deploy.ts`** — the lib. `getChainConfig()` reads the env, `getSafeSigner()` derives the viem account from the env private key, `getPublicClient()` + `getWalletClient()` for the broadcasts. `deploySafe()` does the pre-flight (signer ETH balance) → `predictSafeAddress` → `Safe.init` → `createSafeDeploymentTransaction` → `walletClient.sendTransaction` → `waitForTransactionReceipt` → `getBytecode` sanity check. Throws with clear messages at every failure point.
+- **3 new server actions** + 1 client component: `setVaultSafeAddress` (db.ts, refuses to overwrite a non-mock address) + `deploySafeAction` (server.ts, refuses to re-deploy, writes `vault.safe_deployed` or `vault.safe_deploy_failed` audit, revalidates /vault on success) + `deploySafeFromPage` (actions.ts re-export) + `<DeploySafeButton>` (client, CTA in MOCK state → `[OK] Safe 0x12…34` chip in deployed state).
+- **2 new audit action types**: `vault.safe_deployed` (success) + `vault.safe_deploy_failed` (failure path).
+- **5 new env vars in `.env.local.example`** with Base Sepolia defaults:
+  - `VAULT_CHAIN_RPC_URL` → `https://sepolia.base.org`
+  - `VAULT_CHAIN_ID` → `84532`
+  - `VAULT_SAFE_SIGNER_PRIVATE_KEY` → required, the testnet EOA that owns the Safe
+  - `VAULT_SAFE_SINGLETON_ADDRESS` → `0xfb1bffC9d739B8D520DaF37dF6669fE5932EF9Aa` (v1.3.0)
+  - `VAULT_USDC_ADDRESS` → `0x036CbD53842c5426634e7929541eC2318f3dCF7e` (defined for M2)
+
+**Out-of-band setup the user needs to do before clicking [DEPLOY]**
+1. Generate a testnet-only private key: `node -e "console.log(require('viem/accounts').privateKeyToAccount('0x' + '1'.repeat(64)))"`
+2. Set `VAULT_SAFE_SIGNER_PRIVATE_KEY` in `.env.local` to that key
+3. Get the signer's address some Base Sepolia ETH for gas (e.g. https://www.coinbase.com/faucets/base-ethereum-sepolia-faucet, or https://www.alchemy.com/faucets/base-sepolia)
+4. Optionally pre-fund the signer with testnet USDC for the M2 funding flow
+5. Restart the dev server (or just hot-reload)
+
+**Where Compass is right now** (smoke summary)
+- integration-vault: **96/96** · smoke-vault: **65/65** · smoke-sidebar: 63/63 · smoke-reset-seed: 8/8 · smoke-deprecated: 42/42 · `tsc --noEmit` clean.
+- The remaining 4 milestones of the cluster: M2 (funding), M3 (yield), M4 (off-ramp). M1 in isolation is "looks like a Safe, doesn't have money yet."
+
+**Recommended next cluster (Vault 4.0 M2)**
+- **`[FUND] $X USDC` button** (visible after deploy) — transfers testnet USDC from the signer to the Safe. Audit: `vault.funded`.
+- **Live on-chain balance read** — viem `getBalance(safe, USDC)` populates the status strip's `vault principal`. The existing in-DB `availableBalance` becomes a denormalized cache, refreshed by a new `refreshSafeBalanceAction`. Audit: `vault.balance_refreshed`.
+- **SourceChip update** — the `DB` chip becomes `TESTNET` post-fund; or keep `DB` and add a sub-chip with the on-chain balance diff.
+- **Configurable funding amounts** — preset chips ($50, $100, $500, $1000) + custom input. Validation matches the seed's existing principalAllocated shape.
+
+**How to pick up**
+1. `git log --oneline -3` to see the new commit (`da71ae5`).
+2. Read this handoff + the "Vault 3.5 (next session)" handoff above for the deploy contract + the env-var contract.
+3. Set up the signer: generate a testnet key, set `VAULT_SAFE_SIGNER_PRIVATE_KEY`, fund with Base Sepolia ETH.
+4. Sign in as `mom@compass.local` / `correct-horse-battery-staple`; visit `/vault`. Click `[DEPLOY] Safe` — the deploy broadcasts a tx, the page re-renders with the `[OK] Safe 0x12…34` chip. The audit log gets a `vault.safe_deployed` entry. Inspect the deploy tx on Base Sepolia explorer (https://sepolia.basescan.org).
+5. The dev server is on `127.0.0.1:3000`. The current background task (`bg_b1e3529f`) will hit its 30-min cap eventually; the Next process itself is independent.
+6. The COORDINATION.md is committed; this handoff is the contract for Vault 4.0 M2.
