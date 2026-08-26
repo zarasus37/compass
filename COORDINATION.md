@@ -12,7 +12,7 @@
 - **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory) — ✅ done, commit `cda8972`. Cluster 1.7 visual audit — ✅ done, commit `3da5716`. **Cluster 1.8 (Bill organizer + Plan My Next Check + calendar warnings) — ✅ done, commit `999ff37`. Cluster 1.9 (Debt payoff simulator + Saturn vessel + 3-up card + paid-off celebration) — ✅ done, commits `feb50e3` + `801525c` (math-bug fix) + `0ffb439` (per-debt sparkline).** Biweekly period locked as the canonical pay schedule (D17); period-close renamed to match (D18). **Chart-next-to-data principle applied across /goals, /envelopes, /recurring, /debts, /insights — commit `843375c`. Cluster 1.10 (drill-downs + new transaction / goal / envelope / bill / debt forms + edit forms) — ✅ done, commits `03f308f` + `006bca0` + `3dc679f` + `649d76e`. **Cluster 2.0 (customizable, scrollable, card-based dashboard with @dnd-kit drag-and-drop + localStorage persistence) — ✅ done, commit `e648ef5`. Cluster 2.0.1 (visual-first treatment: 7-day WeekSparkline, BurnSparkline, embedded GoalSparkline) — ✅ done, commit `af0b8d3`. Cluster 2.0.2 (full-month calendar with planetary headers + scheduled bills list) — ✅ done, commit `34f3928`. **Cluster 2.0.3 (Component Oracle Terminal re-skin of the dashboard) — ✅ done, commit `884fe70`.** **Cluster 2.1 (must-have viz + utility integration push: 3 new dashboard cards (Spend Ring, Net Trajectory, Pay Distribution) + Must-Have Tools index strip on dashboard + /settings hub + Plaid sandbox + AI categorize rules + Receipt scan + Habit quiz + Household stub + /subscriptions wired to live data) — ✅ done, single working session.** Next: tidy up — fine-tune placement, polish tooltips, add hover states where missing, decide which cards to default-on, integrate the tools into the sidebar nav as a 4th chapter if the Settings entry feels too hidden, then 2.x (form actions deep-dive, bill reminders, variable income, period close), then 3.x (real Plaid, AI tiers).
 - **Stage 3 (Test & bug-fix)**: pending Stage 2
 
-> Last update: 2026-08-26 (Cluster 5.2.6 ✅ DONE — all 6 widgets on Prisma). Widgets #1-3 (recurring/bills, envelopes, goals) shipped in the prior session. Widgets #4-6 (allocation, insights, accounts) shipped in this session as commits `fe4380c` + `e1e9066`. The /allocation page now reads from the Prisma `AllocationPlan` + `AllocationRule` tables — the per-envelope distribution is rule-driven (33% Rent, 18% Savings, 15% Debt, etc.) instead of being derived from envelope target sizes. The /insights page reads envelopes + goals from Prisma (`liveEnvelopesFromDb` + `liveGoalsFromDb`); the Transaction read + Snapshot are still in-memory (Transaction model not migrated in this cluster, per the handoff). The /accounts page reads from the Prisma `Account` table — the canonical seed row (Chase Checking) is surfaced as the primary card, and the projection's `[identity] ` accounts (income/assets/debts from the chat) appear in a separate "From the onboarding chat" section. Also fixed a latent bug: the /accounts balance cell was hardcoded to the next paycheck amount (`formatMoney(2_400_00)`) rather than the live `account.balanceCents` — now reads the live balance. New seeders: `seed-allocation.ts` (1 plan + 7 rules), `seed-accounts.ts` (1 canonical row). New read functions: `livePlanFromDb`, `liveAccountsFromDb` (returns `{ canonical, projected }` discriminated by the `[identity] ` name prefix). New smokes: `smoke-allocation-db` (53 checks), `smoke-insights-db` (23), `smoke-accounts-db` (33). All 12 smokes green at 547 total checks (bills 36, envelopes 29, goals 28, allocation 53, insights 23, accounts 33, reset-seed 8, deprecated 42, onboarding-agent 97, sidebar 63, topbar 102, vault 33). Pre-existing tsc error in `src/app/(app)/vault/page.tsx:136` (Property 'acknowledged' missing) — not introduced by this cluster, owned by the vault cluster. Pre-existing smoke-auth.mjs failure — not introduced by this cluster. dev server on 127.0.0.1:3000.)
+> Last update: 2026-08-26 (Cluster 5.3 ✅ DONE — Ongoing advisor (Ollama) shipped as commit `8eef08b`). The new `/advisor` page is a post-onboarding "ask me anything" chat surface — single LLM round per turn, no tool calls (advisor is read-only over the existing FinancialIdentity), shared OnboardingMessage log with the onboarding chat so the advisor sees prior conversation context. Sidebar entry under `// Learn` with a `[NEW]` badge. The advisor uses the same `LLM_PROVIDER` as the rest of the app (set it to `ollama` for the privacy-first local-LLM advisor experience). All 13 smokes green at 595 total checks (bills 36, envelopes 29, goals 28, allocation 53, insights 23, accounts 33, reset-seed 8, deprecated 42, onboarding-agent 97, sidebar 63, topbar 102, vault 49, advisor 32). Pre-existing tsc error in `src/app/(app)/vault/page.tsx:136` (Property 'acknowledged' missing) — not introduced by this cluster, owned by the vault cluster. Pre-existing smoke-auth.mjs failure — not introduced by this cluster. dev server on 127.0.0.1:3000. Cluster 5.2.6 was the prior commit (`e1e9066`); this session also picked up a vault `Phase 2.5` commit (`761fa7f` + `a43b3d8`) — not introduced by this work, just noting the dev server had the latest main when we started.)
 
 ---
 
@@ -807,6 +807,84 @@ The other dashboard widgets (period, envelopes, bills, allocation, insights) sti
 - **Best template for a page switch**: `src/app/(app)/goals/page.tsx` (made async, added `await requireUser()`, swapped `liveGoals()` → `await liveGoalsFromDb(user.id)`, filtered to non-null planet + targetDate for the trajectory).
 - **Best template for a smoke**: `tests/smoke-goals-db.mjs` (login, reset, query Prisma, hit page, deep-link filter, DB-write → re-render round trip).
 
+### Cluster 5.3 — Ongoing advisor (Ollama) — ✅ DONE 2026-08-26 (commit `8eef08b`)
+
+The post-onboarding "ask me anything" surface. Single LLM round
+per turn, no tool calls (advisor is read-only over the existing
+FinancialIdentity). Shared OnboardingMessage log with the
+onboarding chat so the advisor sees prior conversation context.
+Lives at `/advisor` under `(app)/` (gets the full dashboard
+chrome — TopAppBar + Sidebar + BottomNav). Sidebar entry under
+`// Learn` with a `[NEW]` badge.
+
+**Files shipped:**
+- `src/lib/advisor/system-prompt.ts` — the post-onboarding CFP
+  voice (~3KB base + identity summary prepend via
+  `buildAdvisorSystemPrompt`). Documents the 5 example
+  questions the advisor should handle well (afford a $5K
+  trip, debt order, retirement track, safe-to-spend, bonus
+  allocation) plus the 3 things it should NOT do (edit data,
+  invent numbers, give tax/legal advice).
+- `src/lib/advisor/agent.ts` — `runAdvisor({ userId, userMessage,
+  history? })`. Single LLM call per turn. Loads the
+  OnboardingState, renders the identity as a plain-text
+  summary (basics, income, fixed expenses w/ monthly total,
+  debts w/ total + minimum, assets, goals, risk, household —
+  each section labeled `(none recorded)` when empty), calls
+  the LLM dispatcher with the advisor prompt, saves the new
+  messages back to the OnboardingMessage log via the existing
+  `saveConversation`. Surfaces L1 fallback telemetry on the
+  result. Read-only — the orchestrator only mutates
+  `state.messages`; the identity + child tables are untouched.
+- `src/app/api/advisor/run/route.ts` — POST `{ userMessage }`
+  → `{ agentMessage, state, provider, fellBack, fallbackError }`.
+  Mirrors the `/api/onboarding/run` contract. 409 gate for
+  users without a completed FinancialIdentity
+  (`error="onboarding_incomplete"`, `redirectTo="/onboarding"`).
+- `src/app/(app)/advisor/page.tsx` — the new page. Server
+  component, `force-dynamic`. Header strip is compact
+  (`// Learn · Advisor · a CFP on tap`). The (app) layout's
+  OnboardingGate (307 redirect to /onboarding when the
+  identity is incomplete) is the right UX here.
+- `src/components/advisor/AdvisorChatSurface.tsx` — the chat
+  UI. Mirrors the onboarding ChatSurface (user right-aligned,
+  assistant left-aligned, vessel-accent / vessel-surface
+  backgrounds, terminal voice) but simpler: no milestones,
+  no demo button, no audit-complete state. Empty state
+  shows 4 clickable starter questions. 409 response renders
+  an error row with a "Finish onboarding →" CTA.
+- `tests/smoke-advisor.mjs` — 32 checks. Page surface +
+  empty-state starter questions + sidebar entry + [NEW]
+  badge + 400/409/200 API paths + history persistence +
+  OnboardingMessage log count + onboarding-incomplete gate.
+
+**Sidebar** — added `Advisor` entry under `// Learn` with a
+`[NEW]` badge (auto tone, vessel-accent border).
+
+**Smokes:** 13/13 green at 595 total checks (bills 36,
+envelopes 29, goals 28, allocation 53, insights 23, accounts
+33, reset-seed 8, deprecated 42, onboarding-agent 97, sidebar
+63, topbar 102, vault 49, advisor 32). No regressions.
+
+**Out of scope (deferred to future clusters):**
+- Tools for the advisor (e.g. `querySnapshot` for current
+  balances). The identity is rendered inline in the system
+  prompt for v1.
+- An advisor-specific provider override. The advisor uses
+  the same `LLM_PROVIDER` as the rest of the app. If
+  `LLM_PROVIDER=ollama`, the advisor uses Ollama
+  (privacy-first by default).
+- The deep L1 fallback path smoke. The dispatcher fallback
+  path is identical to the onboarding flow's (and the
+  `smoke-onboarding-agent` exercises it deeply). The advisor
+  smoke verifies the result shape (`provider="mock"` +
+  `fellBack=true` on the metadata) rather than the full
+  fallback path.
+- Multi-user / household. Single-user for now (the project's
+  v1 contract); the advisor reads/writes are scoped to the
+  signed-in user via the existing `requireUser()` +
+  `FinancialIdentity` model.
+
 ### Cluster 5.3 — Ongoing advisor (Ollama)
 
 ### Cluster 2 (after Cluster 2.0)
@@ -1091,6 +1169,7 @@ These touch the auto-allocate engine + the AI provider layer. Schedule for after
 - **Cluster 2.x (Smart bills + variable income)**: ⏳ scoped, not started (see "Handoff menu" above)
 - **Cluster 2.1 (Must-have viz + utility integration push)**: ✅ 2026-08-23, single working session — 5 viz wired (3 new dashboard cards + 2 already-shipped) + 6 utility surfaces under /settings + Must-Have Tools index strip on the dashboard + /subscriptions wired to live detection.
 - **Cluster 5.2.6 (widget switch — all 6 widgets on Prisma)**: ✅ 2026-08-26, two focused pushes. Widgets #1-3 (recurring/bills, envelopes, goals) shipped in the prior session. Widgets #4-6 (allocation, insights, accounts) shipped in this session as commits `fe4380c` + `e1e9066`. The /allocation page now reads from Prisma `AllocationPlan` + `AllocationRule` (rule-driven distribution: 33% Rent, 18% Savings, 15% Debt, etc.). The /insights page reads envelopes + goals from Prisma (Transaction read + Snapshot still in-memory, per the handoff). The /accounts page reads from Prisma `Account` (canonical + `[identity] ` projection rows surfaced separately). Latent bug fixed in /accounts: balance cell was hardcoded to `formatMoney(2_400_00)` (next paycheck), now reads the live `account.balanceCents`. New seeders: `seed-allocation.ts` (1 plan + 7 rules), `seed-accounts.ts` (1 canonical row). New read functions: `livePlanFromDb`, `liveAccountsFromDb`. New smokes: `smoke-allocation-db` (53), `smoke-insights-db` (23), `smoke-accounts-db` (33). All 12 smokes green at 547 total checks. AllocationRule gained `onDelete: Cascade` on its envelope relation so /api/reset-seed can wipe + reseed envelopes without FK violations.
+- **Cluster 5.3 (ongoing advisor — Ollama)**: ✅ 2026-08-26, single working push, commit `8eef08b`. The post-onboarding "ask me anything" surface at `/advisor`. Single LLM round per turn, no tool calls (advisor is read-only over the existing FinancialIdentity), shared OnboardingMessage log with the onboarding chat so the advisor sees prior conversation context. Sidebar entry under `// Learn` with a `[NEW]` badge. Uses the same `LLM_PROVIDER` as the rest of the app (set it to `ollama` for the privacy-first local-LLM advisor experience). New files: `src/lib/advisor/system-prompt.ts` (advisor CFP voice, ~3KB base + identity summary prepend), `src/lib/advisor/agent.ts` (runAdvisor orchestrator with identity summary renderer), `src/app/api/advisor/run/route.ts` (POST endpoint with 409 gate for incomplete identity), `src/app/(app)/advisor/page.tsx` (the new page), `src/components/advisor/AdvisorChatSurface.tsx` (chat UI with 4 clickable starter questions), `tests/smoke-advisor.mjs` (32 checks). 13/13 smokes green at 595 total checks.
 - **Cluster 3.0 (Vessel shell foundation — Sovereign Monad pivot)**: ✅ 2026-08-24, commit `81e7c7c` — vessel palette added to globals.css, PayPeriod Prisma model + getCurrentPayPeriod() reader, toggleEngineAction typed result, new TopAppBar (Sovereign Monad wordmark + pulsing accent dot + CYCLE chip + engine pill), new BottomNav (4 tabs + floating Quick Entry disc), all 8 smokes green at 241/241. Old Component Oracle Terminal tokens preserved additively; body shells (SafeToSpendHero, BurnCurve, HorizonStrip, VesselFeed, RebalanceAlertBay) still use cosmos/teal/gold and migrate in Cluster 3.1.
 - **Cluster 3.1 (Vessel visual migration — 5 body shells)**: ✅ 2026-08-24, commits `bc1906d` + `f7ad92f` — RebalanceAlertBay + Drawer + Form (Component 3) and SafeToSpendHero + BurnCurve + HorizonStrip + AllocationFeed (Components 1+2+4+5) all on vessel tokens. Collateral tsc fix in `engine-actions.ts` (toggleEngineAction return type narrowed to `Promise<void>` to satisfy the plain-form `action` prop signature; the typed `ToggleEngineResult` envelope stays exported for future `useActionState` callers). All 8 smokes still green at 241/241. The remaining shell components (DashboardCard, DashboardGrid, MustHaveToolsStrip, PlanMyNextCheck, PaycheckSimulator, SwipeableDashboardHeader, and the other dashboard cards) still use terminal tokens and are tracked as Cluster 3.1.5.
 - **Handed off (design)**: 2026-08-21
@@ -1111,6 +1190,7 @@ These touch the auto-allocate engine + the AI provider layer. Schedule for after
 - **From session**: `mvs_195bdf454faf4c83ad4a59dbb183effb` (Cluster 3.1 vessel + 4.0 nav + 4.1 glossary + 4.2 goals filtering + 4.3 deprecated cleanup + 4.4 visual finish + 5.0 Part A LLM engine + 5.x Period page 7-feature push + PeriodDonut fix)
 - **From session**: `mvs_1bcddf951dde44e08752858a24aeda18` (Cluster 5.0 Part B + Cluster 5.1 + Cluster 5.2 + Cluster 5.2.5: Prisma persistence + L1 fallback + OnboardingGate + /onboarding page + ChatSurface + ProgressRail + ProviderBanner + reset endpoint + Identity Summary dashboard card + Use demo data button + /api/onboarding/seed-demo endpoint + Bill model + projectIdentityToProduction + ProjectionFooter + 17 new smoke checks; total 14/15 smokes green at 526/526, smoke-onboarding-agent 97)
 - **From session**: `mvs_9cb2d226c55c4c31b0573065b31cfd08` (Cluster 5.2.6 widgets #4-6: `source` field + cascade fixes on AllocationPlan + AllocationRule + Account; new `seed-allocation.ts` (1 plan + 7 rules) + `seed-accounts.ts` (1 canonical row); new `livePlanFromDb` + `liveAccountsFromDb` read functions; /allocation rewritten to use rule-driven distribution; /insights page now reads envelopes + goals from Prisma; /accounts rewritten to read from Prisma + surface `[identity]` projection rows; fixed latent /accounts balance hardcode bug; /api/reset-seed now calls the new seeders; 109 new smoke checks across 3 new files. All 12/12 smokes green at 547 total checks. See "Cluster 5.2.6" sign-off entry for the contract.)
+- **From session**: `mvs_9cb2d226c55c4c31b0573065b31cfd08` (Cluster 5.3 — Ongoing advisor (Ollama): new `/advisor` page (under `(app)/`) for the post-onboarding "ask me anything" surface; new `src/lib/advisor/system-prompt.ts` (advisor CFP voice, ~3KB base + `buildAdvisorSystemPrompt` that prepends a plain-text identity summary); new `src/lib/advisor/agent.ts` (`runAdvisor` orchestrator — single LLM round, no tools, shared OnboardingMessage log with the onboarding chat, surfaces L1 fallback telemetry); new `src/app/api/advisor/run/route.ts` (POST endpoint with 409 gate for incomplete identity); new `src/app/(app)/advisor/page.tsx` (server component, the (app) layout's OnboardingGate redirects to /onboarding when identity is incomplete); new `src/components/advisor/AdvisorChatSurface.tsx` (chat UI with 4 clickable starter questions); sidebar entry under `// Learn` with `[NEW]` badge; new `tests/smoke-advisor.mjs` (32 checks). All 13/13 smokes green at 595 total checks. The advisor uses the same `LLM_PROVIDER` as the rest of the app — set it to `ollama` for the privacy-first local-LLM advisor experience.)
 - **Handed to**: next session — **Cluster 5.2.6 is ✅ DONE**. Recommended next cluster is **5.3 — Ongoing advisor (Ollama)**: flip the existing dashboard widgets (period, envelopes, bills, allocation, insights) from the in-memory seed (`liveEnvelopes()`, `BILLS_SEED`, `MOCK_ACCOUNTS`, `mockAllocationPlan()`) to the production tables. The data layer is now in place after 5.2.5 — Account/Bill/Goal tables are populated by the projection; the in-memory seed still drives the widgets. Recommended approach: add a `source` field to the migrated seed rows (like Bill already has via `prisma db push`) so production reads can filter `WHERE source IN ('seed','identity')` and the projected rows + migrated seed rows are visible together. This is the visible-UI half of the chat-to-dashboard pipeline (5.2.5 was the invisible-architecture half). After 5.2.6, the queue is: 5.3 ongoing advisor via Ollama (post-onboarding "ask me anything" surface, same `callAgent` interface, privacy-first). The chat is live (sign in as `mom@compass.local` / `correct-horse-battery-staple` and visit `/onboarding`). The Identity Summary card appears on the dashboard with the chat's data + a `[OK] PROJECTED N acct · M bill · K goal` footer. The "Use demo data" button on /onboarding gives instant-onboard (no chat) — click it and you're on the dashboard with seeded income, debt, goal, AND projected production rows. The L1 rules fallback fires automatically when Mavis/Ollama errors — the `ProviderBanner` surfaces the warning. `.env.local.example` is committed; the actual `.env.local` is gitignored. The design system is **Sovereign Monad / vessel (v6)**, superseding Component Oracle Terminal. `tsc --noEmit` is clean; 14 smokes green at 526/526 (smoke-onboarding-agent 97, smoke-period 46, smoke-sidebar 60, smoke-topbar 102, smoke-bottom-dock 70, smoke-goals 36, smoke-glossary 32, smoke-rebalance 5, smoke-reset-seed 8, smoke-engine-toggle 7, smoke-vessel-feed 7, smoke-horizon-strip 14, smoke-alert-bay 22, smoke-visual-finish 20); `smoke-auth.mjs` pre-existing failing — unrelated; dev server on 127.0.0.1:3000.
 
 ---
