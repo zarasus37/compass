@@ -16,7 +16,7 @@ import { usePathname } from "next/navigation";
  *   // LEDGER    — Accounts, Transactions, Envelopes, Allocation,
  *                 Obligations, Vault, Debts, Holdings
  *   // AIMS      — Goals
- *   // LEARN     — Field Guide, Your Numbers, Glossary, Habit Quiz
+ *   // LEARN     — Field Guide, Your Numbers, Advisor, Glossary, Habit Quiz
  *
  * Page names: plain English, mono items. Active state: teal/cyan left
  * rail + filled background. AUTO badge: teal/cyan border + text.
@@ -74,6 +74,7 @@ const NAV: NavChapter[] = [
     items: [
       { href: "/learn/field-guide", label: "Field Guide" },
       { href: "/learn/your-numbers", label: "Your Numbers" },
+      { href: "/advisor",            label: "Advisor", badge: { text: "NEW", tone: "auto" } },
       { href: "/learn/glossary",   label: "Glossary" },
       { href: "/learn/habit-quiz", label: "Habit Quiz" },
     ],
