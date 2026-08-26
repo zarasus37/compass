@@ -1,12 +1,21 @@
 /**
  * Onboarding agent orchestrator — `runAgent` for v1.
  *
- * Cluster 5.0 Part A. In-memory state keyed by user; persistence
- * (FinancialIdentity + OnboardingConversation tables) lands in
- * Part B. The orchestrator handles the full per-turn loop:
+ * Cluster 5.0 Part A → Part B. In Part A the orchestrator held
+ * state in process memory; Part B persists to Prisma via
+ * loadConversation / saveConversation. The orchestrator's per-turn
+ * loop is unchanged:
  *
  *   userMessage + history → LLM call → tool calls? → run tools →
  *   feed results back → LLM call again → ... → final response
+ *
+ * What changed in Part B:
+ *   - loadConversation and saveConversation are now async (Prisma).
+ *   - saveConversation takes the list of *new* messages added this
+ *     turn (we diff workingHistory against the loaded history).
+ *   - The final state records `lastFellBack` and `lastErrorMessage`
+ *     when the L1 rules fallback fires (the primary provider errored
+ *     and the mock engine produced the response instead).
  *
  * The caller (the chat UI in Cluster 5.1) hands us the latest
  * user message + the full history; we return:
@@ -42,8 +51,8 @@ export interface RunAgentInput {
   userMessage: string;
   /**
    * Optional pre-loaded history. If absent, we read from the
-   * in-memory state (for v1). The chat UI will pass its own
-   * loaded history once persistence is wired.
+   * persisted state. The chat UI will pass its own loaded history
+   * once 5.1 is wired.
    */
   history?: LLMMessage[];
 }
@@ -61,6 +70,10 @@ export interface RunAgentResult {
   provider: "mavis" | "ollama" | "mock";
   /** True if the agent called markOnboardingComplete during this turn. */
   onboardingCompleted: boolean;
+  /** True if the LLM primary errored and the L1 rules fallback ran. */
+  fellBack: boolean;
+  /** The primary provider's error message when fellBack=true. */
+  fallbackError: string | null;
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -71,7 +84,7 @@ export interface RunAgentResult {
 const MAX_ROUNDS = 6;
 
 export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
-  const state = loadConversation(input.userId);
+  const state = await loadConversation(input.userId);
   const history: LLMMessage[] = input.history ?? state.messages;
 
   // Append the new user message to the history.
@@ -84,6 +97,8 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
   let rounds = 0;
   let finalResponse: LLMResponse | null = null;
   let onboardingCompleted = false;
+  let fellBack = false;
+  let fallbackError: string | null = null;
 
   // Per-turn tool loop. The agent may call tools, get results, and
   // call more tools. We cap the rounds so a runaway agent can't loop
@@ -101,6 +116,17 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
     };
 
     const res = await callLLM(req);
+
+    // Track L1 fallback telemetry from any round of this turn. The
+    // callLLM dispatcher sets meta.fellBack=true when the primary
+    // (Mavis / Ollama) errored and the mock engine produced the
+    // response. We surface this on the final state so the chat UI
+    // can show a "we had trouble reaching Mavis" banner.
+    if (res.meta?.fellBack === true) {
+      fellBack = true;
+      fallbackError =
+        (res.meta.l1Error as string | undefined) ?? fallbackError ?? "unknown error";
+    }
 
     // No tool calls → this is the final response.
     if (res.toolCalls.length === 0) {
@@ -163,14 +189,18 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
     ];
   }
 
-  // Persist the updated state.
+  // Persist the updated state. The new messages are the ones we
+  // added during this turn — everything past the loaded `history`.
+  const newMessages = workingHistory.slice(history.length);
   const updatedState: OnboardingState = {
     ...state,
     messages: workingHistory,
     lastProvider: finalResponse.provider,
+    lastFellBack: fellBack,
+    lastErrorMessage: fallbackError,
     lastTouchedAt: new Date().toISOString(),
   };
-  saveConversation(updatedState);
+  await saveConversation(updatedState, newMessages);
 
   return {
     agentMessage: finalResponse.content,
@@ -179,6 +209,8 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
     rounds,
     provider: finalResponse.provider,
     onboardingCompleted,
+    fellBack,
+    fallbackError,
   };
 }
 

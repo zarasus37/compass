@@ -267,6 +267,123 @@ exports.Prisma.PayPeriodScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.FinancialIdentityScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  ageRange: 'ageRange',
+  employmentStatus: 'employmentStatus',
+  location: 'location',
+  timeHorizonYears: 'timeHorizonYears',
+  riskTolerance: 'riskTolerance',
+  riskNotes: 'riskNotes',
+  aiTierPref: 'aiTierPref',
+  riskComfort: 'riskComfort',
+  currency: 'currency',
+  auditIdentity: 'auditIdentity',
+  auditFindings: 'auditFindings',
+  auditPlan: 'auditPlan',
+  auditFirstStep: 'auditFirstStep',
+  auditTeaching: 'auditTeaching',
+  auditBuiltAt: 'auditBuiltAt',
+  completedAt: 'completedAt',
+  lastProvider: 'lastProvider',
+  lastFellBack: 'lastFellBack',
+  lastErrorMessage: 'lastErrorMessage',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.IdentityIncomeScalarFieldEnum = {
+  id: 'id',
+  identityId: 'identityId',
+  label: 'label',
+  cadence: 'cadence',
+  amountDollars: 'amountDollars',
+  isPrimary: 'isPrimary',
+  sortOrder: 'sortOrder',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.IdentityExpenseScalarFieldEnum = {
+  id: 'id',
+  identityId: 'identityId',
+  label: 'label',
+  amountDollars: 'amountDollars',
+  cadence: 'cadence',
+  category: 'category',
+  sortOrder: 'sortOrder',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.IdentityDebtScalarFieldEnum = {
+  id: 'id',
+  identityId: 'identityId',
+  label: 'label',
+  kind: 'kind',
+  balanceDollars: 'balanceDollars',
+  aprPercent: 'aprPercent',
+  minPaymentDollars: 'minPaymentDollars',
+  sortOrder: 'sortOrder',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.IdentityAssetScalarFieldEnum = {
+  id: 'id',
+  identityId: 'identityId',
+  label: 'label',
+  kind: 'kind',
+  balanceDollars: 'balanceDollars',
+  sortOrder: 'sortOrder',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.IdentityGoalScalarFieldEnum = {
+  id: 'id',
+  identityId: 'identityId',
+  label: 'label',
+  targetDollars: 'targetDollars',
+  targetDate: 'targetDate',
+  perPaycheckDollars: 'perPaycheckDollars',
+  kind: 'kind',
+  goalType: 'goalType',
+  priority: 'priority',
+  sortOrder: 'sortOrder',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.IdentityEventScalarFieldEnum = {
+  id: 'id',
+  identityId: 'identityId',
+  label: 'label',
+  date: 'date',
+  estimatedCostDollars: 'estimatedCostDollars',
+  isFlexible: 'isFlexible',
+  sortOrder: 'sortOrder',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.IdentityHouseholdMemberScalarFieldEnum = {
+  id: 'id',
+  identityId: 'identityId',
+  name: 'name',
+  relationship: 'relationship',
+  financiallyEntwined: 'financiallyEntwined',
+  ageRange: 'ageRange',
+  sortOrder: 'sortOrder',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.OnboardingMessageScalarFieldEnum = {
+  id: 'id',
+  identityId: 'identityId',
+  role: 'role',
+  content: 'content',
+  toolCallId: 'toolCallId',
+  toolCallsJson: 'toolCallsJson',
+  seq: 'seq',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -298,7 +415,16 @@ exports.Prisma.ModelName = {
   AllocationRule: 'AllocationRule',
   AuditLog: 'AuditLog',
   SystemSettings: 'SystemSettings',
-  PayPeriod: 'PayPeriod'
+  PayPeriod: 'PayPeriod',
+  FinancialIdentity: 'FinancialIdentity',
+  IdentityIncome: 'IdentityIncome',
+  IdentityExpense: 'IdentityExpense',
+  IdentityDebt: 'IdentityDebt',
+  IdentityAsset: 'IdentityAsset',
+  IdentityGoal: 'IdentityGoal',
+  IdentityEvent: 'IdentityEvent',
+  IdentityHouseholdMember: 'IdentityHouseholdMember',
+  OnboardingMessage: 'OnboardingMessage'
 };
 
 /**

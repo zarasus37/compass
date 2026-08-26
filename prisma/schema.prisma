@@ -69,6 +69,7 @@ model User {
   goals           Goal[]
   allocationPlans AllocationPlan[]
   auditLog        AuditLog[]
+  identity        FinancialIdentity?
 
   @@index([email])
 }
@@ -364,4 +365,248 @@ model PayPeriod {
 
   @@index([isActive])
   @@index([startDate, endDate])
+}
+
+// ───────────────────────────────────────────────────────────────────
+// Cluster 5.0 Part B — Onboarding persistence
+// ───────────────────────────────────────────────────────────────────
+//
+// The onboarding agent (Cluster 5.0 Part A) was in-memory keyed by
+// userId. Part B replaces that with a Prisma-backed FinancialIdentity
+// so the conversation survives a dev server restart and the dashboard
+// can later (Cluster 5.2) read the materialized identity records
+// instead of the seed.
+//
+// The OnboardingState interface in src/lib/onboarding/state.ts is the
+// public contract — its shape is unchanged between Part A and Part B.
+// What changes is the storage layer: loadConversation() and
+// saveConversation() now read/write these tables.
+
+/// The user's financial identity, as built up by the onboarding agent.
+/// One row per user. The scalar fields (identity basics, risk profile,
+/// preferences, audit) live on this row; the array-shaped data
+/// (income sources, debts, goals, etc.) lives in child tables so the
+/// dashboard wire-up in Cluster 5.2 can iterate them like normal
+/// queryable data.
+model FinancialIdentity {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+
+  // Identity basics (saveIdentityBasics)
+  ageRange          String?
+  employmentStatus  String?
+  location          String?
+
+  // Risk profile (saveRiskProfile)
+  timeHorizonYears  Int?
+  riskTolerance     String?  // conservative | moderate | aggressive
+  riskNotes         String?
+
+  // Preferences (savePreferences)
+  aiTierPref        String?  // off | assistive | copilot | autonomous
+  riskComfort       String?
+  currency          String   @default("USD")
+
+  // Audit (buildAudit) — the closing document the agent hands back.
+  auditIdentity     String?
+  auditFindings     String?
+  auditPlan         String?
+  auditFirstStep    String?
+  auditTeaching     String?
+  auditBuiltAt      DateTime?
+  /// Set by markOnboardingComplete. Null until the conversation ends.
+  completedAt       DateTime?
+
+  // Provider telemetry — surfaces in the chat UI when the L1 rules
+  // fallback fires (e.g. Mavis out of credit → mock ran the response).
+  lastProvider      String?  // mavis | ollama | mock
+  lastFellBack      Boolean  @default(false)
+  lastErrorMessage  String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomes           IdentityIncome[]
+  expenses          IdentityExpense[]
+  debts             IdentityDebt[]
+  assets            IdentityAsset[]
+  goals             IdentityGoal[]
+  events            IdentityEvent[]
+  household         IdentityHouseholdMember[]
+  messages          OnboardingMessage[]
+
+  @@index([userId])
+  @@index([completedAt])
+}
+
+/// One income source. `Identity` is the namespace; the `Identity`
+/// prefix keeps the cluster's tables distinct from the production
+/// Account/Goal/etc. tables (which will be filled by Cluster 5.2's
+/// "wire dashboard to identity" pass).
+model IdentityIncome {
+  id            String   @id @default(cuid())
+  identityId    String
+  /// "Acme Corp salary", "Social Security", etc. (saveIncomeSource.label)
+  label         String
+  /// weekly | biweekly | semi_monthly | monthly | irregular | null
+  cadence       String?
+  /// Take-home per pay period, in DOLLARS (not cents) — matches the
+  /// user's mental model when they say "$1,820." The orchestrator
+  /// converts to cents when it projects to the production Account
+  /// /Transaction models in Cluster 5.2.
+  amountDollars Int?
+  /// At most one per identity is primary. The orchestrator enforces
+  /// this; the DB allows multiple because partial saves (cadence
+  /// known but amount pending) can land with isPrimary=true before
+  /// the amount refines.
+  isPrimary     Boolean  @default(false)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  identity      FinancialIdentity @relation(fields: [identityId], references: [id], onDelete: Cascade)
+
+  @@index([identityId])
+}
+
+/// One fixed recurring expense (rent, utilities, insurance premiums).
+model IdentityExpense {
+  id            String   @id @default(cuid())
+  identityId    String
+  /// "Rent", "Spectrum internet", "Car insurance".
+  label         String
+  /// Amount per period, in DOLLARS.
+  amountDollars Int
+  /// weekly | biweekly | semi_monthly | monthly | quarterly | annual
+  cadence       String
+  /// housing | utilities | insurance | food | transportation | healthcare | childcare | entertainment | other
+  category      String
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  identity      FinancialIdentity @relation(fields: [identityId], references: [id], onDelete: Cascade)
+
+  @@index([identityId])
+}
+
+/// One debt. APR is stored as Float because percent is naturally
+/// fractional (e.g. 6.5%). Money fields stay Int.
+model IdentityDebt {
+  id                String   @id @default(cuid())
+  identityId        String
+  label             String
+  /// credit_card | mortgage | student_loan | auto_loan | personal_loan | medical | other
+  kind              String
+  balanceDollars    Int      @default(0)
+  aprPercent        Float    @default(0)
+  minPaymentDollars Int      @default(0)
+  sortOrder         Int      @default(0)
+  createdAt         DateTime @default(now())
+
+  identity          FinancialIdentity @relation(fields: [identityId], references: [id], onDelete: Cascade)
+
+  @@index([identityId])
+}
+
+/// One asset / account the user holds money in.
+model IdentityAsset {
+  id             String   @id @default(cuid())
+  identityId     String
+  label          String
+  /// checking | savings | money_market | 401k | 403b | traditional_ira
+  /// | roth_ira | taxable_brokerage | hsa | home_equity | vehicle | other
+  kind           String
+  balanceDollars Int      @default(0)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  identity       FinancialIdentity @relation(fields: [identityId], references: [id], onDelete: Cascade)
+
+  @@index([identityId])
+}
+
+/// One goal. Mirrors the production `Goal` model but kept separate
+/// (1) so onboarding's goals live independently until Cluster 5.2
+/// projects them, and (2) so we can capture extra context the
+/// production model doesn't yet store (perPaycheckDollars, kind).
+model IdentityGoal {
+  id                 String   @id @default(cuid())
+  identityId         String
+  label              String
+  targetDollars      Int
+  targetDate         DateTime?
+  perPaycheckDollars Int?
+  /// TRANSFER | MILESTONE (mirrors production GoalKind).
+  kind               String
+  /// EMERGENCY | INVEST | OTHER (mirrors production GoalType but
+  /// also has OTHER since the agent's enum has it; production's
+  /// GoalType is nullable, so we use a plain String here).
+  goalType           String?
+  /// 1 = top priority, 2 = next, etc. The Emergency Fund is usually 1.
+  priority           Int      @default(2)
+  sortOrder          Int      @default(0)
+  createdAt          DateTime @default(now())
+
+  identity           FinancialIdentity @relation(fields: [identityId], references: [id], onDelete: Cascade)
+
+  @@index([identityId])
+}
+
+/// One planned future event with a known date and cost.
+model IdentityEvent {
+  id                   String   @id @default(cuid())
+  identityId           String
+  label                String
+  date                 DateTime?
+  estimatedCostDollars Int      @default(0)
+  isFlexible           Boolean  @default(false)
+  sortOrder            Int      @default(0)
+  createdAt            DateTime @default(now())
+
+  identity             FinancialIdentity @relation(fields: [identityId], references: [id], onDelete: Cascade)
+
+  @@index([identityId])
+}
+
+/// One household member (spouse, child, dependent).
+model IdentityHouseholdMember {
+  id                  String   @id @default(cuid())
+  identityId          String
+  name                String
+  /// spouse | partner | child | parent | sibling | roommate | dependent_other | other
+  relationship        String
+  financiallyEntwined Boolean  @default(false)
+  ageRange            String?
+  sortOrder           Int      @default(0)
+  createdAt           DateTime @default(now())
+
+  identity            FinancialIdentity @relation(fields: [identityId], references: [id], onDelete: Cascade)
+
+  @@index([identityId])
+}
+
+/// The conversation history. One row per LLMMessage — the agent's
+/// full loop reconstructs the working history by reading these in
+/// `seq` order. We persist (not just cache) because the chat UI
+/// (Cluster 5.1) will replay the conversation on page load, and
+/// because the L1 rules fallback benefits from seeing the prior
+/// tool calls when it picks up after a primary-provider failure.
+model OnboardingMessage {
+  id              String   @id @default(cuid())
+  identityId      String
+  /// user | assistant | tool
+  role            String
+  content         String
+  /// For role="tool", the tool call id this result answers.
+  toolCallId      String?
+  /// For role="assistant" with toolCalls, JSON-encoded LLMToolCall[].
+  toolCallsJson   String?
+  /// Monotonic position in the conversation per identity. 0, 1, 2, …
+  /// Used to reconstruct workingHistory in loadConversation().
+  seq             Int
+  createdAt       DateTime @default(now())
+
+  identity        FinancialIdentity @relation(fields: [identityId], references: [id], onDelete: Cascade)
+
+  @@index([identityId, seq])
 }

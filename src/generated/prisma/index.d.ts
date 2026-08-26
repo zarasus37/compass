@@ -96,6 +96,68 @@ export type SystemSettings = $Result.DefaultSelection<Prisma.$SystemSettingsPayl
  * that mirrors the PERIOD_START / PERIOD_END constants in lib/mock.ts.
  */
 export type PayPeriod = $Result.DefaultSelection<Prisma.$PayPeriodPayload>
+/**
+ * Model FinancialIdentity
+ * The user's financial identity, as built up by the onboarding agent.
+ * One row per user. The scalar fields (identity basics, risk profile,
+ * preferences, audit) live on this row; the array-shaped data
+ * (income sources, debts, goals, etc.) lives in child tables so the
+ * dashboard wire-up in Cluster 5.2 can iterate them like normal
+ * queryable data.
+ */
+export type FinancialIdentity = $Result.DefaultSelection<Prisma.$FinancialIdentityPayload>
+/**
+ * Model IdentityIncome
+ * One income source. `Identity` is the namespace; the `Identity`
+ * prefix keeps the cluster's tables distinct from the production
+ * Account/Goal/etc. tables (which will be filled by Cluster 5.2's
+ * "wire dashboard to identity" pass).
+ */
+export type IdentityIncome = $Result.DefaultSelection<Prisma.$IdentityIncomePayload>
+/**
+ * Model IdentityExpense
+ * One fixed recurring expense (rent, utilities, insurance premiums).
+ */
+export type IdentityExpense = $Result.DefaultSelection<Prisma.$IdentityExpensePayload>
+/**
+ * Model IdentityDebt
+ * One debt. APR is stored as Float because percent is naturally
+ * fractional (e.g. 6.5%). Money fields stay Int.
+ */
+export type IdentityDebt = $Result.DefaultSelection<Prisma.$IdentityDebtPayload>
+/**
+ * Model IdentityAsset
+ * One asset / account the user holds money in.
+ */
+export type IdentityAsset = $Result.DefaultSelection<Prisma.$IdentityAssetPayload>
+/**
+ * Model IdentityGoal
+ * One goal. Mirrors the production `Goal` model but kept separate
+ * (1) so onboarding's goals live independently until Cluster 5.2
+ * projects them, and (2) so we can capture extra context the
+ * production model doesn't yet store (perPaycheckDollars, kind).
+ */
+export type IdentityGoal = $Result.DefaultSelection<Prisma.$IdentityGoalPayload>
+/**
+ * Model IdentityEvent
+ * One planned future event with a known date and cost.
+ */
+export type IdentityEvent = $Result.DefaultSelection<Prisma.$IdentityEventPayload>
+/**
+ * Model IdentityHouseholdMember
+ * One household member (spouse, child, dependent).
+ */
+export type IdentityHouseholdMember = $Result.DefaultSelection<Prisma.$IdentityHouseholdMemberPayload>
+/**
+ * Model OnboardingMessage
+ * The conversation history. One row per LLMMessage — the agent's
+ * full loop reconstructs the working history by reading these in
+ * `seq` order. We persist (not just cache) because the chat UI
+ * (Cluster 5.1) will replay the conversation on page load, and
+ * because the L1 rules fallback benefits from seeing the prior
+ * tool calls when it picks up after a primary-provider failure.
+ */
+export type OnboardingMessage = $Result.DefaultSelection<Prisma.$OnboardingMessagePayload>
 
 /**
  * Enums
@@ -366,6 +428,96 @@ export class PrismaClient<
     * ```
     */
   get payPeriod(): Prisma.PayPeriodDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.financialIdentity`: Exposes CRUD operations for the **FinancialIdentity** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more FinancialIdentities
+    * const financialIdentities = await prisma.financialIdentity.findMany()
+    * ```
+    */
+  get financialIdentity(): Prisma.FinancialIdentityDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.identityIncome`: Exposes CRUD operations for the **IdentityIncome** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more IdentityIncomes
+    * const identityIncomes = await prisma.identityIncome.findMany()
+    * ```
+    */
+  get identityIncome(): Prisma.IdentityIncomeDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.identityExpense`: Exposes CRUD operations for the **IdentityExpense** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more IdentityExpenses
+    * const identityExpenses = await prisma.identityExpense.findMany()
+    * ```
+    */
+  get identityExpense(): Prisma.IdentityExpenseDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.identityDebt`: Exposes CRUD operations for the **IdentityDebt** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more IdentityDebts
+    * const identityDebts = await prisma.identityDebt.findMany()
+    * ```
+    */
+  get identityDebt(): Prisma.IdentityDebtDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.identityAsset`: Exposes CRUD operations for the **IdentityAsset** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more IdentityAssets
+    * const identityAssets = await prisma.identityAsset.findMany()
+    * ```
+    */
+  get identityAsset(): Prisma.IdentityAssetDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.identityGoal`: Exposes CRUD operations for the **IdentityGoal** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more IdentityGoals
+    * const identityGoals = await prisma.identityGoal.findMany()
+    * ```
+    */
+  get identityGoal(): Prisma.IdentityGoalDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.identityEvent`: Exposes CRUD operations for the **IdentityEvent** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more IdentityEvents
+    * const identityEvents = await prisma.identityEvent.findMany()
+    * ```
+    */
+  get identityEvent(): Prisma.IdentityEventDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.identityHouseholdMember`: Exposes CRUD operations for the **IdentityHouseholdMember** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more IdentityHouseholdMembers
+    * const identityHouseholdMembers = await prisma.identityHouseholdMember.findMany()
+    * ```
+    */
+  get identityHouseholdMember(): Prisma.IdentityHouseholdMemberDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.onboardingMessage`: Exposes CRUD operations for the **OnboardingMessage** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more OnboardingMessages
+    * const onboardingMessages = await prisma.onboardingMessage.findMany()
+    * ```
+    */
+  get onboardingMessage(): Prisma.OnboardingMessageDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -824,7 +976,16 @@ export namespace Prisma {
     AllocationRule: 'AllocationRule',
     AuditLog: 'AuditLog',
     SystemSettings: 'SystemSettings',
-    PayPeriod: 'PayPeriod'
+    PayPeriod: 'PayPeriod',
+    FinancialIdentity: 'FinancialIdentity',
+    IdentityIncome: 'IdentityIncome',
+    IdentityExpense: 'IdentityExpense',
+    IdentityDebt: 'IdentityDebt',
+    IdentityAsset: 'IdentityAsset',
+    IdentityGoal: 'IdentityGoal',
+    IdentityEvent: 'IdentityEvent',
+    IdentityHouseholdMember: 'IdentityHouseholdMember',
+    OnboardingMessage: 'OnboardingMessage'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -840,7 +1001,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "session" | "account" | "envelope" | "transaction" | "paySchedule" | "goal" | "allocationPlan" | "allocationRule" | "auditLog" | "systemSettings" | "payPeriod"
+      modelProps: "user" | "session" | "account" | "envelope" | "transaction" | "paySchedule" | "goal" | "allocationPlan" | "allocationRule" | "auditLog" | "systemSettings" | "payPeriod" | "financialIdentity" | "identityIncome" | "identityExpense" | "identityDebt" | "identityAsset" | "identityGoal" | "identityEvent" | "identityHouseholdMember" | "onboardingMessage"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1732,6 +1893,672 @@ export namespace Prisma {
           }
         }
       }
+      FinancialIdentity: {
+        payload: Prisma.$FinancialIdentityPayload<ExtArgs>
+        fields: Prisma.FinancialIdentityFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.FinancialIdentityFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FinancialIdentityPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.FinancialIdentityFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FinancialIdentityPayload>
+          }
+          findFirst: {
+            args: Prisma.FinancialIdentityFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FinancialIdentityPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.FinancialIdentityFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FinancialIdentityPayload>
+          }
+          findMany: {
+            args: Prisma.FinancialIdentityFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FinancialIdentityPayload>[]
+          }
+          create: {
+            args: Prisma.FinancialIdentityCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FinancialIdentityPayload>
+          }
+          createMany: {
+            args: Prisma.FinancialIdentityCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.FinancialIdentityCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FinancialIdentityPayload>[]
+          }
+          delete: {
+            args: Prisma.FinancialIdentityDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FinancialIdentityPayload>
+          }
+          update: {
+            args: Prisma.FinancialIdentityUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FinancialIdentityPayload>
+          }
+          deleteMany: {
+            args: Prisma.FinancialIdentityDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.FinancialIdentityUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.FinancialIdentityUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FinancialIdentityPayload>[]
+          }
+          upsert: {
+            args: Prisma.FinancialIdentityUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FinancialIdentityPayload>
+          }
+          aggregate: {
+            args: Prisma.FinancialIdentityAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateFinancialIdentity>
+          }
+          groupBy: {
+            args: Prisma.FinancialIdentityGroupByArgs<ExtArgs>
+            result: $Utils.Optional<FinancialIdentityGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.FinancialIdentityCountArgs<ExtArgs>
+            result: $Utils.Optional<FinancialIdentityCountAggregateOutputType> | number
+          }
+        }
+      }
+      IdentityIncome: {
+        payload: Prisma.$IdentityIncomePayload<ExtArgs>
+        fields: Prisma.IdentityIncomeFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.IdentityIncomeFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityIncomePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.IdentityIncomeFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityIncomePayload>
+          }
+          findFirst: {
+            args: Prisma.IdentityIncomeFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityIncomePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.IdentityIncomeFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityIncomePayload>
+          }
+          findMany: {
+            args: Prisma.IdentityIncomeFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityIncomePayload>[]
+          }
+          create: {
+            args: Prisma.IdentityIncomeCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityIncomePayload>
+          }
+          createMany: {
+            args: Prisma.IdentityIncomeCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.IdentityIncomeCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityIncomePayload>[]
+          }
+          delete: {
+            args: Prisma.IdentityIncomeDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityIncomePayload>
+          }
+          update: {
+            args: Prisma.IdentityIncomeUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityIncomePayload>
+          }
+          deleteMany: {
+            args: Prisma.IdentityIncomeDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.IdentityIncomeUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.IdentityIncomeUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityIncomePayload>[]
+          }
+          upsert: {
+            args: Prisma.IdentityIncomeUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityIncomePayload>
+          }
+          aggregate: {
+            args: Prisma.IdentityIncomeAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateIdentityIncome>
+          }
+          groupBy: {
+            args: Prisma.IdentityIncomeGroupByArgs<ExtArgs>
+            result: $Utils.Optional<IdentityIncomeGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.IdentityIncomeCountArgs<ExtArgs>
+            result: $Utils.Optional<IdentityIncomeCountAggregateOutputType> | number
+          }
+        }
+      }
+      IdentityExpense: {
+        payload: Prisma.$IdentityExpensePayload<ExtArgs>
+        fields: Prisma.IdentityExpenseFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.IdentityExpenseFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityExpensePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.IdentityExpenseFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityExpensePayload>
+          }
+          findFirst: {
+            args: Prisma.IdentityExpenseFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityExpensePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.IdentityExpenseFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityExpensePayload>
+          }
+          findMany: {
+            args: Prisma.IdentityExpenseFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityExpensePayload>[]
+          }
+          create: {
+            args: Prisma.IdentityExpenseCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityExpensePayload>
+          }
+          createMany: {
+            args: Prisma.IdentityExpenseCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.IdentityExpenseCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityExpensePayload>[]
+          }
+          delete: {
+            args: Prisma.IdentityExpenseDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityExpensePayload>
+          }
+          update: {
+            args: Prisma.IdentityExpenseUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityExpensePayload>
+          }
+          deleteMany: {
+            args: Prisma.IdentityExpenseDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.IdentityExpenseUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.IdentityExpenseUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityExpensePayload>[]
+          }
+          upsert: {
+            args: Prisma.IdentityExpenseUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityExpensePayload>
+          }
+          aggregate: {
+            args: Prisma.IdentityExpenseAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateIdentityExpense>
+          }
+          groupBy: {
+            args: Prisma.IdentityExpenseGroupByArgs<ExtArgs>
+            result: $Utils.Optional<IdentityExpenseGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.IdentityExpenseCountArgs<ExtArgs>
+            result: $Utils.Optional<IdentityExpenseCountAggregateOutputType> | number
+          }
+        }
+      }
+      IdentityDebt: {
+        payload: Prisma.$IdentityDebtPayload<ExtArgs>
+        fields: Prisma.IdentityDebtFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.IdentityDebtFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityDebtPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.IdentityDebtFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityDebtPayload>
+          }
+          findFirst: {
+            args: Prisma.IdentityDebtFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityDebtPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.IdentityDebtFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityDebtPayload>
+          }
+          findMany: {
+            args: Prisma.IdentityDebtFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityDebtPayload>[]
+          }
+          create: {
+            args: Prisma.IdentityDebtCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityDebtPayload>
+          }
+          createMany: {
+            args: Prisma.IdentityDebtCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.IdentityDebtCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityDebtPayload>[]
+          }
+          delete: {
+            args: Prisma.IdentityDebtDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityDebtPayload>
+          }
+          update: {
+            args: Prisma.IdentityDebtUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityDebtPayload>
+          }
+          deleteMany: {
+            args: Prisma.IdentityDebtDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.IdentityDebtUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.IdentityDebtUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityDebtPayload>[]
+          }
+          upsert: {
+            args: Prisma.IdentityDebtUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityDebtPayload>
+          }
+          aggregate: {
+            args: Prisma.IdentityDebtAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateIdentityDebt>
+          }
+          groupBy: {
+            args: Prisma.IdentityDebtGroupByArgs<ExtArgs>
+            result: $Utils.Optional<IdentityDebtGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.IdentityDebtCountArgs<ExtArgs>
+            result: $Utils.Optional<IdentityDebtCountAggregateOutputType> | number
+          }
+        }
+      }
+      IdentityAsset: {
+        payload: Prisma.$IdentityAssetPayload<ExtArgs>
+        fields: Prisma.IdentityAssetFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.IdentityAssetFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityAssetPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.IdentityAssetFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityAssetPayload>
+          }
+          findFirst: {
+            args: Prisma.IdentityAssetFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityAssetPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.IdentityAssetFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityAssetPayload>
+          }
+          findMany: {
+            args: Prisma.IdentityAssetFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityAssetPayload>[]
+          }
+          create: {
+            args: Prisma.IdentityAssetCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityAssetPayload>
+          }
+          createMany: {
+            args: Prisma.IdentityAssetCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.IdentityAssetCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityAssetPayload>[]
+          }
+          delete: {
+            args: Prisma.IdentityAssetDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityAssetPayload>
+          }
+          update: {
+            args: Prisma.IdentityAssetUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityAssetPayload>
+          }
+          deleteMany: {
+            args: Prisma.IdentityAssetDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.IdentityAssetUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.IdentityAssetUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityAssetPayload>[]
+          }
+          upsert: {
+            args: Prisma.IdentityAssetUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityAssetPayload>
+          }
+          aggregate: {
+            args: Prisma.IdentityAssetAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateIdentityAsset>
+          }
+          groupBy: {
+            args: Prisma.IdentityAssetGroupByArgs<ExtArgs>
+            result: $Utils.Optional<IdentityAssetGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.IdentityAssetCountArgs<ExtArgs>
+            result: $Utils.Optional<IdentityAssetCountAggregateOutputType> | number
+          }
+        }
+      }
+      IdentityGoal: {
+        payload: Prisma.$IdentityGoalPayload<ExtArgs>
+        fields: Prisma.IdentityGoalFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.IdentityGoalFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityGoalPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.IdentityGoalFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityGoalPayload>
+          }
+          findFirst: {
+            args: Prisma.IdentityGoalFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityGoalPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.IdentityGoalFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityGoalPayload>
+          }
+          findMany: {
+            args: Prisma.IdentityGoalFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityGoalPayload>[]
+          }
+          create: {
+            args: Prisma.IdentityGoalCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityGoalPayload>
+          }
+          createMany: {
+            args: Prisma.IdentityGoalCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.IdentityGoalCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityGoalPayload>[]
+          }
+          delete: {
+            args: Prisma.IdentityGoalDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityGoalPayload>
+          }
+          update: {
+            args: Prisma.IdentityGoalUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityGoalPayload>
+          }
+          deleteMany: {
+            args: Prisma.IdentityGoalDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.IdentityGoalUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.IdentityGoalUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityGoalPayload>[]
+          }
+          upsert: {
+            args: Prisma.IdentityGoalUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityGoalPayload>
+          }
+          aggregate: {
+            args: Prisma.IdentityGoalAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateIdentityGoal>
+          }
+          groupBy: {
+            args: Prisma.IdentityGoalGroupByArgs<ExtArgs>
+            result: $Utils.Optional<IdentityGoalGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.IdentityGoalCountArgs<ExtArgs>
+            result: $Utils.Optional<IdentityGoalCountAggregateOutputType> | number
+          }
+        }
+      }
+      IdentityEvent: {
+        payload: Prisma.$IdentityEventPayload<ExtArgs>
+        fields: Prisma.IdentityEventFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.IdentityEventFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityEventPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.IdentityEventFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityEventPayload>
+          }
+          findFirst: {
+            args: Prisma.IdentityEventFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityEventPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.IdentityEventFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityEventPayload>
+          }
+          findMany: {
+            args: Prisma.IdentityEventFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityEventPayload>[]
+          }
+          create: {
+            args: Prisma.IdentityEventCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityEventPayload>
+          }
+          createMany: {
+            args: Prisma.IdentityEventCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.IdentityEventCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityEventPayload>[]
+          }
+          delete: {
+            args: Prisma.IdentityEventDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityEventPayload>
+          }
+          update: {
+            args: Prisma.IdentityEventUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityEventPayload>
+          }
+          deleteMany: {
+            args: Prisma.IdentityEventDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.IdentityEventUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.IdentityEventUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityEventPayload>[]
+          }
+          upsert: {
+            args: Prisma.IdentityEventUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityEventPayload>
+          }
+          aggregate: {
+            args: Prisma.IdentityEventAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateIdentityEvent>
+          }
+          groupBy: {
+            args: Prisma.IdentityEventGroupByArgs<ExtArgs>
+            result: $Utils.Optional<IdentityEventGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.IdentityEventCountArgs<ExtArgs>
+            result: $Utils.Optional<IdentityEventCountAggregateOutputType> | number
+          }
+        }
+      }
+      IdentityHouseholdMember: {
+        payload: Prisma.$IdentityHouseholdMemberPayload<ExtArgs>
+        fields: Prisma.IdentityHouseholdMemberFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.IdentityHouseholdMemberFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityHouseholdMemberPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.IdentityHouseholdMemberFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityHouseholdMemberPayload>
+          }
+          findFirst: {
+            args: Prisma.IdentityHouseholdMemberFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityHouseholdMemberPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.IdentityHouseholdMemberFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityHouseholdMemberPayload>
+          }
+          findMany: {
+            args: Prisma.IdentityHouseholdMemberFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityHouseholdMemberPayload>[]
+          }
+          create: {
+            args: Prisma.IdentityHouseholdMemberCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityHouseholdMemberPayload>
+          }
+          createMany: {
+            args: Prisma.IdentityHouseholdMemberCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.IdentityHouseholdMemberCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityHouseholdMemberPayload>[]
+          }
+          delete: {
+            args: Prisma.IdentityHouseholdMemberDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityHouseholdMemberPayload>
+          }
+          update: {
+            args: Prisma.IdentityHouseholdMemberUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityHouseholdMemberPayload>
+          }
+          deleteMany: {
+            args: Prisma.IdentityHouseholdMemberDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.IdentityHouseholdMemberUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.IdentityHouseholdMemberUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityHouseholdMemberPayload>[]
+          }
+          upsert: {
+            args: Prisma.IdentityHouseholdMemberUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentityHouseholdMemberPayload>
+          }
+          aggregate: {
+            args: Prisma.IdentityHouseholdMemberAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateIdentityHouseholdMember>
+          }
+          groupBy: {
+            args: Prisma.IdentityHouseholdMemberGroupByArgs<ExtArgs>
+            result: $Utils.Optional<IdentityHouseholdMemberGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.IdentityHouseholdMemberCountArgs<ExtArgs>
+            result: $Utils.Optional<IdentityHouseholdMemberCountAggregateOutputType> | number
+          }
+        }
+      }
+      OnboardingMessage: {
+        payload: Prisma.$OnboardingMessagePayload<ExtArgs>
+        fields: Prisma.OnboardingMessageFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.OnboardingMessageFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OnboardingMessagePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.OnboardingMessageFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OnboardingMessagePayload>
+          }
+          findFirst: {
+            args: Prisma.OnboardingMessageFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OnboardingMessagePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.OnboardingMessageFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OnboardingMessagePayload>
+          }
+          findMany: {
+            args: Prisma.OnboardingMessageFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OnboardingMessagePayload>[]
+          }
+          create: {
+            args: Prisma.OnboardingMessageCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OnboardingMessagePayload>
+          }
+          createMany: {
+            args: Prisma.OnboardingMessageCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.OnboardingMessageCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OnboardingMessagePayload>[]
+          }
+          delete: {
+            args: Prisma.OnboardingMessageDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OnboardingMessagePayload>
+          }
+          update: {
+            args: Prisma.OnboardingMessageUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OnboardingMessagePayload>
+          }
+          deleteMany: {
+            args: Prisma.OnboardingMessageDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.OnboardingMessageUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.OnboardingMessageUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OnboardingMessagePayload>[]
+          }
+          upsert: {
+            args: Prisma.OnboardingMessageUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OnboardingMessagePayload>
+          }
+          aggregate: {
+            args: Prisma.OnboardingMessageAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateOnboardingMessage>
+          }
+          groupBy: {
+            args: Prisma.OnboardingMessageGroupByArgs<ExtArgs>
+            result: $Utils.Optional<OnboardingMessageGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.OnboardingMessageCountArgs<ExtArgs>
+            result: $Utils.Optional<OnboardingMessageCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -1867,6 +2694,15 @@ export namespace Prisma {
     auditLog?: AuditLogOmit
     systemSettings?: SystemSettingsOmit
     payPeriod?: PayPeriodOmit
+    financialIdentity?: FinancialIdentityOmit
+    identityIncome?: IdentityIncomeOmit
+    identityExpense?: IdentityExpenseOmit
+    identityDebt?: IdentityDebtOmit
+    identityAsset?: IdentityAssetOmit
+    identityGoal?: IdentityGoalOmit
+    identityEvent?: IdentityEventOmit
+    identityHouseholdMember?: IdentityHouseholdMemberOmit
+    onboardingMessage?: OnboardingMessageOmit
   }
 
   /* Types for Logging */
@@ -2148,6 +2984,100 @@ export namespace Prisma {
 
 
   /**
+   * Count Type FinancialIdentityCountOutputType
+   */
+
+  export type FinancialIdentityCountOutputType = {
+    incomes: number
+    expenses: number
+    debts: number
+    assets: number
+    goals: number
+    events: number
+    household: number
+    messages: number
+  }
+
+  export type FinancialIdentityCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    incomes?: boolean | FinancialIdentityCountOutputTypeCountIncomesArgs
+    expenses?: boolean | FinancialIdentityCountOutputTypeCountExpensesArgs
+    debts?: boolean | FinancialIdentityCountOutputTypeCountDebtsArgs
+    assets?: boolean | FinancialIdentityCountOutputTypeCountAssetsArgs
+    goals?: boolean | FinancialIdentityCountOutputTypeCountGoalsArgs
+    events?: boolean | FinancialIdentityCountOutputTypeCountEventsArgs
+    household?: boolean | FinancialIdentityCountOutputTypeCountHouseholdArgs
+    messages?: boolean | FinancialIdentityCountOutputTypeCountMessagesArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * FinancialIdentityCountOutputType without action
+   */
+  export type FinancialIdentityCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FinancialIdentityCountOutputType
+     */
+    select?: FinancialIdentityCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * FinancialIdentityCountOutputType without action
+   */
+  export type FinancialIdentityCountOutputTypeCountIncomesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: IdentityIncomeWhereInput
+  }
+
+  /**
+   * FinancialIdentityCountOutputType without action
+   */
+  export type FinancialIdentityCountOutputTypeCountExpensesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: IdentityExpenseWhereInput
+  }
+
+  /**
+   * FinancialIdentityCountOutputType without action
+   */
+  export type FinancialIdentityCountOutputTypeCountDebtsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: IdentityDebtWhereInput
+  }
+
+  /**
+   * FinancialIdentityCountOutputType without action
+   */
+  export type FinancialIdentityCountOutputTypeCountAssetsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: IdentityAssetWhereInput
+  }
+
+  /**
+   * FinancialIdentityCountOutputType without action
+   */
+  export type FinancialIdentityCountOutputTypeCountGoalsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: IdentityGoalWhereInput
+  }
+
+  /**
+   * FinancialIdentityCountOutputType without action
+   */
+  export type FinancialIdentityCountOutputTypeCountEventsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: IdentityEventWhereInput
+  }
+
+  /**
+   * FinancialIdentityCountOutputType without action
+   */
+  export type FinancialIdentityCountOutputTypeCountHouseholdArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: IdentityHouseholdMemberWhereInput
+  }
+
+  /**
+   * FinancialIdentityCountOutputType without action
+   */
+  export type FinancialIdentityCountOutputTypeCountMessagesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: OnboardingMessageWhereInput
+  }
+
+
+  /**
    * Models
    */
 
@@ -2401,6 +3331,7 @@ export namespace Prisma {
     goals?: boolean | User$goalsArgs<ExtArgs>
     allocationPlans?: boolean | User$allocationPlansArgs<ExtArgs>
     auditLog?: boolean | User$auditLogArgs<ExtArgs>
+    identity?: boolean | User$identityArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["user"]>
 
@@ -2453,6 +3384,7 @@ export namespace Prisma {
     goals?: boolean | User$goalsArgs<ExtArgs>
     allocationPlans?: boolean | User$allocationPlansArgs<ExtArgs>
     auditLog?: boolean | User$auditLogArgs<ExtArgs>
+    identity?: boolean | User$identityArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type UserIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -2469,6 +3401,7 @@ export namespace Prisma {
       goals: Prisma.$GoalPayload<ExtArgs>[]
       allocationPlans: Prisma.$AllocationPlanPayload<ExtArgs>[]
       auditLog: Prisma.$AuditLogPayload<ExtArgs>[]
+      identity: Prisma.$FinancialIdentityPayload<ExtArgs> | null
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -2898,6 +3831,7 @@ export namespace Prisma {
     goals<T extends User$goalsArgs<ExtArgs> = {}>(args?: Subset<T, User$goalsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$GoalPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     allocationPlans<T extends User$allocationPlansArgs<ExtArgs> = {}>(args?: Subset<T, User$allocationPlansArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AllocationPlanPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     auditLog<T extends User$auditLogArgs<ExtArgs> = {}>(args?: Subset<T, User$auditLogArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AuditLogPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    identity<T extends User$identityArgs<ExtArgs> = {}>(args?: Subset<T, User$identityArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -3517,6 +4451,25 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: AuditLogScalarFieldEnum | AuditLogScalarFieldEnum[]
+  }
+
+  /**
+   * User.identity
+   */
+  export type User$identityArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FinancialIdentity
+     */
+    select?: FinancialIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FinancialIdentity
+     */
+    omit?: FinancialIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FinancialIdentityInclude<ExtArgs> | null
+    where?: FinancialIdentityWhereInput
   }
 
   /**
@@ -16340,6 +17293,10779 @@ export namespace Prisma {
 
 
   /**
+   * Model FinancialIdentity
+   */
+
+  export type AggregateFinancialIdentity = {
+    _count: FinancialIdentityCountAggregateOutputType | null
+    _avg: FinancialIdentityAvgAggregateOutputType | null
+    _sum: FinancialIdentitySumAggregateOutputType | null
+    _min: FinancialIdentityMinAggregateOutputType | null
+    _max: FinancialIdentityMaxAggregateOutputType | null
+  }
+
+  export type FinancialIdentityAvgAggregateOutputType = {
+    timeHorizonYears: number | null
+  }
+
+  export type FinancialIdentitySumAggregateOutputType = {
+    timeHorizonYears: number | null
+  }
+
+  export type FinancialIdentityMinAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    ageRange: string | null
+    employmentStatus: string | null
+    location: string | null
+    timeHorizonYears: number | null
+    riskTolerance: string | null
+    riskNotes: string | null
+    aiTierPref: string | null
+    riskComfort: string | null
+    currency: string | null
+    auditIdentity: string | null
+    auditFindings: string | null
+    auditPlan: string | null
+    auditFirstStep: string | null
+    auditTeaching: string | null
+    auditBuiltAt: Date | null
+    completedAt: Date | null
+    lastProvider: string | null
+    lastFellBack: boolean | null
+    lastErrorMessage: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type FinancialIdentityMaxAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    ageRange: string | null
+    employmentStatus: string | null
+    location: string | null
+    timeHorizonYears: number | null
+    riskTolerance: string | null
+    riskNotes: string | null
+    aiTierPref: string | null
+    riskComfort: string | null
+    currency: string | null
+    auditIdentity: string | null
+    auditFindings: string | null
+    auditPlan: string | null
+    auditFirstStep: string | null
+    auditTeaching: string | null
+    auditBuiltAt: Date | null
+    completedAt: Date | null
+    lastProvider: string | null
+    lastFellBack: boolean | null
+    lastErrorMessage: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type FinancialIdentityCountAggregateOutputType = {
+    id: number
+    userId: number
+    ageRange: number
+    employmentStatus: number
+    location: number
+    timeHorizonYears: number
+    riskTolerance: number
+    riskNotes: number
+    aiTierPref: number
+    riskComfort: number
+    currency: number
+    auditIdentity: number
+    auditFindings: number
+    auditPlan: number
+    auditFirstStep: number
+    auditTeaching: number
+    auditBuiltAt: number
+    completedAt: number
+    lastProvider: number
+    lastFellBack: number
+    lastErrorMessage: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type FinancialIdentityAvgAggregateInputType = {
+    timeHorizonYears?: true
+  }
+
+  export type FinancialIdentitySumAggregateInputType = {
+    timeHorizonYears?: true
+  }
+
+  export type FinancialIdentityMinAggregateInputType = {
+    id?: true
+    userId?: true
+    ageRange?: true
+    employmentStatus?: true
+    location?: true
+    timeHorizonYears?: true
+    riskTolerance?: true
+    riskNotes?: true
+    aiTierPref?: true
+    riskComfort?: true
+    currency?: true
+    auditIdentity?: true
+    auditFindings?: true
+    auditPlan?: true
+    auditFirstStep?: true
+    auditTeaching?: true
+    auditBuiltAt?: true
+    completedAt?: true
+    lastProvider?: true
+    lastFellBack?: true
+    lastErrorMessage?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type FinancialIdentityMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    ageRange?: true
+    employmentStatus?: true
+    location?: true
+    timeHorizonYears?: true
+    riskTolerance?: true
+    riskNotes?: true
+    aiTierPref?: true
+    riskComfort?: true
+    currency?: true
+    auditIdentity?: true
+    auditFindings?: true
+    auditPlan?: true
+    auditFirstStep?: true
+    auditTeaching?: true
+    auditBuiltAt?: true
+    completedAt?: true
+    lastProvider?: true
+    lastFellBack?: true
+    lastErrorMessage?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type FinancialIdentityCountAggregateInputType = {
+    id?: true
+    userId?: true
+    ageRange?: true
+    employmentStatus?: true
+    location?: true
+    timeHorizonYears?: true
+    riskTolerance?: true
+    riskNotes?: true
+    aiTierPref?: true
+    riskComfort?: true
+    currency?: true
+    auditIdentity?: true
+    auditFindings?: true
+    auditPlan?: true
+    auditFirstStep?: true
+    auditTeaching?: true
+    auditBuiltAt?: true
+    completedAt?: true
+    lastProvider?: true
+    lastFellBack?: true
+    lastErrorMessage?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type FinancialIdentityAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which FinancialIdentity to aggregate.
+     */
+    where?: FinancialIdentityWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of FinancialIdentities to fetch.
+     */
+    orderBy?: FinancialIdentityOrderByWithRelationInput | FinancialIdentityOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: FinancialIdentityWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` FinancialIdentities from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` FinancialIdentities.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned FinancialIdentities
+    **/
+    _count?: true | FinancialIdentityCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: FinancialIdentityAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: FinancialIdentitySumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: FinancialIdentityMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: FinancialIdentityMaxAggregateInputType
+  }
+
+  export type GetFinancialIdentityAggregateType<T extends FinancialIdentityAggregateArgs> = {
+        [P in keyof T & keyof AggregateFinancialIdentity]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateFinancialIdentity[P]>
+      : GetScalarType<T[P], AggregateFinancialIdentity[P]>
+  }
+
+
+
+
+  export type FinancialIdentityGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: FinancialIdentityWhereInput
+    orderBy?: FinancialIdentityOrderByWithAggregationInput | FinancialIdentityOrderByWithAggregationInput[]
+    by: FinancialIdentityScalarFieldEnum[] | FinancialIdentityScalarFieldEnum
+    having?: FinancialIdentityScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: FinancialIdentityCountAggregateInputType | true
+    _avg?: FinancialIdentityAvgAggregateInputType
+    _sum?: FinancialIdentitySumAggregateInputType
+    _min?: FinancialIdentityMinAggregateInputType
+    _max?: FinancialIdentityMaxAggregateInputType
+  }
+
+  export type FinancialIdentityGroupByOutputType = {
+    id: string
+    userId: string
+    ageRange: string | null
+    employmentStatus: string | null
+    location: string | null
+    timeHorizonYears: number | null
+    riskTolerance: string | null
+    riskNotes: string | null
+    aiTierPref: string | null
+    riskComfort: string | null
+    currency: string
+    auditIdentity: string | null
+    auditFindings: string | null
+    auditPlan: string | null
+    auditFirstStep: string | null
+    auditTeaching: string | null
+    auditBuiltAt: Date | null
+    completedAt: Date | null
+    lastProvider: string | null
+    lastFellBack: boolean
+    lastErrorMessage: string | null
+    createdAt: Date
+    updatedAt: Date
+    _count: FinancialIdentityCountAggregateOutputType | null
+    _avg: FinancialIdentityAvgAggregateOutputType | null
+    _sum: FinancialIdentitySumAggregateOutputType | null
+    _min: FinancialIdentityMinAggregateOutputType | null
+    _max: FinancialIdentityMaxAggregateOutputType | null
+  }
+
+  type GetFinancialIdentityGroupByPayload<T extends FinancialIdentityGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<FinancialIdentityGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof FinancialIdentityGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], FinancialIdentityGroupByOutputType[P]>
+            : GetScalarType<T[P], FinancialIdentityGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type FinancialIdentitySelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    ageRange?: boolean
+    employmentStatus?: boolean
+    location?: boolean
+    timeHorizonYears?: boolean
+    riskTolerance?: boolean
+    riskNotes?: boolean
+    aiTierPref?: boolean
+    riskComfort?: boolean
+    currency?: boolean
+    auditIdentity?: boolean
+    auditFindings?: boolean
+    auditPlan?: boolean
+    auditFirstStep?: boolean
+    auditTeaching?: boolean
+    auditBuiltAt?: boolean
+    completedAt?: boolean
+    lastProvider?: boolean
+    lastFellBack?: boolean
+    lastErrorMessage?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    incomes?: boolean | FinancialIdentity$incomesArgs<ExtArgs>
+    expenses?: boolean | FinancialIdentity$expensesArgs<ExtArgs>
+    debts?: boolean | FinancialIdentity$debtsArgs<ExtArgs>
+    assets?: boolean | FinancialIdentity$assetsArgs<ExtArgs>
+    goals?: boolean | FinancialIdentity$goalsArgs<ExtArgs>
+    events?: boolean | FinancialIdentity$eventsArgs<ExtArgs>
+    household?: boolean | FinancialIdentity$householdArgs<ExtArgs>
+    messages?: boolean | FinancialIdentity$messagesArgs<ExtArgs>
+    _count?: boolean | FinancialIdentityCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["financialIdentity"]>
+
+  export type FinancialIdentitySelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    ageRange?: boolean
+    employmentStatus?: boolean
+    location?: boolean
+    timeHorizonYears?: boolean
+    riskTolerance?: boolean
+    riskNotes?: boolean
+    aiTierPref?: boolean
+    riskComfort?: boolean
+    currency?: boolean
+    auditIdentity?: boolean
+    auditFindings?: boolean
+    auditPlan?: boolean
+    auditFirstStep?: boolean
+    auditTeaching?: boolean
+    auditBuiltAt?: boolean
+    completedAt?: boolean
+    lastProvider?: boolean
+    lastFellBack?: boolean
+    lastErrorMessage?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["financialIdentity"]>
+
+  export type FinancialIdentitySelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    ageRange?: boolean
+    employmentStatus?: boolean
+    location?: boolean
+    timeHorizonYears?: boolean
+    riskTolerance?: boolean
+    riskNotes?: boolean
+    aiTierPref?: boolean
+    riskComfort?: boolean
+    currency?: boolean
+    auditIdentity?: boolean
+    auditFindings?: boolean
+    auditPlan?: boolean
+    auditFirstStep?: boolean
+    auditTeaching?: boolean
+    auditBuiltAt?: boolean
+    completedAt?: boolean
+    lastProvider?: boolean
+    lastFellBack?: boolean
+    lastErrorMessage?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["financialIdentity"]>
+
+  export type FinancialIdentitySelectScalar = {
+    id?: boolean
+    userId?: boolean
+    ageRange?: boolean
+    employmentStatus?: boolean
+    location?: boolean
+    timeHorizonYears?: boolean
+    riskTolerance?: boolean
+    riskNotes?: boolean
+    aiTierPref?: boolean
+    riskComfort?: boolean
+    currency?: boolean
+    auditIdentity?: boolean
+    auditFindings?: boolean
+    auditPlan?: boolean
+    auditFirstStep?: boolean
+    auditTeaching?: boolean
+    auditBuiltAt?: boolean
+    completedAt?: boolean
+    lastProvider?: boolean
+    lastFellBack?: boolean
+    lastErrorMessage?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type FinancialIdentityOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "ageRange" | "employmentStatus" | "location" | "timeHorizonYears" | "riskTolerance" | "riskNotes" | "aiTierPref" | "riskComfort" | "currency" | "auditIdentity" | "auditFindings" | "auditPlan" | "auditFirstStep" | "auditTeaching" | "auditBuiltAt" | "completedAt" | "lastProvider" | "lastFellBack" | "lastErrorMessage" | "createdAt" | "updatedAt", ExtArgs["result"]["financialIdentity"]>
+  export type FinancialIdentityInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    incomes?: boolean | FinancialIdentity$incomesArgs<ExtArgs>
+    expenses?: boolean | FinancialIdentity$expensesArgs<ExtArgs>
+    debts?: boolean | FinancialIdentity$debtsArgs<ExtArgs>
+    assets?: boolean | FinancialIdentity$assetsArgs<ExtArgs>
+    goals?: boolean | FinancialIdentity$goalsArgs<ExtArgs>
+    events?: boolean | FinancialIdentity$eventsArgs<ExtArgs>
+    household?: boolean | FinancialIdentity$householdArgs<ExtArgs>
+    messages?: boolean | FinancialIdentity$messagesArgs<ExtArgs>
+    _count?: boolean | FinancialIdentityCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type FinancialIdentityIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type FinancialIdentityIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+
+  export type $FinancialIdentityPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "FinancialIdentity"
+    objects: {
+      user: Prisma.$UserPayload<ExtArgs>
+      incomes: Prisma.$IdentityIncomePayload<ExtArgs>[]
+      expenses: Prisma.$IdentityExpensePayload<ExtArgs>[]
+      debts: Prisma.$IdentityDebtPayload<ExtArgs>[]
+      assets: Prisma.$IdentityAssetPayload<ExtArgs>[]
+      goals: Prisma.$IdentityGoalPayload<ExtArgs>[]
+      events: Prisma.$IdentityEventPayload<ExtArgs>[]
+      household: Prisma.$IdentityHouseholdMemberPayload<ExtArgs>[]
+      messages: Prisma.$OnboardingMessagePayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      userId: string
+      ageRange: string | null
+      employmentStatus: string | null
+      location: string | null
+      timeHorizonYears: number | null
+      riskTolerance: string | null
+      riskNotes: string | null
+      aiTierPref: string | null
+      riskComfort: string | null
+      currency: string
+      auditIdentity: string | null
+      auditFindings: string | null
+      auditPlan: string | null
+      auditFirstStep: string | null
+      auditTeaching: string | null
+      auditBuiltAt: Date | null
+      /**
+       * Set by markOnboardingComplete. Null until the conversation ends.
+       */
+      completedAt: Date | null
+      lastProvider: string | null
+      lastFellBack: boolean
+      lastErrorMessage: string | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["financialIdentity"]>
+    composites: {}
+  }
+
+  type FinancialIdentityGetPayload<S extends boolean | null | undefined | FinancialIdentityDefaultArgs> = $Result.GetResult<Prisma.$FinancialIdentityPayload, S>
+
+  type FinancialIdentityCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<FinancialIdentityFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: FinancialIdentityCountAggregateInputType | true
+    }
+
+  export interface FinancialIdentityDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['FinancialIdentity'], meta: { name: 'FinancialIdentity' } }
+    /**
+     * Find zero or one FinancialIdentity that matches the filter.
+     * @param {FinancialIdentityFindUniqueArgs} args - Arguments to find a FinancialIdentity
+     * @example
+     * // Get one FinancialIdentity
+     * const financialIdentity = await prisma.financialIdentity.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends FinancialIdentityFindUniqueArgs>(args: SelectSubset<T, FinancialIdentityFindUniqueArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one FinancialIdentity that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {FinancialIdentityFindUniqueOrThrowArgs} args - Arguments to find a FinancialIdentity
+     * @example
+     * // Get one FinancialIdentity
+     * const financialIdentity = await prisma.financialIdentity.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends FinancialIdentityFindUniqueOrThrowArgs>(args: SelectSubset<T, FinancialIdentityFindUniqueOrThrowArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first FinancialIdentity that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FinancialIdentityFindFirstArgs} args - Arguments to find a FinancialIdentity
+     * @example
+     * // Get one FinancialIdentity
+     * const financialIdentity = await prisma.financialIdentity.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends FinancialIdentityFindFirstArgs>(args?: SelectSubset<T, FinancialIdentityFindFirstArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first FinancialIdentity that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FinancialIdentityFindFirstOrThrowArgs} args - Arguments to find a FinancialIdentity
+     * @example
+     * // Get one FinancialIdentity
+     * const financialIdentity = await prisma.financialIdentity.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends FinancialIdentityFindFirstOrThrowArgs>(args?: SelectSubset<T, FinancialIdentityFindFirstOrThrowArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more FinancialIdentities that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FinancialIdentityFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all FinancialIdentities
+     * const financialIdentities = await prisma.financialIdentity.findMany()
+     * 
+     * // Get first 10 FinancialIdentities
+     * const financialIdentities = await prisma.financialIdentity.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const financialIdentityWithIdOnly = await prisma.financialIdentity.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends FinancialIdentityFindManyArgs>(args?: SelectSubset<T, FinancialIdentityFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a FinancialIdentity.
+     * @param {FinancialIdentityCreateArgs} args - Arguments to create a FinancialIdentity.
+     * @example
+     * // Create one FinancialIdentity
+     * const FinancialIdentity = await prisma.financialIdentity.create({
+     *   data: {
+     *     // ... data to create a FinancialIdentity
+     *   }
+     * })
+     * 
+     */
+    create<T extends FinancialIdentityCreateArgs>(args: SelectSubset<T, FinancialIdentityCreateArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many FinancialIdentities.
+     * @param {FinancialIdentityCreateManyArgs} args - Arguments to create many FinancialIdentities.
+     * @example
+     * // Create many FinancialIdentities
+     * const financialIdentity = await prisma.financialIdentity.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends FinancialIdentityCreateManyArgs>(args?: SelectSubset<T, FinancialIdentityCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many FinancialIdentities and returns the data saved in the database.
+     * @param {FinancialIdentityCreateManyAndReturnArgs} args - Arguments to create many FinancialIdentities.
+     * @example
+     * // Create many FinancialIdentities
+     * const financialIdentity = await prisma.financialIdentity.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many FinancialIdentities and only return the `id`
+     * const financialIdentityWithIdOnly = await prisma.financialIdentity.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends FinancialIdentityCreateManyAndReturnArgs>(args?: SelectSubset<T, FinancialIdentityCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a FinancialIdentity.
+     * @param {FinancialIdentityDeleteArgs} args - Arguments to delete one FinancialIdentity.
+     * @example
+     * // Delete one FinancialIdentity
+     * const FinancialIdentity = await prisma.financialIdentity.delete({
+     *   where: {
+     *     // ... filter to delete one FinancialIdentity
+     *   }
+     * })
+     * 
+     */
+    delete<T extends FinancialIdentityDeleteArgs>(args: SelectSubset<T, FinancialIdentityDeleteArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one FinancialIdentity.
+     * @param {FinancialIdentityUpdateArgs} args - Arguments to update one FinancialIdentity.
+     * @example
+     * // Update one FinancialIdentity
+     * const financialIdentity = await prisma.financialIdentity.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends FinancialIdentityUpdateArgs>(args: SelectSubset<T, FinancialIdentityUpdateArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more FinancialIdentities.
+     * @param {FinancialIdentityDeleteManyArgs} args - Arguments to filter FinancialIdentities to delete.
+     * @example
+     * // Delete a few FinancialIdentities
+     * const { count } = await prisma.financialIdentity.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends FinancialIdentityDeleteManyArgs>(args?: SelectSubset<T, FinancialIdentityDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more FinancialIdentities.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FinancialIdentityUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many FinancialIdentities
+     * const financialIdentity = await prisma.financialIdentity.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends FinancialIdentityUpdateManyArgs>(args: SelectSubset<T, FinancialIdentityUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more FinancialIdentities and returns the data updated in the database.
+     * @param {FinancialIdentityUpdateManyAndReturnArgs} args - Arguments to update many FinancialIdentities.
+     * @example
+     * // Update many FinancialIdentities
+     * const financialIdentity = await prisma.financialIdentity.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more FinancialIdentities and only return the `id`
+     * const financialIdentityWithIdOnly = await prisma.financialIdentity.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends FinancialIdentityUpdateManyAndReturnArgs>(args: SelectSubset<T, FinancialIdentityUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one FinancialIdentity.
+     * @param {FinancialIdentityUpsertArgs} args - Arguments to update or create a FinancialIdentity.
+     * @example
+     * // Update or create a FinancialIdentity
+     * const financialIdentity = await prisma.financialIdentity.upsert({
+     *   create: {
+     *     // ... data to create a FinancialIdentity
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the FinancialIdentity we want to update
+     *   }
+     * })
+     */
+    upsert<T extends FinancialIdentityUpsertArgs>(args: SelectSubset<T, FinancialIdentityUpsertArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of FinancialIdentities.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FinancialIdentityCountArgs} args - Arguments to filter FinancialIdentities to count.
+     * @example
+     * // Count the number of FinancialIdentities
+     * const count = await prisma.financialIdentity.count({
+     *   where: {
+     *     // ... the filter for the FinancialIdentities we want to count
+     *   }
+     * })
+    **/
+    count<T extends FinancialIdentityCountArgs>(
+      args?: Subset<T, FinancialIdentityCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], FinancialIdentityCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a FinancialIdentity.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FinancialIdentityAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends FinancialIdentityAggregateArgs>(args: Subset<T, FinancialIdentityAggregateArgs>): Prisma.PrismaPromise<GetFinancialIdentityAggregateType<T>>
+
+    /**
+     * Group by FinancialIdentity.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FinancialIdentityGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends FinancialIdentityGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: FinancialIdentityGroupByArgs['orderBy'] }
+        : { orderBy?: FinancialIdentityGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, FinancialIdentityGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetFinancialIdentityGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the FinancialIdentity model
+   */
+  readonly fields: FinancialIdentityFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for FinancialIdentity.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__FinancialIdentityClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    incomes<T extends FinancialIdentity$incomesArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentity$incomesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityIncomePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    expenses<T extends FinancialIdentity$expensesArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentity$expensesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityExpensePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    debts<T extends FinancialIdentity$debtsArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentity$debtsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityDebtPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    assets<T extends FinancialIdentity$assetsArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentity$assetsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityAssetPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    goals<T extends FinancialIdentity$goalsArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentity$goalsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityGoalPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    events<T extends FinancialIdentity$eventsArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentity$eventsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    household<T extends FinancialIdentity$householdArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentity$householdArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityHouseholdMemberPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    messages<T extends FinancialIdentity$messagesArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentity$messagesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$OnboardingMessagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the FinancialIdentity model
+   */
+  interface FinancialIdentityFieldRefs {
+    readonly id: FieldRef<"FinancialIdentity", 'String'>
+    readonly userId: FieldRef<"FinancialIdentity", 'String'>
+    readonly ageRange: FieldRef<"FinancialIdentity", 'String'>
+    readonly employmentStatus: FieldRef<"FinancialIdentity", 'String'>
+    readonly location: FieldRef<"FinancialIdentity", 'String'>
+    readonly timeHorizonYears: FieldRef<"FinancialIdentity", 'Int'>
+    readonly riskTolerance: FieldRef<"FinancialIdentity", 'String'>
+    readonly riskNotes: FieldRef<"FinancialIdentity", 'String'>
+    readonly aiTierPref: FieldRef<"FinancialIdentity", 'String'>
+    readonly riskComfort: FieldRef<"FinancialIdentity", 'String'>
+    readonly currency: FieldRef<"FinancialIdentity", 'String'>
+    readonly auditIdentity: FieldRef<"FinancialIdentity", 'String'>
+    readonly auditFindings: FieldRef<"FinancialIdentity", 'String'>
+    readonly auditPlan: FieldRef<"FinancialIdentity", 'String'>
+    readonly auditFirstStep: FieldRef<"FinancialIdentity", 'String'>
+    readonly auditTeaching: FieldRef<"FinancialIdentity", 'String'>
+    readonly auditBuiltAt: FieldRef<"FinancialIdentity", 'DateTime'>
+    readonly completedAt: FieldRef<"FinancialIdentity", 'DateTime'>
+    readonly lastProvider: FieldRef<"FinancialIdentity", 'String'>
+    readonly lastFellBack: FieldRef<"FinancialIdentity", 'Boolean'>
+    readonly lastErrorMessage: FieldRef<"FinancialIdentity", 'String'>
+    readonly createdAt: FieldRef<"FinancialIdentity", 'DateTime'>
+    readonly updatedAt: FieldRef<"FinancialIdentity", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * FinancialIdentity findUnique
+   */
+  export type FinancialIdentityFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FinancialIdentity
+     */
+    select?: FinancialIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FinancialIdentity
+     */
+    omit?: FinancialIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FinancialIdentityInclude<ExtArgs> | null
+    /**
+     * Filter, which FinancialIdentity to fetch.
+     */
+    where: FinancialIdentityWhereUniqueInput
+  }
+
+  /**
+   * FinancialIdentity findUniqueOrThrow
+   */
+  export type FinancialIdentityFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FinancialIdentity
+     */
+    select?: FinancialIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FinancialIdentity
+     */
+    omit?: FinancialIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FinancialIdentityInclude<ExtArgs> | null
+    /**
+     * Filter, which FinancialIdentity to fetch.
+     */
+    where: FinancialIdentityWhereUniqueInput
+  }
+
+  /**
+   * FinancialIdentity findFirst
+   */
+  export type FinancialIdentityFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FinancialIdentity
+     */
+    select?: FinancialIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FinancialIdentity
+     */
+    omit?: FinancialIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FinancialIdentityInclude<ExtArgs> | null
+    /**
+     * Filter, which FinancialIdentity to fetch.
+     */
+    where?: FinancialIdentityWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of FinancialIdentities to fetch.
+     */
+    orderBy?: FinancialIdentityOrderByWithRelationInput | FinancialIdentityOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for FinancialIdentities.
+     */
+    cursor?: FinancialIdentityWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` FinancialIdentities from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` FinancialIdentities.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of FinancialIdentities.
+     */
+    distinct?: FinancialIdentityScalarFieldEnum | FinancialIdentityScalarFieldEnum[]
+  }
+
+  /**
+   * FinancialIdentity findFirstOrThrow
+   */
+  export type FinancialIdentityFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FinancialIdentity
+     */
+    select?: FinancialIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FinancialIdentity
+     */
+    omit?: FinancialIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FinancialIdentityInclude<ExtArgs> | null
+    /**
+     * Filter, which FinancialIdentity to fetch.
+     */
+    where?: FinancialIdentityWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of FinancialIdentities to fetch.
+     */
+    orderBy?: FinancialIdentityOrderByWithRelationInput | FinancialIdentityOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for FinancialIdentities.
+     */
+    cursor?: FinancialIdentityWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` FinancialIdentities from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` FinancialIdentities.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of FinancialIdentities.
+     */
+    distinct?: FinancialIdentityScalarFieldEnum | FinancialIdentityScalarFieldEnum[]
+  }
+
+  /**
+   * FinancialIdentity findMany
+   */
+  export type FinancialIdentityFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FinancialIdentity
+     */
+    select?: FinancialIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FinancialIdentity
+     */
+    omit?: FinancialIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FinancialIdentityInclude<ExtArgs> | null
+    /**
+     * Filter, which FinancialIdentities to fetch.
+     */
+    where?: FinancialIdentityWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of FinancialIdentities to fetch.
+     */
+    orderBy?: FinancialIdentityOrderByWithRelationInput | FinancialIdentityOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing FinancialIdentities.
+     */
+    cursor?: FinancialIdentityWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` FinancialIdentities from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` FinancialIdentities.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of FinancialIdentities.
+     */
+    distinct?: FinancialIdentityScalarFieldEnum | FinancialIdentityScalarFieldEnum[]
+  }
+
+  /**
+   * FinancialIdentity create
+   */
+  export type FinancialIdentityCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FinancialIdentity
+     */
+    select?: FinancialIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FinancialIdentity
+     */
+    omit?: FinancialIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FinancialIdentityInclude<ExtArgs> | null
+    /**
+     * The data needed to create a FinancialIdentity.
+     */
+    data: XOR<FinancialIdentityCreateInput, FinancialIdentityUncheckedCreateInput>
+  }
+
+  /**
+   * FinancialIdentity createMany
+   */
+  export type FinancialIdentityCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many FinancialIdentities.
+     */
+    data: FinancialIdentityCreateManyInput | FinancialIdentityCreateManyInput[]
+  }
+
+  /**
+   * FinancialIdentity createManyAndReturn
+   */
+  export type FinancialIdentityCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FinancialIdentity
+     */
+    select?: FinancialIdentitySelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the FinancialIdentity
+     */
+    omit?: FinancialIdentityOmit<ExtArgs> | null
+    /**
+     * The data used to create many FinancialIdentities.
+     */
+    data: FinancialIdentityCreateManyInput | FinancialIdentityCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FinancialIdentityIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * FinancialIdentity update
+   */
+  export type FinancialIdentityUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FinancialIdentity
+     */
+    select?: FinancialIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FinancialIdentity
+     */
+    omit?: FinancialIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FinancialIdentityInclude<ExtArgs> | null
+    /**
+     * The data needed to update a FinancialIdentity.
+     */
+    data: XOR<FinancialIdentityUpdateInput, FinancialIdentityUncheckedUpdateInput>
+    /**
+     * Choose, which FinancialIdentity to update.
+     */
+    where: FinancialIdentityWhereUniqueInput
+  }
+
+  /**
+   * FinancialIdentity updateMany
+   */
+  export type FinancialIdentityUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update FinancialIdentities.
+     */
+    data: XOR<FinancialIdentityUpdateManyMutationInput, FinancialIdentityUncheckedUpdateManyInput>
+    /**
+     * Filter which FinancialIdentities to update
+     */
+    where?: FinancialIdentityWhereInput
+    /**
+     * Limit how many FinancialIdentities to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * FinancialIdentity updateManyAndReturn
+   */
+  export type FinancialIdentityUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FinancialIdentity
+     */
+    select?: FinancialIdentitySelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the FinancialIdentity
+     */
+    omit?: FinancialIdentityOmit<ExtArgs> | null
+    /**
+     * The data used to update FinancialIdentities.
+     */
+    data: XOR<FinancialIdentityUpdateManyMutationInput, FinancialIdentityUncheckedUpdateManyInput>
+    /**
+     * Filter which FinancialIdentities to update
+     */
+    where?: FinancialIdentityWhereInput
+    /**
+     * Limit how many FinancialIdentities to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FinancialIdentityIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * FinancialIdentity upsert
+   */
+  export type FinancialIdentityUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FinancialIdentity
+     */
+    select?: FinancialIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FinancialIdentity
+     */
+    omit?: FinancialIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FinancialIdentityInclude<ExtArgs> | null
+    /**
+     * The filter to search for the FinancialIdentity to update in case it exists.
+     */
+    where: FinancialIdentityWhereUniqueInput
+    /**
+     * In case the FinancialIdentity found by the `where` argument doesn't exist, create a new FinancialIdentity with this data.
+     */
+    create: XOR<FinancialIdentityCreateInput, FinancialIdentityUncheckedCreateInput>
+    /**
+     * In case the FinancialIdentity was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<FinancialIdentityUpdateInput, FinancialIdentityUncheckedUpdateInput>
+  }
+
+  /**
+   * FinancialIdentity delete
+   */
+  export type FinancialIdentityDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FinancialIdentity
+     */
+    select?: FinancialIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FinancialIdentity
+     */
+    omit?: FinancialIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FinancialIdentityInclude<ExtArgs> | null
+    /**
+     * Filter which FinancialIdentity to delete.
+     */
+    where: FinancialIdentityWhereUniqueInput
+  }
+
+  /**
+   * FinancialIdentity deleteMany
+   */
+  export type FinancialIdentityDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which FinancialIdentities to delete
+     */
+    where?: FinancialIdentityWhereInput
+    /**
+     * Limit how many FinancialIdentities to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * FinancialIdentity.incomes
+   */
+  export type FinancialIdentity$incomesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityIncome
+     */
+    select?: IdentityIncomeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityIncome
+     */
+    omit?: IdentityIncomeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityIncomeInclude<ExtArgs> | null
+    where?: IdentityIncomeWhereInput
+    orderBy?: IdentityIncomeOrderByWithRelationInput | IdentityIncomeOrderByWithRelationInput[]
+    cursor?: IdentityIncomeWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: IdentityIncomeScalarFieldEnum | IdentityIncomeScalarFieldEnum[]
+  }
+
+  /**
+   * FinancialIdentity.expenses
+   */
+  export type FinancialIdentity$expensesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityExpense
+     */
+    select?: IdentityExpenseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityExpense
+     */
+    omit?: IdentityExpenseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityExpenseInclude<ExtArgs> | null
+    where?: IdentityExpenseWhereInput
+    orderBy?: IdentityExpenseOrderByWithRelationInput | IdentityExpenseOrderByWithRelationInput[]
+    cursor?: IdentityExpenseWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: IdentityExpenseScalarFieldEnum | IdentityExpenseScalarFieldEnum[]
+  }
+
+  /**
+   * FinancialIdentity.debts
+   */
+  export type FinancialIdentity$debtsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityDebt
+     */
+    select?: IdentityDebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityDebt
+     */
+    omit?: IdentityDebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityDebtInclude<ExtArgs> | null
+    where?: IdentityDebtWhereInput
+    orderBy?: IdentityDebtOrderByWithRelationInput | IdentityDebtOrderByWithRelationInput[]
+    cursor?: IdentityDebtWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: IdentityDebtScalarFieldEnum | IdentityDebtScalarFieldEnum[]
+  }
+
+  /**
+   * FinancialIdentity.assets
+   */
+  export type FinancialIdentity$assetsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityAsset
+     */
+    select?: IdentityAssetSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityAsset
+     */
+    omit?: IdentityAssetOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityAssetInclude<ExtArgs> | null
+    where?: IdentityAssetWhereInput
+    orderBy?: IdentityAssetOrderByWithRelationInput | IdentityAssetOrderByWithRelationInput[]
+    cursor?: IdentityAssetWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: IdentityAssetScalarFieldEnum | IdentityAssetScalarFieldEnum[]
+  }
+
+  /**
+   * FinancialIdentity.goals
+   */
+  export type FinancialIdentity$goalsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityGoal
+     */
+    select?: IdentityGoalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityGoal
+     */
+    omit?: IdentityGoalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityGoalInclude<ExtArgs> | null
+    where?: IdentityGoalWhereInput
+    orderBy?: IdentityGoalOrderByWithRelationInput | IdentityGoalOrderByWithRelationInput[]
+    cursor?: IdentityGoalWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: IdentityGoalScalarFieldEnum | IdentityGoalScalarFieldEnum[]
+  }
+
+  /**
+   * FinancialIdentity.events
+   */
+  export type FinancialIdentity$eventsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityEvent
+     */
+    select?: IdentityEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityEvent
+     */
+    omit?: IdentityEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityEventInclude<ExtArgs> | null
+    where?: IdentityEventWhereInput
+    orderBy?: IdentityEventOrderByWithRelationInput | IdentityEventOrderByWithRelationInput[]
+    cursor?: IdentityEventWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: IdentityEventScalarFieldEnum | IdentityEventScalarFieldEnum[]
+  }
+
+  /**
+   * FinancialIdentity.household
+   */
+  export type FinancialIdentity$householdArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityHouseholdMember
+     */
+    select?: IdentityHouseholdMemberSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityHouseholdMember
+     */
+    omit?: IdentityHouseholdMemberOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityHouseholdMemberInclude<ExtArgs> | null
+    where?: IdentityHouseholdMemberWhereInput
+    orderBy?: IdentityHouseholdMemberOrderByWithRelationInput | IdentityHouseholdMemberOrderByWithRelationInput[]
+    cursor?: IdentityHouseholdMemberWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: IdentityHouseholdMemberScalarFieldEnum | IdentityHouseholdMemberScalarFieldEnum[]
+  }
+
+  /**
+   * FinancialIdentity.messages
+   */
+  export type FinancialIdentity$messagesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the OnboardingMessage
+     */
+    select?: OnboardingMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the OnboardingMessage
+     */
+    omit?: OnboardingMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: OnboardingMessageInclude<ExtArgs> | null
+    where?: OnboardingMessageWhereInput
+    orderBy?: OnboardingMessageOrderByWithRelationInput | OnboardingMessageOrderByWithRelationInput[]
+    cursor?: OnboardingMessageWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: OnboardingMessageScalarFieldEnum | OnboardingMessageScalarFieldEnum[]
+  }
+
+  /**
+   * FinancialIdentity without action
+   */
+  export type FinancialIdentityDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FinancialIdentity
+     */
+    select?: FinancialIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FinancialIdentity
+     */
+    omit?: FinancialIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FinancialIdentityInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model IdentityIncome
+   */
+
+  export type AggregateIdentityIncome = {
+    _count: IdentityIncomeCountAggregateOutputType | null
+    _avg: IdentityIncomeAvgAggregateOutputType | null
+    _sum: IdentityIncomeSumAggregateOutputType | null
+    _min: IdentityIncomeMinAggregateOutputType | null
+    _max: IdentityIncomeMaxAggregateOutputType | null
+  }
+
+  export type IdentityIncomeAvgAggregateOutputType = {
+    amountDollars: number | null
+    sortOrder: number | null
+  }
+
+  export type IdentityIncomeSumAggregateOutputType = {
+    amountDollars: number | null
+    sortOrder: number | null
+  }
+
+  export type IdentityIncomeMinAggregateOutputType = {
+    id: string | null
+    identityId: string | null
+    label: string | null
+    cadence: string | null
+    amountDollars: number | null
+    isPrimary: boolean | null
+    sortOrder: number | null
+    createdAt: Date | null
+  }
+
+  export type IdentityIncomeMaxAggregateOutputType = {
+    id: string | null
+    identityId: string | null
+    label: string | null
+    cadence: string | null
+    amountDollars: number | null
+    isPrimary: boolean | null
+    sortOrder: number | null
+    createdAt: Date | null
+  }
+
+  export type IdentityIncomeCountAggregateOutputType = {
+    id: number
+    identityId: number
+    label: number
+    cadence: number
+    amountDollars: number
+    isPrimary: number
+    sortOrder: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type IdentityIncomeAvgAggregateInputType = {
+    amountDollars?: true
+    sortOrder?: true
+  }
+
+  export type IdentityIncomeSumAggregateInputType = {
+    amountDollars?: true
+    sortOrder?: true
+  }
+
+  export type IdentityIncomeMinAggregateInputType = {
+    id?: true
+    identityId?: true
+    label?: true
+    cadence?: true
+    amountDollars?: true
+    isPrimary?: true
+    sortOrder?: true
+    createdAt?: true
+  }
+
+  export type IdentityIncomeMaxAggregateInputType = {
+    id?: true
+    identityId?: true
+    label?: true
+    cadence?: true
+    amountDollars?: true
+    isPrimary?: true
+    sortOrder?: true
+    createdAt?: true
+  }
+
+  export type IdentityIncomeCountAggregateInputType = {
+    id?: true
+    identityId?: true
+    label?: true
+    cadence?: true
+    amountDollars?: true
+    isPrimary?: true
+    sortOrder?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type IdentityIncomeAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which IdentityIncome to aggregate.
+     */
+    where?: IdentityIncomeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityIncomes to fetch.
+     */
+    orderBy?: IdentityIncomeOrderByWithRelationInput | IdentityIncomeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: IdentityIncomeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityIncomes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityIncomes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned IdentityIncomes
+    **/
+    _count?: true | IdentityIncomeCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: IdentityIncomeAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: IdentityIncomeSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: IdentityIncomeMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: IdentityIncomeMaxAggregateInputType
+  }
+
+  export type GetIdentityIncomeAggregateType<T extends IdentityIncomeAggregateArgs> = {
+        [P in keyof T & keyof AggregateIdentityIncome]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateIdentityIncome[P]>
+      : GetScalarType<T[P], AggregateIdentityIncome[P]>
+  }
+
+
+
+
+  export type IdentityIncomeGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: IdentityIncomeWhereInput
+    orderBy?: IdentityIncomeOrderByWithAggregationInput | IdentityIncomeOrderByWithAggregationInput[]
+    by: IdentityIncomeScalarFieldEnum[] | IdentityIncomeScalarFieldEnum
+    having?: IdentityIncomeScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: IdentityIncomeCountAggregateInputType | true
+    _avg?: IdentityIncomeAvgAggregateInputType
+    _sum?: IdentityIncomeSumAggregateInputType
+    _min?: IdentityIncomeMinAggregateInputType
+    _max?: IdentityIncomeMaxAggregateInputType
+  }
+
+  export type IdentityIncomeGroupByOutputType = {
+    id: string
+    identityId: string
+    label: string
+    cadence: string | null
+    amountDollars: number | null
+    isPrimary: boolean
+    sortOrder: number
+    createdAt: Date
+    _count: IdentityIncomeCountAggregateOutputType | null
+    _avg: IdentityIncomeAvgAggregateOutputType | null
+    _sum: IdentityIncomeSumAggregateOutputType | null
+    _min: IdentityIncomeMinAggregateOutputType | null
+    _max: IdentityIncomeMaxAggregateOutputType | null
+  }
+
+  type GetIdentityIncomeGroupByPayload<T extends IdentityIncomeGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<IdentityIncomeGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof IdentityIncomeGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], IdentityIncomeGroupByOutputType[P]>
+            : GetScalarType<T[P], IdentityIncomeGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type IdentityIncomeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    cadence?: boolean
+    amountDollars?: boolean
+    isPrimary?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identityIncome"]>
+
+  export type IdentityIncomeSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    cadence?: boolean
+    amountDollars?: boolean
+    isPrimary?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identityIncome"]>
+
+  export type IdentityIncomeSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    cadence?: boolean
+    amountDollars?: boolean
+    isPrimary?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identityIncome"]>
+
+  export type IdentityIncomeSelectScalar = {
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    cadence?: boolean
+    amountDollars?: boolean
+    isPrimary?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+  }
+
+  export type IdentityIncomeOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "identityId" | "label" | "cadence" | "amountDollars" | "isPrimary" | "sortOrder" | "createdAt", ExtArgs["result"]["identityIncome"]>
+  export type IdentityIncomeInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+  export type IdentityIncomeIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+  export type IdentityIncomeIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+
+  export type $IdentityIncomePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "IdentityIncome"
+    objects: {
+      identity: Prisma.$FinancialIdentityPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      identityId: string
+      /**
+       * "Acme Corp salary", "Social Security", etc. (saveIncomeSource.label)
+       */
+      label: string
+      /**
+       * weekly | biweekly | semi_monthly | monthly | irregular | null
+       */
+      cadence: string | null
+      /**
+       * Take-home per pay period, in DOLLARS (not cents) — matches the
+       * user's mental model when they say "$1,820." The orchestrator
+       * converts to cents when it projects to the production Account
+       * /Transaction models in Cluster 5.2.
+       */
+      amountDollars: number | null
+      /**
+       * At most one per identity is primary. The orchestrator enforces
+       * this; the DB allows multiple because partial saves (cadence
+       * known but amount pending) can land with isPrimary=true before
+       * the amount refines.
+       */
+      isPrimary: boolean
+      sortOrder: number
+      createdAt: Date
+    }, ExtArgs["result"]["identityIncome"]>
+    composites: {}
+  }
+
+  type IdentityIncomeGetPayload<S extends boolean | null | undefined | IdentityIncomeDefaultArgs> = $Result.GetResult<Prisma.$IdentityIncomePayload, S>
+
+  type IdentityIncomeCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<IdentityIncomeFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: IdentityIncomeCountAggregateInputType | true
+    }
+
+  export interface IdentityIncomeDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['IdentityIncome'], meta: { name: 'IdentityIncome' } }
+    /**
+     * Find zero or one IdentityIncome that matches the filter.
+     * @param {IdentityIncomeFindUniqueArgs} args - Arguments to find a IdentityIncome
+     * @example
+     * // Get one IdentityIncome
+     * const identityIncome = await prisma.identityIncome.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends IdentityIncomeFindUniqueArgs>(args: SelectSubset<T, IdentityIncomeFindUniqueArgs<ExtArgs>>): Prisma__IdentityIncomeClient<$Result.GetResult<Prisma.$IdentityIncomePayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one IdentityIncome that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {IdentityIncomeFindUniqueOrThrowArgs} args - Arguments to find a IdentityIncome
+     * @example
+     * // Get one IdentityIncome
+     * const identityIncome = await prisma.identityIncome.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends IdentityIncomeFindUniqueOrThrowArgs>(args: SelectSubset<T, IdentityIncomeFindUniqueOrThrowArgs<ExtArgs>>): Prisma__IdentityIncomeClient<$Result.GetResult<Prisma.$IdentityIncomePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first IdentityIncome that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityIncomeFindFirstArgs} args - Arguments to find a IdentityIncome
+     * @example
+     * // Get one IdentityIncome
+     * const identityIncome = await prisma.identityIncome.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends IdentityIncomeFindFirstArgs>(args?: SelectSubset<T, IdentityIncomeFindFirstArgs<ExtArgs>>): Prisma__IdentityIncomeClient<$Result.GetResult<Prisma.$IdentityIncomePayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first IdentityIncome that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityIncomeFindFirstOrThrowArgs} args - Arguments to find a IdentityIncome
+     * @example
+     * // Get one IdentityIncome
+     * const identityIncome = await prisma.identityIncome.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends IdentityIncomeFindFirstOrThrowArgs>(args?: SelectSubset<T, IdentityIncomeFindFirstOrThrowArgs<ExtArgs>>): Prisma__IdentityIncomeClient<$Result.GetResult<Prisma.$IdentityIncomePayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more IdentityIncomes that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityIncomeFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all IdentityIncomes
+     * const identityIncomes = await prisma.identityIncome.findMany()
+     * 
+     * // Get first 10 IdentityIncomes
+     * const identityIncomes = await prisma.identityIncome.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const identityIncomeWithIdOnly = await prisma.identityIncome.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends IdentityIncomeFindManyArgs>(args?: SelectSubset<T, IdentityIncomeFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityIncomePayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a IdentityIncome.
+     * @param {IdentityIncomeCreateArgs} args - Arguments to create a IdentityIncome.
+     * @example
+     * // Create one IdentityIncome
+     * const IdentityIncome = await prisma.identityIncome.create({
+     *   data: {
+     *     // ... data to create a IdentityIncome
+     *   }
+     * })
+     * 
+     */
+    create<T extends IdentityIncomeCreateArgs>(args: SelectSubset<T, IdentityIncomeCreateArgs<ExtArgs>>): Prisma__IdentityIncomeClient<$Result.GetResult<Prisma.$IdentityIncomePayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many IdentityIncomes.
+     * @param {IdentityIncomeCreateManyArgs} args - Arguments to create many IdentityIncomes.
+     * @example
+     * // Create many IdentityIncomes
+     * const identityIncome = await prisma.identityIncome.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends IdentityIncomeCreateManyArgs>(args?: SelectSubset<T, IdentityIncomeCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many IdentityIncomes and returns the data saved in the database.
+     * @param {IdentityIncomeCreateManyAndReturnArgs} args - Arguments to create many IdentityIncomes.
+     * @example
+     * // Create many IdentityIncomes
+     * const identityIncome = await prisma.identityIncome.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many IdentityIncomes and only return the `id`
+     * const identityIncomeWithIdOnly = await prisma.identityIncome.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends IdentityIncomeCreateManyAndReturnArgs>(args?: SelectSubset<T, IdentityIncomeCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityIncomePayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a IdentityIncome.
+     * @param {IdentityIncomeDeleteArgs} args - Arguments to delete one IdentityIncome.
+     * @example
+     * // Delete one IdentityIncome
+     * const IdentityIncome = await prisma.identityIncome.delete({
+     *   where: {
+     *     // ... filter to delete one IdentityIncome
+     *   }
+     * })
+     * 
+     */
+    delete<T extends IdentityIncomeDeleteArgs>(args: SelectSubset<T, IdentityIncomeDeleteArgs<ExtArgs>>): Prisma__IdentityIncomeClient<$Result.GetResult<Prisma.$IdentityIncomePayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one IdentityIncome.
+     * @param {IdentityIncomeUpdateArgs} args - Arguments to update one IdentityIncome.
+     * @example
+     * // Update one IdentityIncome
+     * const identityIncome = await prisma.identityIncome.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends IdentityIncomeUpdateArgs>(args: SelectSubset<T, IdentityIncomeUpdateArgs<ExtArgs>>): Prisma__IdentityIncomeClient<$Result.GetResult<Prisma.$IdentityIncomePayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more IdentityIncomes.
+     * @param {IdentityIncomeDeleteManyArgs} args - Arguments to filter IdentityIncomes to delete.
+     * @example
+     * // Delete a few IdentityIncomes
+     * const { count } = await prisma.identityIncome.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends IdentityIncomeDeleteManyArgs>(args?: SelectSubset<T, IdentityIncomeDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more IdentityIncomes.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityIncomeUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many IdentityIncomes
+     * const identityIncome = await prisma.identityIncome.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends IdentityIncomeUpdateManyArgs>(args: SelectSubset<T, IdentityIncomeUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more IdentityIncomes and returns the data updated in the database.
+     * @param {IdentityIncomeUpdateManyAndReturnArgs} args - Arguments to update many IdentityIncomes.
+     * @example
+     * // Update many IdentityIncomes
+     * const identityIncome = await prisma.identityIncome.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more IdentityIncomes and only return the `id`
+     * const identityIncomeWithIdOnly = await prisma.identityIncome.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends IdentityIncomeUpdateManyAndReturnArgs>(args: SelectSubset<T, IdentityIncomeUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityIncomePayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one IdentityIncome.
+     * @param {IdentityIncomeUpsertArgs} args - Arguments to update or create a IdentityIncome.
+     * @example
+     * // Update or create a IdentityIncome
+     * const identityIncome = await prisma.identityIncome.upsert({
+     *   create: {
+     *     // ... data to create a IdentityIncome
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the IdentityIncome we want to update
+     *   }
+     * })
+     */
+    upsert<T extends IdentityIncomeUpsertArgs>(args: SelectSubset<T, IdentityIncomeUpsertArgs<ExtArgs>>): Prisma__IdentityIncomeClient<$Result.GetResult<Prisma.$IdentityIncomePayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of IdentityIncomes.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityIncomeCountArgs} args - Arguments to filter IdentityIncomes to count.
+     * @example
+     * // Count the number of IdentityIncomes
+     * const count = await prisma.identityIncome.count({
+     *   where: {
+     *     // ... the filter for the IdentityIncomes we want to count
+     *   }
+     * })
+    **/
+    count<T extends IdentityIncomeCountArgs>(
+      args?: Subset<T, IdentityIncomeCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], IdentityIncomeCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a IdentityIncome.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityIncomeAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends IdentityIncomeAggregateArgs>(args: Subset<T, IdentityIncomeAggregateArgs>): Prisma.PrismaPromise<GetIdentityIncomeAggregateType<T>>
+
+    /**
+     * Group by IdentityIncome.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityIncomeGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends IdentityIncomeGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: IdentityIncomeGroupByArgs['orderBy'] }
+        : { orderBy?: IdentityIncomeGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, IdentityIncomeGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetIdentityIncomeGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the IdentityIncome model
+   */
+  readonly fields: IdentityIncomeFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for IdentityIncome.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__IdentityIncomeClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    identity<T extends FinancialIdentityDefaultArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentityDefaultArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the IdentityIncome model
+   */
+  interface IdentityIncomeFieldRefs {
+    readonly id: FieldRef<"IdentityIncome", 'String'>
+    readonly identityId: FieldRef<"IdentityIncome", 'String'>
+    readonly label: FieldRef<"IdentityIncome", 'String'>
+    readonly cadence: FieldRef<"IdentityIncome", 'String'>
+    readonly amountDollars: FieldRef<"IdentityIncome", 'Int'>
+    readonly isPrimary: FieldRef<"IdentityIncome", 'Boolean'>
+    readonly sortOrder: FieldRef<"IdentityIncome", 'Int'>
+    readonly createdAt: FieldRef<"IdentityIncome", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * IdentityIncome findUnique
+   */
+  export type IdentityIncomeFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityIncome
+     */
+    select?: IdentityIncomeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityIncome
+     */
+    omit?: IdentityIncomeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityIncomeInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityIncome to fetch.
+     */
+    where: IdentityIncomeWhereUniqueInput
+  }
+
+  /**
+   * IdentityIncome findUniqueOrThrow
+   */
+  export type IdentityIncomeFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityIncome
+     */
+    select?: IdentityIncomeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityIncome
+     */
+    omit?: IdentityIncomeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityIncomeInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityIncome to fetch.
+     */
+    where: IdentityIncomeWhereUniqueInput
+  }
+
+  /**
+   * IdentityIncome findFirst
+   */
+  export type IdentityIncomeFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityIncome
+     */
+    select?: IdentityIncomeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityIncome
+     */
+    omit?: IdentityIncomeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityIncomeInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityIncome to fetch.
+     */
+    where?: IdentityIncomeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityIncomes to fetch.
+     */
+    orderBy?: IdentityIncomeOrderByWithRelationInput | IdentityIncomeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for IdentityIncomes.
+     */
+    cursor?: IdentityIncomeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityIncomes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityIncomes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentityIncomes.
+     */
+    distinct?: IdentityIncomeScalarFieldEnum | IdentityIncomeScalarFieldEnum[]
+  }
+
+  /**
+   * IdentityIncome findFirstOrThrow
+   */
+  export type IdentityIncomeFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityIncome
+     */
+    select?: IdentityIncomeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityIncome
+     */
+    omit?: IdentityIncomeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityIncomeInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityIncome to fetch.
+     */
+    where?: IdentityIncomeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityIncomes to fetch.
+     */
+    orderBy?: IdentityIncomeOrderByWithRelationInput | IdentityIncomeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for IdentityIncomes.
+     */
+    cursor?: IdentityIncomeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityIncomes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityIncomes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentityIncomes.
+     */
+    distinct?: IdentityIncomeScalarFieldEnum | IdentityIncomeScalarFieldEnum[]
+  }
+
+  /**
+   * IdentityIncome findMany
+   */
+  export type IdentityIncomeFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityIncome
+     */
+    select?: IdentityIncomeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityIncome
+     */
+    omit?: IdentityIncomeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityIncomeInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityIncomes to fetch.
+     */
+    where?: IdentityIncomeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityIncomes to fetch.
+     */
+    orderBy?: IdentityIncomeOrderByWithRelationInput | IdentityIncomeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing IdentityIncomes.
+     */
+    cursor?: IdentityIncomeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityIncomes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityIncomes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentityIncomes.
+     */
+    distinct?: IdentityIncomeScalarFieldEnum | IdentityIncomeScalarFieldEnum[]
+  }
+
+  /**
+   * IdentityIncome create
+   */
+  export type IdentityIncomeCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityIncome
+     */
+    select?: IdentityIncomeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityIncome
+     */
+    omit?: IdentityIncomeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityIncomeInclude<ExtArgs> | null
+    /**
+     * The data needed to create a IdentityIncome.
+     */
+    data: XOR<IdentityIncomeCreateInput, IdentityIncomeUncheckedCreateInput>
+  }
+
+  /**
+   * IdentityIncome createMany
+   */
+  export type IdentityIncomeCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many IdentityIncomes.
+     */
+    data: IdentityIncomeCreateManyInput | IdentityIncomeCreateManyInput[]
+  }
+
+  /**
+   * IdentityIncome createManyAndReturn
+   */
+  export type IdentityIncomeCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityIncome
+     */
+    select?: IdentityIncomeSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityIncome
+     */
+    omit?: IdentityIncomeOmit<ExtArgs> | null
+    /**
+     * The data used to create many IdentityIncomes.
+     */
+    data: IdentityIncomeCreateManyInput | IdentityIncomeCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityIncomeIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * IdentityIncome update
+   */
+  export type IdentityIncomeUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityIncome
+     */
+    select?: IdentityIncomeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityIncome
+     */
+    omit?: IdentityIncomeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityIncomeInclude<ExtArgs> | null
+    /**
+     * The data needed to update a IdentityIncome.
+     */
+    data: XOR<IdentityIncomeUpdateInput, IdentityIncomeUncheckedUpdateInput>
+    /**
+     * Choose, which IdentityIncome to update.
+     */
+    where: IdentityIncomeWhereUniqueInput
+  }
+
+  /**
+   * IdentityIncome updateMany
+   */
+  export type IdentityIncomeUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update IdentityIncomes.
+     */
+    data: XOR<IdentityIncomeUpdateManyMutationInput, IdentityIncomeUncheckedUpdateManyInput>
+    /**
+     * Filter which IdentityIncomes to update
+     */
+    where?: IdentityIncomeWhereInput
+    /**
+     * Limit how many IdentityIncomes to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * IdentityIncome updateManyAndReturn
+   */
+  export type IdentityIncomeUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityIncome
+     */
+    select?: IdentityIncomeSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityIncome
+     */
+    omit?: IdentityIncomeOmit<ExtArgs> | null
+    /**
+     * The data used to update IdentityIncomes.
+     */
+    data: XOR<IdentityIncomeUpdateManyMutationInput, IdentityIncomeUncheckedUpdateManyInput>
+    /**
+     * Filter which IdentityIncomes to update
+     */
+    where?: IdentityIncomeWhereInput
+    /**
+     * Limit how many IdentityIncomes to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityIncomeIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * IdentityIncome upsert
+   */
+  export type IdentityIncomeUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityIncome
+     */
+    select?: IdentityIncomeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityIncome
+     */
+    omit?: IdentityIncomeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityIncomeInclude<ExtArgs> | null
+    /**
+     * The filter to search for the IdentityIncome to update in case it exists.
+     */
+    where: IdentityIncomeWhereUniqueInput
+    /**
+     * In case the IdentityIncome found by the `where` argument doesn't exist, create a new IdentityIncome with this data.
+     */
+    create: XOR<IdentityIncomeCreateInput, IdentityIncomeUncheckedCreateInput>
+    /**
+     * In case the IdentityIncome was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<IdentityIncomeUpdateInput, IdentityIncomeUncheckedUpdateInput>
+  }
+
+  /**
+   * IdentityIncome delete
+   */
+  export type IdentityIncomeDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityIncome
+     */
+    select?: IdentityIncomeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityIncome
+     */
+    omit?: IdentityIncomeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityIncomeInclude<ExtArgs> | null
+    /**
+     * Filter which IdentityIncome to delete.
+     */
+    where: IdentityIncomeWhereUniqueInput
+  }
+
+  /**
+   * IdentityIncome deleteMany
+   */
+  export type IdentityIncomeDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which IdentityIncomes to delete
+     */
+    where?: IdentityIncomeWhereInput
+    /**
+     * Limit how many IdentityIncomes to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * IdentityIncome without action
+   */
+  export type IdentityIncomeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityIncome
+     */
+    select?: IdentityIncomeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityIncome
+     */
+    omit?: IdentityIncomeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityIncomeInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model IdentityExpense
+   */
+
+  export type AggregateIdentityExpense = {
+    _count: IdentityExpenseCountAggregateOutputType | null
+    _avg: IdentityExpenseAvgAggregateOutputType | null
+    _sum: IdentityExpenseSumAggregateOutputType | null
+    _min: IdentityExpenseMinAggregateOutputType | null
+    _max: IdentityExpenseMaxAggregateOutputType | null
+  }
+
+  export type IdentityExpenseAvgAggregateOutputType = {
+    amountDollars: number | null
+    sortOrder: number | null
+  }
+
+  export type IdentityExpenseSumAggregateOutputType = {
+    amountDollars: number | null
+    sortOrder: number | null
+  }
+
+  export type IdentityExpenseMinAggregateOutputType = {
+    id: string | null
+    identityId: string | null
+    label: string | null
+    amountDollars: number | null
+    cadence: string | null
+    category: string | null
+    sortOrder: number | null
+    createdAt: Date | null
+  }
+
+  export type IdentityExpenseMaxAggregateOutputType = {
+    id: string | null
+    identityId: string | null
+    label: string | null
+    amountDollars: number | null
+    cadence: string | null
+    category: string | null
+    sortOrder: number | null
+    createdAt: Date | null
+  }
+
+  export type IdentityExpenseCountAggregateOutputType = {
+    id: number
+    identityId: number
+    label: number
+    amountDollars: number
+    cadence: number
+    category: number
+    sortOrder: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type IdentityExpenseAvgAggregateInputType = {
+    amountDollars?: true
+    sortOrder?: true
+  }
+
+  export type IdentityExpenseSumAggregateInputType = {
+    amountDollars?: true
+    sortOrder?: true
+  }
+
+  export type IdentityExpenseMinAggregateInputType = {
+    id?: true
+    identityId?: true
+    label?: true
+    amountDollars?: true
+    cadence?: true
+    category?: true
+    sortOrder?: true
+    createdAt?: true
+  }
+
+  export type IdentityExpenseMaxAggregateInputType = {
+    id?: true
+    identityId?: true
+    label?: true
+    amountDollars?: true
+    cadence?: true
+    category?: true
+    sortOrder?: true
+    createdAt?: true
+  }
+
+  export type IdentityExpenseCountAggregateInputType = {
+    id?: true
+    identityId?: true
+    label?: true
+    amountDollars?: true
+    cadence?: true
+    category?: true
+    sortOrder?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type IdentityExpenseAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which IdentityExpense to aggregate.
+     */
+    where?: IdentityExpenseWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityExpenses to fetch.
+     */
+    orderBy?: IdentityExpenseOrderByWithRelationInput | IdentityExpenseOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: IdentityExpenseWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityExpenses from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityExpenses.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned IdentityExpenses
+    **/
+    _count?: true | IdentityExpenseCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: IdentityExpenseAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: IdentityExpenseSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: IdentityExpenseMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: IdentityExpenseMaxAggregateInputType
+  }
+
+  export type GetIdentityExpenseAggregateType<T extends IdentityExpenseAggregateArgs> = {
+        [P in keyof T & keyof AggregateIdentityExpense]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateIdentityExpense[P]>
+      : GetScalarType<T[P], AggregateIdentityExpense[P]>
+  }
+
+
+
+
+  export type IdentityExpenseGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: IdentityExpenseWhereInput
+    orderBy?: IdentityExpenseOrderByWithAggregationInput | IdentityExpenseOrderByWithAggregationInput[]
+    by: IdentityExpenseScalarFieldEnum[] | IdentityExpenseScalarFieldEnum
+    having?: IdentityExpenseScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: IdentityExpenseCountAggregateInputType | true
+    _avg?: IdentityExpenseAvgAggregateInputType
+    _sum?: IdentityExpenseSumAggregateInputType
+    _min?: IdentityExpenseMinAggregateInputType
+    _max?: IdentityExpenseMaxAggregateInputType
+  }
+
+  export type IdentityExpenseGroupByOutputType = {
+    id: string
+    identityId: string
+    label: string
+    amountDollars: number
+    cadence: string
+    category: string
+    sortOrder: number
+    createdAt: Date
+    _count: IdentityExpenseCountAggregateOutputType | null
+    _avg: IdentityExpenseAvgAggregateOutputType | null
+    _sum: IdentityExpenseSumAggregateOutputType | null
+    _min: IdentityExpenseMinAggregateOutputType | null
+    _max: IdentityExpenseMaxAggregateOutputType | null
+  }
+
+  type GetIdentityExpenseGroupByPayload<T extends IdentityExpenseGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<IdentityExpenseGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof IdentityExpenseGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], IdentityExpenseGroupByOutputType[P]>
+            : GetScalarType<T[P], IdentityExpenseGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type IdentityExpenseSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    amountDollars?: boolean
+    cadence?: boolean
+    category?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identityExpense"]>
+
+  export type IdentityExpenseSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    amountDollars?: boolean
+    cadence?: boolean
+    category?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identityExpense"]>
+
+  export type IdentityExpenseSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    amountDollars?: boolean
+    cadence?: boolean
+    category?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identityExpense"]>
+
+  export type IdentityExpenseSelectScalar = {
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    amountDollars?: boolean
+    cadence?: boolean
+    category?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+  }
+
+  export type IdentityExpenseOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "identityId" | "label" | "amountDollars" | "cadence" | "category" | "sortOrder" | "createdAt", ExtArgs["result"]["identityExpense"]>
+  export type IdentityExpenseInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+  export type IdentityExpenseIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+  export type IdentityExpenseIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+
+  export type $IdentityExpensePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "IdentityExpense"
+    objects: {
+      identity: Prisma.$FinancialIdentityPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      identityId: string
+      /**
+       * "Rent", "Spectrum internet", "Car insurance".
+       */
+      label: string
+      /**
+       * Amount per period, in DOLLARS.
+       */
+      amountDollars: number
+      /**
+       * weekly | biweekly | semi_monthly | monthly | quarterly | annual
+       */
+      cadence: string
+      /**
+       * housing | utilities | insurance | food | transportation | healthcare | childcare | entertainment | other
+       */
+      category: string
+      sortOrder: number
+      createdAt: Date
+    }, ExtArgs["result"]["identityExpense"]>
+    composites: {}
+  }
+
+  type IdentityExpenseGetPayload<S extends boolean | null | undefined | IdentityExpenseDefaultArgs> = $Result.GetResult<Prisma.$IdentityExpensePayload, S>
+
+  type IdentityExpenseCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<IdentityExpenseFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: IdentityExpenseCountAggregateInputType | true
+    }
+
+  export interface IdentityExpenseDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['IdentityExpense'], meta: { name: 'IdentityExpense' } }
+    /**
+     * Find zero or one IdentityExpense that matches the filter.
+     * @param {IdentityExpenseFindUniqueArgs} args - Arguments to find a IdentityExpense
+     * @example
+     * // Get one IdentityExpense
+     * const identityExpense = await prisma.identityExpense.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends IdentityExpenseFindUniqueArgs>(args: SelectSubset<T, IdentityExpenseFindUniqueArgs<ExtArgs>>): Prisma__IdentityExpenseClient<$Result.GetResult<Prisma.$IdentityExpensePayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one IdentityExpense that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {IdentityExpenseFindUniqueOrThrowArgs} args - Arguments to find a IdentityExpense
+     * @example
+     * // Get one IdentityExpense
+     * const identityExpense = await prisma.identityExpense.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends IdentityExpenseFindUniqueOrThrowArgs>(args: SelectSubset<T, IdentityExpenseFindUniqueOrThrowArgs<ExtArgs>>): Prisma__IdentityExpenseClient<$Result.GetResult<Prisma.$IdentityExpensePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first IdentityExpense that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityExpenseFindFirstArgs} args - Arguments to find a IdentityExpense
+     * @example
+     * // Get one IdentityExpense
+     * const identityExpense = await prisma.identityExpense.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends IdentityExpenseFindFirstArgs>(args?: SelectSubset<T, IdentityExpenseFindFirstArgs<ExtArgs>>): Prisma__IdentityExpenseClient<$Result.GetResult<Prisma.$IdentityExpensePayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first IdentityExpense that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityExpenseFindFirstOrThrowArgs} args - Arguments to find a IdentityExpense
+     * @example
+     * // Get one IdentityExpense
+     * const identityExpense = await prisma.identityExpense.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends IdentityExpenseFindFirstOrThrowArgs>(args?: SelectSubset<T, IdentityExpenseFindFirstOrThrowArgs<ExtArgs>>): Prisma__IdentityExpenseClient<$Result.GetResult<Prisma.$IdentityExpensePayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more IdentityExpenses that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityExpenseFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all IdentityExpenses
+     * const identityExpenses = await prisma.identityExpense.findMany()
+     * 
+     * // Get first 10 IdentityExpenses
+     * const identityExpenses = await prisma.identityExpense.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const identityExpenseWithIdOnly = await prisma.identityExpense.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends IdentityExpenseFindManyArgs>(args?: SelectSubset<T, IdentityExpenseFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityExpensePayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a IdentityExpense.
+     * @param {IdentityExpenseCreateArgs} args - Arguments to create a IdentityExpense.
+     * @example
+     * // Create one IdentityExpense
+     * const IdentityExpense = await prisma.identityExpense.create({
+     *   data: {
+     *     // ... data to create a IdentityExpense
+     *   }
+     * })
+     * 
+     */
+    create<T extends IdentityExpenseCreateArgs>(args: SelectSubset<T, IdentityExpenseCreateArgs<ExtArgs>>): Prisma__IdentityExpenseClient<$Result.GetResult<Prisma.$IdentityExpensePayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many IdentityExpenses.
+     * @param {IdentityExpenseCreateManyArgs} args - Arguments to create many IdentityExpenses.
+     * @example
+     * // Create many IdentityExpenses
+     * const identityExpense = await prisma.identityExpense.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends IdentityExpenseCreateManyArgs>(args?: SelectSubset<T, IdentityExpenseCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many IdentityExpenses and returns the data saved in the database.
+     * @param {IdentityExpenseCreateManyAndReturnArgs} args - Arguments to create many IdentityExpenses.
+     * @example
+     * // Create many IdentityExpenses
+     * const identityExpense = await prisma.identityExpense.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many IdentityExpenses and only return the `id`
+     * const identityExpenseWithIdOnly = await prisma.identityExpense.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends IdentityExpenseCreateManyAndReturnArgs>(args?: SelectSubset<T, IdentityExpenseCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityExpensePayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a IdentityExpense.
+     * @param {IdentityExpenseDeleteArgs} args - Arguments to delete one IdentityExpense.
+     * @example
+     * // Delete one IdentityExpense
+     * const IdentityExpense = await prisma.identityExpense.delete({
+     *   where: {
+     *     // ... filter to delete one IdentityExpense
+     *   }
+     * })
+     * 
+     */
+    delete<T extends IdentityExpenseDeleteArgs>(args: SelectSubset<T, IdentityExpenseDeleteArgs<ExtArgs>>): Prisma__IdentityExpenseClient<$Result.GetResult<Prisma.$IdentityExpensePayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one IdentityExpense.
+     * @param {IdentityExpenseUpdateArgs} args - Arguments to update one IdentityExpense.
+     * @example
+     * // Update one IdentityExpense
+     * const identityExpense = await prisma.identityExpense.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends IdentityExpenseUpdateArgs>(args: SelectSubset<T, IdentityExpenseUpdateArgs<ExtArgs>>): Prisma__IdentityExpenseClient<$Result.GetResult<Prisma.$IdentityExpensePayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more IdentityExpenses.
+     * @param {IdentityExpenseDeleteManyArgs} args - Arguments to filter IdentityExpenses to delete.
+     * @example
+     * // Delete a few IdentityExpenses
+     * const { count } = await prisma.identityExpense.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends IdentityExpenseDeleteManyArgs>(args?: SelectSubset<T, IdentityExpenseDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more IdentityExpenses.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityExpenseUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many IdentityExpenses
+     * const identityExpense = await prisma.identityExpense.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends IdentityExpenseUpdateManyArgs>(args: SelectSubset<T, IdentityExpenseUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more IdentityExpenses and returns the data updated in the database.
+     * @param {IdentityExpenseUpdateManyAndReturnArgs} args - Arguments to update many IdentityExpenses.
+     * @example
+     * // Update many IdentityExpenses
+     * const identityExpense = await prisma.identityExpense.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more IdentityExpenses and only return the `id`
+     * const identityExpenseWithIdOnly = await prisma.identityExpense.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends IdentityExpenseUpdateManyAndReturnArgs>(args: SelectSubset<T, IdentityExpenseUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityExpensePayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one IdentityExpense.
+     * @param {IdentityExpenseUpsertArgs} args - Arguments to update or create a IdentityExpense.
+     * @example
+     * // Update or create a IdentityExpense
+     * const identityExpense = await prisma.identityExpense.upsert({
+     *   create: {
+     *     // ... data to create a IdentityExpense
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the IdentityExpense we want to update
+     *   }
+     * })
+     */
+    upsert<T extends IdentityExpenseUpsertArgs>(args: SelectSubset<T, IdentityExpenseUpsertArgs<ExtArgs>>): Prisma__IdentityExpenseClient<$Result.GetResult<Prisma.$IdentityExpensePayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of IdentityExpenses.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityExpenseCountArgs} args - Arguments to filter IdentityExpenses to count.
+     * @example
+     * // Count the number of IdentityExpenses
+     * const count = await prisma.identityExpense.count({
+     *   where: {
+     *     // ... the filter for the IdentityExpenses we want to count
+     *   }
+     * })
+    **/
+    count<T extends IdentityExpenseCountArgs>(
+      args?: Subset<T, IdentityExpenseCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], IdentityExpenseCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a IdentityExpense.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityExpenseAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends IdentityExpenseAggregateArgs>(args: Subset<T, IdentityExpenseAggregateArgs>): Prisma.PrismaPromise<GetIdentityExpenseAggregateType<T>>
+
+    /**
+     * Group by IdentityExpense.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityExpenseGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends IdentityExpenseGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: IdentityExpenseGroupByArgs['orderBy'] }
+        : { orderBy?: IdentityExpenseGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, IdentityExpenseGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetIdentityExpenseGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the IdentityExpense model
+   */
+  readonly fields: IdentityExpenseFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for IdentityExpense.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__IdentityExpenseClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    identity<T extends FinancialIdentityDefaultArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentityDefaultArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the IdentityExpense model
+   */
+  interface IdentityExpenseFieldRefs {
+    readonly id: FieldRef<"IdentityExpense", 'String'>
+    readonly identityId: FieldRef<"IdentityExpense", 'String'>
+    readonly label: FieldRef<"IdentityExpense", 'String'>
+    readonly amountDollars: FieldRef<"IdentityExpense", 'Int'>
+    readonly cadence: FieldRef<"IdentityExpense", 'String'>
+    readonly category: FieldRef<"IdentityExpense", 'String'>
+    readonly sortOrder: FieldRef<"IdentityExpense", 'Int'>
+    readonly createdAt: FieldRef<"IdentityExpense", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * IdentityExpense findUnique
+   */
+  export type IdentityExpenseFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityExpense
+     */
+    select?: IdentityExpenseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityExpense
+     */
+    omit?: IdentityExpenseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityExpenseInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityExpense to fetch.
+     */
+    where: IdentityExpenseWhereUniqueInput
+  }
+
+  /**
+   * IdentityExpense findUniqueOrThrow
+   */
+  export type IdentityExpenseFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityExpense
+     */
+    select?: IdentityExpenseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityExpense
+     */
+    omit?: IdentityExpenseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityExpenseInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityExpense to fetch.
+     */
+    where: IdentityExpenseWhereUniqueInput
+  }
+
+  /**
+   * IdentityExpense findFirst
+   */
+  export type IdentityExpenseFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityExpense
+     */
+    select?: IdentityExpenseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityExpense
+     */
+    omit?: IdentityExpenseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityExpenseInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityExpense to fetch.
+     */
+    where?: IdentityExpenseWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityExpenses to fetch.
+     */
+    orderBy?: IdentityExpenseOrderByWithRelationInput | IdentityExpenseOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for IdentityExpenses.
+     */
+    cursor?: IdentityExpenseWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityExpenses from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityExpenses.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentityExpenses.
+     */
+    distinct?: IdentityExpenseScalarFieldEnum | IdentityExpenseScalarFieldEnum[]
+  }
+
+  /**
+   * IdentityExpense findFirstOrThrow
+   */
+  export type IdentityExpenseFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityExpense
+     */
+    select?: IdentityExpenseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityExpense
+     */
+    omit?: IdentityExpenseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityExpenseInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityExpense to fetch.
+     */
+    where?: IdentityExpenseWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityExpenses to fetch.
+     */
+    orderBy?: IdentityExpenseOrderByWithRelationInput | IdentityExpenseOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for IdentityExpenses.
+     */
+    cursor?: IdentityExpenseWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityExpenses from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityExpenses.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentityExpenses.
+     */
+    distinct?: IdentityExpenseScalarFieldEnum | IdentityExpenseScalarFieldEnum[]
+  }
+
+  /**
+   * IdentityExpense findMany
+   */
+  export type IdentityExpenseFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityExpense
+     */
+    select?: IdentityExpenseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityExpense
+     */
+    omit?: IdentityExpenseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityExpenseInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityExpenses to fetch.
+     */
+    where?: IdentityExpenseWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityExpenses to fetch.
+     */
+    orderBy?: IdentityExpenseOrderByWithRelationInput | IdentityExpenseOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing IdentityExpenses.
+     */
+    cursor?: IdentityExpenseWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityExpenses from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityExpenses.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentityExpenses.
+     */
+    distinct?: IdentityExpenseScalarFieldEnum | IdentityExpenseScalarFieldEnum[]
+  }
+
+  /**
+   * IdentityExpense create
+   */
+  export type IdentityExpenseCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityExpense
+     */
+    select?: IdentityExpenseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityExpense
+     */
+    omit?: IdentityExpenseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityExpenseInclude<ExtArgs> | null
+    /**
+     * The data needed to create a IdentityExpense.
+     */
+    data: XOR<IdentityExpenseCreateInput, IdentityExpenseUncheckedCreateInput>
+  }
+
+  /**
+   * IdentityExpense createMany
+   */
+  export type IdentityExpenseCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many IdentityExpenses.
+     */
+    data: IdentityExpenseCreateManyInput | IdentityExpenseCreateManyInput[]
+  }
+
+  /**
+   * IdentityExpense createManyAndReturn
+   */
+  export type IdentityExpenseCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityExpense
+     */
+    select?: IdentityExpenseSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityExpense
+     */
+    omit?: IdentityExpenseOmit<ExtArgs> | null
+    /**
+     * The data used to create many IdentityExpenses.
+     */
+    data: IdentityExpenseCreateManyInput | IdentityExpenseCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityExpenseIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * IdentityExpense update
+   */
+  export type IdentityExpenseUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityExpense
+     */
+    select?: IdentityExpenseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityExpense
+     */
+    omit?: IdentityExpenseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityExpenseInclude<ExtArgs> | null
+    /**
+     * The data needed to update a IdentityExpense.
+     */
+    data: XOR<IdentityExpenseUpdateInput, IdentityExpenseUncheckedUpdateInput>
+    /**
+     * Choose, which IdentityExpense to update.
+     */
+    where: IdentityExpenseWhereUniqueInput
+  }
+
+  /**
+   * IdentityExpense updateMany
+   */
+  export type IdentityExpenseUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update IdentityExpenses.
+     */
+    data: XOR<IdentityExpenseUpdateManyMutationInput, IdentityExpenseUncheckedUpdateManyInput>
+    /**
+     * Filter which IdentityExpenses to update
+     */
+    where?: IdentityExpenseWhereInput
+    /**
+     * Limit how many IdentityExpenses to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * IdentityExpense updateManyAndReturn
+   */
+  export type IdentityExpenseUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityExpense
+     */
+    select?: IdentityExpenseSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityExpense
+     */
+    omit?: IdentityExpenseOmit<ExtArgs> | null
+    /**
+     * The data used to update IdentityExpenses.
+     */
+    data: XOR<IdentityExpenseUpdateManyMutationInput, IdentityExpenseUncheckedUpdateManyInput>
+    /**
+     * Filter which IdentityExpenses to update
+     */
+    where?: IdentityExpenseWhereInput
+    /**
+     * Limit how many IdentityExpenses to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityExpenseIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * IdentityExpense upsert
+   */
+  export type IdentityExpenseUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityExpense
+     */
+    select?: IdentityExpenseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityExpense
+     */
+    omit?: IdentityExpenseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityExpenseInclude<ExtArgs> | null
+    /**
+     * The filter to search for the IdentityExpense to update in case it exists.
+     */
+    where: IdentityExpenseWhereUniqueInput
+    /**
+     * In case the IdentityExpense found by the `where` argument doesn't exist, create a new IdentityExpense with this data.
+     */
+    create: XOR<IdentityExpenseCreateInput, IdentityExpenseUncheckedCreateInput>
+    /**
+     * In case the IdentityExpense was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<IdentityExpenseUpdateInput, IdentityExpenseUncheckedUpdateInput>
+  }
+
+  /**
+   * IdentityExpense delete
+   */
+  export type IdentityExpenseDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityExpense
+     */
+    select?: IdentityExpenseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityExpense
+     */
+    omit?: IdentityExpenseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityExpenseInclude<ExtArgs> | null
+    /**
+     * Filter which IdentityExpense to delete.
+     */
+    where: IdentityExpenseWhereUniqueInput
+  }
+
+  /**
+   * IdentityExpense deleteMany
+   */
+  export type IdentityExpenseDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which IdentityExpenses to delete
+     */
+    where?: IdentityExpenseWhereInput
+    /**
+     * Limit how many IdentityExpenses to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * IdentityExpense without action
+   */
+  export type IdentityExpenseDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityExpense
+     */
+    select?: IdentityExpenseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityExpense
+     */
+    omit?: IdentityExpenseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityExpenseInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model IdentityDebt
+   */
+
+  export type AggregateIdentityDebt = {
+    _count: IdentityDebtCountAggregateOutputType | null
+    _avg: IdentityDebtAvgAggregateOutputType | null
+    _sum: IdentityDebtSumAggregateOutputType | null
+    _min: IdentityDebtMinAggregateOutputType | null
+    _max: IdentityDebtMaxAggregateOutputType | null
+  }
+
+  export type IdentityDebtAvgAggregateOutputType = {
+    balanceDollars: number | null
+    aprPercent: number | null
+    minPaymentDollars: number | null
+    sortOrder: number | null
+  }
+
+  export type IdentityDebtSumAggregateOutputType = {
+    balanceDollars: number | null
+    aprPercent: number | null
+    minPaymentDollars: number | null
+    sortOrder: number | null
+  }
+
+  export type IdentityDebtMinAggregateOutputType = {
+    id: string | null
+    identityId: string | null
+    label: string | null
+    kind: string | null
+    balanceDollars: number | null
+    aprPercent: number | null
+    minPaymentDollars: number | null
+    sortOrder: number | null
+    createdAt: Date | null
+  }
+
+  export type IdentityDebtMaxAggregateOutputType = {
+    id: string | null
+    identityId: string | null
+    label: string | null
+    kind: string | null
+    balanceDollars: number | null
+    aprPercent: number | null
+    minPaymentDollars: number | null
+    sortOrder: number | null
+    createdAt: Date | null
+  }
+
+  export type IdentityDebtCountAggregateOutputType = {
+    id: number
+    identityId: number
+    label: number
+    kind: number
+    balanceDollars: number
+    aprPercent: number
+    minPaymentDollars: number
+    sortOrder: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type IdentityDebtAvgAggregateInputType = {
+    balanceDollars?: true
+    aprPercent?: true
+    minPaymentDollars?: true
+    sortOrder?: true
+  }
+
+  export type IdentityDebtSumAggregateInputType = {
+    balanceDollars?: true
+    aprPercent?: true
+    minPaymentDollars?: true
+    sortOrder?: true
+  }
+
+  export type IdentityDebtMinAggregateInputType = {
+    id?: true
+    identityId?: true
+    label?: true
+    kind?: true
+    balanceDollars?: true
+    aprPercent?: true
+    minPaymentDollars?: true
+    sortOrder?: true
+    createdAt?: true
+  }
+
+  export type IdentityDebtMaxAggregateInputType = {
+    id?: true
+    identityId?: true
+    label?: true
+    kind?: true
+    balanceDollars?: true
+    aprPercent?: true
+    minPaymentDollars?: true
+    sortOrder?: true
+    createdAt?: true
+  }
+
+  export type IdentityDebtCountAggregateInputType = {
+    id?: true
+    identityId?: true
+    label?: true
+    kind?: true
+    balanceDollars?: true
+    aprPercent?: true
+    minPaymentDollars?: true
+    sortOrder?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type IdentityDebtAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which IdentityDebt to aggregate.
+     */
+    where?: IdentityDebtWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityDebts to fetch.
+     */
+    orderBy?: IdentityDebtOrderByWithRelationInput | IdentityDebtOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: IdentityDebtWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityDebts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityDebts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned IdentityDebts
+    **/
+    _count?: true | IdentityDebtCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: IdentityDebtAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: IdentityDebtSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: IdentityDebtMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: IdentityDebtMaxAggregateInputType
+  }
+
+  export type GetIdentityDebtAggregateType<T extends IdentityDebtAggregateArgs> = {
+        [P in keyof T & keyof AggregateIdentityDebt]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateIdentityDebt[P]>
+      : GetScalarType<T[P], AggregateIdentityDebt[P]>
+  }
+
+
+
+
+  export type IdentityDebtGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: IdentityDebtWhereInput
+    orderBy?: IdentityDebtOrderByWithAggregationInput | IdentityDebtOrderByWithAggregationInput[]
+    by: IdentityDebtScalarFieldEnum[] | IdentityDebtScalarFieldEnum
+    having?: IdentityDebtScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: IdentityDebtCountAggregateInputType | true
+    _avg?: IdentityDebtAvgAggregateInputType
+    _sum?: IdentityDebtSumAggregateInputType
+    _min?: IdentityDebtMinAggregateInputType
+    _max?: IdentityDebtMaxAggregateInputType
+  }
+
+  export type IdentityDebtGroupByOutputType = {
+    id: string
+    identityId: string
+    label: string
+    kind: string
+    balanceDollars: number
+    aprPercent: number
+    minPaymentDollars: number
+    sortOrder: number
+    createdAt: Date
+    _count: IdentityDebtCountAggregateOutputType | null
+    _avg: IdentityDebtAvgAggregateOutputType | null
+    _sum: IdentityDebtSumAggregateOutputType | null
+    _min: IdentityDebtMinAggregateOutputType | null
+    _max: IdentityDebtMaxAggregateOutputType | null
+  }
+
+  type GetIdentityDebtGroupByPayload<T extends IdentityDebtGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<IdentityDebtGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof IdentityDebtGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], IdentityDebtGroupByOutputType[P]>
+            : GetScalarType<T[P], IdentityDebtGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type IdentityDebtSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    kind?: boolean
+    balanceDollars?: boolean
+    aprPercent?: boolean
+    minPaymentDollars?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identityDebt"]>
+
+  export type IdentityDebtSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    kind?: boolean
+    balanceDollars?: boolean
+    aprPercent?: boolean
+    minPaymentDollars?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identityDebt"]>
+
+  export type IdentityDebtSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    kind?: boolean
+    balanceDollars?: boolean
+    aprPercent?: boolean
+    minPaymentDollars?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identityDebt"]>
+
+  export type IdentityDebtSelectScalar = {
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    kind?: boolean
+    balanceDollars?: boolean
+    aprPercent?: boolean
+    minPaymentDollars?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+  }
+
+  export type IdentityDebtOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "identityId" | "label" | "kind" | "balanceDollars" | "aprPercent" | "minPaymentDollars" | "sortOrder" | "createdAt", ExtArgs["result"]["identityDebt"]>
+  export type IdentityDebtInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+  export type IdentityDebtIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+  export type IdentityDebtIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+
+  export type $IdentityDebtPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "IdentityDebt"
+    objects: {
+      identity: Prisma.$FinancialIdentityPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      identityId: string
+      label: string
+      /**
+       * credit_card | mortgage | student_loan | auto_loan | personal_loan | medical | other
+       */
+      kind: string
+      balanceDollars: number
+      aprPercent: number
+      minPaymentDollars: number
+      sortOrder: number
+      createdAt: Date
+    }, ExtArgs["result"]["identityDebt"]>
+    composites: {}
+  }
+
+  type IdentityDebtGetPayload<S extends boolean | null | undefined | IdentityDebtDefaultArgs> = $Result.GetResult<Prisma.$IdentityDebtPayload, S>
+
+  type IdentityDebtCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<IdentityDebtFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: IdentityDebtCountAggregateInputType | true
+    }
+
+  export interface IdentityDebtDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['IdentityDebt'], meta: { name: 'IdentityDebt' } }
+    /**
+     * Find zero or one IdentityDebt that matches the filter.
+     * @param {IdentityDebtFindUniqueArgs} args - Arguments to find a IdentityDebt
+     * @example
+     * // Get one IdentityDebt
+     * const identityDebt = await prisma.identityDebt.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends IdentityDebtFindUniqueArgs>(args: SelectSubset<T, IdentityDebtFindUniqueArgs<ExtArgs>>): Prisma__IdentityDebtClient<$Result.GetResult<Prisma.$IdentityDebtPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one IdentityDebt that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {IdentityDebtFindUniqueOrThrowArgs} args - Arguments to find a IdentityDebt
+     * @example
+     * // Get one IdentityDebt
+     * const identityDebt = await prisma.identityDebt.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends IdentityDebtFindUniqueOrThrowArgs>(args: SelectSubset<T, IdentityDebtFindUniqueOrThrowArgs<ExtArgs>>): Prisma__IdentityDebtClient<$Result.GetResult<Prisma.$IdentityDebtPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first IdentityDebt that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityDebtFindFirstArgs} args - Arguments to find a IdentityDebt
+     * @example
+     * // Get one IdentityDebt
+     * const identityDebt = await prisma.identityDebt.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends IdentityDebtFindFirstArgs>(args?: SelectSubset<T, IdentityDebtFindFirstArgs<ExtArgs>>): Prisma__IdentityDebtClient<$Result.GetResult<Prisma.$IdentityDebtPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first IdentityDebt that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityDebtFindFirstOrThrowArgs} args - Arguments to find a IdentityDebt
+     * @example
+     * // Get one IdentityDebt
+     * const identityDebt = await prisma.identityDebt.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends IdentityDebtFindFirstOrThrowArgs>(args?: SelectSubset<T, IdentityDebtFindFirstOrThrowArgs<ExtArgs>>): Prisma__IdentityDebtClient<$Result.GetResult<Prisma.$IdentityDebtPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more IdentityDebts that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityDebtFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all IdentityDebts
+     * const identityDebts = await prisma.identityDebt.findMany()
+     * 
+     * // Get first 10 IdentityDebts
+     * const identityDebts = await prisma.identityDebt.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const identityDebtWithIdOnly = await prisma.identityDebt.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends IdentityDebtFindManyArgs>(args?: SelectSubset<T, IdentityDebtFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityDebtPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a IdentityDebt.
+     * @param {IdentityDebtCreateArgs} args - Arguments to create a IdentityDebt.
+     * @example
+     * // Create one IdentityDebt
+     * const IdentityDebt = await prisma.identityDebt.create({
+     *   data: {
+     *     // ... data to create a IdentityDebt
+     *   }
+     * })
+     * 
+     */
+    create<T extends IdentityDebtCreateArgs>(args: SelectSubset<T, IdentityDebtCreateArgs<ExtArgs>>): Prisma__IdentityDebtClient<$Result.GetResult<Prisma.$IdentityDebtPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many IdentityDebts.
+     * @param {IdentityDebtCreateManyArgs} args - Arguments to create many IdentityDebts.
+     * @example
+     * // Create many IdentityDebts
+     * const identityDebt = await prisma.identityDebt.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends IdentityDebtCreateManyArgs>(args?: SelectSubset<T, IdentityDebtCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many IdentityDebts and returns the data saved in the database.
+     * @param {IdentityDebtCreateManyAndReturnArgs} args - Arguments to create many IdentityDebts.
+     * @example
+     * // Create many IdentityDebts
+     * const identityDebt = await prisma.identityDebt.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many IdentityDebts and only return the `id`
+     * const identityDebtWithIdOnly = await prisma.identityDebt.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends IdentityDebtCreateManyAndReturnArgs>(args?: SelectSubset<T, IdentityDebtCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityDebtPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a IdentityDebt.
+     * @param {IdentityDebtDeleteArgs} args - Arguments to delete one IdentityDebt.
+     * @example
+     * // Delete one IdentityDebt
+     * const IdentityDebt = await prisma.identityDebt.delete({
+     *   where: {
+     *     // ... filter to delete one IdentityDebt
+     *   }
+     * })
+     * 
+     */
+    delete<T extends IdentityDebtDeleteArgs>(args: SelectSubset<T, IdentityDebtDeleteArgs<ExtArgs>>): Prisma__IdentityDebtClient<$Result.GetResult<Prisma.$IdentityDebtPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one IdentityDebt.
+     * @param {IdentityDebtUpdateArgs} args - Arguments to update one IdentityDebt.
+     * @example
+     * // Update one IdentityDebt
+     * const identityDebt = await prisma.identityDebt.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends IdentityDebtUpdateArgs>(args: SelectSubset<T, IdentityDebtUpdateArgs<ExtArgs>>): Prisma__IdentityDebtClient<$Result.GetResult<Prisma.$IdentityDebtPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more IdentityDebts.
+     * @param {IdentityDebtDeleteManyArgs} args - Arguments to filter IdentityDebts to delete.
+     * @example
+     * // Delete a few IdentityDebts
+     * const { count } = await prisma.identityDebt.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends IdentityDebtDeleteManyArgs>(args?: SelectSubset<T, IdentityDebtDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more IdentityDebts.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityDebtUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many IdentityDebts
+     * const identityDebt = await prisma.identityDebt.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends IdentityDebtUpdateManyArgs>(args: SelectSubset<T, IdentityDebtUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more IdentityDebts and returns the data updated in the database.
+     * @param {IdentityDebtUpdateManyAndReturnArgs} args - Arguments to update many IdentityDebts.
+     * @example
+     * // Update many IdentityDebts
+     * const identityDebt = await prisma.identityDebt.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more IdentityDebts and only return the `id`
+     * const identityDebtWithIdOnly = await prisma.identityDebt.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends IdentityDebtUpdateManyAndReturnArgs>(args: SelectSubset<T, IdentityDebtUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityDebtPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one IdentityDebt.
+     * @param {IdentityDebtUpsertArgs} args - Arguments to update or create a IdentityDebt.
+     * @example
+     * // Update or create a IdentityDebt
+     * const identityDebt = await prisma.identityDebt.upsert({
+     *   create: {
+     *     // ... data to create a IdentityDebt
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the IdentityDebt we want to update
+     *   }
+     * })
+     */
+    upsert<T extends IdentityDebtUpsertArgs>(args: SelectSubset<T, IdentityDebtUpsertArgs<ExtArgs>>): Prisma__IdentityDebtClient<$Result.GetResult<Prisma.$IdentityDebtPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of IdentityDebts.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityDebtCountArgs} args - Arguments to filter IdentityDebts to count.
+     * @example
+     * // Count the number of IdentityDebts
+     * const count = await prisma.identityDebt.count({
+     *   where: {
+     *     // ... the filter for the IdentityDebts we want to count
+     *   }
+     * })
+    **/
+    count<T extends IdentityDebtCountArgs>(
+      args?: Subset<T, IdentityDebtCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], IdentityDebtCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a IdentityDebt.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityDebtAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends IdentityDebtAggregateArgs>(args: Subset<T, IdentityDebtAggregateArgs>): Prisma.PrismaPromise<GetIdentityDebtAggregateType<T>>
+
+    /**
+     * Group by IdentityDebt.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityDebtGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends IdentityDebtGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: IdentityDebtGroupByArgs['orderBy'] }
+        : { orderBy?: IdentityDebtGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, IdentityDebtGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetIdentityDebtGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the IdentityDebt model
+   */
+  readonly fields: IdentityDebtFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for IdentityDebt.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__IdentityDebtClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    identity<T extends FinancialIdentityDefaultArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentityDefaultArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the IdentityDebt model
+   */
+  interface IdentityDebtFieldRefs {
+    readonly id: FieldRef<"IdentityDebt", 'String'>
+    readonly identityId: FieldRef<"IdentityDebt", 'String'>
+    readonly label: FieldRef<"IdentityDebt", 'String'>
+    readonly kind: FieldRef<"IdentityDebt", 'String'>
+    readonly balanceDollars: FieldRef<"IdentityDebt", 'Int'>
+    readonly aprPercent: FieldRef<"IdentityDebt", 'Float'>
+    readonly minPaymentDollars: FieldRef<"IdentityDebt", 'Int'>
+    readonly sortOrder: FieldRef<"IdentityDebt", 'Int'>
+    readonly createdAt: FieldRef<"IdentityDebt", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * IdentityDebt findUnique
+   */
+  export type IdentityDebtFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityDebt
+     */
+    select?: IdentityDebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityDebt
+     */
+    omit?: IdentityDebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityDebtInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityDebt to fetch.
+     */
+    where: IdentityDebtWhereUniqueInput
+  }
+
+  /**
+   * IdentityDebt findUniqueOrThrow
+   */
+  export type IdentityDebtFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityDebt
+     */
+    select?: IdentityDebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityDebt
+     */
+    omit?: IdentityDebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityDebtInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityDebt to fetch.
+     */
+    where: IdentityDebtWhereUniqueInput
+  }
+
+  /**
+   * IdentityDebt findFirst
+   */
+  export type IdentityDebtFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityDebt
+     */
+    select?: IdentityDebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityDebt
+     */
+    omit?: IdentityDebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityDebtInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityDebt to fetch.
+     */
+    where?: IdentityDebtWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityDebts to fetch.
+     */
+    orderBy?: IdentityDebtOrderByWithRelationInput | IdentityDebtOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for IdentityDebts.
+     */
+    cursor?: IdentityDebtWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityDebts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityDebts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentityDebts.
+     */
+    distinct?: IdentityDebtScalarFieldEnum | IdentityDebtScalarFieldEnum[]
+  }
+
+  /**
+   * IdentityDebt findFirstOrThrow
+   */
+  export type IdentityDebtFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityDebt
+     */
+    select?: IdentityDebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityDebt
+     */
+    omit?: IdentityDebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityDebtInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityDebt to fetch.
+     */
+    where?: IdentityDebtWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityDebts to fetch.
+     */
+    orderBy?: IdentityDebtOrderByWithRelationInput | IdentityDebtOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for IdentityDebts.
+     */
+    cursor?: IdentityDebtWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityDebts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityDebts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentityDebts.
+     */
+    distinct?: IdentityDebtScalarFieldEnum | IdentityDebtScalarFieldEnum[]
+  }
+
+  /**
+   * IdentityDebt findMany
+   */
+  export type IdentityDebtFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityDebt
+     */
+    select?: IdentityDebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityDebt
+     */
+    omit?: IdentityDebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityDebtInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityDebts to fetch.
+     */
+    where?: IdentityDebtWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityDebts to fetch.
+     */
+    orderBy?: IdentityDebtOrderByWithRelationInput | IdentityDebtOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing IdentityDebts.
+     */
+    cursor?: IdentityDebtWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityDebts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityDebts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentityDebts.
+     */
+    distinct?: IdentityDebtScalarFieldEnum | IdentityDebtScalarFieldEnum[]
+  }
+
+  /**
+   * IdentityDebt create
+   */
+  export type IdentityDebtCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityDebt
+     */
+    select?: IdentityDebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityDebt
+     */
+    omit?: IdentityDebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityDebtInclude<ExtArgs> | null
+    /**
+     * The data needed to create a IdentityDebt.
+     */
+    data: XOR<IdentityDebtCreateInput, IdentityDebtUncheckedCreateInput>
+  }
+
+  /**
+   * IdentityDebt createMany
+   */
+  export type IdentityDebtCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many IdentityDebts.
+     */
+    data: IdentityDebtCreateManyInput | IdentityDebtCreateManyInput[]
+  }
+
+  /**
+   * IdentityDebt createManyAndReturn
+   */
+  export type IdentityDebtCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityDebt
+     */
+    select?: IdentityDebtSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityDebt
+     */
+    omit?: IdentityDebtOmit<ExtArgs> | null
+    /**
+     * The data used to create many IdentityDebts.
+     */
+    data: IdentityDebtCreateManyInput | IdentityDebtCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityDebtIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * IdentityDebt update
+   */
+  export type IdentityDebtUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityDebt
+     */
+    select?: IdentityDebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityDebt
+     */
+    omit?: IdentityDebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityDebtInclude<ExtArgs> | null
+    /**
+     * The data needed to update a IdentityDebt.
+     */
+    data: XOR<IdentityDebtUpdateInput, IdentityDebtUncheckedUpdateInput>
+    /**
+     * Choose, which IdentityDebt to update.
+     */
+    where: IdentityDebtWhereUniqueInput
+  }
+
+  /**
+   * IdentityDebt updateMany
+   */
+  export type IdentityDebtUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update IdentityDebts.
+     */
+    data: XOR<IdentityDebtUpdateManyMutationInput, IdentityDebtUncheckedUpdateManyInput>
+    /**
+     * Filter which IdentityDebts to update
+     */
+    where?: IdentityDebtWhereInput
+    /**
+     * Limit how many IdentityDebts to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * IdentityDebt updateManyAndReturn
+   */
+  export type IdentityDebtUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityDebt
+     */
+    select?: IdentityDebtSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityDebt
+     */
+    omit?: IdentityDebtOmit<ExtArgs> | null
+    /**
+     * The data used to update IdentityDebts.
+     */
+    data: XOR<IdentityDebtUpdateManyMutationInput, IdentityDebtUncheckedUpdateManyInput>
+    /**
+     * Filter which IdentityDebts to update
+     */
+    where?: IdentityDebtWhereInput
+    /**
+     * Limit how many IdentityDebts to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityDebtIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * IdentityDebt upsert
+   */
+  export type IdentityDebtUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityDebt
+     */
+    select?: IdentityDebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityDebt
+     */
+    omit?: IdentityDebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityDebtInclude<ExtArgs> | null
+    /**
+     * The filter to search for the IdentityDebt to update in case it exists.
+     */
+    where: IdentityDebtWhereUniqueInput
+    /**
+     * In case the IdentityDebt found by the `where` argument doesn't exist, create a new IdentityDebt with this data.
+     */
+    create: XOR<IdentityDebtCreateInput, IdentityDebtUncheckedCreateInput>
+    /**
+     * In case the IdentityDebt was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<IdentityDebtUpdateInput, IdentityDebtUncheckedUpdateInput>
+  }
+
+  /**
+   * IdentityDebt delete
+   */
+  export type IdentityDebtDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityDebt
+     */
+    select?: IdentityDebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityDebt
+     */
+    omit?: IdentityDebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityDebtInclude<ExtArgs> | null
+    /**
+     * Filter which IdentityDebt to delete.
+     */
+    where: IdentityDebtWhereUniqueInput
+  }
+
+  /**
+   * IdentityDebt deleteMany
+   */
+  export type IdentityDebtDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which IdentityDebts to delete
+     */
+    where?: IdentityDebtWhereInput
+    /**
+     * Limit how many IdentityDebts to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * IdentityDebt without action
+   */
+  export type IdentityDebtDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityDebt
+     */
+    select?: IdentityDebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityDebt
+     */
+    omit?: IdentityDebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityDebtInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model IdentityAsset
+   */
+
+  export type AggregateIdentityAsset = {
+    _count: IdentityAssetCountAggregateOutputType | null
+    _avg: IdentityAssetAvgAggregateOutputType | null
+    _sum: IdentityAssetSumAggregateOutputType | null
+    _min: IdentityAssetMinAggregateOutputType | null
+    _max: IdentityAssetMaxAggregateOutputType | null
+  }
+
+  export type IdentityAssetAvgAggregateOutputType = {
+    balanceDollars: number | null
+    sortOrder: number | null
+  }
+
+  export type IdentityAssetSumAggregateOutputType = {
+    balanceDollars: number | null
+    sortOrder: number | null
+  }
+
+  export type IdentityAssetMinAggregateOutputType = {
+    id: string | null
+    identityId: string | null
+    label: string | null
+    kind: string | null
+    balanceDollars: number | null
+    sortOrder: number | null
+    createdAt: Date | null
+  }
+
+  export type IdentityAssetMaxAggregateOutputType = {
+    id: string | null
+    identityId: string | null
+    label: string | null
+    kind: string | null
+    balanceDollars: number | null
+    sortOrder: number | null
+    createdAt: Date | null
+  }
+
+  export type IdentityAssetCountAggregateOutputType = {
+    id: number
+    identityId: number
+    label: number
+    kind: number
+    balanceDollars: number
+    sortOrder: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type IdentityAssetAvgAggregateInputType = {
+    balanceDollars?: true
+    sortOrder?: true
+  }
+
+  export type IdentityAssetSumAggregateInputType = {
+    balanceDollars?: true
+    sortOrder?: true
+  }
+
+  export type IdentityAssetMinAggregateInputType = {
+    id?: true
+    identityId?: true
+    label?: true
+    kind?: true
+    balanceDollars?: true
+    sortOrder?: true
+    createdAt?: true
+  }
+
+  export type IdentityAssetMaxAggregateInputType = {
+    id?: true
+    identityId?: true
+    label?: true
+    kind?: true
+    balanceDollars?: true
+    sortOrder?: true
+    createdAt?: true
+  }
+
+  export type IdentityAssetCountAggregateInputType = {
+    id?: true
+    identityId?: true
+    label?: true
+    kind?: true
+    balanceDollars?: true
+    sortOrder?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type IdentityAssetAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which IdentityAsset to aggregate.
+     */
+    where?: IdentityAssetWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityAssets to fetch.
+     */
+    orderBy?: IdentityAssetOrderByWithRelationInput | IdentityAssetOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: IdentityAssetWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityAssets from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityAssets.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned IdentityAssets
+    **/
+    _count?: true | IdentityAssetCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: IdentityAssetAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: IdentityAssetSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: IdentityAssetMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: IdentityAssetMaxAggregateInputType
+  }
+
+  export type GetIdentityAssetAggregateType<T extends IdentityAssetAggregateArgs> = {
+        [P in keyof T & keyof AggregateIdentityAsset]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateIdentityAsset[P]>
+      : GetScalarType<T[P], AggregateIdentityAsset[P]>
+  }
+
+
+
+
+  export type IdentityAssetGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: IdentityAssetWhereInput
+    orderBy?: IdentityAssetOrderByWithAggregationInput | IdentityAssetOrderByWithAggregationInput[]
+    by: IdentityAssetScalarFieldEnum[] | IdentityAssetScalarFieldEnum
+    having?: IdentityAssetScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: IdentityAssetCountAggregateInputType | true
+    _avg?: IdentityAssetAvgAggregateInputType
+    _sum?: IdentityAssetSumAggregateInputType
+    _min?: IdentityAssetMinAggregateInputType
+    _max?: IdentityAssetMaxAggregateInputType
+  }
+
+  export type IdentityAssetGroupByOutputType = {
+    id: string
+    identityId: string
+    label: string
+    kind: string
+    balanceDollars: number
+    sortOrder: number
+    createdAt: Date
+    _count: IdentityAssetCountAggregateOutputType | null
+    _avg: IdentityAssetAvgAggregateOutputType | null
+    _sum: IdentityAssetSumAggregateOutputType | null
+    _min: IdentityAssetMinAggregateOutputType | null
+    _max: IdentityAssetMaxAggregateOutputType | null
+  }
+
+  type GetIdentityAssetGroupByPayload<T extends IdentityAssetGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<IdentityAssetGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof IdentityAssetGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], IdentityAssetGroupByOutputType[P]>
+            : GetScalarType<T[P], IdentityAssetGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type IdentityAssetSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    kind?: boolean
+    balanceDollars?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identityAsset"]>
+
+  export type IdentityAssetSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    kind?: boolean
+    balanceDollars?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identityAsset"]>
+
+  export type IdentityAssetSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    kind?: boolean
+    balanceDollars?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identityAsset"]>
+
+  export type IdentityAssetSelectScalar = {
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    kind?: boolean
+    balanceDollars?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+  }
+
+  export type IdentityAssetOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "identityId" | "label" | "kind" | "balanceDollars" | "sortOrder" | "createdAt", ExtArgs["result"]["identityAsset"]>
+  export type IdentityAssetInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+  export type IdentityAssetIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+  export type IdentityAssetIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+
+  export type $IdentityAssetPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "IdentityAsset"
+    objects: {
+      identity: Prisma.$FinancialIdentityPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      identityId: string
+      label: string
+      /**
+       * checking | savings | money_market | 401k | 403b | traditional_ira
+       * | roth_ira | taxable_brokerage | hsa | home_equity | vehicle | other
+       */
+      kind: string
+      balanceDollars: number
+      sortOrder: number
+      createdAt: Date
+    }, ExtArgs["result"]["identityAsset"]>
+    composites: {}
+  }
+
+  type IdentityAssetGetPayload<S extends boolean | null | undefined | IdentityAssetDefaultArgs> = $Result.GetResult<Prisma.$IdentityAssetPayload, S>
+
+  type IdentityAssetCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<IdentityAssetFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: IdentityAssetCountAggregateInputType | true
+    }
+
+  export interface IdentityAssetDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['IdentityAsset'], meta: { name: 'IdentityAsset' } }
+    /**
+     * Find zero or one IdentityAsset that matches the filter.
+     * @param {IdentityAssetFindUniqueArgs} args - Arguments to find a IdentityAsset
+     * @example
+     * // Get one IdentityAsset
+     * const identityAsset = await prisma.identityAsset.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends IdentityAssetFindUniqueArgs>(args: SelectSubset<T, IdentityAssetFindUniqueArgs<ExtArgs>>): Prisma__IdentityAssetClient<$Result.GetResult<Prisma.$IdentityAssetPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one IdentityAsset that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {IdentityAssetFindUniqueOrThrowArgs} args - Arguments to find a IdentityAsset
+     * @example
+     * // Get one IdentityAsset
+     * const identityAsset = await prisma.identityAsset.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends IdentityAssetFindUniqueOrThrowArgs>(args: SelectSubset<T, IdentityAssetFindUniqueOrThrowArgs<ExtArgs>>): Prisma__IdentityAssetClient<$Result.GetResult<Prisma.$IdentityAssetPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first IdentityAsset that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityAssetFindFirstArgs} args - Arguments to find a IdentityAsset
+     * @example
+     * // Get one IdentityAsset
+     * const identityAsset = await prisma.identityAsset.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends IdentityAssetFindFirstArgs>(args?: SelectSubset<T, IdentityAssetFindFirstArgs<ExtArgs>>): Prisma__IdentityAssetClient<$Result.GetResult<Prisma.$IdentityAssetPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first IdentityAsset that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityAssetFindFirstOrThrowArgs} args - Arguments to find a IdentityAsset
+     * @example
+     * // Get one IdentityAsset
+     * const identityAsset = await prisma.identityAsset.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends IdentityAssetFindFirstOrThrowArgs>(args?: SelectSubset<T, IdentityAssetFindFirstOrThrowArgs<ExtArgs>>): Prisma__IdentityAssetClient<$Result.GetResult<Prisma.$IdentityAssetPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more IdentityAssets that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityAssetFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all IdentityAssets
+     * const identityAssets = await prisma.identityAsset.findMany()
+     * 
+     * // Get first 10 IdentityAssets
+     * const identityAssets = await prisma.identityAsset.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const identityAssetWithIdOnly = await prisma.identityAsset.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends IdentityAssetFindManyArgs>(args?: SelectSubset<T, IdentityAssetFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityAssetPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a IdentityAsset.
+     * @param {IdentityAssetCreateArgs} args - Arguments to create a IdentityAsset.
+     * @example
+     * // Create one IdentityAsset
+     * const IdentityAsset = await prisma.identityAsset.create({
+     *   data: {
+     *     // ... data to create a IdentityAsset
+     *   }
+     * })
+     * 
+     */
+    create<T extends IdentityAssetCreateArgs>(args: SelectSubset<T, IdentityAssetCreateArgs<ExtArgs>>): Prisma__IdentityAssetClient<$Result.GetResult<Prisma.$IdentityAssetPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many IdentityAssets.
+     * @param {IdentityAssetCreateManyArgs} args - Arguments to create many IdentityAssets.
+     * @example
+     * // Create many IdentityAssets
+     * const identityAsset = await prisma.identityAsset.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends IdentityAssetCreateManyArgs>(args?: SelectSubset<T, IdentityAssetCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many IdentityAssets and returns the data saved in the database.
+     * @param {IdentityAssetCreateManyAndReturnArgs} args - Arguments to create many IdentityAssets.
+     * @example
+     * // Create many IdentityAssets
+     * const identityAsset = await prisma.identityAsset.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many IdentityAssets and only return the `id`
+     * const identityAssetWithIdOnly = await prisma.identityAsset.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends IdentityAssetCreateManyAndReturnArgs>(args?: SelectSubset<T, IdentityAssetCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityAssetPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a IdentityAsset.
+     * @param {IdentityAssetDeleteArgs} args - Arguments to delete one IdentityAsset.
+     * @example
+     * // Delete one IdentityAsset
+     * const IdentityAsset = await prisma.identityAsset.delete({
+     *   where: {
+     *     // ... filter to delete one IdentityAsset
+     *   }
+     * })
+     * 
+     */
+    delete<T extends IdentityAssetDeleteArgs>(args: SelectSubset<T, IdentityAssetDeleteArgs<ExtArgs>>): Prisma__IdentityAssetClient<$Result.GetResult<Prisma.$IdentityAssetPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one IdentityAsset.
+     * @param {IdentityAssetUpdateArgs} args - Arguments to update one IdentityAsset.
+     * @example
+     * // Update one IdentityAsset
+     * const identityAsset = await prisma.identityAsset.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends IdentityAssetUpdateArgs>(args: SelectSubset<T, IdentityAssetUpdateArgs<ExtArgs>>): Prisma__IdentityAssetClient<$Result.GetResult<Prisma.$IdentityAssetPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more IdentityAssets.
+     * @param {IdentityAssetDeleteManyArgs} args - Arguments to filter IdentityAssets to delete.
+     * @example
+     * // Delete a few IdentityAssets
+     * const { count } = await prisma.identityAsset.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends IdentityAssetDeleteManyArgs>(args?: SelectSubset<T, IdentityAssetDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more IdentityAssets.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityAssetUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many IdentityAssets
+     * const identityAsset = await prisma.identityAsset.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends IdentityAssetUpdateManyArgs>(args: SelectSubset<T, IdentityAssetUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more IdentityAssets and returns the data updated in the database.
+     * @param {IdentityAssetUpdateManyAndReturnArgs} args - Arguments to update many IdentityAssets.
+     * @example
+     * // Update many IdentityAssets
+     * const identityAsset = await prisma.identityAsset.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more IdentityAssets and only return the `id`
+     * const identityAssetWithIdOnly = await prisma.identityAsset.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends IdentityAssetUpdateManyAndReturnArgs>(args: SelectSubset<T, IdentityAssetUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityAssetPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one IdentityAsset.
+     * @param {IdentityAssetUpsertArgs} args - Arguments to update or create a IdentityAsset.
+     * @example
+     * // Update or create a IdentityAsset
+     * const identityAsset = await prisma.identityAsset.upsert({
+     *   create: {
+     *     // ... data to create a IdentityAsset
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the IdentityAsset we want to update
+     *   }
+     * })
+     */
+    upsert<T extends IdentityAssetUpsertArgs>(args: SelectSubset<T, IdentityAssetUpsertArgs<ExtArgs>>): Prisma__IdentityAssetClient<$Result.GetResult<Prisma.$IdentityAssetPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of IdentityAssets.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityAssetCountArgs} args - Arguments to filter IdentityAssets to count.
+     * @example
+     * // Count the number of IdentityAssets
+     * const count = await prisma.identityAsset.count({
+     *   where: {
+     *     // ... the filter for the IdentityAssets we want to count
+     *   }
+     * })
+    **/
+    count<T extends IdentityAssetCountArgs>(
+      args?: Subset<T, IdentityAssetCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], IdentityAssetCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a IdentityAsset.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityAssetAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends IdentityAssetAggregateArgs>(args: Subset<T, IdentityAssetAggregateArgs>): Prisma.PrismaPromise<GetIdentityAssetAggregateType<T>>
+
+    /**
+     * Group by IdentityAsset.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityAssetGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends IdentityAssetGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: IdentityAssetGroupByArgs['orderBy'] }
+        : { orderBy?: IdentityAssetGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, IdentityAssetGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetIdentityAssetGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the IdentityAsset model
+   */
+  readonly fields: IdentityAssetFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for IdentityAsset.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__IdentityAssetClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    identity<T extends FinancialIdentityDefaultArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentityDefaultArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the IdentityAsset model
+   */
+  interface IdentityAssetFieldRefs {
+    readonly id: FieldRef<"IdentityAsset", 'String'>
+    readonly identityId: FieldRef<"IdentityAsset", 'String'>
+    readonly label: FieldRef<"IdentityAsset", 'String'>
+    readonly kind: FieldRef<"IdentityAsset", 'String'>
+    readonly balanceDollars: FieldRef<"IdentityAsset", 'Int'>
+    readonly sortOrder: FieldRef<"IdentityAsset", 'Int'>
+    readonly createdAt: FieldRef<"IdentityAsset", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * IdentityAsset findUnique
+   */
+  export type IdentityAssetFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityAsset
+     */
+    select?: IdentityAssetSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityAsset
+     */
+    omit?: IdentityAssetOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityAssetInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityAsset to fetch.
+     */
+    where: IdentityAssetWhereUniqueInput
+  }
+
+  /**
+   * IdentityAsset findUniqueOrThrow
+   */
+  export type IdentityAssetFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityAsset
+     */
+    select?: IdentityAssetSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityAsset
+     */
+    omit?: IdentityAssetOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityAssetInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityAsset to fetch.
+     */
+    where: IdentityAssetWhereUniqueInput
+  }
+
+  /**
+   * IdentityAsset findFirst
+   */
+  export type IdentityAssetFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityAsset
+     */
+    select?: IdentityAssetSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityAsset
+     */
+    omit?: IdentityAssetOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityAssetInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityAsset to fetch.
+     */
+    where?: IdentityAssetWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityAssets to fetch.
+     */
+    orderBy?: IdentityAssetOrderByWithRelationInput | IdentityAssetOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for IdentityAssets.
+     */
+    cursor?: IdentityAssetWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityAssets from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityAssets.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentityAssets.
+     */
+    distinct?: IdentityAssetScalarFieldEnum | IdentityAssetScalarFieldEnum[]
+  }
+
+  /**
+   * IdentityAsset findFirstOrThrow
+   */
+  export type IdentityAssetFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityAsset
+     */
+    select?: IdentityAssetSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityAsset
+     */
+    omit?: IdentityAssetOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityAssetInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityAsset to fetch.
+     */
+    where?: IdentityAssetWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityAssets to fetch.
+     */
+    orderBy?: IdentityAssetOrderByWithRelationInput | IdentityAssetOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for IdentityAssets.
+     */
+    cursor?: IdentityAssetWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityAssets from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityAssets.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentityAssets.
+     */
+    distinct?: IdentityAssetScalarFieldEnum | IdentityAssetScalarFieldEnum[]
+  }
+
+  /**
+   * IdentityAsset findMany
+   */
+  export type IdentityAssetFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityAsset
+     */
+    select?: IdentityAssetSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityAsset
+     */
+    omit?: IdentityAssetOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityAssetInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityAssets to fetch.
+     */
+    where?: IdentityAssetWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityAssets to fetch.
+     */
+    orderBy?: IdentityAssetOrderByWithRelationInput | IdentityAssetOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing IdentityAssets.
+     */
+    cursor?: IdentityAssetWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityAssets from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityAssets.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentityAssets.
+     */
+    distinct?: IdentityAssetScalarFieldEnum | IdentityAssetScalarFieldEnum[]
+  }
+
+  /**
+   * IdentityAsset create
+   */
+  export type IdentityAssetCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityAsset
+     */
+    select?: IdentityAssetSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityAsset
+     */
+    omit?: IdentityAssetOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityAssetInclude<ExtArgs> | null
+    /**
+     * The data needed to create a IdentityAsset.
+     */
+    data: XOR<IdentityAssetCreateInput, IdentityAssetUncheckedCreateInput>
+  }
+
+  /**
+   * IdentityAsset createMany
+   */
+  export type IdentityAssetCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many IdentityAssets.
+     */
+    data: IdentityAssetCreateManyInput | IdentityAssetCreateManyInput[]
+  }
+
+  /**
+   * IdentityAsset createManyAndReturn
+   */
+  export type IdentityAssetCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityAsset
+     */
+    select?: IdentityAssetSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityAsset
+     */
+    omit?: IdentityAssetOmit<ExtArgs> | null
+    /**
+     * The data used to create many IdentityAssets.
+     */
+    data: IdentityAssetCreateManyInput | IdentityAssetCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityAssetIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * IdentityAsset update
+   */
+  export type IdentityAssetUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityAsset
+     */
+    select?: IdentityAssetSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityAsset
+     */
+    omit?: IdentityAssetOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityAssetInclude<ExtArgs> | null
+    /**
+     * The data needed to update a IdentityAsset.
+     */
+    data: XOR<IdentityAssetUpdateInput, IdentityAssetUncheckedUpdateInput>
+    /**
+     * Choose, which IdentityAsset to update.
+     */
+    where: IdentityAssetWhereUniqueInput
+  }
+
+  /**
+   * IdentityAsset updateMany
+   */
+  export type IdentityAssetUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update IdentityAssets.
+     */
+    data: XOR<IdentityAssetUpdateManyMutationInput, IdentityAssetUncheckedUpdateManyInput>
+    /**
+     * Filter which IdentityAssets to update
+     */
+    where?: IdentityAssetWhereInput
+    /**
+     * Limit how many IdentityAssets to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * IdentityAsset updateManyAndReturn
+   */
+  export type IdentityAssetUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityAsset
+     */
+    select?: IdentityAssetSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityAsset
+     */
+    omit?: IdentityAssetOmit<ExtArgs> | null
+    /**
+     * The data used to update IdentityAssets.
+     */
+    data: XOR<IdentityAssetUpdateManyMutationInput, IdentityAssetUncheckedUpdateManyInput>
+    /**
+     * Filter which IdentityAssets to update
+     */
+    where?: IdentityAssetWhereInput
+    /**
+     * Limit how many IdentityAssets to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityAssetIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * IdentityAsset upsert
+   */
+  export type IdentityAssetUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityAsset
+     */
+    select?: IdentityAssetSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityAsset
+     */
+    omit?: IdentityAssetOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityAssetInclude<ExtArgs> | null
+    /**
+     * The filter to search for the IdentityAsset to update in case it exists.
+     */
+    where: IdentityAssetWhereUniqueInput
+    /**
+     * In case the IdentityAsset found by the `where` argument doesn't exist, create a new IdentityAsset with this data.
+     */
+    create: XOR<IdentityAssetCreateInput, IdentityAssetUncheckedCreateInput>
+    /**
+     * In case the IdentityAsset was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<IdentityAssetUpdateInput, IdentityAssetUncheckedUpdateInput>
+  }
+
+  /**
+   * IdentityAsset delete
+   */
+  export type IdentityAssetDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityAsset
+     */
+    select?: IdentityAssetSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityAsset
+     */
+    omit?: IdentityAssetOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityAssetInclude<ExtArgs> | null
+    /**
+     * Filter which IdentityAsset to delete.
+     */
+    where: IdentityAssetWhereUniqueInput
+  }
+
+  /**
+   * IdentityAsset deleteMany
+   */
+  export type IdentityAssetDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which IdentityAssets to delete
+     */
+    where?: IdentityAssetWhereInput
+    /**
+     * Limit how many IdentityAssets to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * IdentityAsset without action
+   */
+  export type IdentityAssetDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityAsset
+     */
+    select?: IdentityAssetSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityAsset
+     */
+    omit?: IdentityAssetOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityAssetInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model IdentityGoal
+   */
+
+  export type AggregateIdentityGoal = {
+    _count: IdentityGoalCountAggregateOutputType | null
+    _avg: IdentityGoalAvgAggregateOutputType | null
+    _sum: IdentityGoalSumAggregateOutputType | null
+    _min: IdentityGoalMinAggregateOutputType | null
+    _max: IdentityGoalMaxAggregateOutputType | null
+  }
+
+  export type IdentityGoalAvgAggregateOutputType = {
+    targetDollars: number | null
+    perPaycheckDollars: number | null
+    priority: number | null
+    sortOrder: number | null
+  }
+
+  export type IdentityGoalSumAggregateOutputType = {
+    targetDollars: number | null
+    perPaycheckDollars: number | null
+    priority: number | null
+    sortOrder: number | null
+  }
+
+  export type IdentityGoalMinAggregateOutputType = {
+    id: string | null
+    identityId: string | null
+    label: string | null
+    targetDollars: number | null
+    targetDate: Date | null
+    perPaycheckDollars: number | null
+    kind: string | null
+    goalType: string | null
+    priority: number | null
+    sortOrder: number | null
+    createdAt: Date | null
+  }
+
+  export type IdentityGoalMaxAggregateOutputType = {
+    id: string | null
+    identityId: string | null
+    label: string | null
+    targetDollars: number | null
+    targetDate: Date | null
+    perPaycheckDollars: number | null
+    kind: string | null
+    goalType: string | null
+    priority: number | null
+    sortOrder: number | null
+    createdAt: Date | null
+  }
+
+  export type IdentityGoalCountAggregateOutputType = {
+    id: number
+    identityId: number
+    label: number
+    targetDollars: number
+    targetDate: number
+    perPaycheckDollars: number
+    kind: number
+    goalType: number
+    priority: number
+    sortOrder: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type IdentityGoalAvgAggregateInputType = {
+    targetDollars?: true
+    perPaycheckDollars?: true
+    priority?: true
+    sortOrder?: true
+  }
+
+  export type IdentityGoalSumAggregateInputType = {
+    targetDollars?: true
+    perPaycheckDollars?: true
+    priority?: true
+    sortOrder?: true
+  }
+
+  export type IdentityGoalMinAggregateInputType = {
+    id?: true
+    identityId?: true
+    label?: true
+    targetDollars?: true
+    targetDate?: true
+    perPaycheckDollars?: true
+    kind?: true
+    goalType?: true
+    priority?: true
+    sortOrder?: true
+    createdAt?: true
+  }
+
+  export type IdentityGoalMaxAggregateInputType = {
+    id?: true
+    identityId?: true
+    label?: true
+    targetDollars?: true
+    targetDate?: true
+    perPaycheckDollars?: true
+    kind?: true
+    goalType?: true
+    priority?: true
+    sortOrder?: true
+    createdAt?: true
+  }
+
+  export type IdentityGoalCountAggregateInputType = {
+    id?: true
+    identityId?: true
+    label?: true
+    targetDollars?: true
+    targetDate?: true
+    perPaycheckDollars?: true
+    kind?: true
+    goalType?: true
+    priority?: true
+    sortOrder?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type IdentityGoalAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which IdentityGoal to aggregate.
+     */
+    where?: IdentityGoalWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityGoals to fetch.
+     */
+    orderBy?: IdentityGoalOrderByWithRelationInput | IdentityGoalOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: IdentityGoalWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityGoals from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityGoals.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned IdentityGoals
+    **/
+    _count?: true | IdentityGoalCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: IdentityGoalAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: IdentityGoalSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: IdentityGoalMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: IdentityGoalMaxAggregateInputType
+  }
+
+  export type GetIdentityGoalAggregateType<T extends IdentityGoalAggregateArgs> = {
+        [P in keyof T & keyof AggregateIdentityGoal]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateIdentityGoal[P]>
+      : GetScalarType<T[P], AggregateIdentityGoal[P]>
+  }
+
+
+
+
+  export type IdentityGoalGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: IdentityGoalWhereInput
+    orderBy?: IdentityGoalOrderByWithAggregationInput | IdentityGoalOrderByWithAggregationInput[]
+    by: IdentityGoalScalarFieldEnum[] | IdentityGoalScalarFieldEnum
+    having?: IdentityGoalScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: IdentityGoalCountAggregateInputType | true
+    _avg?: IdentityGoalAvgAggregateInputType
+    _sum?: IdentityGoalSumAggregateInputType
+    _min?: IdentityGoalMinAggregateInputType
+    _max?: IdentityGoalMaxAggregateInputType
+  }
+
+  export type IdentityGoalGroupByOutputType = {
+    id: string
+    identityId: string
+    label: string
+    targetDollars: number
+    targetDate: Date | null
+    perPaycheckDollars: number | null
+    kind: string
+    goalType: string | null
+    priority: number
+    sortOrder: number
+    createdAt: Date
+    _count: IdentityGoalCountAggregateOutputType | null
+    _avg: IdentityGoalAvgAggregateOutputType | null
+    _sum: IdentityGoalSumAggregateOutputType | null
+    _min: IdentityGoalMinAggregateOutputType | null
+    _max: IdentityGoalMaxAggregateOutputType | null
+  }
+
+  type GetIdentityGoalGroupByPayload<T extends IdentityGoalGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<IdentityGoalGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof IdentityGoalGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], IdentityGoalGroupByOutputType[P]>
+            : GetScalarType<T[P], IdentityGoalGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type IdentityGoalSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    targetDollars?: boolean
+    targetDate?: boolean
+    perPaycheckDollars?: boolean
+    kind?: boolean
+    goalType?: boolean
+    priority?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identityGoal"]>
+
+  export type IdentityGoalSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    targetDollars?: boolean
+    targetDate?: boolean
+    perPaycheckDollars?: boolean
+    kind?: boolean
+    goalType?: boolean
+    priority?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identityGoal"]>
+
+  export type IdentityGoalSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    targetDollars?: boolean
+    targetDate?: boolean
+    perPaycheckDollars?: boolean
+    kind?: boolean
+    goalType?: boolean
+    priority?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identityGoal"]>
+
+  export type IdentityGoalSelectScalar = {
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    targetDollars?: boolean
+    targetDate?: boolean
+    perPaycheckDollars?: boolean
+    kind?: boolean
+    goalType?: boolean
+    priority?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+  }
+
+  export type IdentityGoalOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "identityId" | "label" | "targetDollars" | "targetDate" | "perPaycheckDollars" | "kind" | "goalType" | "priority" | "sortOrder" | "createdAt", ExtArgs["result"]["identityGoal"]>
+  export type IdentityGoalInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+  export type IdentityGoalIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+  export type IdentityGoalIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+
+  export type $IdentityGoalPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "IdentityGoal"
+    objects: {
+      identity: Prisma.$FinancialIdentityPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      identityId: string
+      label: string
+      targetDollars: number
+      targetDate: Date | null
+      perPaycheckDollars: number | null
+      /**
+       * TRANSFER | MILESTONE (mirrors production GoalKind).
+       */
+      kind: string
+      /**
+       * EMERGENCY | INVEST | OTHER (mirrors production GoalType but
+       * also has OTHER since the agent's enum has it; production's
+       * GoalType is nullable, so we use a plain String here).
+       */
+      goalType: string | null
+      /**
+       * 1 = top priority, 2 = next, etc. The Emergency Fund is usually 1.
+       */
+      priority: number
+      sortOrder: number
+      createdAt: Date
+    }, ExtArgs["result"]["identityGoal"]>
+    composites: {}
+  }
+
+  type IdentityGoalGetPayload<S extends boolean | null | undefined | IdentityGoalDefaultArgs> = $Result.GetResult<Prisma.$IdentityGoalPayload, S>
+
+  type IdentityGoalCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<IdentityGoalFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: IdentityGoalCountAggregateInputType | true
+    }
+
+  export interface IdentityGoalDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['IdentityGoal'], meta: { name: 'IdentityGoal' } }
+    /**
+     * Find zero or one IdentityGoal that matches the filter.
+     * @param {IdentityGoalFindUniqueArgs} args - Arguments to find a IdentityGoal
+     * @example
+     * // Get one IdentityGoal
+     * const identityGoal = await prisma.identityGoal.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends IdentityGoalFindUniqueArgs>(args: SelectSubset<T, IdentityGoalFindUniqueArgs<ExtArgs>>): Prisma__IdentityGoalClient<$Result.GetResult<Prisma.$IdentityGoalPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one IdentityGoal that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {IdentityGoalFindUniqueOrThrowArgs} args - Arguments to find a IdentityGoal
+     * @example
+     * // Get one IdentityGoal
+     * const identityGoal = await prisma.identityGoal.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends IdentityGoalFindUniqueOrThrowArgs>(args: SelectSubset<T, IdentityGoalFindUniqueOrThrowArgs<ExtArgs>>): Prisma__IdentityGoalClient<$Result.GetResult<Prisma.$IdentityGoalPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first IdentityGoal that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityGoalFindFirstArgs} args - Arguments to find a IdentityGoal
+     * @example
+     * // Get one IdentityGoal
+     * const identityGoal = await prisma.identityGoal.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends IdentityGoalFindFirstArgs>(args?: SelectSubset<T, IdentityGoalFindFirstArgs<ExtArgs>>): Prisma__IdentityGoalClient<$Result.GetResult<Prisma.$IdentityGoalPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first IdentityGoal that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityGoalFindFirstOrThrowArgs} args - Arguments to find a IdentityGoal
+     * @example
+     * // Get one IdentityGoal
+     * const identityGoal = await prisma.identityGoal.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends IdentityGoalFindFirstOrThrowArgs>(args?: SelectSubset<T, IdentityGoalFindFirstOrThrowArgs<ExtArgs>>): Prisma__IdentityGoalClient<$Result.GetResult<Prisma.$IdentityGoalPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more IdentityGoals that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityGoalFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all IdentityGoals
+     * const identityGoals = await prisma.identityGoal.findMany()
+     * 
+     * // Get first 10 IdentityGoals
+     * const identityGoals = await prisma.identityGoal.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const identityGoalWithIdOnly = await prisma.identityGoal.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends IdentityGoalFindManyArgs>(args?: SelectSubset<T, IdentityGoalFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityGoalPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a IdentityGoal.
+     * @param {IdentityGoalCreateArgs} args - Arguments to create a IdentityGoal.
+     * @example
+     * // Create one IdentityGoal
+     * const IdentityGoal = await prisma.identityGoal.create({
+     *   data: {
+     *     // ... data to create a IdentityGoal
+     *   }
+     * })
+     * 
+     */
+    create<T extends IdentityGoalCreateArgs>(args: SelectSubset<T, IdentityGoalCreateArgs<ExtArgs>>): Prisma__IdentityGoalClient<$Result.GetResult<Prisma.$IdentityGoalPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many IdentityGoals.
+     * @param {IdentityGoalCreateManyArgs} args - Arguments to create many IdentityGoals.
+     * @example
+     * // Create many IdentityGoals
+     * const identityGoal = await prisma.identityGoal.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends IdentityGoalCreateManyArgs>(args?: SelectSubset<T, IdentityGoalCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many IdentityGoals and returns the data saved in the database.
+     * @param {IdentityGoalCreateManyAndReturnArgs} args - Arguments to create many IdentityGoals.
+     * @example
+     * // Create many IdentityGoals
+     * const identityGoal = await prisma.identityGoal.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many IdentityGoals and only return the `id`
+     * const identityGoalWithIdOnly = await prisma.identityGoal.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends IdentityGoalCreateManyAndReturnArgs>(args?: SelectSubset<T, IdentityGoalCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityGoalPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a IdentityGoal.
+     * @param {IdentityGoalDeleteArgs} args - Arguments to delete one IdentityGoal.
+     * @example
+     * // Delete one IdentityGoal
+     * const IdentityGoal = await prisma.identityGoal.delete({
+     *   where: {
+     *     // ... filter to delete one IdentityGoal
+     *   }
+     * })
+     * 
+     */
+    delete<T extends IdentityGoalDeleteArgs>(args: SelectSubset<T, IdentityGoalDeleteArgs<ExtArgs>>): Prisma__IdentityGoalClient<$Result.GetResult<Prisma.$IdentityGoalPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one IdentityGoal.
+     * @param {IdentityGoalUpdateArgs} args - Arguments to update one IdentityGoal.
+     * @example
+     * // Update one IdentityGoal
+     * const identityGoal = await prisma.identityGoal.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends IdentityGoalUpdateArgs>(args: SelectSubset<T, IdentityGoalUpdateArgs<ExtArgs>>): Prisma__IdentityGoalClient<$Result.GetResult<Prisma.$IdentityGoalPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more IdentityGoals.
+     * @param {IdentityGoalDeleteManyArgs} args - Arguments to filter IdentityGoals to delete.
+     * @example
+     * // Delete a few IdentityGoals
+     * const { count } = await prisma.identityGoal.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends IdentityGoalDeleteManyArgs>(args?: SelectSubset<T, IdentityGoalDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more IdentityGoals.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityGoalUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many IdentityGoals
+     * const identityGoal = await prisma.identityGoal.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends IdentityGoalUpdateManyArgs>(args: SelectSubset<T, IdentityGoalUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more IdentityGoals and returns the data updated in the database.
+     * @param {IdentityGoalUpdateManyAndReturnArgs} args - Arguments to update many IdentityGoals.
+     * @example
+     * // Update many IdentityGoals
+     * const identityGoal = await prisma.identityGoal.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more IdentityGoals and only return the `id`
+     * const identityGoalWithIdOnly = await prisma.identityGoal.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends IdentityGoalUpdateManyAndReturnArgs>(args: SelectSubset<T, IdentityGoalUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityGoalPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one IdentityGoal.
+     * @param {IdentityGoalUpsertArgs} args - Arguments to update or create a IdentityGoal.
+     * @example
+     * // Update or create a IdentityGoal
+     * const identityGoal = await prisma.identityGoal.upsert({
+     *   create: {
+     *     // ... data to create a IdentityGoal
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the IdentityGoal we want to update
+     *   }
+     * })
+     */
+    upsert<T extends IdentityGoalUpsertArgs>(args: SelectSubset<T, IdentityGoalUpsertArgs<ExtArgs>>): Prisma__IdentityGoalClient<$Result.GetResult<Prisma.$IdentityGoalPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of IdentityGoals.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityGoalCountArgs} args - Arguments to filter IdentityGoals to count.
+     * @example
+     * // Count the number of IdentityGoals
+     * const count = await prisma.identityGoal.count({
+     *   where: {
+     *     // ... the filter for the IdentityGoals we want to count
+     *   }
+     * })
+    **/
+    count<T extends IdentityGoalCountArgs>(
+      args?: Subset<T, IdentityGoalCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], IdentityGoalCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a IdentityGoal.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityGoalAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends IdentityGoalAggregateArgs>(args: Subset<T, IdentityGoalAggregateArgs>): Prisma.PrismaPromise<GetIdentityGoalAggregateType<T>>
+
+    /**
+     * Group by IdentityGoal.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityGoalGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends IdentityGoalGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: IdentityGoalGroupByArgs['orderBy'] }
+        : { orderBy?: IdentityGoalGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, IdentityGoalGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetIdentityGoalGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the IdentityGoal model
+   */
+  readonly fields: IdentityGoalFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for IdentityGoal.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__IdentityGoalClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    identity<T extends FinancialIdentityDefaultArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentityDefaultArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the IdentityGoal model
+   */
+  interface IdentityGoalFieldRefs {
+    readonly id: FieldRef<"IdentityGoal", 'String'>
+    readonly identityId: FieldRef<"IdentityGoal", 'String'>
+    readonly label: FieldRef<"IdentityGoal", 'String'>
+    readonly targetDollars: FieldRef<"IdentityGoal", 'Int'>
+    readonly targetDate: FieldRef<"IdentityGoal", 'DateTime'>
+    readonly perPaycheckDollars: FieldRef<"IdentityGoal", 'Int'>
+    readonly kind: FieldRef<"IdentityGoal", 'String'>
+    readonly goalType: FieldRef<"IdentityGoal", 'String'>
+    readonly priority: FieldRef<"IdentityGoal", 'Int'>
+    readonly sortOrder: FieldRef<"IdentityGoal", 'Int'>
+    readonly createdAt: FieldRef<"IdentityGoal", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * IdentityGoal findUnique
+   */
+  export type IdentityGoalFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityGoal
+     */
+    select?: IdentityGoalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityGoal
+     */
+    omit?: IdentityGoalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityGoalInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityGoal to fetch.
+     */
+    where: IdentityGoalWhereUniqueInput
+  }
+
+  /**
+   * IdentityGoal findUniqueOrThrow
+   */
+  export type IdentityGoalFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityGoal
+     */
+    select?: IdentityGoalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityGoal
+     */
+    omit?: IdentityGoalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityGoalInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityGoal to fetch.
+     */
+    where: IdentityGoalWhereUniqueInput
+  }
+
+  /**
+   * IdentityGoal findFirst
+   */
+  export type IdentityGoalFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityGoal
+     */
+    select?: IdentityGoalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityGoal
+     */
+    omit?: IdentityGoalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityGoalInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityGoal to fetch.
+     */
+    where?: IdentityGoalWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityGoals to fetch.
+     */
+    orderBy?: IdentityGoalOrderByWithRelationInput | IdentityGoalOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for IdentityGoals.
+     */
+    cursor?: IdentityGoalWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityGoals from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityGoals.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentityGoals.
+     */
+    distinct?: IdentityGoalScalarFieldEnum | IdentityGoalScalarFieldEnum[]
+  }
+
+  /**
+   * IdentityGoal findFirstOrThrow
+   */
+  export type IdentityGoalFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityGoal
+     */
+    select?: IdentityGoalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityGoal
+     */
+    omit?: IdentityGoalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityGoalInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityGoal to fetch.
+     */
+    where?: IdentityGoalWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityGoals to fetch.
+     */
+    orderBy?: IdentityGoalOrderByWithRelationInput | IdentityGoalOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for IdentityGoals.
+     */
+    cursor?: IdentityGoalWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityGoals from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityGoals.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentityGoals.
+     */
+    distinct?: IdentityGoalScalarFieldEnum | IdentityGoalScalarFieldEnum[]
+  }
+
+  /**
+   * IdentityGoal findMany
+   */
+  export type IdentityGoalFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityGoal
+     */
+    select?: IdentityGoalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityGoal
+     */
+    omit?: IdentityGoalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityGoalInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityGoals to fetch.
+     */
+    where?: IdentityGoalWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityGoals to fetch.
+     */
+    orderBy?: IdentityGoalOrderByWithRelationInput | IdentityGoalOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing IdentityGoals.
+     */
+    cursor?: IdentityGoalWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityGoals from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityGoals.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentityGoals.
+     */
+    distinct?: IdentityGoalScalarFieldEnum | IdentityGoalScalarFieldEnum[]
+  }
+
+  /**
+   * IdentityGoal create
+   */
+  export type IdentityGoalCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityGoal
+     */
+    select?: IdentityGoalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityGoal
+     */
+    omit?: IdentityGoalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityGoalInclude<ExtArgs> | null
+    /**
+     * The data needed to create a IdentityGoal.
+     */
+    data: XOR<IdentityGoalCreateInput, IdentityGoalUncheckedCreateInput>
+  }
+
+  /**
+   * IdentityGoal createMany
+   */
+  export type IdentityGoalCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many IdentityGoals.
+     */
+    data: IdentityGoalCreateManyInput | IdentityGoalCreateManyInput[]
+  }
+
+  /**
+   * IdentityGoal createManyAndReturn
+   */
+  export type IdentityGoalCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityGoal
+     */
+    select?: IdentityGoalSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityGoal
+     */
+    omit?: IdentityGoalOmit<ExtArgs> | null
+    /**
+     * The data used to create many IdentityGoals.
+     */
+    data: IdentityGoalCreateManyInput | IdentityGoalCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityGoalIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * IdentityGoal update
+   */
+  export type IdentityGoalUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityGoal
+     */
+    select?: IdentityGoalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityGoal
+     */
+    omit?: IdentityGoalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityGoalInclude<ExtArgs> | null
+    /**
+     * The data needed to update a IdentityGoal.
+     */
+    data: XOR<IdentityGoalUpdateInput, IdentityGoalUncheckedUpdateInput>
+    /**
+     * Choose, which IdentityGoal to update.
+     */
+    where: IdentityGoalWhereUniqueInput
+  }
+
+  /**
+   * IdentityGoal updateMany
+   */
+  export type IdentityGoalUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update IdentityGoals.
+     */
+    data: XOR<IdentityGoalUpdateManyMutationInput, IdentityGoalUncheckedUpdateManyInput>
+    /**
+     * Filter which IdentityGoals to update
+     */
+    where?: IdentityGoalWhereInput
+    /**
+     * Limit how many IdentityGoals to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * IdentityGoal updateManyAndReturn
+   */
+  export type IdentityGoalUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityGoal
+     */
+    select?: IdentityGoalSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityGoal
+     */
+    omit?: IdentityGoalOmit<ExtArgs> | null
+    /**
+     * The data used to update IdentityGoals.
+     */
+    data: XOR<IdentityGoalUpdateManyMutationInput, IdentityGoalUncheckedUpdateManyInput>
+    /**
+     * Filter which IdentityGoals to update
+     */
+    where?: IdentityGoalWhereInput
+    /**
+     * Limit how many IdentityGoals to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityGoalIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * IdentityGoal upsert
+   */
+  export type IdentityGoalUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityGoal
+     */
+    select?: IdentityGoalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityGoal
+     */
+    omit?: IdentityGoalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityGoalInclude<ExtArgs> | null
+    /**
+     * The filter to search for the IdentityGoal to update in case it exists.
+     */
+    where: IdentityGoalWhereUniqueInput
+    /**
+     * In case the IdentityGoal found by the `where` argument doesn't exist, create a new IdentityGoal with this data.
+     */
+    create: XOR<IdentityGoalCreateInput, IdentityGoalUncheckedCreateInput>
+    /**
+     * In case the IdentityGoal was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<IdentityGoalUpdateInput, IdentityGoalUncheckedUpdateInput>
+  }
+
+  /**
+   * IdentityGoal delete
+   */
+  export type IdentityGoalDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityGoal
+     */
+    select?: IdentityGoalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityGoal
+     */
+    omit?: IdentityGoalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityGoalInclude<ExtArgs> | null
+    /**
+     * Filter which IdentityGoal to delete.
+     */
+    where: IdentityGoalWhereUniqueInput
+  }
+
+  /**
+   * IdentityGoal deleteMany
+   */
+  export type IdentityGoalDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which IdentityGoals to delete
+     */
+    where?: IdentityGoalWhereInput
+    /**
+     * Limit how many IdentityGoals to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * IdentityGoal without action
+   */
+  export type IdentityGoalDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityGoal
+     */
+    select?: IdentityGoalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityGoal
+     */
+    omit?: IdentityGoalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityGoalInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model IdentityEvent
+   */
+
+  export type AggregateIdentityEvent = {
+    _count: IdentityEventCountAggregateOutputType | null
+    _avg: IdentityEventAvgAggregateOutputType | null
+    _sum: IdentityEventSumAggregateOutputType | null
+    _min: IdentityEventMinAggregateOutputType | null
+    _max: IdentityEventMaxAggregateOutputType | null
+  }
+
+  export type IdentityEventAvgAggregateOutputType = {
+    estimatedCostDollars: number | null
+    sortOrder: number | null
+  }
+
+  export type IdentityEventSumAggregateOutputType = {
+    estimatedCostDollars: number | null
+    sortOrder: number | null
+  }
+
+  export type IdentityEventMinAggregateOutputType = {
+    id: string | null
+    identityId: string | null
+    label: string | null
+    date: Date | null
+    estimatedCostDollars: number | null
+    isFlexible: boolean | null
+    sortOrder: number | null
+    createdAt: Date | null
+  }
+
+  export type IdentityEventMaxAggregateOutputType = {
+    id: string | null
+    identityId: string | null
+    label: string | null
+    date: Date | null
+    estimatedCostDollars: number | null
+    isFlexible: boolean | null
+    sortOrder: number | null
+    createdAt: Date | null
+  }
+
+  export type IdentityEventCountAggregateOutputType = {
+    id: number
+    identityId: number
+    label: number
+    date: number
+    estimatedCostDollars: number
+    isFlexible: number
+    sortOrder: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type IdentityEventAvgAggregateInputType = {
+    estimatedCostDollars?: true
+    sortOrder?: true
+  }
+
+  export type IdentityEventSumAggregateInputType = {
+    estimatedCostDollars?: true
+    sortOrder?: true
+  }
+
+  export type IdentityEventMinAggregateInputType = {
+    id?: true
+    identityId?: true
+    label?: true
+    date?: true
+    estimatedCostDollars?: true
+    isFlexible?: true
+    sortOrder?: true
+    createdAt?: true
+  }
+
+  export type IdentityEventMaxAggregateInputType = {
+    id?: true
+    identityId?: true
+    label?: true
+    date?: true
+    estimatedCostDollars?: true
+    isFlexible?: true
+    sortOrder?: true
+    createdAt?: true
+  }
+
+  export type IdentityEventCountAggregateInputType = {
+    id?: true
+    identityId?: true
+    label?: true
+    date?: true
+    estimatedCostDollars?: true
+    isFlexible?: true
+    sortOrder?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type IdentityEventAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which IdentityEvent to aggregate.
+     */
+    where?: IdentityEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityEvents to fetch.
+     */
+    orderBy?: IdentityEventOrderByWithRelationInput | IdentityEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: IdentityEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned IdentityEvents
+    **/
+    _count?: true | IdentityEventCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: IdentityEventAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: IdentityEventSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: IdentityEventMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: IdentityEventMaxAggregateInputType
+  }
+
+  export type GetIdentityEventAggregateType<T extends IdentityEventAggregateArgs> = {
+        [P in keyof T & keyof AggregateIdentityEvent]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateIdentityEvent[P]>
+      : GetScalarType<T[P], AggregateIdentityEvent[P]>
+  }
+
+
+
+
+  export type IdentityEventGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: IdentityEventWhereInput
+    orderBy?: IdentityEventOrderByWithAggregationInput | IdentityEventOrderByWithAggregationInput[]
+    by: IdentityEventScalarFieldEnum[] | IdentityEventScalarFieldEnum
+    having?: IdentityEventScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: IdentityEventCountAggregateInputType | true
+    _avg?: IdentityEventAvgAggregateInputType
+    _sum?: IdentityEventSumAggregateInputType
+    _min?: IdentityEventMinAggregateInputType
+    _max?: IdentityEventMaxAggregateInputType
+  }
+
+  export type IdentityEventGroupByOutputType = {
+    id: string
+    identityId: string
+    label: string
+    date: Date | null
+    estimatedCostDollars: number
+    isFlexible: boolean
+    sortOrder: number
+    createdAt: Date
+    _count: IdentityEventCountAggregateOutputType | null
+    _avg: IdentityEventAvgAggregateOutputType | null
+    _sum: IdentityEventSumAggregateOutputType | null
+    _min: IdentityEventMinAggregateOutputType | null
+    _max: IdentityEventMaxAggregateOutputType | null
+  }
+
+  type GetIdentityEventGroupByPayload<T extends IdentityEventGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<IdentityEventGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof IdentityEventGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], IdentityEventGroupByOutputType[P]>
+            : GetScalarType<T[P], IdentityEventGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type IdentityEventSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    date?: boolean
+    estimatedCostDollars?: boolean
+    isFlexible?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identityEvent"]>
+
+  export type IdentityEventSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    date?: boolean
+    estimatedCostDollars?: boolean
+    isFlexible?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identityEvent"]>
+
+  export type IdentityEventSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    date?: boolean
+    estimatedCostDollars?: boolean
+    isFlexible?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identityEvent"]>
+
+  export type IdentityEventSelectScalar = {
+    id?: boolean
+    identityId?: boolean
+    label?: boolean
+    date?: boolean
+    estimatedCostDollars?: boolean
+    isFlexible?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+  }
+
+  export type IdentityEventOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "identityId" | "label" | "date" | "estimatedCostDollars" | "isFlexible" | "sortOrder" | "createdAt", ExtArgs["result"]["identityEvent"]>
+  export type IdentityEventInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+  export type IdentityEventIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+  export type IdentityEventIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+
+  export type $IdentityEventPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "IdentityEvent"
+    objects: {
+      identity: Prisma.$FinancialIdentityPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      identityId: string
+      label: string
+      date: Date | null
+      estimatedCostDollars: number
+      isFlexible: boolean
+      sortOrder: number
+      createdAt: Date
+    }, ExtArgs["result"]["identityEvent"]>
+    composites: {}
+  }
+
+  type IdentityEventGetPayload<S extends boolean | null | undefined | IdentityEventDefaultArgs> = $Result.GetResult<Prisma.$IdentityEventPayload, S>
+
+  type IdentityEventCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<IdentityEventFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: IdentityEventCountAggregateInputType | true
+    }
+
+  export interface IdentityEventDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['IdentityEvent'], meta: { name: 'IdentityEvent' } }
+    /**
+     * Find zero or one IdentityEvent that matches the filter.
+     * @param {IdentityEventFindUniqueArgs} args - Arguments to find a IdentityEvent
+     * @example
+     * // Get one IdentityEvent
+     * const identityEvent = await prisma.identityEvent.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends IdentityEventFindUniqueArgs>(args: SelectSubset<T, IdentityEventFindUniqueArgs<ExtArgs>>): Prisma__IdentityEventClient<$Result.GetResult<Prisma.$IdentityEventPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one IdentityEvent that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {IdentityEventFindUniqueOrThrowArgs} args - Arguments to find a IdentityEvent
+     * @example
+     * // Get one IdentityEvent
+     * const identityEvent = await prisma.identityEvent.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends IdentityEventFindUniqueOrThrowArgs>(args: SelectSubset<T, IdentityEventFindUniqueOrThrowArgs<ExtArgs>>): Prisma__IdentityEventClient<$Result.GetResult<Prisma.$IdentityEventPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first IdentityEvent that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityEventFindFirstArgs} args - Arguments to find a IdentityEvent
+     * @example
+     * // Get one IdentityEvent
+     * const identityEvent = await prisma.identityEvent.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends IdentityEventFindFirstArgs>(args?: SelectSubset<T, IdentityEventFindFirstArgs<ExtArgs>>): Prisma__IdentityEventClient<$Result.GetResult<Prisma.$IdentityEventPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first IdentityEvent that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityEventFindFirstOrThrowArgs} args - Arguments to find a IdentityEvent
+     * @example
+     * // Get one IdentityEvent
+     * const identityEvent = await prisma.identityEvent.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends IdentityEventFindFirstOrThrowArgs>(args?: SelectSubset<T, IdentityEventFindFirstOrThrowArgs<ExtArgs>>): Prisma__IdentityEventClient<$Result.GetResult<Prisma.$IdentityEventPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more IdentityEvents that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityEventFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all IdentityEvents
+     * const identityEvents = await prisma.identityEvent.findMany()
+     * 
+     * // Get first 10 IdentityEvents
+     * const identityEvents = await prisma.identityEvent.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const identityEventWithIdOnly = await prisma.identityEvent.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends IdentityEventFindManyArgs>(args?: SelectSubset<T, IdentityEventFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a IdentityEvent.
+     * @param {IdentityEventCreateArgs} args - Arguments to create a IdentityEvent.
+     * @example
+     * // Create one IdentityEvent
+     * const IdentityEvent = await prisma.identityEvent.create({
+     *   data: {
+     *     // ... data to create a IdentityEvent
+     *   }
+     * })
+     * 
+     */
+    create<T extends IdentityEventCreateArgs>(args: SelectSubset<T, IdentityEventCreateArgs<ExtArgs>>): Prisma__IdentityEventClient<$Result.GetResult<Prisma.$IdentityEventPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many IdentityEvents.
+     * @param {IdentityEventCreateManyArgs} args - Arguments to create many IdentityEvents.
+     * @example
+     * // Create many IdentityEvents
+     * const identityEvent = await prisma.identityEvent.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends IdentityEventCreateManyArgs>(args?: SelectSubset<T, IdentityEventCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many IdentityEvents and returns the data saved in the database.
+     * @param {IdentityEventCreateManyAndReturnArgs} args - Arguments to create many IdentityEvents.
+     * @example
+     * // Create many IdentityEvents
+     * const identityEvent = await prisma.identityEvent.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many IdentityEvents and only return the `id`
+     * const identityEventWithIdOnly = await prisma.identityEvent.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends IdentityEventCreateManyAndReturnArgs>(args?: SelectSubset<T, IdentityEventCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityEventPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a IdentityEvent.
+     * @param {IdentityEventDeleteArgs} args - Arguments to delete one IdentityEvent.
+     * @example
+     * // Delete one IdentityEvent
+     * const IdentityEvent = await prisma.identityEvent.delete({
+     *   where: {
+     *     // ... filter to delete one IdentityEvent
+     *   }
+     * })
+     * 
+     */
+    delete<T extends IdentityEventDeleteArgs>(args: SelectSubset<T, IdentityEventDeleteArgs<ExtArgs>>): Prisma__IdentityEventClient<$Result.GetResult<Prisma.$IdentityEventPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one IdentityEvent.
+     * @param {IdentityEventUpdateArgs} args - Arguments to update one IdentityEvent.
+     * @example
+     * // Update one IdentityEvent
+     * const identityEvent = await prisma.identityEvent.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends IdentityEventUpdateArgs>(args: SelectSubset<T, IdentityEventUpdateArgs<ExtArgs>>): Prisma__IdentityEventClient<$Result.GetResult<Prisma.$IdentityEventPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more IdentityEvents.
+     * @param {IdentityEventDeleteManyArgs} args - Arguments to filter IdentityEvents to delete.
+     * @example
+     * // Delete a few IdentityEvents
+     * const { count } = await prisma.identityEvent.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends IdentityEventDeleteManyArgs>(args?: SelectSubset<T, IdentityEventDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more IdentityEvents.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityEventUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many IdentityEvents
+     * const identityEvent = await prisma.identityEvent.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends IdentityEventUpdateManyArgs>(args: SelectSubset<T, IdentityEventUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more IdentityEvents and returns the data updated in the database.
+     * @param {IdentityEventUpdateManyAndReturnArgs} args - Arguments to update many IdentityEvents.
+     * @example
+     * // Update many IdentityEvents
+     * const identityEvent = await prisma.identityEvent.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more IdentityEvents and only return the `id`
+     * const identityEventWithIdOnly = await prisma.identityEvent.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends IdentityEventUpdateManyAndReturnArgs>(args: SelectSubset<T, IdentityEventUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityEventPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one IdentityEvent.
+     * @param {IdentityEventUpsertArgs} args - Arguments to update or create a IdentityEvent.
+     * @example
+     * // Update or create a IdentityEvent
+     * const identityEvent = await prisma.identityEvent.upsert({
+     *   create: {
+     *     // ... data to create a IdentityEvent
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the IdentityEvent we want to update
+     *   }
+     * })
+     */
+    upsert<T extends IdentityEventUpsertArgs>(args: SelectSubset<T, IdentityEventUpsertArgs<ExtArgs>>): Prisma__IdentityEventClient<$Result.GetResult<Prisma.$IdentityEventPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of IdentityEvents.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityEventCountArgs} args - Arguments to filter IdentityEvents to count.
+     * @example
+     * // Count the number of IdentityEvents
+     * const count = await prisma.identityEvent.count({
+     *   where: {
+     *     // ... the filter for the IdentityEvents we want to count
+     *   }
+     * })
+    **/
+    count<T extends IdentityEventCountArgs>(
+      args?: Subset<T, IdentityEventCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], IdentityEventCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a IdentityEvent.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityEventAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends IdentityEventAggregateArgs>(args: Subset<T, IdentityEventAggregateArgs>): Prisma.PrismaPromise<GetIdentityEventAggregateType<T>>
+
+    /**
+     * Group by IdentityEvent.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityEventGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends IdentityEventGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: IdentityEventGroupByArgs['orderBy'] }
+        : { orderBy?: IdentityEventGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, IdentityEventGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetIdentityEventGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the IdentityEvent model
+   */
+  readonly fields: IdentityEventFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for IdentityEvent.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__IdentityEventClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    identity<T extends FinancialIdentityDefaultArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentityDefaultArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the IdentityEvent model
+   */
+  interface IdentityEventFieldRefs {
+    readonly id: FieldRef<"IdentityEvent", 'String'>
+    readonly identityId: FieldRef<"IdentityEvent", 'String'>
+    readonly label: FieldRef<"IdentityEvent", 'String'>
+    readonly date: FieldRef<"IdentityEvent", 'DateTime'>
+    readonly estimatedCostDollars: FieldRef<"IdentityEvent", 'Int'>
+    readonly isFlexible: FieldRef<"IdentityEvent", 'Boolean'>
+    readonly sortOrder: FieldRef<"IdentityEvent", 'Int'>
+    readonly createdAt: FieldRef<"IdentityEvent", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * IdentityEvent findUnique
+   */
+  export type IdentityEventFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityEvent
+     */
+    select?: IdentityEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityEvent
+     */
+    omit?: IdentityEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityEventInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityEvent to fetch.
+     */
+    where: IdentityEventWhereUniqueInput
+  }
+
+  /**
+   * IdentityEvent findUniqueOrThrow
+   */
+  export type IdentityEventFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityEvent
+     */
+    select?: IdentityEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityEvent
+     */
+    omit?: IdentityEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityEventInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityEvent to fetch.
+     */
+    where: IdentityEventWhereUniqueInput
+  }
+
+  /**
+   * IdentityEvent findFirst
+   */
+  export type IdentityEventFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityEvent
+     */
+    select?: IdentityEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityEvent
+     */
+    omit?: IdentityEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityEventInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityEvent to fetch.
+     */
+    where?: IdentityEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityEvents to fetch.
+     */
+    orderBy?: IdentityEventOrderByWithRelationInput | IdentityEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for IdentityEvents.
+     */
+    cursor?: IdentityEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentityEvents.
+     */
+    distinct?: IdentityEventScalarFieldEnum | IdentityEventScalarFieldEnum[]
+  }
+
+  /**
+   * IdentityEvent findFirstOrThrow
+   */
+  export type IdentityEventFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityEvent
+     */
+    select?: IdentityEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityEvent
+     */
+    omit?: IdentityEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityEventInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityEvent to fetch.
+     */
+    where?: IdentityEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityEvents to fetch.
+     */
+    orderBy?: IdentityEventOrderByWithRelationInput | IdentityEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for IdentityEvents.
+     */
+    cursor?: IdentityEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentityEvents.
+     */
+    distinct?: IdentityEventScalarFieldEnum | IdentityEventScalarFieldEnum[]
+  }
+
+  /**
+   * IdentityEvent findMany
+   */
+  export type IdentityEventFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityEvent
+     */
+    select?: IdentityEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityEvent
+     */
+    omit?: IdentityEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityEventInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityEvents to fetch.
+     */
+    where?: IdentityEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityEvents to fetch.
+     */
+    orderBy?: IdentityEventOrderByWithRelationInput | IdentityEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing IdentityEvents.
+     */
+    cursor?: IdentityEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentityEvents.
+     */
+    distinct?: IdentityEventScalarFieldEnum | IdentityEventScalarFieldEnum[]
+  }
+
+  /**
+   * IdentityEvent create
+   */
+  export type IdentityEventCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityEvent
+     */
+    select?: IdentityEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityEvent
+     */
+    omit?: IdentityEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityEventInclude<ExtArgs> | null
+    /**
+     * The data needed to create a IdentityEvent.
+     */
+    data: XOR<IdentityEventCreateInput, IdentityEventUncheckedCreateInput>
+  }
+
+  /**
+   * IdentityEvent createMany
+   */
+  export type IdentityEventCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many IdentityEvents.
+     */
+    data: IdentityEventCreateManyInput | IdentityEventCreateManyInput[]
+  }
+
+  /**
+   * IdentityEvent createManyAndReturn
+   */
+  export type IdentityEventCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityEvent
+     */
+    select?: IdentityEventSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityEvent
+     */
+    omit?: IdentityEventOmit<ExtArgs> | null
+    /**
+     * The data used to create many IdentityEvents.
+     */
+    data: IdentityEventCreateManyInput | IdentityEventCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityEventIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * IdentityEvent update
+   */
+  export type IdentityEventUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityEvent
+     */
+    select?: IdentityEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityEvent
+     */
+    omit?: IdentityEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityEventInclude<ExtArgs> | null
+    /**
+     * The data needed to update a IdentityEvent.
+     */
+    data: XOR<IdentityEventUpdateInput, IdentityEventUncheckedUpdateInput>
+    /**
+     * Choose, which IdentityEvent to update.
+     */
+    where: IdentityEventWhereUniqueInput
+  }
+
+  /**
+   * IdentityEvent updateMany
+   */
+  export type IdentityEventUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update IdentityEvents.
+     */
+    data: XOR<IdentityEventUpdateManyMutationInput, IdentityEventUncheckedUpdateManyInput>
+    /**
+     * Filter which IdentityEvents to update
+     */
+    where?: IdentityEventWhereInput
+    /**
+     * Limit how many IdentityEvents to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * IdentityEvent updateManyAndReturn
+   */
+  export type IdentityEventUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityEvent
+     */
+    select?: IdentityEventSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityEvent
+     */
+    omit?: IdentityEventOmit<ExtArgs> | null
+    /**
+     * The data used to update IdentityEvents.
+     */
+    data: XOR<IdentityEventUpdateManyMutationInput, IdentityEventUncheckedUpdateManyInput>
+    /**
+     * Filter which IdentityEvents to update
+     */
+    where?: IdentityEventWhereInput
+    /**
+     * Limit how many IdentityEvents to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityEventIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * IdentityEvent upsert
+   */
+  export type IdentityEventUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityEvent
+     */
+    select?: IdentityEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityEvent
+     */
+    omit?: IdentityEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityEventInclude<ExtArgs> | null
+    /**
+     * The filter to search for the IdentityEvent to update in case it exists.
+     */
+    where: IdentityEventWhereUniqueInput
+    /**
+     * In case the IdentityEvent found by the `where` argument doesn't exist, create a new IdentityEvent with this data.
+     */
+    create: XOR<IdentityEventCreateInput, IdentityEventUncheckedCreateInput>
+    /**
+     * In case the IdentityEvent was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<IdentityEventUpdateInput, IdentityEventUncheckedUpdateInput>
+  }
+
+  /**
+   * IdentityEvent delete
+   */
+  export type IdentityEventDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityEvent
+     */
+    select?: IdentityEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityEvent
+     */
+    omit?: IdentityEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityEventInclude<ExtArgs> | null
+    /**
+     * Filter which IdentityEvent to delete.
+     */
+    where: IdentityEventWhereUniqueInput
+  }
+
+  /**
+   * IdentityEvent deleteMany
+   */
+  export type IdentityEventDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which IdentityEvents to delete
+     */
+    where?: IdentityEventWhereInput
+    /**
+     * Limit how many IdentityEvents to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * IdentityEvent without action
+   */
+  export type IdentityEventDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityEvent
+     */
+    select?: IdentityEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityEvent
+     */
+    omit?: IdentityEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityEventInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model IdentityHouseholdMember
+   */
+
+  export type AggregateIdentityHouseholdMember = {
+    _count: IdentityHouseholdMemberCountAggregateOutputType | null
+    _avg: IdentityHouseholdMemberAvgAggregateOutputType | null
+    _sum: IdentityHouseholdMemberSumAggregateOutputType | null
+    _min: IdentityHouseholdMemberMinAggregateOutputType | null
+    _max: IdentityHouseholdMemberMaxAggregateOutputType | null
+  }
+
+  export type IdentityHouseholdMemberAvgAggregateOutputType = {
+    sortOrder: number | null
+  }
+
+  export type IdentityHouseholdMemberSumAggregateOutputType = {
+    sortOrder: number | null
+  }
+
+  export type IdentityHouseholdMemberMinAggregateOutputType = {
+    id: string | null
+    identityId: string | null
+    name: string | null
+    relationship: string | null
+    financiallyEntwined: boolean | null
+    ageRange: string | null
+    sortOrder: number | null
+    createdAt: Date | null
+  }
+
+  export type IdentityHouseholdMemberMaxAggregateOutputType = {
+    id: string | null
+    identityId: string | null
+    name: string | null
+    relationship: string | null
+    financiallyEntwined: boolean | null
+    ageRange: string | null
+    sortOrder: number | null
+    createdAt: Date | null
+  }
+
+  export type IdentityHouseholdMemberCountAggregateOutputType = {
+    id: number
+    identityId: number
+    name: number
+    relationship: number
+    financiallyEntwined: number
+    ageRange: number
+    sortOrder: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type IdentityHouseholdMemberAvgAggregateInputType = {
+    sortOrder?: true
+  }
+
+  export type IdentityHouseholdMemberSumAggregateInputType = {
+    sortOrder?: true
+  }
+
+  export type IdentityHouseholdMemberMinAggregateInputType = {
+    id?: true
+    identityId?: true
+    name?: true
+    relationship?: true
+    financiallyEntwined?: true
+    ageRange?: true
+    sortOrder?: true
+    createdAt?: true
+  }
+
+  export type IdentityHouseholdMemberMaxAggregateInputType = {
+    id?: true
+    identityId?: true
+    name?: true
+    relationship?: true
+    financiallyEntwined?: true
+    ageRange?: true
+    sortOrder?: true
+    createdAt?: true
+  }
+
+  export type IdentityHouseholdMemberCountAggregateInputType = {
+    id?: true
+    identityId?: true
+    name?: true
+    relationship?: true
+    financiallyEntwined?: true
+    ageRange?: true
+    sortOrder?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type IdentityHouseholdMemberAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which IdentityHouseholdMember to aggregate.
+     */
+    where?: IdentityHouseholdMemberWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityHouseholdMembers to fetch.
+     */
+    orderBy?: IdentityHouseholdMemberOrderByWithRelationInput | IdentityHouseholdMemberOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: IdentityHouseholdMemberWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityHouseholdMembers from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityHouseholdMembers.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned IdentityHouseholdMembers
+    **/
+    _count?: true | IdentityHouseholdMemberCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: IdentityHouseholdMemberAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: IdentityHouseholdMemberSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: IdentityHouseholdMemberMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: IdentityHouseholdMemberMaxAggregateInputType
+  }
+
+  export type GetIdentityHouseholdMemberAggregateType<T extends IdentityHouseholdMemberAggregateArgs> = {
+        [P in keyof T & keyof AggregateIdentityHouseholdMember]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateIdentityHouseholdMember[P]>
+      : GetScalarType<T[P], AggregateIdentityHouseholdMember[P]>
+  }
+
+
+
+
+  export type IdentityHouseholdMemberGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: IdentityHouseholdMemberWhereInput
+    orderBy?: IdentityHouseholdMemberOrderByWithAggregationInput | IdentityHouseholdMemberOrderByWithAggregationInput[]
+    by: IdentityHouseholdMemberScalarFieldEnum[] | IdentityHouseholdMemberScalarFieldEnum
+    having?: IdentityHouseholdMemberScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: IdentityHouseholdMemberCountAggregateInputType | true
+    _avg?: IdentityHouseholdMemberAvgAggregateInputType
+    _sum?: IdentityHouseholdMemberSumAggregateInputType
+    _min?: IdentityHouseholdMemberMinAggregateInputType
+    _max?: IdentityHouseholdMemberMaxAggregateInputType
+  }
+
+  export type IdentityHouseholdMemberGroupByOutputType = {
+    id: string
+    identityId: string
+    name: string
+    relationship: string
+    financiallyEntwined: boolean
+    ageRange: string | null
+    sortOrder: number
+    createdAt: Date
+    _count: IdentityHouseholdMemberCountAggregateOutputType | null
+    _avg: IdentityHouseholdMemberAvgAggregateOutputType | null
+    _sum: IdentityHouseholdMemberSumAggregateOutputType | null
+    _min: IdentityHouseholdMemberMinAggregateOutputType | null
+    _max: IdentityHouseholdMemberMaxAggregateOutputType | null
+  }
+
+  type GetIdentityHouseholdMemberGroupByPayload<T extends IdentityHouseholdMemberGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<IdentityHouseholdMemberGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof IdentityHouseholdMemberGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], IdentityHouseholdMemberGroupByOutputType[P]>
+            : GetScalarType<T[P], IdentityHouseholdMemberGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type IdentityHouseholdMemberSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    name?: boolean
+    relationship?: boolean
+    financiallyEntwined?: boolean
+    ageRange?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identityHouseholdMember"]>
+
+  export type IdentityHouseholdMemberSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    name?: boolean
+    relationship?: boolean
+    financiallyEntwined?: boolean
+    ageRange?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identityHouseholdMember"]>
+
+  export type IdentityHouseholdMemberSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    name?: boolean
+    relationship?: boolean
+    financiallyEntwined?: boolean
+    ageRange?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identityHouseholdMember"]>
+
+  export type IdentityHouseholdMemberSelectScalar = {
+    id?: boolean
+    identityId?: boolean
+    name?: boolean
+    relationship?: boolean
+    financiallyEntwined?: boolean
+    ageRange?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+  }
+
+  export type IdentityHouseholdMemberOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "identityId" | "name" | "relationship" | "financiallyEntwined" | "ageRange" | "sortOrder" | "createdAt", ExtArgs["result"]["identityHouseholdMember"]>
+  export type IdentityHouseholdMemberInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+  export type IdentityHouseholdMemberIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+  export type IdentityHouseholdMemberIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+
+  export type $IdentityHouseholdMemberPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "IdentityHouseholdMember"
+    objects: {
+      identity: Prisma.$FinancialIdentityPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      identityId: string
+      name: string
+      /**
+       * spouse | partner | child | parent | sibling | roommate | dependent_other | other
+       */
+      relationship: string
+      financiallyEntwined: boolean
+      ageRange: string | null
+      sortOrder: number
+      createdAt: Date
+    }, ExtArgs["result"]["identityHouseholdMember"]>
+    composites: {}
+  }
+
+  type IdentityHouseholdMemberGetPayload<S extends boolean | null | undefined | IdentityHouseholdMemberDefaultArgs> = $Result.GetResult<Prisma.$IdentityHouseholdMemberPayload, S>
+
+  type IdentityHouseholdMemberCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<IdentityHouseholdMemberFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: IdentityHouseholdMemberCountAggregateInputType | true
+    }
+
+  export interface IdentityHouseholdMemberDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['IdentityHouseholdMember'], meta: { name: 'IdentityHouseholdMember' } }
+    /**
+     * Find zero or one IdentityHouseholdMember that matches the filter.
+     * @param {IdentityHouseholdMemberFindUniqueArgs} args - Arguments to find a IdentityHouseholdMember
+     * @example
+     * // Get one IdentityHouseholdMember
+     * const identityHouseholdMember = await prisma.identityHouseholdMember.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends IdentityHouseholdMemberFindUniqueArgs>(args: SelectSubset<T, IdentityHouseholdMemberFindUniqueArgs<ExtArgs>>): Prisma__IdentityHouseholdMemberClient<$Result.GetResult<Prisma.$IdentityHouseholdMemberPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one IdentityHouseholdMember that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {IdentityHouseholdMemberFindUniqueOrThrowArgs} args - Arguments to find a IdentityHouseholdMember
+     * @example
+     * // Get one IdentityHouseholdMember
+     * const identityHouseholdMember = await prisma.identityHouseholdMember.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends IdentityHouseholdMemberFindUniqueOrThrowArgs>(args: SelectSubset<T, IdentityHouseholdMemberFindUniqueOrThrowArgs<ExtArgs>>): Prisma__IdentityHouseholdMemberClient<$Result.GetResult<Prisma.$IdentityHouseholdMemberPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first IdentityHouseholdMember that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityHouseholdMemberFindFirstArgs} args - Arguments to find a IdentityHouseholdMember
+     * @example
+     * // Get one IdentityHouseholdMember
+     * const identityHouseholdMember = await prisma.identityHouseholdMember.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends IdentityHouseholdMemberFindFirstArgs>(args?: SelectSubset<T, IdentityHouseholdMemberFindFirstArgs<ExtArgs>>): Prisma__IdentityHouseholdMemberClient<$Result.GetResult<Prisma.$IdentityHouseholdMemberPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first IdentityHouseholdMember that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityHouseholdMemberFindFirstOrThrowArgs} args - Arguments to find a IdentityHouseholdMember
+     * @example
+     * // Get one IdentityHouseholdMember
+     * const identityHouseholdMember = await prisma.identityHouseholdMember.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends IdentityHouseholdMemberFindFirstOrThrowArgs>(args?: SelectSubset<T, IdentityHouseholdMemberFindFirstOrThrowArgs<ExtArgs>>): Prisma__IdentityHouseholdMemberClient<$Result.GetResult<Prisma.$IdentityHouseholdMemberPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more IdentityHouseholdMembers that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityHouseholdMemberFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all IdentityHouseholdMembers
+     * const identityHouseholdMembers = await prisma.identityHouseholdMember.findMany()
+     * 
+     * // Get first 10 IdentityHouseholdMembers
+     * const identityHouseholdMembers = await prisma.identityHouseholdMember.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const identityHouseholdMemberWithIdOnly = await prisma.identityHouseholdMember.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends IdentityHouseholdMemberFindManyArgs>(args?: SelectSubset<T, IdentityHouseholdMemberFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityHouseholdMemberPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a IdentityHouseholdMember.
+     * @param {IdentityHouseholdMemberCreateArgs} args - Arguments to create a IdentityHouseholdMember.
+     * @example
+     * // Create one IdentityHouseholdMember
+     * const IdentityHouseholdMember = await prisma.identityHouseholdMember.create({
+     *   data: {
+     *     // ... data to create a IdentityHouseholdMember
+     *   }
+     * })
+     * 
+     */
+    create<T extends IdentityHouseholdMemberCreateArgs>(args: SelectSubset<T, IdentityHouseholdMemberCreateArgs<ExtArgs>>): Prisma__IdentityHouseholdMemberClient<$Result.GetResult<Prisma.$IdentityHouseholdMemberPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many IdentityHouseholdMembers.
+     * @param {IdentityHouseholdMemberCreateManyArgs} args - Arguments to create many IdentityHouseholdMembers.
+     * @example
+     * // Create many IdentityHouseholdMembers
+     * const identityHouseholdMember = await prisma.identityHouseholdMember.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends IdentityHouseholdMemberCreateManyArgs>(args?: SelectSubset<T, IdentityHouseholdMemberCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many IdentityHouseholdMembers and returns the data saved in the database.
+     * @param {IdentityHouseholdMemberCreateManyAndReturnArgs} args - Arguments to create many IdentityHouseholdMembers.
+     * @example
+     * // Create many IdentityHouseholdMembers
+     * const identityHouseholdMember = await prisma.identityHouseholdMember.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many IdentityHouseholdMembers and only return the `id`
+     * const identityHouseholdMemberWithIdOnly = await prisma.identityHouseholdMember.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends IdentityHouseholdMemberCreateManyAndReturnArgs>(args?: SelectSubset<T, IdentityHouseholdMemberCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityHouseholdMemberPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a IdentityHouseholdMember.
+     * @param {IdentityHouseholdMemberDeleteArgs} args - Arguments to delete one IdentityHouseholdMember.
+     * @example
+     * // Delete one IdentityHouseholdMember
+     * const IdentityHouseholdMember = await prisma.identityHouseholdMember.delete({
+     *   where: {
+     *     // ... filter to delete one IdentityHouseholdMember
+     *   }
+     * })
+     * 
+     */
+    delete<T extends IdentityHouseholdMemberDeleteArgs>(args: SelectSubset<T, IdentityHouseholdMemberDeleteArgs<ExtArgs>>): Prisma__IdentityHouseholdMemberClient<$Result.GetResult<Prisma.$IdentityHouseholdMemberPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one IdentityHouseholdMember.
+     * @param {IdentityHouseholdMemberUpdateArgs} args - Arguments to update one IdentityHouseholdMember.
+     * @example
+     * // Update one IdentityHouseholdMember
+     * const identityHouseholdMember = await prisma.identityHouseholdMember.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends IdentityHouseholdMemberUpdateArgs>(args: SelectSubset<T, IdentityHouseholdMemberUpdateArgs<ExtArgs>>): Prisma__IdentityHouseholdMemberClient<$Result.GetResult<Prisma.$IdentityHouseholdMemberPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more IdentityHouseholdMembers.
+     * @param {IdentityHouseholdMemberDeleteManyArgs} args - Arguments to filter IdentityHouseholdMembers to delete.
+     * @example
+     * // Delete a few IdentityHouseholdMembers
+     * const { count } = await prisma.identityHouseholdMember.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends IdentityHouseholdMemberDeleteManyArgs>(args?: SelectSubset<T, IdentityHouseholdMemberDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more IdentityHouseholdMembers.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityHouseholdMemberUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many IdentityHouseholdMembers
+     * const identityHouseholdMember = await prisma.identityHouseholdMember.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends IdentityHouseholdMemberUpdateManyArgs>(args: SelectSubset<T, IdentityHouseholdMemberUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more IdentityHouseholdMembers and returns the data updated in the database.
+     * @param {IdentityHouseholdMemberUpdateManyAndReturnArgs} args - Arguments to update many IdentityHouseholdMembers.
+     * @example
+     * // Update many IdentityHouseholdMembers
+     * const identityHouseholdMember = await prisma.identityHouseholdMember.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more IdentityHouseholdMembers and only return the `id`
+     * const identityHouseholdMemberWithIdOnly = await prisma.identityHouseholdMember.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends IdentityHouseholdMemberUpdateManyAndReturnArgs>(args: SelectSubset<T, IdentityHouseholdMemberUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityHouseholdMemberPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one IdentityHouseholdMember.
+     * @param {IdentityHouseholdMemberUpsertArgs} args - Arguments to update or create a IdentityHouseholdMember.
+     * @example
+     * // Update or create a IdentityHouseholdMember
+     * const identityHouseholdMember = await prisma.identityHouseholdMember.upsert({
+     *   create: {
+     *     // ... data to create a IdentityHouseholdMember
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the IdentityHouseholdMember we want to update
+     *   }
+     * })
+     */
+    upsert<T extends IdentityHouseholdMemberUpsertArgs>(args: SelectSubset<T, IdentityHouseholdMemberUpsertArgs<ExtArgs>>): Prisma__IdentityHouseholdMemberClient<$Result.GetResult<Prisma.$IdentityHouseholdMemberPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of IdentityHouseholdMembers.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityHouseholdMemberCountArgs} args - Arguments to filter IdentityHouseholdMembers to count.
+     * @example
+     * // Count the number of IdentityHouseholdMembers
+     * const count = await prisma.identityHouseholdMember.count({
+     *   where: {
+     *     // ... the filter for the IdentityHouseholdMembers we want to count
+     *   }
+     * })
+    **/
+    count<T extends IdentityHouseholdMemberCountArgs>(
+      args?: Subset<T, IdentityHouseholdMemberCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], IdentityHouseholdMemberCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a IdentityHouseholdMember.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityHouseholdMemberAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends IdentityHouseholdMemberAggregateArgs>(args: Subset<T, IdentityHouseholdMemberAggregateArgs>): Prisma.PrismaPromise<GetIdentityHouseholdMemberAggregateType<T>>
+
+    /**
+     * Group by IdentityHouseholdMember.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentityHouseholdMemberGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends IdentityHouseholdMemberGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: IdentityHouseholdMemberGroupByArgs['orderBy'] }
+        : { orderBy?: IdentityHouseholdMemberGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, IdentityHouseholdMemberGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetIdentityHouseholdMemberGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the IdentityHouseholdMember model
+   */
+  readonly fields: IdentityHouseholdMemberFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for IdentityHouseholdMember.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__IdentityHouseholdMemberClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    identity<T extends FinancialIdentityDefaultArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentityDefaultArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the IdentityHouseholdMember model
+   */
+  interface IdentityHouseholdMemberFieldRefs {
+    readonly id: FieldRef<"IdentityHouseholdMember", 'String'>
+    readonly identityId: FieldRef<"IdentityHouseholdMember", 'String'>
+    readonly name: FieldRef<"IdentityHouseholdMember", 'String'>
+    readonly relationship: FieldRef<"IdentityHouseholdMember", 'String'>
+    readonly financiallyEntwined: FieldRef<"IdentityHouseholdMember", 'Boolean'>
+    readonly ageRange: FieldRef<"IdentityHouseholdMember", 'String'>
+    readonly sortOrder: FieldRef<"IdentityHouseholdMember", 'Int'>
+    readonly createdAt: FieldRef<"IdentityHouseholdMember", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * IdentityHouseholdMember findUnique
+   */
+  export type IdentityHouseholdMemberFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityHouseholdMember
+     */
+    select?: IdentityHouseholdMemberSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityHouseholdMember
+     */
+    omit?: IdentityHouseholdMemberOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityHouseholdMemberInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityHouseholdMember to fetch.
+     */
+    where: IdentityHouseholdMemberWhereUniqueInput
+  }
+
+  /**
+   * IdentityHouseholdMember findUniqueOrThrow
+   */
+  export type IdentityHouseholdMemberFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityHouseholdMember
+     */
+    select?: IdentityHouseholdMemberSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityHouseholdMember
+     */
+    omit?: IdentityHouseholdMemberOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityHouseholdMemberInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityHouseholdMember to fetch.
+     */
+    where: IdentityHouseholdMemberWhereUniqueInput
+  }
+
+  /**
+   * IdentityHouseholdMember findFirst
+   */
+  export type IdentityHouseholdMemberFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityHouseholdMember
+     */
+    select?: IdentityHouseholdMemberSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityHouseholdMember
+     */
+    omit?: IdentityHouseholdMemberOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityHouseholdMemberInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityHouseholdMember to fetch.
+     */
+    where?: IdentityHouseholdMemberWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityHouseholdMembers to fetch.
+     */
+    orderBy?: IdentityHouseholdMemberOrderByWithRelationInput | IdentityHouseholdMemberOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for IdentityHouseholdMembers.
+     */
+    cursor?: IdentityHouseholdMemberWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityHouseholdMembers from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityHouseholdMembers.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentityHouseholdMembers.
+     */
+    distinct?: IdentityHouseholdMemberScalarFieldEnum | IdentityHouseholdMemberScalarFieldEnum[]
+  }
+
+  /**
+   * IdentityHouseholdMember findFirstOrThrow
+   */
+  export type IdentityHouseholdMemberFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityHouseholdMember
+     */
+    select?: IdentityHouseholdMemberSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityHouseholdMember
+     */
+    omit?: IdentityHouseholdMemberOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityHouseholdMemberInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityHouseholdMember to fetch.
+     */
+    where?: IdentityHouseholdMemberWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityHouseholdMembers to fetch.
+     */
+    orderBy?: IdentityHouseholdMemberOrderByWithRelationInput | IdentityHouseholdMemberOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for IdentityHouseholdMembers.
+     */
+    cursor?: IdentityHouseholdMemberWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityHouseholdMembers from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityHouseholdMembers.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentityHouseholdMembers.
+     */
+    distinct?: IdentityHouseholdMemberScalarFieldEnum | IdentityHouseholdMemberScalarFieldEnum[]
+  }
+
+  /**
+   * IdentityHouseholdMember findMany
+   */
+  export type IdentityHouseholdMemberFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityHouseholdMember
+     */
+    select?: IdentityHouseholdMemberSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityHouseholdMember
+     */
+    omit?: IdentityHouseholdMemberOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityHouseholdMemberInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentityHouseholdMembers to fetch.
+     */
+    where?: IdentityHouseholdMemberWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentityHouseholdMembers to fetch.
+     */
+    orderBy?: IdentityHouseholdMemberOrderByWithRelationInput | IdentityHouseholdMemberOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing IdentityHouseholdMembers.
+     */
+    cursor?: IdentityHouseholdMemberWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentityHouseholdMembers from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentityHouseholdMembers.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentityHouseholdMembers.
+     */
+    distinct?: IdentityHouseholdMemberScalarFieldEnum | IdentityHouseholdMemberScalarFieldEnum[]
+  }
+
+  /**
+   * IdentityHouseholdMember create
+   */
+  export type IdentityHouseholdMemberCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityHouseholdMember
+     */
+    select?: IdentityHouseholdMemberSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityHouseholdMember
+     */
+    omit?: IdentityHouseholdMemberOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityHouseholdMemberInclude<ExtArgs> | null
+    /**
+     * The data needed to create a IdentityHouseholdMember.
+     */
+    data: XOR<IdentityHouseholdMemberCreateInput, IdentityHouseholdMemberUncheckedCreateInput>
+  }
+
+  /**
+   * IdentityHouseholdMember createMany
+   */
+  export type IdentityHouseholdMemberCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many IdentityHouseholdMembers.
+     */
+    data: IdentityHouseholdMemberCreateManyInput | IdentityHouseholdMemberCreateManyInput[]
+  }
+
+  /**
+   * IdentityHouseholdMember createManyAndReturn
+   */
+  export type IdentityHouseholdMemberCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityHouseholdMember
+     */
+    select?: IdentityHouseholdMemberSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityHouseholdMember
+     */
+    omit?: IdentityHouseholdMemberOmit<ExtArgs> | null
+    /**
+     * The data used to create many IdentityHouseholdMembers.
+     */
+    data: IdentityHouseholdMemberCreateManyInput | IdentityHouseholdMemberCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityHouseholdMemberIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * IdentityHouseholdMember update
+   */
+  export type IdentityHouseholdMemberUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityHouseholdMember
+     */
+    select?: IdentityHouseholdMemberSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityHouseholdMember
+     */
+    omit?: IdentityHouseholdMemberOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityHouseholdMemberInclude<ExtArgs> | null
+    /**
+     * The data needed to update a IdentityHouseholdMember.
+     */
+    data: XOR<IdentityHouseholdMemberUpdateInput, IdentityHouseholdMemberUncheckedUpdateInput>
+    /**
+     * Choose, which IdentityHouseholdMember to update.
+     */
+    where: IdentityHouseholdMemberWhereUniqueInput
+  }
+
+  /**
+   * IdentityHouseholdMember updateMany
+   */
+  export type IdentityHouseholdMemberUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update IdentityHouseholdMembers.
+     */
+    data: XOR<IdentityHouseholdMemberUpdateManyMutationInput, IdentityHouseholdMemberUncheckedUpdateManyInput>
+    /**
+     * Filter which IdentityHouseholdMembers to update
+     */
+    where?: IdentityHouseholdMemberWhereInput
+    /**
+     * Limit how many IdentityHouseholdMembers to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * IdentityHouseholdMember updateManyAndReturn
+   */
+  export type IdentityHouseholdMemberUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityHouseholdMember
+     */
+    select?: IdentityHouseholdMemberSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityHouseholdMember
+     */
+    omit?: IdentityHouseholdMemberOmit<ExtArgs> | null
+    /**
+     * The data used to update IdentityHouseholdMembers.
+     */
+    data: XOR<IdentityHouseholdMemberUpdateManyMutationInput, IdentityHouseholdMemberUncheckedUpdateManyInput>
+    /**
+     * Filter which IdentityHouseholdMembers to update
+     */
+    where?: IdentityHouseholdMemberWhereInput
+    /**
+     * Limit how many IdentityHouseholdMembers to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityHouseholdMemberIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * IdentityHouseholdMember upsert
+   */
+  export type IdentityHouseholdMemberUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityHouseholdMember
+     */
+    select?: IdentityHouseholdMemberSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityHouseholdMember
+     */
+    omit?: IdentityHouseholdMemberOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityHouseholdMemberInclude<ExtArgs> | null
+    /**
+     * The filter to search for the IdentityHouseholdMember to update in case it exists.
+     */
+    where: IdentityHouseholdMemberWhereUniqueInput
+    /**
+     * In case the IdentityHouseholdMember found by the `where` argument doesn't exist, create a new IdentityHouseholdMember with this data.
+     */
+    create: XOR<IdentityHouseholdMemberCreateInput, IdentityHouseholdMemberUncheckedCreateInput>
+    /**
+     * In case the IdentityHouseholdMember was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<IdentityHouseholdMemberUpdateInput, IdentityHouseholdMemberUncheckedUpdateInput>
+  }
+
+  /**
+   * IdentityHouseholdMember delete
+   */
+  export type IdentityHouseholdMemberDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityHouseholdMember
+     */
+    select?: IdentityHouseholdMemberSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityHouseholdMember
+     */
+    omit?: IdentityHouseholdMemberOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityHouseholdMemberInclude<ExtArgs> | null
+    /**
+     * Filter which IdentityHouseholdMember to delete.
+     */
+    where: IdentityHouseholdMemberWhereUniqueInput
+  }
+
+  /**
+   * IdentityHouseholdMember deleteMany
+   */
+  export type IdentityHouseholdMemberDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which IdentityHouseholdMembers to delete
+     */
+    where?: IdentityHouseholdMemberWhereInput
+    /**
+     * Limit how many IdentityHouseholdMembers to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * IdentityHouseholdMember without action
+   */
+  export type IdentityHouseholdMemberDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentityHouseholdMember
+     */
+    select?: IdentityHouseholdMemberSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentityHouseholdMember
+     */
+    omit?: IdentityHouseholdMemberOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentityHouseholdMemberInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model OnboardingMessage
+   */
+
+  export type AggregateOnboardingMessage = {
+    _count: OnboardingMessageCountAggregateOutputType | null
+    _avg: OnboardingMessageAvgAggregateOutputType | null
+    _sum: OnboardingMessageSumAggregateOutputType | null
+    _min: OnboardingMessageMinAggregateOutputType | null
+    _max: OnboardingMessageMaxAggregateOutputType | null
+  }
+
+  export type OnboardingMessageAvgAggregateOutputType = {
+    seq: number | null
+  }
+
+  export type OnboardingMessageSumAggregateOutputType = {
+    seq: number | null
+  }
+
+  export type OnboardingMessageMinAggregateOutputType = {
+    id: string | null
+    identityId: string | null
+    role: string | null
+    content: string | null
+    toolCallId: string | null
+    toolCallsJson: string | null
+    seq: number | null
+    createdAt: Date | null
+  }
+
+  export type OnboardingMessageMaxAggregateOutputType = {
+    id: string | null
+    identityId: string | null
+    role: string | null
+    content: string | null
+    toolCallId: string | null
+    toolCallsJson: string | null
+    seq: number | null
+    createdAt: Date | null
+  }
+
+  export type OnboardingMessageCountAggregateOutputType = {
+    id: number
+    identityId: number
+    role: number
+    content: number
+    toolCallId: number
+    toolCallsJson: number
+    seq: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type OnboardingMessageAvgAggregateInputType = {
+    seq?: true
+  }
+
+  export type OnboardingMessageSumAggregateInputType = {
+    seq?: true
+  }
+
+  export type OnboardingMessageMinAggregateInputType = {
+    id?: true
+    identityId?: true
+    role?: true
+    content?: true
+    toolCallId?: true
+    toolCallsJson?: true
+    seq?: true
+    createdAt?: true
+  }
+
+  export type OnboardingMessageMaxAggregateInputType = {
+    id?: true
+    identityId?: true
+    role?: true
+    content?: true
+    toolCallId?: true
+    toolCallsJson?: true
+    seq?: true
+    createdAt?: true
+  }
+
+  export type OnboardingMessageCountAggregateInputType = {
+    id?: true
+    identityId?: true
+    role?: true
+    content?: true
+    toolCallId?: true
+    toolCallsJson?: true
+    seq?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type OnboardingMessageAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which OnboardingMessage to aggregate.
+     */
+    where?: OnboardingMessageWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of OnboardingMessages to fetch.
+     */
+    orderBy?: OnboardingMessageOrderByWithRelationInput | OnboardingMessageOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: OnboardingMessageWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` OnboardingMessages from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` OnboardingMessages.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned OnboardingMessages
+    **/
+    _count?: true | OnboardingMessageCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: OnboardingMessageAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: OnboardingMessageSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: OnboardingMessageMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: OnboardingMessageMaxAggregateInputType
+  }
+
+  export type GetOnboardingMessageAggregateType<T extends OnboardingMessageAggregateArgs> = {
+        [P in keyof T & keyof AggregateOnboardingMessage]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateOnboardingMessage[P]>
+      : GetScalarType<T[P], AggregateOnboardingMessage[P]>
+  }
+
+
+
+
+  export type OnboardingMessageGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: OnboardingMessageWhereInput
+    orderBy?: OnboardingMessageOrderByWithAggregationInput | OnboardingMessageOrderByWithAggregationInput[]
+    by: OnboardingMessageScalarFieldEnum[] | OnboardingMessageScalarFieldEnum
+    having?: OnboardingMessageScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: OnboardingMessageCountAggregateInputType | true
+    _avg?: OnboardingMessageAvgAggregateInputType
+    _sum?: OnboardingMessageSumAggregateInputType
+    _min?: OnboardingMessageMinAggregateInputType
+    _max?: OnboardingMessageMaxAggregateInputType
+  }
+
+  export type OnboardingMessageGroupByOutputType = {
+    id: string
+    identityId: string
+    role: string
+    content: string
+    toolCallId: string | null
+    toolCallsJson: string | null
+    seq: number
+    createdAt: Date
+    _count: OnboardingMessageCountAggregateOutputType | null
+    _avg: OnboardingMessageAvgAggregateOutputType | null
+    _sum: OnboardingMessageSumAggregateOutputType | null
+    _min: OnboardingMessageMinAggregateOutputType | null
+    _max: OnboardingMessageMaxAggregateOutputType | null
+  }
+
+  type GetOnboardingMessageGroupByPayload<T extends OnboardingMessageGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<OnboardingMessageGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof OnboardingMessageGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], OnboardingMessageGroupByOutputType[P]>
+            : GetScalarType<T[P], OnboardingMessageGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type OnboardingMessageSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    role?: boolean
+    content?: boolean
+    toolCallId?: boolean
+    toolCallsJson?: boolean
+    seq?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["onboardingMessage"]>
+
+  export type OnboardingMessageSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    role?: boolean
+    content?: boolean
+    toolCallId?: boolean
+    toolCallsJson?: boolean
+    seq?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["onboardingMessage"]>
+
+  export type OnboardingMessageSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    role?: boolean
+    content?: boolean
+    toolCallId?: boolean
+    toolCallsJson?: boolean
+    seq?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["onboardingMessage"]>
+
+  export type OnboardingMessageSelectScalar = {
+    id?: boolean
+    identityId?: boolean
+    role?: boolean
+    content?: boolean
+    toolCallId?: boolean
+    toolCallsJson?: boolean
+    seq?: boolean
+    createdAt?: boolean
+  }
+
+  export type OnboardingMessageOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "identityId" | "role" | "content" | "toolCallId" | "toolCallsJson" | "seq" | "createdAt", ExtArgs["result"]["onboardingMessage"]>
+  export type OnboardingMessageInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+  export type OnboardingMessageIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+  export type OnboardingMessageIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+
+  export type $OnboardingMessagePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "OnboardingMessage"
+    objects: {
+      identity: Prisma.$FinancialIdentityPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      identityId: string
+      /**
+       * user | assistant | tool
+       */
+      role: string
+      content: string
+      /**
+       * For role="tool", the tool call id this result answers.
+       */
+      toolCallId: string | null
+      /**
+       * For role="assistant" with toolCalls, JSON-encoded LLMToolCall[].
+       */
+      toolCallsJson: string | null
+      /**
+       * Monotonic position in the conversation per identity. 0, 1, 2, …
+       * Used to reconstruct workingHistory in loadConversation().
+       */
+      seq: number
+      createdAt: Date
+    }, ExtArgs["result"]["onboardingMessage"]>
+    composites: {}
+  }
+
+  type OnboardingMessageGetPayload<S extends boolean | null | undefined | OnboardingMessageDefaultArgs> = $Result.GetResult<Prisma.$OnboardingMessagePayload, S>
+
+  type OnboardingMessageCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<OnboardingMessageFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: OnboardingMessageCountAggregateInputType | true
+    }
+
+  export interface OnboardingMessageDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['OnboardingMessage'], meta: { name: 'OnboardingMessage' } }
+    /**
+     * Find zero or one OnboardingMessage that matches the filter.
+     * @param {OnboardingMessageFindUniqueArgs} args - Arguments to find a OnboardingMessage
+     * @example
+     * // Get one OnboardingMessage
+     * const onboardingMessage = await prisma.onboardingMessage.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends OnboardingMessageFindUniqueArgs>(args: SelectSubset<T, OnboardingMessageFindUniqueArgs<ExtArgs>>): Prisma__OnboardingMessageClient<$Result.GetResult<Prisma.$OnboardingMessagePayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one OnboardingMessage that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {OnboardingMessageFindUniqueOrThrowArgs} args - Arguments to find a OnboardingMessage
+     * @example
+     * // Get one OnboardingMessage
+     * const onboardingMessage = await prisma.onboardingMessage.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends OnboardingMessageFindUniqueOrThrowArgs>(args: SelectSubset<T, OnboardingMessageFindUniqueOrThrowArgs<ExtArgs>>): Prisma__OnboardingMessageClient<$Result.GetResult<Prisma.$OnboardingMessagePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first OnboardingMessage that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {OnboardingMessageFindFirstArgs} args - Arguments to find a OnboardingMessage
+     * @example
+     * // Get one OnboardingMessage
+     * const onboardingMessage = await prisma.onboardingMessage.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends OnboardingMessageFindFirstArgs>(args?: SelectSubset<T, OnboardingMessageFindFirstArgs<ExtArgs>>): Prisma__OnboardingMessageClient<$Result.GetResult<Prisma.$OnboardingMessagePayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first OnboardingMessage that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {OnboardingMessageFindFirstOrThrowArgs} args - Arguments to find a OnboardingMessage
+     * @example
+     * // Get one OnboardingMessage
+     * const onboardingMessage = await prisma.onboardingMessage.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends OnboardingMessageFindFirstOrThrowArgs>(args?: SelectSubset<T, OnboardingMessageFindFirstOrThrowArgs<ExtArgs>>): Prisma__OnboardingMessageClient<$Result.GetResult<Prisma.$OnboardingMessagePayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more OnboardingMessages that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {OnboardingMessageFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all OnboardingMessages
+     * const onboardingMessages = await prisma.onboardingMessage.findMany()
+     * 
+     * // Get first 10 OnboardingMessages
+     * const onboardingMessages = await prisma.onboardingMessage.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const onboardingMessageWithIdOnly = await prisma.onboardingMessage.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends OnboardingMessageFindManyArgs>(args?: SelectSubset<T, OnboardingMessageFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$OnboardingMessagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a OnboardingMessage.
+     * @param {OnboardingMessageCreateArgs} args - Arguments to create a OnboardingMessage.
+     * @example
+     * // Create one OnboardingMessage
+     * const OnboardingMessage = await prisma.onboardingMessage.create({
+     *   data: {
+     *     // ... data to create a OnboardingMessage
+     *   }
+     * })
+     * 
+     */
+    create<T extends OnboardingMessageCreateArgs>(args: SelectSubset<T, OnboardingMessageCreateArgs<ExtArgs>>): Prisma__OnboardingMessageClient<$Result.GetResult<Prisma.$OnboardingMessagePayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many OnboardingMessages.
+     * @param {OnboardingMessageCreateManyArgs} args - Arguments to create many OnboardingMessages.
+     * @example
+     * // Create many OnboardingMessages
+     * const onboardingMessage = await prisma.onboardingMessage.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends OnboardingMessageCreateManyArgs>(args?: SelectSubset<T, OnboardingMessageCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many OnboardingMessages and returns the data saved in the database.
+     * @param {OnboardingMessageCreateManyAndReturnArgs} args - Arguments to create many OnboardingMessages.
+     * @example
+     * // Create many OnboardingMessages
+     * const onboardingMessage = await prisma.onboardingMessage.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many OnboardingMessages and only return the `id`
+     * const onboardingMessageWithIdOnly = await prisma.onboardingMessage.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends OnboardingMessageCreateManyAndReturnArgs>(args?: SelectSubset<T, OnboardingMessageCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$OnboardingMessagePayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a OnboardingMessage.
+     * @param {OnboardingMessageDeleteArgs} args - Arguments to delete one OnboardingMessage.
+     * @example
+     * // Delete one OnboardingMessage
+     * const OnboardingMessage = await prisma.onboardingMessage.delete({
+     *   where: {
+     *     // ... filter to delete one OnboardingMessage
+     *   }
+     * })
+     * 
+     */
+    delete<T extends OnboardingMessageDeleteArgs>(args: SelectSubset<T, OnboardingMessageDeleteArgs<ExtArgs>>): Prisma__OnboardingMessageClient<$Result.GetResult<Prisma.$OnboardingMessagePayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one OnboardingMessage.
+     * @param {OnboardingMessageUpdateArgs} args - Arguments to update one OnboardingMessage.
+     * @example
+     * // Update one OnboardingMessage
+     * const onboardingMessage = await prisma.onboardingMessage.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends OnboardingMessageUpdateArgs>(args: SelectSubset<T, OnboardingMessageUpdateArgs<ExtArgs>>): Prisma__OnboardingMessageClient<$Result.GetResult<Prisma.$OnboardingMessagePayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more OnboardingMessages.
+     * @param {OnboardingMessageDeleteManyArgs} args - Arguments to filter OnboardingMessages to delete.
+     * @example
+     * // Delete a few OnboardingMessages
+     * const { count } = await prisma.onboardingMessage.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends OnboardingMessageDeleteManyArgs>(args?: SelectSubset<T, OnboardingMessageDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more OnboardingMessages.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {OnboardingMessageUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many OnboardingMessages
+     * const onboardingMessage = await prisma.onboardingMessage.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends OnboardingMessageUpdateManyArgs>(args: SelectSubset<T, OnboardingMessageUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more OnboardingMessages and returns the data updated in the database.
+     * @param {OnboardingMessageUpdateManyAndReturnArgs} args - Arguments to update many OnboardingMessages.
+     * @example
+     * // Update many OnboardingMessages
+     * const onboardingMessage = await prisma.onboardingMessage.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more OnboardingMessages and only return the `id`
+     * const onboardingMessageWithIdOnly = await prisma.onboardingMessage.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends OnboardingMessageUpdateManyAndReturnArgs>(args: SelectSubset<T, OnboardingMessageUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$OnboardingMessagePayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one OnboardingMessage.
+     * @param {OnboardingMessageUpsertArgs} args - Arguments to update or create a OnboardingMessage.
+     * @example
+     * // Update or create a OnboardingMessage
+     * const onboardingMessage = await prisma.onboardingMessage.upsert({
+     *   create: {
+     *     // ... data to create a OnboardingMessage
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the OnboardingMessage we want to update
+     *   }
+     * })
+     */
+    upsert<T extends OnboardingMessageUpsertArgs>(args: SelectSubset<T, OnboardingMessageUpsertArgs<ExtArgs>>): Prisma__OnboardingMessageClient<$Result.GetResult<Prisma.$OnboardingMessagePayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of OnboardingMessages.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {OnboardingMessageCountArgs} args - Arguments to filter OnboardingMessages to count.
+     * @example
+     * // Count the number of OnboardingMessages
+     * const count = await prisma.onboardingMessage.count({
+     *   where: {
+     *     // ... the filter for the OnboardingMessages we want to count
+     *   }
+     * })
+    **/
+    count<T extends OnboardingMessageCountArgs>(
+      args?: Subset<T, OnboardingMessageCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], OnboardingMessageCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a OnboardingMessage.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {OnboardingMessageAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends OnboardingMessageAggregateArgs>(args: Subset<T, OnboardingMessageAggregateArgs>): Prisma.PrismaPromise<GetOnboardingMessageAggregateType<T>>
+
+    /**
+     * Group by OnboardingMessage.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {OnboardingMessageGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends OnboardingMessageGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: OnboardingMessageGroupByArgs['orderBy'] }
+        : { orderBy?: OnboardingMessageGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, OnboardingMessageGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetOnboardingMessageGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the OnboardingMessage model
+   */
+  readonly fields: OnboardingMessageFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for OnboardingMessage.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__OnboardingMessageClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    identity<T extends FinancialIdentityDefaultArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentityDefaultArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the OnboardingMessage model
+   */
+  interface OnboardingMessageFieldRefs {
+    readonly id: FieldRef<"OnboardingMessage", 'String'>
+    readonly identityId: FieldRef<"OnboardingMessage", 'String'>
+    readonly role: FieldRef<"OnboardingMessage", 'String'>
+    readonly content: FieldRef<"OnboardingMessage", 'String'>
+    readonly toolCallId: FieldRef<"OnboardingMessage", 'String'>
+    readonly toolCallsJson: FieldRef<"OnboardingMessage", 'String'>
+    readonly seq: FieldRef<"OnboardingMessage", 'Int'>
+    readonly createdAt: FieldRef<"OnboardingMessage", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * OnboardingMessage findUnique
+   */
+  export type OnboardingMessageFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the OnboardingMessage
+     */
+    select?: OnboardingMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the OnboardingMessage
+     */
+    omit?: OnboardingMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: OnboardingMessageInclude<ExtArgs> | null
+    /**
+     * Filter, which OnboardingMessage to fetch.
+     */
+    where: OnboardingMessageWhereUniqueInput
+  }
+
+  /**
+   * OnboardingMessage findUniqueOrThrow
+   */
+  export type OnboardingMessageFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the OnboardingMessage
+     */
+    select?: OnboardingMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the OnboardingMessage
+     */
+    omit?: OnboardingMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: OnboardingMessageInclude<ExtArgs> | null
+    /**
+     * Filter, which OnboardingMessage to fetch.
+     */
+    where: OnboardingMessageWhereUniqueInput
+  }
+
+  /**
+   * OnboardingMessage findFirst
+   */
+  export type OnboardingMessageFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the OnboardingMessage
+     */
+    select?: OnboardingMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the OnboardingMessage
+     */
+    omit?: OnboardingMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: OnboardingMessageInclude<ExtArgs> | null
+    /**
+     * Filter, which OnboardingMessage to fetch.
+     */
+    where?: OnboardingMessageWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of OnboardingMessages to fetch.
+     */
+    orderBy?: OnboardingMessageOrderByWithRelationInput | OnboardingMessageOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for OnboardingMessages.
+     */
+    cursor?: OnboardingMessageWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` OnboardingMessages from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` OnboardingMessages.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of OnboardingMessages.
+     */
+    distinct?: OnboardingMessageScalarFieldEnum | OnboardingMessageScalarFieldEnum[]
+  }
+
+  /**
+   * OnboardingMessage findFirstOrThrow
+   */
+  export type OnboardingMessageFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the OnboardingMessage
+     */
+    select?: OnboardingMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the OnboardingMessage
+     */
+    omit?: OnboardingMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: OnboardingMessageInclude<ExtArgs> | null
+    /**
+     * Filter, which OnboardingMessage to fetch.
+     */
+    where?: OnboardingMessageWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of OnboardingMessages to fetch.
+     */
+    orderBy?: OnboardingMessageOrderByWithRelationInput | OnboardingMessageOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for OnboardingMessages.
+     */
+    cursor?: OnboardingMessageWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` OnboardingMessages from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` OnboardingMessages.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of OnboardingMessages.
+     */
+    distinct?: OnboardingMessageScalarFieldEnum | OnboardingMessageScalarFieldEnum[]
+  }
+
+  /**
+   * OnboardingMessage findMany
+   */
+  export type OnboardingMessageFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the OnboardingMessage
+     */
+    select?: OnboardingMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the OnboardingMessage
+     */
+    omit?: OnboardingMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: OnboardingMessageInclude<ExtArgs> | null
+    /**
+     * Filter, which OnboardingMessages to fetch.
+     */
+    where?: OnboardingMessageWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of OnboardingMessages to fetch.
+     */
+    orderBy?: OnboardingMessageOrderByWithRelationInput | OnboardingMessageOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing OnboardingMessages.
+     */
+    cursor?: OnboardingMessageWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` OnboardingMessages from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` OnboardingMessages.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of OnboardingMessages.
+     */
+    distinct?: OnboardingMessageScalarFieldEnum | OnboardingMessageScalarFieldEnum[]
+  }
+
+  /**
+   * OnboardingMessage create
+   */
+  export type OnboardingMessageCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the OnboardingMessage
+     */
+    select?: OnboardingMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the OnboardingMessage
+     */
+    omit?: OnboardingMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: OnboardingMessageInclude<ExtArgs> | null
+    /**
+     * The data needed to create a OnboardingMessage.
+     */
+    data: XOR<OnboardingMessageCreateInput, OnboardingMessageUncheckedCreateInput>
+  }
+
+  /**
+   * OnboardingMessage createMany
+   */
+  export type OnboardingMessageCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many OnboardingMessages.
+     */
+    data: OnboardingMessageCreateManyInput | OnboardingMessageCreateManyInput[]
+  }
+
+  /**
+   * OnboardingMessage createManyAndReturn
+   */
+  export type OnboardingMessageCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the OnboardingMessage
+     */
+    select?: OnboardingMessageSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the OnboardingMessage
+     */
+    omit?: OnboardingMessageOmit<ExtArgs> | null
+    /**
+     * The data used to create many OnboardingMessages.
+     */
+    data: OnboardingMessageCreateManyInput | OnboardingMessageCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: OnboardingMessageIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * OnboardingMessage update
+   */
+  export type OnboardingMessageUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the OnboardingMessage
+     */
+    select?: OnboardingMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the OnboardingMessage
+     */
+    omit?: OnboardingMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: OnboardingMessageInclude<ExtArgs> | null
+    /**
+     * The data needed to update a OnboardingMessage.
+     */
+    data: XOR<OnboardingMessageUpdateInput, OnboardingMessageUncheckedUpdateInput>
+    /**
+     * Choose, which OnboardingMessage to update.
+     */
+    where: OnboardingMessageWhereUniqueInput
+  }
+
+  /**
+   * OnboardingMessage updateMany
+   */
+  export type OnboardingMessageUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update OnboardingMessages.
+     */
+    data: XOR<OnboardingMessageUpdateManyMutationInput, OnboardingMessageUncheckedUpdateManyInput>
+    /**
+     * Filter which OnboardingMessages to update
+     */
+    where?: OnboardingMessageWhereInput
+    /**
+     * Limit how many OnboardingMessages to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * OnboardingMessage updateManyAndReturn
+   */
+  export type OnboardingMessageUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the OnboardingMessage
+     */
+    select?: OnboardingMessageSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the OnboardingMessage
+     */
+    omit?: OnboardingMessageOmit<ExtArgs> | null
+    /**
+     * The data used to update OnboardingMessages.
+     */
+    data: XOR<OnboardingMessageUpdateManyMutationInput, OnboardingMessageUncheckedUpdateManyInput>
+    /**
+     * Filter which OnboardingMessages to update
+     */
+    where?: OnboardingMessageWhereInput
+    /**
+     * Limit how many OnboardingMessages to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: OnboardingMessageIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * OnboardingMessage upsert
+   */
+  export type OnboardingMessageUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the OnboardingMessage
+     */
+    select?: OnboardingMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the OnboardingMessage
+     */
+    omit?: OnboardingMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: OnboardingMessageInclude<ExtArgs> | null
+    /**
+     * The filter to search for the OnboardingMessage to update in case it exists.
+     */
+    where: OnboardingMessageWhereUniqueInput
+    /**
+     * In case the OnboardingMessage found by the `where` argument doesn't exist, create a new OnboardingMessage with this data.
+     */
+    create: XOR<OnboardingMessageCreateInput, OnboardingMessageUncheckedCreateInput>
+    /**
+     * In case the OnboardingMessage was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<OnboardingMessageUpdateInput, OnboardingMessageUncheckedUpdateInput>
+  }
+
+  /**
+   * OnboardingMessage delete
+   */
+  export type OnboardingMessageDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the OnboardingMessage
+     */
+    select?: OnboardingMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the OnboardingMessage
+     */
+    omit?: OnboardingMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: OnboardingMessageInclude<ExtArgs> | null
+    /**
+     * Filter which OnboardingMessage to delete.
+     */
+    where: OnboardingMessageWhereUniqueInput
+  }
+
+  /**
+   * OnboardingMessage deleteMany
+   */
+  export type OnboardingMessageDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which OnboardingMessages to delete
+     */
+    where?: OnboardingMessageWhereInput
+    /**
+     * Limit how many OnboardingMessages to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * OnboardingMessage without action
+   */
+  export type OnboardingMessageDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the OnboardingMessage
+     */
+    select?: OnboardingMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the OnboardingMessage
+     */
+    omit?: OnboardingMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: OnboardingMessageInclude<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -16536,6 +28262,150 @@ export namespace Prisma {
   export type PayPeriodScalarFieldEnum = (typeof PayPeriodScalarFieldEnum)[keyof typeof PayPeriodScalarFieldEnum]
 
 
+  export const FinancialIdentityScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    ageRange: 'ageRange',
+    employmentStatus: 'employmentStatus',
+    location: 'location',
+    timeHorizonYears: 'timeHorizonYears',
+    riskTolerance: 'riskTolerance',
+    riskNotes: 'riskNotes',
+    aiTierPref: 'aiTierPref',
+    riskComfort: 'riskComfort',
+    currency: 'currency',
+    auditIdentity: 'auditIdentity',
+    auditFindings: 'auditFindings',
+    auditPlan: 'auditPlan',
+    auditFirstStep: 'auditFirstStep',
+    auditTeaching: 'auditTeaching',
+    auditBuiltAt: 'auditBuiltAt',
+    completedAt: 'completedAt',
+    lastProvider: 'lastProvider',
+    lastFellBack: 'lastFellBack',
+    lastErrorMessage: 'lastErrorMessage',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type FinancialIdentityScalarFieldEnum = (typeof FinancialIdentityScalarFieldEnum)[keyof typeof FinancialIdentityScalarFieldEnum]
+
+
+  export const IdentityIncomeScalarFieldEnum: {
+    id: 'id',
+    identityId: 'identityId',
+    label: 'label',
+    cadence: 'cadence',
+    amountDollars: 'amountDollars',
+    isPrimary: 'isPrimary',
+    sortOrder: 'sortOrder',
+    createdAt: 'createdAt'
+  };
+
+  export type IdentityIncomeScalarFieldEnum = (typeof IdentityIncomeScalarFieldEnum)[keyof typeof IdentityIncomeScalarFieldEnum]
+
+
+  export const IdentityExpenseScalarFieldEnum: {
+    id: 'id',
+    identityId: 'identityId',
+    label: 'label',
+    amountDollars: 'amountDollars',
+    cadence: 'cadence',
+    category: 'category',
+    sortOrder: 'sortOrder',
+    createdAt: 'createdAt'
+  };
+
+  export type IdentityExpenseScalarFieldEnum = (typeof IdentityExpenseScalarFieldEnum)[keyof typeof IdentityExpenseScalarFieldEnum]
+
+
+  export const IdentityDebtScalarFieldEnum: {
+    id: 'id',
+    identityId: 'identityId',
+    label: 'label',
+    kind: 'kind',
+    balanceDollars: 'balanceDollars',
+    aprPercent: 'aprPercent',
+    minPaymentDollars: 'minPaymentDollars',
+    sortOrder: 'sortOrder',
+    createdAt: 'createdAt'
+  };
+
+  export type IdentityDebtScalarFieldEnum = (typeof IdentityDebtScalarFieldEnum)[keyof typeof IdentityDebtScalarFieldEnum]
+
+
+  export const IdentityAssetScalarFieldEnum: {
+    id: 'id',
+    identityId: 'identityId',
+    label: 'label',
+    kind: 'kind',
+    balanceDollars: 'balanceDollars',
+    sortOrder: 'sortOrder',
+    createdAt: 'createdAt'
+  };
+
+  export type IdentityAssetScalarFieldEnum = (typeof IdentityAssetScalarFieldEnum)[keyof typeof IdentityAssetScalarFieldEnum]
+
+
+  export const IdentityGoalScalarFieldEnum: {
+    id: 'id',
+    identityId: 'identityId',
+    label: 'label',
+    targetDollars: 'targetDollars',
+    targetDate: 'targetDate',
+    perPaycheckDollars: 'perPaycheckDollars',
+    kind: 'kind',
+    goalType: 'goalType',
+    priority: 'priority',
+    sortOrder: 'sortOrder',
+    createdAt: 'createdAt'
+  };
+
+  export type IdentityGoalScalarFieldEnum = (typeof IdentityGoalScalarFieldEnum)[keyof typeof IdentityGoalScalarFieldEnum]
+
+
+  export const IdentityEventScalarFieldEnum: {
+    id: 'id',
+    identityId: 'identityId',
+    label: 'label',
+    date: 'date',
+    estimatedCostDollars: 'estimatedCostDollars',
+    isFlexible: 'isFlexible',
+    sortOrder: 'sortOrder',
+    createdAt: 'createdAt'
+  };
+
+  export type IdentityEventScalarFieldEnum = (typeof IdentityEventScalarFieldEnum)[keyof typeof IdentityEventScalarFieldEnum]
+
+
+  export const IdentityHouseholdMemberScalarFieldEnum: {
+    id: 'id',
+    identityId: 'identityId',
+    name: 'name',
+    relationship: 'relationship',
+    financiallyEntwined: 'financiallyEntwined',
+    ageRange: 'ageRange',
+    sortOrder: 'sortOrder',
+    createdAt: 'createdAt'
+  };
+
+  export type IdentityHouseholdMemberScalarFieldEnum = (typeof IdentityHouseholdMemberScalarFieldEnum)[keyof typeof IdentityHouseholdMemberScalarFieldEnum]
+
+
+  export const OnboardingMessageScalarFieldEnum: {
+    id: 'id',
+    identityId: 'identityId',
+    role: 'role',
+    content: 'content',
+    toolCallId: 'toolCallId',
+    toolCallsJson: 'toolCallsJson',
+    seq: 'seq',
+    createdAt: 'createdAt'
+  };
+
+  export type OnboardingMessageScalarFieldEnum = (typeof OnboardingMessageScalarFieldEnum)[keyof typeof OnboardingMessageScalarFieldEnum]
+
+
   export const SortOrder: {
     asc: 'asc',
     desc: 'desc'
@@ -16631,6 +28501,7 @@ export namespace Prisma {
     goals?: GoalListRelationFilter
     allocationPlans?: AllocationPlanListRelationFilter
     auditLog?: AuditLogListRelationFilter
+    identity?: XOR<FinancialIdentityNullableScalarRelationFilter, FinancialIdentityWhereInput> | null
   }
 
   export type UserOrderByWithRelationInput = {
@@ -16652,6 +28523,7 @@ export namespace Prisma {
     goals?: GoalOrderByRelationAggregateInput
     allocationPlans?: AllocationPlanOrderByRelationAggregateInput
     auditLog?: AuditLogOrderByRelationAggregateInput
+    identity?: FinancialIdentityOrderByWithRelationInput
   }
 
   export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -16676,6 +28548,7 @@ export namespace Prisma {
     goals?: GoalListRelationFilter
     allocationPlans?: AllocationPlanListRelationFilter
     auditLog?: AuditLogListRelationFilter
+    identity?: XOR<FinancialIdentityNullableScalarRelationFilter, FinancialIdentityWhereInput> | null
   }, "id" | "email">
 
   export type UserOrderByWithAggregationInput = {
@@ -17597,6 +29470,768 @@ export namespace Prisma {
     updatedAt?: DateTimeWithAggregatesFilter<"PayPeriod"> | Date | string
   }
 
+  export type FinancialIdentityWhereInput = {
+    AND?: FinancialIdentityWhereInput | FinancialIdentityWhereInput[]
+    OR?: FinancialIdentityWhereInput[]
+    NOT?: FinancialIdentityWhereInput | FinancialIdentityWhereInput[]
+    id?: StringFilter<"FinancialIdentity"> | string
+    userId?: StringFilter<"FinancialIdentity"> | string
+    ageRange?: StringNullableFilter<"FinancialIdentity"> | string | null
+    employmentStatus?: StringNullableFilter<"FinancialIdentity"> | string | null
+    location?: StringNullableFilter<"FinancialIdentity"> | string | null
+    timeHorizonYears?: IntNullableFilter<"FinancialIdentity"> | number | null
+    riskTolerance?: StringNullableFilter<"FinancialIdentity"> | string | null
+    riskNotes?: StringNullableFilter<"FinancialIdentity"> | string | null
+    aiTierPref?: StringNullableFilter<"FinancialIdentity"> | string | null
+    riskComfort?: StringNullableFilter<"FinancialIdentity"> | string | null
+    currency?: StringFilter<"FinancialIdentity"> | string
+    auditIdentity?: StringNullableFilter<"FinancialIdentity"> | string | null
+    auditFindings?: StringNullableFilter<"FinancialIdentity"> | string | null
+    auditPlan?: StringNullableFilter<"FinancialIdentity"> | string | null
+    auditFirstStep?: StringNullableFilter<"FinancialIdentity"> | string | null
+    auditTeaching?: StringNullableFilter<"FinancialIdentity"> | string | null
+    auditBuiltAt?: DateTimeNullableFilter<"FinancialIdentity"> | Date | string | null
+    completedAt?: DateTimeNullableFilter<"FinancialIdentity"> | Date | string | null
+    lastProvider?: StringNullableFilter<"FinancialIdentity"> | string | null
+    lastFellBack?: BoolFilter<"FinancialIdentity"> | boolean
+    lastErrorMessage?: StringNullableFilter<"FinancialIdentity"> | string | null
+    createdAt?: DateTimeFilter<"FinancialIdentity"> | Date | string
+    updatedAt?: DateTimeFilter<"FinancialIdentity"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    incomes?: IdentityIncomeListRelationFilter
+    expenses?: IdentityExpenseListRelationFilter
+    debts?: IdentityDebtListRelationFilter
+    assets?: IdentityAssetListRelationFilter
+    goals?: IdentityGoalListRelationFilter
+    events?: IdentityEventListRelationFilter
+    household?: IdentityHouseholdMemberListRelationFilter
+    messages?: OnboardingMessageListRelationFilter
+  }
+
+  export type FinancialIdentityOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    ageRange?: SortOrderInput | SortOrder
+    employmentStatus?: SortOrderInput | SortOrder
+    location?: SortOrderInput | SortOrder
+    timeHorizonYears?: SortOrderInput | SortOrder
+    riskTolerance?: SortOrderInput | SortOrder
+    riskNotes?: SortOrderInput | SortOrder
+    aiTierPref?: SortOrderInput | SortOrder
+    riskComfort?: SortOrderInput | SortOrder
+    currency?: SortOrder
+    auditIdentity?: SortOrderInput | SortOrder
+    auditFindings?: SortOrderInput | SortOrder
+    auditPlan?: SortOrderInput | SortOrder
+    auditFirstStep?: SortOrderInput | SortOrder
+    auditTeaching?: SortOrderInput | SortOrder
+    auditBuiltAt?: SortOrderInput | SortOrder
+    completedAt?: SortOrderInput | SortOrder
+    lastProvider?: SortOrderInput | SortOrder
+    lastFellBack?: SortOrder
+    lastErrorMessage?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    user?: UserOrderByWithRelationInput
+    incomes?: IdentityIncomeOrderByRelationAggregateInput
+    expenses?: IdentityExpenseOrderByRelationAggregateInput
+    debts?: IdentityDebtOrderByRelationAggregateInput
+    assets?: IdentityAssetOrderByRelationAggregateInput
+    goals?: IdentityGoalOrderByRelationAggregateInput
+    events?: IdentityEventOrderByRelationAggregateInput
+    household?: IdentityHouseholdMemberOrderByRelationAggregateInput
+    messages?: OnboardingMessageOrderByRelationAggregateInput
+  }
+
+  export type FinancialIdentityWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    userId?: string
+    AND?: FinancialIdentityWhereInput | FinancialIdentityWhereInput[]
+    OR?: FinancialIdentityWhereInput[]
+    NOT?: FinancialIdentityWhereInput | FinancialIdentityWhereInput[]
+    ageRange?: StringNullableFilter<"FinancialIdentity"> | string | null
+    employmentStatus?: StringNullableFilter<"FinancialIdentity"> | string | null
+    location?: StringNullableFilter<"FinancialIdentity"> | string | null
+    timeHorizonYears?: IntNullableFilter<"FinancialIdentity"> | number | null
+    riskTolerance?: StringNullableFilter<"FinancialIdentity"> | string | null
+    riskNotes?: StringNullableFilter<"FinancialIdentity"> | string | null
+    aiTierPref?: StringNullableFilter<"FinancialIdentity"> | string | null
+    riskComfort?: StringNullableFilter<"FinancialIdentity"> | string | null
+    currency?: StringFilter<"FinancialIdentity"> | string
+    auditIdentity?: StringNullableFilter<"FinancialIdentity"> | string | null
+    auditFindings?: StringNullableFilter<"FinancialIdentity"> | string | null
+    auditPlan?: StringNullableFilter<"FinancialIdentity"> | string | null
+    auditFirstStep?: StringNullableFilter<"FinancialIdentity"> | string | null
+    auditTeaching?: StringNullableFilter<"FinancialIdentity"> | string | null
+    auditBuiltAt?: DateTimeNullableFilter<"FinancialIdentity"> | Date | string | null
+    completedAt?: DateTimeNullableFilter<"FinancialIdentity"> | Date | string | null
+    lastProvider?: StringNullableFilter<"FinancialIdentity"> | string | null
+    lastFellBack?: BoolFilter<"FinancialIdentity"> | boolean
+    lastErrorMessage?: StringNullableFilter<"FinancialIdentity"> | string | null
+    createdAt?: DateTimeFilter<"FinancialIdentity"> | Date | string
+    updatedAt?: DateTimeFilter<"FinancialIdentity"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    incomes?: IdentityIncomeListRelationFilter
+    expenses?: IdentityExpenseListRelationFilter
+    debts?: IdentityDebtListRelationFilter
+    assets?: IdentityAssetListRelationFilter
+    goals?: IdentityGoalListRelationFilter
+    events?: IdentityEventListRelationFilter
+    household?: IdentityHouseholdMemberListRelationFilter
+    messages?: OnboardingMessageListRelationFilter
+  }, "id" | "userId">
+
+  export type FinancialIdentityOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    ageRange?: SortOrderInput | SortOrder
+    employmentStatus?: SortOrderInput | SortOrder
+    location?: SortOrderInput | SortOrder
+    timeHorizonYears?: SortOrderInput | SortOrder
+    riskTolerance?: SortOrderInput | SortOrder
+    riskNotes?: SortOrderInput | SortOrder
+    aiTierPref?: SortOrderInput | SortOrder
+    riskComfort?: SortOrderInput | SortOrder
+    currency?: SortOrder
+    auditIdentity?: SortOrderInput | SortOrder
+    auditFindings?: SortOrderInput | SortOrder
+    auditPlan?: SortOrderInput | SortOrder
+    auditFirstStep?: SortOrderInput | SortOrder
+    auditTeaching?: SortOrderInput | SortOrder
+    auditBuiltAt?: SortOrderInput | SortOrder
+    completedAt?: SortOrderInput | SortOrder
+    lastProvider?: SortOrderInput | SortOrder
+    lastFellBack?: SortOrder
+    lastErrorMessage?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: FinancialIdentityCountOrderByAggregateInput
+    _avg?: FinancialIdentityAvgOrderByAggregateInput
+    _max?: FinancialIdentityMaxOrderByAggregateInput
+    _min?: FinancialIdentityMinOrderByAggregateInput
+    _sum?: FinancialIdentitySumOrderByAggregateInput
+  }
+
+  export type FinancialIdentityScalarWhereWithAggregatesInput = {
+    AND?: FinancialIdentityScalarWhereWithAggregatesInput | FinancialIdentityScalarWhereWithAggregatesInput[]
+    OR?: FinancialIdentityScalarWhereWithAggregatesInput[]
+    NOT?: FinancialIdentityScalarWhereWithAggregatesInput | FinancialIdentityScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"FinancialIdentity"> | string
+    userId?: StringWithAggregatesFilter<"FinancialIdentity"> | string
+    ageRange?: StringNullableWithAggregatesFilter<"FinancialIdentity"> | string | null
+    employmentStatus?: StringNullableWithAggregatesFilter<"FinancialIdentity"> | string | null
+    location?: StringNullableWithAggregatesFilter<"FinancialIdentity"> | string | null
+    timeHorizonYears?: IntNullableWithAggregatesFilter<"FinancialIdentity"> | number | null
+    riskTolerance?: StringNullableWithAggregatesFilter<"FinancialIdentity"> | string | null
+    riskNotes?: StringNullableWithAggregatesFilter<"FinancialIdentity"> | string | null
+    aiTierPref?: StringNullableWithAggregatesFilter<"FinancialIdentity"> | string | null
+    riskComfort?: StringNullableWithAggregatesFilter<"FinancialIdentity"> | string | null
+    currency?: StringWithAggregatesFilter<"FinancialIdentity"> | string
+    auditIdentity?: StringNullableWithAggregatesFilter<"FinancialIdentity"> | string | null
+    auditFindings?: StringNullableWithAggregatesFilter<"FinancialIdentity"> | string | null
+    auditPlan?: StringNullableWithAggregatesFilter<"FinancialIdentity"> | string | null
+    auditFirstStep?: StringNullableWithAggregatesFilter<"FinancialIdentity"> | string | null
+    auditTeaching?: StringNullableWithAggregatesFilter<"FinancialIdentity"> | string | null
+    auditBuiltAt?: DateTimeNullableWithAggregatesFilter<"FinancialIdentity"> | Date | string | null
+    completedAt?: DateTimeNullableWithAggregatesFilter<"FinancialIdentity"> | Date | string | null
+    lastProvider?: StringNullableWithAggregatesFilter<"FinancialIdentity"> | string | null
+    lastFellBack?: BoolWithAggregatesFilter<"FinancialIdentity"> | boolean
+    lastErrorMessage?: StringNullableWithAggregatesFilter<"FinancialIdentity"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"FinancialIdentity"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"FinancialIdentity"> | Date | string
+  }
+
+  export type IdentityIncomeWhereInput = {
+    AND?: IdentityIncomeWhereInput | IdentityIncomeWhereInput[]
+    OR?: IdentityIncomeWhereInput[]
+    NOT?: IdentityIncomeWhereInput | IdentityIncomeWhereInput[]
+    id?: StringFilter<"IdentityIncome"> | string
+    identityId?: StringFilter<"IdentityIncome"> | string
+    label?: StringFilter<"IdentityIncome"> | string
+    cadence?: StringNullableFilter<"IdentityIncome"> | string | null
+    amountDollars?: IntNullableFilter<"IdentityIncome"> | number | null
+    isPrimary?: BoolFilter<"IdentityIncome"> | boolean
+    sortOrder?: IntFilter<"IdentityIncome"> | number
+    createdAt?: DateTimeFilter<"IdentityIncome"> | Date | string
+    identity?: XOR<FinancialIdentityScalarRelationFilter, FinancialIdentityWhereInput>
+  }
+
+  export type IdentityIncomeOrderByWithRelationInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    cadence?: SortOrderInput | SortOrder
+    amountDollars?: SortOrderInput | SortOrder
+    isPrimary?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+    identity?: FinancialIdentityOrderByWithRelationInput
+  }
+
+  export type IdentityIncomeWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: IdentityIncomeWhereInput | IdentityIncomeWhereInput[]
+    OR?: IdentityIncomeWhereInput[]
+    NOT?: IdentityIncomeWhereInput | IdentityIncomeWhereInput[]
+    identityId?: StringFilter<"IdentityIncome"> | string
+    label?: StringFilter<"IdentityIncome"> | string
+    cadence?: StringNullableFilter<"IdentityIncome"> | string | null
+    amountDollars?: IntNullableFilter<"IdentityIncome"> | number | null
+    isPrimary?: BoolFilter<"IdentityIncome"> | boolean
+    sortOrder?: IntFilter<"IdentityIncome"> | number
+    createdAt?: DateTimeFilter<"IdentityIncome"> | Date | string
+    identity?: XOR<FinancialIdentityScalarRelationFilter, FinancialIdentityWhereInput>
+  }, "id">
+
+  export type IdentityIncomeOrderByWithAggregationInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    cadence?: SortOrderInput | SortOrder
+    amountDollars?: SortOrderInput | SortOrder
+    isPrimary?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+    _count?: IdentityIncomeCountOrderByAggregateInput
+    _avg?: IdentityIncomeAvgOrderByAggregateInput
+    _max?: IdentityIncomeMaxOrderByAggregateInput
+    _min?: IdentityIncomeMinOrderByAggregateInput
+    _sum?: IdentityIncomeSumOrderByAggregateInput
+  }
+
+  export type IdentityIncomeScalarWhereWithAggregatesInput = {
+    AND?: IdentityIncomeScalarWhereWithAggregatesInput | IdentityIncomeScalarWhereWithAggregatesInput[]
+    OR?: IdentityIncomeScalarWhereWithAggregatesInput[]
+    NOT?: IdentityIncomeScalarWhereWithAggregatesInput | IdentityIncomeScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"IdentityIncome"> | string
+    identityId?: StringWithAggregatesFilter<"IdentityIncome"> | string
+    label?: StringWithAggregatesFilter<"IdentityIncome"> | string
+    cadence?: StringNullableWithAggregatesFilter<"IdentityIncome"> | string | null
+    amountDollars?: IntNullableWithAggregatesFilter<"IdentityIncome"> | number | null
+    isPrimary?: BoolWithAggregatesFilter<"IdentityIncome"> | boolean
+    sortOrder?: IntWithAggregatesFilter<"IdentityIncome"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"IdentityIncome"> | Date | string
+  }
+
+  export type IdentityExpenseWhereInput = {
+    AND?: IdentityExpenseWhereInput | IdentityExpenseWhereInput[]
+    OR?: IdentityExpenseWhereInput[]
+    NOT?: IdentityExpenseWhereInput | IdentityExpenseWhereInput[]
+    id?: StringFilter<"IdentityExpense"> | string
+    identityId?: StringFilter<"IdentityExpense"> | string
+    label?: StringFilter<"IdentityExpense"> | string
+    amountDollars?: IntFilter<"IdentityExpense"> | number
+    cadence?: StringFilter<"IdentityExpense"> | string
+    category?: StringFilter<"IdentityExpense"> | string
+    sortOrder?: IntFilter<"IdentityExpense"> | number
+    createdAt?: DateTimeFilter<"IdentityExpense"> | Date | string
+    identity?: XOR<FinancialIdentityScalarRelationFilter, FinancialIdentityWhereInput>
+  }
+
+  export type IdentityExpenseOrderByWithRelationInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    amountDollars?: SortOrder
+    cadence?: SortOrder
+    category?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+    identity?: FinancialIdentityOrderByWithRelationInput
+  }
+
+  export type IdentityExpenseWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: IdentityExpenseWhereInput | IdentityExpenseWhereInput[]
+    OR?: IdentityExpenseWhereInput[]
+    NOT?: IdentityExpenseWhereInput | IdentityExpenseWhereInput[]
+    identityId?: StringFilter<"IdentityExpense"> | string
+    label?: StringFilter<"IdentityExpense"> | string
+    amountDollars?: IntFilter<"IdentityExpense"> | number
+    cadence?: StringFilter<"IdentityExpense"> | string
+    category?: StringFilter<"IdentityExpense"> | string
+    sortOrder?: IntFilter<"IdentityExpense"> | number
+    createdAt?: DateTimeFilter<"IdentityExpense"> | Date | string
+    identity?: XOR<FinancialIdentityScalarRelationFilter, FinancialIdentityWhereInput>
+  }, "id">
+
+  export type IdentityExpenseOrderByWithAggregationInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    amountDollars?: SortOrder
+    cadence?: SortOrder
+    category?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+    _count?: IdentityExpenseCountOrderByAggregateInput
+    _avg?: IdentityExpenseAvgOrderByAggregateInput
+    _max?: IdentityExpenseMaxOrderByAggregateInput
+    _min?: IdentityExpenseMinOrderByAggregateInput
+    _sum?: IdentityExpenseSumOrderByAggregateInput
+  }
+
+  export type IdentityExpenseScalarWhereWithAggregatesInput = {
+    AND?: IdentityExpenseScalarWhereWithAggregatesInput | IdentityExpenseScalarWhereWithAggregatesInput[]
+    OR?: IdentityExpenseScalarWhereWithAggregatesInput[]
+    NOT?: IdentityExpenseScalarWhereWithAggregatesInput | IdentityExpenseScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"IdentityExpense"> | string
+    identityId?: StringWithAggregatesFilter<"IdentityExpense"> | string
+    label?: StringWithAggregatesFilter<"IdentityExpense"> | string
+    amountDollars?: IntWithAggregatesFilter<"IdentityExpense"> | number
+    cadence?: StringWithAggregatesFilter<"IdentityExpense"> | string
+    category?: StringWithAggregatesFilter<"IdentityExpense"> | string
+    sortOrder?: IntWithAggregatesFilter<"IdentityExpense"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"IdentityExpense"> | Date | string
+  }
+
+  export type IdentityDebtWhereInput = {
+    AND?: IdentityDebtWhereInput | IdentityDebtWhereInput[]
+    OR?: IdentityDebtWhereInput[]
+    NOT?: IdentityDebtWhereInput | IdentityDebtWhereInput[]
+    id?: StringFilter<"IdentityDebt"> | string
+    identityId?: StringFilter<"IdentityDebt"> | string
+    label?: StringFilter<"IdentityDebt"> | string
+    kind?: StringFilter<"IdentityDebt"> | string
+    balanceDollars?: IntFilter<"IdentityDebt"> | number
+    aprPercent?: FloatFilter<"IdentityDebt"> | number
+    minPaymentDollars?: IntFilter<"IdentityDebt"> | number
+    sortOrder?: IntFilter<"IdentityDebt"> | number
+    createdAt?: DateTimeFilter<"IdentityDebt"> | Date | string
+    identity?: XOR<FinancialIdentityScalarRelationFilter, FinancialIdentityWhereInput>
+  }
+
+  export type IdentityDebtOrderByWithRelationInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    kind?: SortOrder
+    balanceDollars?: SortOrder
+    aprPercent?: SortOrder
+    minPaymentDollars?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+    identity?: FinancialIdentityOrderByWithRelationInput
+  }
+
+  export type IdentityDebtWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: IdentityDebtWhereInput | IdentityDebtWhereInput[]
+    OR?: IdentityDebtWhereInput[]
+    NOT?: IdentityDebtWhereInput | IdentityDebtWhereInput[]
+    identityId?: StringFilter<"IdentityDebt"> | string
+    label?: StringFilter<"IdentityDebt"> | string
+    kind?: StringFilter<"IdentityDebt"> | string
+    balanceDollars?: IntFilter<"IdentityDebt"> | number
+    aprPercent?: FloatFilter<"IdentityDebt"> | number
+    minPaymentDollars?: IntFilter<"IdentityDebt"> | number
+    sortOrder?: IntFilter<"IdentityDebt"> | number
+    createdAt?: DateTimeFilter<"IdentityDebt"> | Date | string
+    identity?: XOR<FinancialIdentityScalarRelationFilter, FinancialIdentityWhereInput>
+  }, "id">
+
+  export type IdentityDebtOrderByWithAggregationInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    kind?: SortOrder
+    balanceDollars?: SortOrder
+    aprPercent?: SortOrder
+    minPaymentDollars?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+    _count?: IdentityDebtCountOrderByAggregateInput
+    _avg?: IdentityDebtAvgOrderByAggregateInput
+    _max?: IdentityDebtMaxOrderByAggregateInput
+    _min?: IdentityDebtMinOrderByAggregateInput
+    _sum?: IdentityDebtSumOrderByAggregateInput
+  }
+
+  export type IdentityDebtScalarWhereWithAggregatesInput = {
+    AND?: IdentityDebtScalarWhereWithAggregatesInput | IdentityDebtScalarWhereWithAggregatesInput[]
+    OR?: IdentityDebtScalarWhereWithAggregatesInput[]
+    NOT?: IdentityDebtScalarWhereWithAggregatesInput | IdentityDebtScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"IdentityDebt"> | string
+    identityId?: StringWithAggregatesFilter<"IdentityDebt"> | string
+    label?: StringWithAggregatesFilter<"IdentityDebt"> | string
+    kind?: StringWithAggregatesFilter<"IdentityDebt"> | string
+    balanceDollars?: IntWithAggregatesFilter<"IdentityDebt"> | number
+    aprPercent?: FloatWithAggregatesFilter<"IdentityDebt"> | number
+    minPaymentDollars?: IntWithAggregatesFilter<"IdentityDebt"> | number
+    sortOrder?: IntWithAggregatesFilter<"IdentityDebt"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"IdentityDebt"> | Date | string
+  }
+
+  export type IdentityAssetWhereInput = {
+    AND?: IdentityAssetWhereInput | IdentityAssetWhereInput[]
+    OR?: IdentityAssetWhereInput[]
+    NOT?: IdentityAssetWhereInput | IdentityAssetWhereInput[]
+    id?: StringFilter<"IdentityAsset"> | string
+    identityId?: StringFilter<"IdentityAsset"> | string
+    label?: StringFilter<"IdentityAsset"> | string
+    kind?: StringFilter<"IdentityAsset"> | string
+    balanceDollars?: IntFilter<"IdentityAsset"> | number
+    sortOrder?: IntFilter<"IdentityAsset"> | number
+    createdAt?: DateTimeFilter<"IdentityAsset"> | Date | string
+    identity?: XOR<FinancialIdentityScalarRelationFilter, FinancialIdentityWhereInput>
+  }
+
+  export type IdentityAssetOrderByWithRelationInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    kind?: SortOrder
+    balanceDollars?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+    identity?: FinancialIdentityOrderByWithRelationInput
+  }
+
+  export type IdentityAssetWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: IdentityAssetWhereInput | IdentityAssetWhereInput[]
+    OR?: IdentityAssetWhereInput[]
+    NOT?: IdentityAssetWhereInput | IdentityAssetWhereInput[]
+    identityId?: StringFilter<"IdentityAsset"> | string
+    label?: StringFilter<"IdentityAsset"> | string
+    kind?: StringFilter<"IdentityAsset"> | string
+    balanceDollars?: IntFilter<"IdentityAsset"> | number
+    sortOrder?: IntFilter<"IdentityAsset"> | number
+    createdAt?: DateTimeFilter<"IdentityAsset"> | Date | string
+    identity?: XOR<FinancialIdentityScalarRelationFilter, FinancialIdentityWhereInput>
+  }, "id">
+
+  export type IdentityAssetOrderByWithAggregationInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    kind?: SortOrder
+    balanceDollars?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+    _count?: IdentityAssetCountOrderByAggregateInput
+    _avg?: IdentityAssetAvgOrderByAggregateInput
+    _max?: IdentityAssetMaxOrderByAggregateInput
+    _min?: IdentityAssetMinOrderByAggregateInput
+    _sum?: IdentityAssetSumOrderByAggregateInput
+  }
+
+  export type IdentityAssetScalarWhereWithAggregatesInput = {
+    AND?: IdentityAssetScalarWhereWithAggregatesInput | IdentityAssetScalarWhereWithAggregatesInput[]
+    OR?: IdentityAssetScalarWhereWithAggregatesInput[]
+    NOT?: IdentityAssetScalarWhereWithAggregatesInput | IdentityAssetScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"IdentityAsset"> | string
+    identityId?: StringWithAggregatesFilter<"IdentityAsset"> | string
+    label?: StringWithAggregatesFilter<"IdentityAsset"> | string
+    kind?: StringWithAggregatesFilter<"IdentityAsset"> | string
+    balanceDollars?: IntWithAggregatesFilter<"IdentityAsset"> | number
+    sortOrder?: IntWithAggregatesFilter<"IdentityAsset"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"IdentityAsset"> | Date | string
+  }
+
+  export type IdentityGoalWhereInput = {
+    AND?: IdentityGoalWhereInput | IdentityGoalWhereInput[]
+    OR?: IdentityGoalWhereInput[]
+    NOT?: IdentityGoalWhereInput | IdentityGoalWhereInput[]
+    id?: StringFilter<"IdentityGoal"> | string
+    identityId?: StringFilter<"IdentityGoal"> | string
+    label?: StringFilter<"IdentityGoal"> | string
+    targetDollars?: IntFilter<"IdentityGoal"> | number
+    targetDate?: DateTimeNullableFilter<"IdentityGoal"> | Date | string | null
+    perPaycheckDollars?: IntNullableFilter<"IdentityGoal"> | number | null
+    kind?: StringFilter<"IdentityGoal"> | string
+    goalType?: StringNullableFilter<"IdentityGoal"> | string | null
+    priority?: IntFilter<"IdentityGoal"> | number
+    sortOrder?: IntFilter<"IdentityGoal"> | number
+    createdAt?: DateTimeFilter<"IdentityGoal"> | Date | string
+    identity?: XOR<FinancialIdentityScalarRelationFilter, FinancialIdentityWhereInput>
+  }
+
+  export type IdentityGoalOrderByWithRelationInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    targetDollars?: SortOrder
+    targetDate?: SortOrderInput | SortOrder
+    perPaycheckDollars?: SortOrderInput | SortOrder
+    kind?: SortOrder
+    goalType?: SortOrderInput | SortOrder
+    priority?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+    identity?: FinancialIdentityOrderByWithRelationInput
+  }
+
+  export type IdentityGoalWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: IdentityGoalWhereInput | IdentityGoalWhereInput[]
+    OR?: IdentityGoalWhereInput[]
+    NOT?: IdentityGoalWhereInput | IdentityGoalWhereInput[]
+    identityId?: StringFilter<"IdentityGoal"> | string
+    label?: StringFilter<"IdentityGoal"> | string
+    targetDollars?: IntFilter<"IdentityGoal"> | number
+    targetDate?: DateTimeNullableFilter<"IdentityGoal"> | Date | string | null
+    perPaycheckDollars?: IntNullableFilter<"IdentityGoal"> | number | null
+    kind?: StringFilter<"IdentityGoal"> | string
+    goalType?: StringNullableFilter<"IdentityGoal"> | string | null
+    priority?: IntFilter<"IdentityGoal"> | number
+    sortOrder?: IntFilter<"IdentityGoal"> | number
+    createdAt?: DateTimeFilter<"IdentityGoal"> | Date | string
+    identity?: XOR<FinancialIdentityScalarRelationFilter, FinancialIdentityWhereInput>
+  }, "id">
+
+  export type IdentityGoalOrderByWithAggregationInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    targetDollars?: SortOrder
+    targetDate?: SortOrderInput | SortOrder
+    perPaycheckDollars?: SortOrderInput | SortOrder
+    kind?: SortOrder
+    goalType?: SortOrderInput | SortOrder
+    priority?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+    _count?: IdentityGoalCountOrderByAggregateInput
+    _avg?: IdentityGoalAvgOrderByAggregateInput
+    _max?: IdentityGoalMaxOrderByAggregateInput
+    _min?: IdentityGoalMinOrderByAggregateInput
+    _sum?: IdentityGoalSumOrderByAggregateInput
+  }
+
+  export type IdentityGoalScalarWhereWithAggregatesInput = {
+    AND?: IdentityGoalScalarWhereWithAggregatesInput | IdentityGoalScalarWhereWithAggregatesInput[]
+    OR?: IdentityGoalScalarWhereWithAggregatesInput[]
+    NOT?: IdentityGoalScalarWhereWithAggregatesInput | IdentityGoalScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"IdentityGoal"> | string
+    identityId?: StringWithAggregatesFilter<"IdentityGoal"> | string
+    label?: StringWithAggregatesFilter<"IdentityGoal"> | string
+    targetDollars?: IntWithAggregatesFilter<"IdentityGoal"> | number
+    targetDate?: DateTimeNullableWithAggregatesFilter<"IdentityGoal"> | Date | string | null
+    perPaycheckDollars?: IntNullableWithAggregatesFilter<"IdentityGoal"> | number | null
+    kind?: StringWithAggregatesFilter<"IdentityGoal"> | string
+    goalType?: StringNullableWithAggregatesFilter<"IdentityGoal"> | string | null
+    priority?: IntWithAggregatesFilter<"IdentityGoal"> | number
+    sortOrder?: IntWithAggregatesFilter<"IdentityGoal"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"IdentityGoal"> | Date | string
+  }
+
+  export type IdentityEventWhereInput = {
+    AND?: IdentityEventWhereInput | IdentityEventWhereInput[]
+    OR?: IdentityEventWhereInput[]
+    NOT?: IdentityEventWhereInput | IdentityEventWhereInput[]
+    id?: StringFilter<"IdentityEvent"> | string
+    identityId?: StringFilter<"IdentityEvent"> | string
+    label?: StringFilter<"IdentityEvent"> | string
+    date?: DateTimeNullableFilter<"IdentityEvent"> | Date | string | null
+    estimatedCostDollars?: IntFilter<"IdentityEvent"> | number
+    isFlexible?: BoolFilter<"IdentityEvent"> | boolean
+    sortOrder?: IntFilter<"IdentityEvent"> | number
+    createdAt?: DateTimeFilter<"IdentityEvent"> | Date | string
+    identity?: XOR<FinancialIdentityScalarRelationFilter, FinancialIdentityWhereInput>
+  }
+
+  export type IdentityEventOrderByWithRelationInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    date?: SortOrderInput | SortOrder
+    estimatedCostDollars?: SortOrder
+    isFlexible?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+    identity?: FinancialIdentityOrderByWithRelationInput
+  }
+
+  export type IdentityEventWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: IdentityEventWhereInput | IdentityEventWhereInput[]
+    OR?: IdentityEventWhereInput[]
+    NOT?: IdentityEventWhereInput | IdentityEventWhereInput[]
+    identityId?: StringFilter<"IdentityEvent"> | string
+    label?: StringFilter<"IdentityEvent"> | string
+    date?: DateTimeNullableFilter<"IdentityEvent"> | Date | string | null
+    estimatedCostDollars?: IntFilter<"IdentityEvent"> | number
+    isFlexible?: BoolFilter<"IdentityEvent"> | boolean
+    sortOrder?: IntFilter<"IdentityEvent"> | number
+    createdAt?: DateTimeFilter<"IdentityEvent"> | Date | string
+    identity?: XOR<FinancialIdentityScalarRelationFilter, FinancialIdentityWhereInput>
+  }, "id">
+
+  export type IdentityEventOrderByWithAggregationInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    date?: SortOrderInput | SortOrder
+    estimatedCostDollars?: SortOrder
+    isFlexible?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+    _count?: IdentityEventCountOrderByAggregateInput
+    _avg?: IdentityEventAvgOrderByAggregateInput
+    _max?: IdentityEventMaxOrderByAggregateInput
+    _min?: IdentityEventMinOrderByAggregateInput
+    _sum?: IdentityEventSumOrderByAggregateInput
+  }
+
+  export type IdentityEventScalarWhereWithAggregatesInput = {
+    AND?: IdentityEventScalarWhereWithAggregatesInput | IdentityEventScalarWhereWithAggregatesInput[]
+    OR?: IdentityEventScalarWhereWithAggregatesInput[]
+    NOT?: IdentityEventScalarWhereWithAggregatesInput | IdentityEventScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"IdentityEvent"> | string
+    identityId?: StringWithAggregatesFilter<"IdentityEvent"> | string
+    label?: StringWithAggregatesFilter<"IdentityEvent"> | string
+    date?: DateTimeNullableWithAggregatesFilter<"IdentityEvent"> | Date | string | null
+    estimatedCostDollars?: IntWithAggregatesFilter<"IdentityEvent"> | number
+    isFlexible?: BoolWithAggregatesFilter<"IdentityEvent"> | boolean
+    sortOrder?: IntWithAggregatesFilter<"IdentityEvent"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"IdentityEvent"> | Date | string
+  }
+
+  export type IdentityHouseholdMemberWhereInput = {
+    AND?: IdentityHouseholdMemberWhereInput | IdentityHouseholdMemberWhereInput[]
+    OR?: IdentityHouseholdMemberWhereInput[]
+    NOT?: IdentityHouseholdMemberWhereInput | IdentityHouseholdMemberWhereInput[]
+    id?: StringFilter<"IdentityHouseholdMember"> | string
+    identityId?: StringFilter<"IdentityHouseholdMember"> | string
+    name?: StringFilter<"IdentityHouseholdMember"> | string
+    relationship?: StringFilter<"IdentityHouseholdMember"> | string
+    financiallyEntwined?: BoolFilter<"IdentityHouseholdMember"> | boolean
+    ageRange?: StringNullableFilter<"IdentityHouseholdMember"> | string | null
+    sortOrder?: IntFilter<"IdentityHouseholdMember"> | number
+    createdAt?: DateTimeFilter<"IdentityHouseholdMember"> | Date | string
+    identity?: XOR<FinancialIdentityScalarRelationFilter, FinancialIdentityWhereInput>
+  }
+
+  export type IdentityHouseholdMemberOrderByWithRelationInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    name?: SortOrder
+    relationship?: SortOrder
+    financiallyEntwined?: SortOrder
+    ageRange?: SortOrderInput | SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+    identity?: FinancialIdentityOrderByWithRelationInput
+  }
+
+  export type IdentityHouseholdMemberWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: IdentityHouseholdMemberWhereInput | IdentityHouseholdMemberWhereInput[]
+    OR?: IdentityHouseholdMemberWhereInput[]
+    NOT?: IdentityHouseholdMemberWhereInput | IdentityHouseholdMemberWhereInput[]
+    identityId?: StringFilter<"IdentityHouseholdMember"> | string
+    name?: StringFilter<"IdentityHouseholdMember"> | string
+    relationship?: StringFilter<"IdentityHouseholdMember"> | string
+    financiallyEntwined?: BoolFilter<"IdentityHouseholdMember"> | boolean
+    ageRange?: StringNullableFilter<"IdentityHouseholdMember"> | string | null
+    sortOrder?: IntFilter<"IdentityHouseholdMember"> | number
+    createdAt?: DateTimeFilter<"IdentityHouseholdMember"> | Date | string
+    identity?: XOR<FinancialIdentityScalarRelationFilter, FinancialIdentityWhereInput>
+  }, "id">
+
+  export type IdentityHouseholdMemberOrderByWithAggregationInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    name?: SortOrder
+    relationship?: SortOrder
+    financiallyEntwined?: SortOrder
+    ageRange?: SortOrderInput | SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+    _count?: IdentityHouseholdMemberCountOrderByAggregateInput
+    _avg?: IdentityHouseholdMemberAvgOrderByAggregateInput
+    _max?: IdentityHouseholdMemberMaxOrderByAggregateInput
+    _min?: IdentityHouseholdMemberMinOrderByAggregateInput
+    _sum?: IdentityHouseholdMemberSumOrderByAggregateInput
+  }
+
+  export type IdentityHouseholdMemberScalarWhereWithAggregatesInput = {
+    AND?: IdentityHouseholdMemberScalarWhereWithAggregatesInput | IdentityHouseholdMemberScalarWhereWithAggregatesInput[]
+    OR?: IdentityHouseholdMemberScalarWhereWithAggregatesInput[]
+    NOT?: IdentityHouseholdMemberScalarWhereWithAggregatesInput | IdentityHouseholdMemberScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"IdentityHouseholdMember"> | string
+    identityId?: StringWithAggregatesFilter<"IdentityHouseholdMember"> | string
+    name?: StringWithAggregatesFilter<"IdentityHouseholdMember"> | string
+    relationship?: StringWithAggregatesFilter<"IdentityHouseholdMember"> | string
+    financiallyEntwined?: BoolWithAggregatesFilter<"IdentityHouseholdMember"> | boolean
+    ageRange?: StringNullableWithAggregatesFilter<"IdentityHouseholdMember"> | string | null
+    sortOrder?: IntWithAggregatesFilter<"IdentityHouseholdMember"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"IdentityHouseholdMember"> | Date | string
+  }
+
+  export type OnboardingMessageWhereInput = {
+    AND?: OnboardingMessageWhereInput | OnboardingMessageWhereInput[]
+    OR?: OnboardingMessageWhereInput[]
+    NOT?: OnboardingMessageWhereInput | OnboardingMessageWhereInput[]
+    id?: StringFilter<"OnboardingMessage"> | string
+    identityId?: StringFilter<"OnboardingMessage"> | string
+    role?: StringFilter<"OnboardingMessage"> | string
+    content?: StringFilter<"OnboardingMessage"> | string
+    toolCallId?: StringNullableFilter<"OnboardingMessage"> | string | null
+    toolCallsJson?: StringNullableFilter<"OnboardingMessage"> | string | null
+    seq?: IntFilter<"OnboardingMessage"> | number
+    createdAt?: DateTimeFilter<"OnboardingMessage"> | Date | string
+    identity?: XOR<FinancialIdentityScalarRelationFilter, FinancialIdentityWhereInput>
+  }
+
+  export type OnboardingMessageOrderByWithRelationInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    role?: SortOrder
+    content?: SortOrder
+    toolCallId?: SortOrderInput | SortOrder
+    toolCallsJson?: SortOrderInput | SortOrder
+    seq?: SortOrder
+    createdAt?: SortOrder
+    identity?: FinancialIdentityOrderByWithRelationInput
+  }
+
+  export type OnboardingMessageWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: OnboardingMessageWhereInput | OnboardingMessageWhereInput[]
+    OR?: OnboardingMessageWhereInput[]
+    NOT?: OnboardingMessageWhereInput | OnboardingMessageWhereInput[]
+    identityId?: StringFilter<"OnboardingMessage"> | string
+    role?: StringFilter<"OnboardingMessage"> | string
+    content?: StringFilter<"OnboardingMessage"> | string
+    toolCallId?: StringNullableFilter<"OnboardingMessage"> | string | null
+    toolCallsJson?: StringNullableFilter<"OnboardingMessage"> | string | null
+    seq?: IntFilter<"OnboardingMessage"> | number
+    createdAt?: DateTimeFilter<"OnboardingMessage"> | Date | string
+    identity?: XOR<FinancialIdentityScalarRelationFilter, FinancialIdentityWhereInput>
+  }, "id">
+
+  export type OnboardingMessageOrderByWithAggregationInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    role?: SortOrder
+    content?: SortOrder
+    toolCallId?: SortOrderInput | SortOrder
+    toolCallsJson?: SortOrderInput | SortOrder
+    seq?: SortOrder
+    createdAt?: SortOrder
+    _count?: OnboardingMessageCountOrderByAggregateInput
+    _avg?: OnboardingMessageAvgOrderByAggregateInput
+    _max?: OnboardingMessageMaxOrderByAggregateInput
+    _min?: OnboardingMessageMinOrderByAggregateInput
+    _sum?: OnboardingMessageSumOrderByAggregateInput
+  }
+
+  export type OnboardingMessageScalarWhereWithAggregatesInput = {
+    AND?: OnboardingMessageScalarWhereWithAggregatesInput | OnboardingMessageScalarWhereWithAggregatesInput[]
+    OR?: OnboardingMessageScalarWhereWithAggregatesInput[]
+    NOT?: OnboardingMessageScalarWhereWithAggregatesInput | OnboardingMessageScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"OnboardingMessage"> | string
+    identityId?: StringWithAggregatesFilter<"OnboardingMessage"> | string
+    role?: StringWithAggregatesFilter<"OnboardingMessage"> | string
+    content?: StringWithAggregatesFilter<"OnboardingMessage"> | string
+    toolCallId?: StringNullableWithAggregatesFilter<"OnboardingMessage"> | string | null
+    toolCallsJson?: StringNullableWithAggregatesFilter<"OnboardingMessage"> | string | null
+    seq?: IntWithAggregatesFilter<"OnboardingMessage"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"OnboardingMessage"> | Date | string
+  }
+
   export type UserCreateInput = {
     id?: string
     name: string
@@ -17616,6 +30251,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateInput = {
@@ -17637,6 +30273,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserUpdateInput = {
@@ -17658,6 +30295,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateInput = {
@@ -17679,6 +30317,7 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type UserCreateManyInput = {
@@ -18686,6 +31325,848 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type FinancialIdentityCreateInput = {
+    id?: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutIdentityInput
+    incomes?: IdentityIncomeCreateNestedManyWithoutIdentityInput
+    expenses?: IdentityExpenseCreateNestedManyWithoutIdentityInput
+    debts?: IdentityDebtCreateNestedManyWithoutIdentityInput
+    assets?: IdentityAssetCreateNestedManyWithoutIdentityInput
+    goals?: IdentityGoalCreateNestedManyWithoutIdentityInput
+    events?: IdentityEventCreateNestedManyWithoutIdentityInput
+    household?: IdentityHouseholdMemberCreateNestedManyWithoutIdentityInput
+    messages?: OnboardingMessageCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityUncheckedCreateInput = {
+    id?: string
+    userId: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    incomes?: IdentityIncomeUncheckedCreateNestedManyWithoutIdentityInput
+    expenses?: IdentityExpenseUncheckedCreateNestedManyWithoutIdentityInput
+    debts?: IdentityDebtUncheckedCreateNestedManyWithoutIdentityInput
+    assets?: IdentityAssetUncheckedCreateNestedManyWithoutIdentityInput
+    goals?: IdentityGoalUncheckedCreateNestedManyWithoutIdentityInput
+    events?: IdentityEventUncheckedCreateNestedManyWithoutIdentityInput
+    household?: IdentityHouseholdMemberUncheckedCreateNestedManyWithoutIdentityInput
+    messages?: OnboardingMessageUncheckedCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutIdentityNestedInput
+    incomes?: IdentityIncomeUpdateManyWithoutIdentityNestedInput
+    expenses?: IdentityExpenseUpdateManyWithoutIdentityNestedInput
+    debts?: IdentityDebtUpdateManyWithoutIdentityNestedInput
+    assets?: IdentityAssetUpdateManyWithoutIdentityNestedInput
+    goals?: IdentityGoalUpdateManyWithoutIdentityNestedInput
+    events?: IdentityEventUpdateManyWithoutIdentityNestedInput
+    household?: IdentityHouseholdMemberUpdateManyWithoutIdentityNestedInput
+    messages?: OnboardingMessageUpdateManyWithoutIdentityNestedInput
+  }
+
+  export type FinancialIdentityUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    incomes?: IdentityIncomeUncheckedUpdateManyWithoutIdentityNestedInput
+    expenses?: IdentityExpenseUncheckedUpdateManyWithoutIdentityNestedInput
+    debts?: IdentityDebtUncheckedUpdateManyWithoutIdentityNestedInput
+    assets?: IdentityAssetUncheckedUpdateManyWithoutIdentityNestedInput
+    goals?: IdentityGoalUncheckedUpdateManyWithoutIdentityNestedInput
+    events?: IdentityEventUncheckedUpdateManyWithoutIdentityNestedInput
+    household?: IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityNestedInput
+    messages?: OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput
+  }
+
+  export type FinancialIdentityCreateManyInput = {
+    id?: string
+    userId: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type FinancialIdentityUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type FinancialIdentityUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityIncomeCreateInput = {
+    id?: string
+    label: string
+    cadence?: string | null
+    amountDollars?: number | null
+    isPrimary?: boolean
+    sortOrder?: number
+    createdAt?: Date | string
+    identity: FinancialIdentityCreateNestedOneWithoutIncomesInput
+  }
+
+  export type IdentityIncomeUncheckedCreateInput = {
+    id?: string
+    identityId: string
+    label: string
+    cadence?: string | null
+    amountDollars?: number | null
+    isPrimary?: boolean
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityIncomeUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    cadence?: NullableStringFieldUpdateOperationsInput | string | null
+    amountDollars?: NullableIntFieldUpdateOperationsInput | number | null
+    isPrimary?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    identity?: FinancialIdentityUpdateOneRequiredWithoutIncomesNestedInput
+  }
+
+  export type IdentityIncomeUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    identityId?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    cadence?: NullableStringFieldUpdateOperationsInput | string | null
+    amountDollars?: NullableIntFieldUpdateOperationsInput | number | null
+    isPrimary?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityIncomeCreateManyInput = {
+    id?: string
+    identityId: string
+    label: string
+    cadence?: string | null
+    amountDollars?: number | null
+    isPrimary?: boolean
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityIncomeUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    cadence?: NullableStringFieldUpdateOperationsInput | string | null
+    amountDollars?: NullableIntFieldUpdateOperationsInput | number | null
+    isPrimary?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityIncomeUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    identityId?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    cadence?: NullableStringFieldUpdateOperationsInput | string | null
+    amountDollars?: NullableIntFieldUpdateOperationsInput | number | null
+    isPrimary?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityExpenseCreateInput = {
+    id?: string
+    label: string
+    amountDollars: number
+    cadence: string
+    category: string
+    sortOrder?: number
+    createdAt?: Date | string
+    identity: FinancialIdentityCreateNestedOneWithoutExpensesInput
+  }
+
+  export type IdentityExpenseUncheckedCreateInput = {
+    id?: string
+    identityId: string
+    label: string
+    amountDollars: number
+    cadence: string
+    category: string
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityExpenseUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    amountDollars?: IntFieldUpdateOperationsInput | number
+    cadence?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    identity?: FinancialIdentityUpdateOneRequiredWithoutExpensesNestedInput
+  }
+
+  export type IdentityExpenseUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    identityId?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    amountDollars?: IntFieldUpdateOperationsInput | number
+    cadence?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityExpenseCreateManyInput = {
+    id?: string
+    identityId: string
+    label: string
+    amountDollars: number
+    cadence: string
+    category: string
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityExpenseUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    amountDollars?: IntFieldUpdateOperationsInput | number
+    cadence?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityExpenseUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    identityId?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    amountDollars?: IntFieldUpdateOperationsInput | number
+    cadence?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityDebtCreateInput = {
+    id?: string
+    label: string
+    kind: string
+    balanceDollars?: number
+    aprPercent?: number
+    minPaymentDollars?: number
+    sortOrder?: number
+    createdAt?: Date | string
+    identity: FinancialIdentityCreateNestedOneWithoutDebtsInput
+  }
+
+  export type IdentityDebtUncheckedCreateInput = {
+    id?: string
+    identityId: string
+    label: string
+    kind: string
+    balanceDollars?: number
+    aprPercent?: number
+    minPaymentDollars?: number
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityDebtUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    balanceDollars?: IntFieldUpdateOperationsInput | number
+    aprPercent?: FloatFieldUpdateOperationsInput | number
+    minPaymentDollars?: IntFieldUpdateOperationsInput | number
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    identity?: FinancialIdentityUpdateOneRequiredWithoutDebtsNestedInput
+  }
+
+  export type IdentityDebtUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    identityId?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    balanceDollars?: IntFieldUpdateOperationsInput | number
+    aprPercent?: FloatFieldUpdateOperationsInput | number
+    minPaymentDollars?: IntFieldUpdateOperationsInput | number
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityDebtCreateManyInput = {
+    id?: string
+    identityId: string
+    label: string
+    kind: string
+    balanceDollars?: number
+    aprPercent?: number
+    minPaymentDollars?: number
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityDebtUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    balanceDollars?: IntFieldUpdateOperationsInput | number
+    aprPercent?: FloatFieldUpdateOperationsInput | number
+    minPaymentDollars?: IntFieldUpdateOperationsInput | number
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityDebtUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    identityId?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    balanceDollars?: IntFieldUpdateOperationsInput | number
+    aprPercent?: FloatFieldUpdateOperationsInput | number
+    minPaymentDollars?: IntFieldUpdateOperationsInput | number
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityAssetCreateInput = {
+    id?: string
+    label: string
+    kind: string
+    balanceDollars?: number
+    sortOrder?: number
+    createdAt?: Date | string
+    identity: FinancialIdentityCreateNestedOneWithoutAssetsInput
+  }
+
+  export type IdentityAssetUncheckedCreateInput = {
+    id?: string
+    identityId: string
+    label: string
+    kind: string
+    balanceDollars?: number
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityAssetUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    balanceDollars?: IntFieldUpdateOperationsInput | number
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    identity?: FinancialIdentityUpdateOneRequiredWithoutAssetsNestedInput
+  }
+
+  export type IdentityAssetUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    identityId?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    balanceDollars?: IntFieldUpdateOperationsInput | number
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityAssetCreateManyInput = {
+    id?: string
+    identityId: string
+    label: string
+    kind: string
+    balanceDollars?: number
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityAssetUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    balanceDollars?: IntFieldUpdateOperationsInput | number
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityAssetUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    identityId?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    balanceDollars?: IntFieldUpdateOperationsInput | number
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityGoalCreateInput = {
+    id?: string
+    label: string
+    targetDollars: number
+    targetDate?: Date | string | null
+    perPaycheckDollars?: number | null
+    kind: string
+    goalType?: string | null
+    priority?: number
+    sortOrder?: number
+    createdAt?: Date | string
+    identity: FinancialIdentityCreateNestedOneWithoutGoalsInput
+  }
+
+  export type IdentityGoalUncheckedCreateInput = {
+    id?: string
+    identityId: string
+    label: string
+    targetDollars: number
+    targetDate?: Date | string | null
+    perPaycheckDollars?: number | null
+    kind: string
+    goalType?: string | null
+    priority?: number
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityGoalUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    targetDollars?: IntFieldUpdateOperationsInput | number
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    perPaycheckDollars?: NullableIntFieldUpdateOperationsInput | number | null
+    kind?: StringFieldUpdateOperationsInput | string
+    goalType?: NullableStringFieldUpdateOperationsInput | string | null
+    priority?: IntFieldUpdateOperationsInput | number
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    identity?: FinancialIdentityUpdateOneRequiredWithoutGoalsNestedInput
+  }
+
+  export type IdentityGoalUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    identityId?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    targetDollars?: IntFieldUpdateOperationsInput | number
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    perPaycheckDollars?: NullableIntFieldUpdateOperationsInput | number | null
+    kind?: StringFieldUpdateOperationsInput | string
+    goalType?: NullableStringFieldUpdateOperationsInput | string | null
+    priority?: IntFieldUpdateOperationsInput | number
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityGoalCreateManyInput = {
+    id?: string
+    identityId: string
+    label: string
+    targetDollars: number
+    targetDate?: Date | string | null
+    perPaycheckDollars?: number | null
+    kind: string
+    goalType?: string | null
+    priority?: number
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityGoalUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    targetDollars?: IntFieldUpdateOperationsInput | number
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    perPaycheckDollars?: NullableIntFieldUpdateOperationsInput | number | null
+    kind?: StringFieldUpdateOperationsInput | string
+    goalType?: NullableStringFieldUpdateOperationsInput | string | null
+    priority?: IntFieldUpdateOperationsInput | number
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityGoalUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    identityId?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    targetDollars?: IntFieldUpdateOperationsInput | number
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    perPaycheckDollars?: NullableIntFieldUpdateOperationsInput | number | null
+    kind?: StringFieldUpdateOperationsInput | string
+    goalType?: NullableStringFieldUpdateOperationsInput | string | null
+    priority?: IntFieldUpdateOperationsInput | number
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityEventCreateInput = {
+    id?: string
+    label: string
+    date?: Date | string | null
+    estimatedCostDollars?: number
+    isFlexible?: boolean
+    sortOrder?: number
+    createdAt?: Date | string
+    identity: FinancialIdentityCreateNestedOneWithoutEventsInput
+  }
+
+  export type IdentityEventUncheckedCreateInput = {
+    id?: string
+    identityId: string
+    label: string
+    date?: Date | string | null
+    estimatedCostDollars?: number
+    isFlexible?: boolean
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityEventUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    estimatedCostDollars?: IntFieldUpdateOperationsInput | number
+    isFlexible?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    identity?: FinancialIdentityUpdateOneRequiredWithoutEventsNestedInput
+  }
+
+  export type IdentityEventUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    identityId?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    estimatedCostDollars?: IntFieldUpdateOperationsInput | number
+    isFlexible?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityEventCreateManyInput = {
+    id?: string
+    identityId: string
+    label: string
+    date?: Date | string | null
+    estimatedCostDollars?: number
+    isFlexible?: boolean
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityEventUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    estimatedCostDollars?: IntFieldUpdateOperationsInput | number
+    isFlexible?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityEventUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    identityId?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    estimatedCostDollars?: IntFieldUpdateOperationsInput | number
+    isFlexible?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityHouseholdMemberCreateInput = {
+    id?: string
+    name: string
+    relationship: string
+    financiallyEntwined?: boolean
+    ageRange?: string | null
+    sortOrder?: number
+    createdAt?: Date | string
+    identity: FinancialIdentityCreateNestedOneWithoutHouseholdInput
+  }
+
+  export type IdentityHouseholdMemberUncheckedCreateInput = {
+    id?: string
+    identityId: string
+    name: string
+    relationship: string
+    financiallyEntwined?: boolean
+    ageRange?: string | null
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityHouseholdMemberUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    relationship?: StringFieldUpdateOperationsInput | string
+    financiallyEntwined?: BoolFieldUpdateOperationsInput | boolean
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    identity?: FinancialIdentityUpdateOneRequiredWithoutHouseholdNestedInput
+  }
+
+  export type IdentityHouseholdMemberUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    identityId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    relationship?: StringFieldUpdateOperationsInput | string
+    financiallyEntwined?: BoolFieldUpdateOperationsInput | boolean
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityHouseholdMemberCreateManyInput = {
+    id?: string
+    identityId: string
+    name: string
+    relationship: string
+    financiallyEntwined?: boolean
+    ageRange?: string | null
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityHouseholdMemberUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    relationship?: StringFieldUpdateOperationsInput | string
+    financiallyEntwined?: BoolFieldUpdateOperationsInput | boolean
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityHouseholdMemberUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    identityId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    relationship?: StringFieldUpdateOperationsInput | string
+    financiallyEntwined?: BoolFieldUpdateOperationsInput | boolean
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type OnboardingMessageCreateInput = {
+    id?: string
+    role: string
+    content: string
+    toolCallId?: string | null
+    toolCallsJson?: string | null
+    seq: number
+    createdAt?: Date | string
+    identity: FinancialIdentityCreateNestedOneWithoutMessagesInput
+  }
+
+  export type OnboardingMessageUncheckedCreateInput = {
+    id?: string
+    identityId: string
+    role: string
+    content: string
+    toolCallId?: string | null
+    toolCallsJson?: string | null
+    seq: number
+    createdAt?: Date | string
+  }
+
+  export type OnboardingMessageUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    role?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    toolCallId?: NullableStringFieldUpdateOperationsInput | string | null
+    toolCallsJson?: NullableStringFieldUpdateOperationsInput | string | null
+    seq?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    identity?: FinancialIdentityUpdateOneRequiredWithoutMessagesNestedInput
+  }
+
+  export type OnboardingMessageUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    identityId?: StringFieldUpdateOperationsInput | string
+    role?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    toolCallId?: NullableStringFieldUpdateOperationsInput | string | null
+    toolCallsJson?: NullableStringFieldUpdateOperationsInput | string | null
+    seq?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type OnboardingMessageCreateManyInput = {
+    id?: string
+    identityId: string
+    role: string
+    content: string
+    toolCallId?: string | null
+    toolCallsJson?: string | null
+    seq: number
+    createdAt?: Date | string
+  }
+
+  export type OnboardingMessageUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    role?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    toolCallId?: NullableStringFieldUpdateOperationsInput | string | null
+    toolCallsJson?: NullableStringFieldUpdateOperationsInput | string | null
+    seq?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type OnboardingMessageUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    identityId?: StringFieldUpdateOperationsInput | string
+    role?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    toolCallId?: NullableStringFieldUpdateOperationsInput | string | null
+    toolCallsJson?: NullableStringFieldUpdateOperationsInput | string | null
+    seq?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type StringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[]
@@ -18782,6 +32263,11 @@ export namespace Prisma {
     every?: AuditLogWhereInput
     some?: AuditLogWhereInput
     none?: AuditLogWhereInput
+  }
+
+  export type FinancialIdentityNullableScalarRelationFilter = {
+    is?: FinancialIdentityWhereInput | null
+    isNot?: FinancialIdentityWhereInput | null
   }
 
   export type SortOrderInput = {
@@ -19549,6 +33035,561 @@ export namespace Prisma {
     updatedAt?: SortOrder
   }
 
+  export type IdentityIncomeListRelationFilter = {
+    every?: IdentityIncomeWhereInput
+    some?: IdentityIncomeWhereInput
+    none?: IdentityIncomeWhereInput
+  }
+
+  export type IdentityExpenseListRelationFilter = {
+    every?: IdentityExpenseWhereInput
+    some?: IdentityExpenseWhereInput
+    none?: IdentityExpenseWhereInput
+  }
+
+  export type IdentityDebtListRelationFilter = {
+    every?: IdentityDebtWhereInput
+    some?: IdentityDebtWhereInput
+    none?: IdentityDebtWhereInput
+  }
+
+  export type IdentityAssetListRelationFilter = {
+    every?: IdentityAssetWhereInput
+    some?: IdentityAssetWhereInput
+    none?: IdentityAssetWhereInput
+  }
+
+  export type IdentityGoalListRelationFilter = {
+    every?: IdentityGoalWhereInput
+    some?: IdentityGoalWhereInput
+    none?: IdentityGoalWhereInput
+  }
+
+  export type IdentityEventListRelationFilter = {
+    every?: IdentityEventWhereInput
+    some?: IdentityEventWhereInput
+    none?: IdentityEventWhereInput
+  }
+
+  export type IdentityHouseholdMemberListRelationFilter = {
+    every?: IdentityHouseholdMemberWhereInput
+    some?: IdentityHouseholdMemberWhereInput
+    none?: IdentityHouseholdMemberWhereInput
+  }
+
+  export type OnboardingMessageListRelationFilter = {
+    every?: OnboardingMessageWhereInput
+    some?: OnboardingMessageWhereInput
+    none?: OnboardingMessageWhereInput
+  }
+
+  export type IdentityIncomeOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type IdentityExpenseOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type IdentityDebtOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type IdentityAssetOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type IdentityGoalOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type IdentityEventOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type IdentityHouseholdMemberOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type OnboardingMessageOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type FinancialIdentityCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    ageRange?: SortOrder
+    employmentStatus?: SortOrder
+    location?: SortOrder
+    timeHorizonYears?: SortOrder
+    riskTolerance?: SortOrder
+    riskNotes?: SortOrder
+    aiTierPref?: SortOrder
+    riskComfort?: SortOrder
+    currency?: SortOrder
+    auditIdentity?: SortOrder
+    auditFindings?: SortOrder
+    auditPlan?: SortOrder
+    auditFirstStep?: SortOrder
+    auditTeaching?: SortOrder
+    auditBuiltAt?: SortOrder
+    completedAt?: SortOrder
+    lastProvider?: SortOrder
+    lastFellBack?: SortOrder
+    lastErrorMessage?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type FinancialIdentityAvgOrderByAggregateInput = {
+    timeHorizonYears?: SortOrder
+  }
+
+  export type FinancialIdentityMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    ageRange?: SortOrder
+    employmentStatus?: SortOrder
+    location?: SortOrder
+    timeHorizonYears?: SortOrder
+    riskTolerance?: SortOrder
+    riskNotes?: SortOrder
+    aiTierPref?: SortOrder
+    riskComfort?: SortOrder
+    currency?: SortOrder
+    auditIdentity?: SortOrder
+    auditFindings?: SortOrder
+    auditPlan?: SortOrder
+    auditFirstStep?: SortOrder
+    auditTeaching?: SortOrder
+    auditBuiltAt?: SortOrder
+    completedAt?: SortOrder
+    lastProvider?: SortOrder
+    lastFellBack?: SortOrder
+    lastErrorMessage?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type FinancialIdentityMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    ageRange?: SortOrder
+    employmentStatus?: SortOrder
+    location?: SortOrder
+    timeHorizonYears?: SortOrder
+    riskTolerance?: SortOrder
+    riskNotes?: SortOrder
+    aiTierPref?: SortOrder
+    riskComfort?: SortOrder
+    currency?: SortOrder
+    auditIdentity?: SortOrder
+    auditFindings?: SortOrder
+    auditPlan?: SortOrder
+    auditFirstStep?: SortOrder
+    auditTeaching?: SortOrder
+    auditBuiltAt?: SortOrder
+    completedAt?: SortOrder
+    lastProvider?: SortOrder
+    lastFellBack?: SortOrder
+    lastErrorMessage?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type FinancialIdentitySumOrderByAggregateInput = {
+    timeHorizonYears?: SortOrder
+  }
+
+  export type FinancialIdentityScalarRelationFilter = {
+    is?: FinancialIdentityWhereInput
+    isNot?: FinancialIdentityWhereInput
+  }
+
+  export type IdentityIncomeCountOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    cadence?: SortOrder
+    amountDollars?: SortOrder
+    isPrimary?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentityIncomeAvgOrderByAggregateInput = {
+    amountDollars?: SortOrder
+    sortOrder?: SortOrder
+  }
+
+  export type IdentityIncomeMaxOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    cadence?: SortOrder
+    amountDollars?: SortOrder
+    isPrimary?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentityIncomeMinOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    cadence?: SortOrder
+    amountDollars?: SortOrder
+    isPrimary?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentityIncomeSumOrderByAggregateInput = {
+    amountDollars?: SortOrder
+    sortOrder?: SortOrder
+  }
+
+  export type IdentityExpenseCountOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    amountDollars?: SortOrder
+    cadence?: SortOrder
+    category?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentityExpenseAvgOrderByAggregateInput = {
+    amountDollars?: SortOrder
+    sortOrder?: SortOrder
+  }
+
+  export type IdentityExpenseMaxOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    amountDollars?: SortOrder
+    cadence?: SortOrder
+    category?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentityExpenseMinOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    amountDollars?: SortOrder
+    cadence?: SortOrder
+    category?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentityExpenseSumOrderByAggregateInput = {
+    amountDollars?: SortOrder
+    sortOrder?: SortOrder
+  }
+
+  export type FloatFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[]
+    notIn?: number[]
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatFilter<$PrismaModel> | number
+  }
+
+  export type IdentityDebtCountOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    kind?: SortOrder
+    balanceDollars?: SortOrder
+    aprPercent?: SortOrder
+    minPaymentDollars?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentityDebtAvgOrderByAggregateInput = {
+    balanceDollars?: SortOrder
+    aprPercent?: SortOrder
+    minPaymentDollars?: SortOrder
+    sortOrder?: SortOrder
+  }
+
+  export type IdentityDebtMaxOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    kind?: SortOrder
+    balanceDollars?: SortOrder
+    aprPercent?: SortOrder
+    minPaymentDollars?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentityDebtMinOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    kind?: SortOrder
+    balanceDollars?: SortOrder
+    aprPercent?: SortOrder
+    minPaymentDollars?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentityDebtSumOrderByAggregateInput = {
+    balanceDollars?: SortOrder
+    aprPercent?: SortOrder
+    minPaymentDollars?: SortOrder
+    sortOrder?: SortOrder
+  }
+
+  export type FloatWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[]
+    notIn?: number[]
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedFloatFilter<$PrismaModel>
+    _min?: NestedFloatFilter<$PrismaModel>
+    _max?: NestedFloatFilter<$PrismaModel>
+  }
+
+  export type IdentityAssetCountOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    kind?: SortOrder
+    balanceDollars?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentityAssetAvgOrderByAggregateInput = {
+    balanceDollars?: SortOrder
+    sortOrder?: SortOrder
+  }
+
+  export type IdentityAssetMaxOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    kind?: SortOrder
+    balanceDollars?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentityAssetMinOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    kind?: SortOrder
+    balanceDollars?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentityAssetSumOrderByAggregateInput = {
+    balanceDollars?: SortOrder
+    sortOrder?: SortOrder
+  }
+
+  export type IdentityGoalCountOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    targetDollars?: SortOrder
+    targetDate?: SortOrder
+    perPaycheckDollars?: SortOrder
+    kind?: SortOrder
+    goalType?: SortOrder
+    priority?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentityGoalAvgOrderByAggregateInput = {
+    targetDollars?: SortOrder
+    perPaycheckDollars?: SortOrder
+    priority?: SortOrder
+    sortOrder?: SortOrder
+  }
+
+  export type IdentityGoalMaxOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    targetDollars?: SortOrder
+    targetDate?: SortOrder
+    perPaycheckDollars?: SortOrder
+    kind?: SortOrder
+    goalType?: SortOrder
+    priority?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentityGoalMinOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    targetDollars?: SortOrder
+    targetDate?: SortOrder
+    perPaycheckDollars?: SortOrder
+    kind?: SortOrder
+    goalType?: SortOrder
+    priority?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentityGoalSumOrderByAggregateInput = {
+    targetDollars?: SortOrder
+    perPaycheckDollars?: SortOrder
+    priority?: SortOrder
+    sortOrder?: SortOrder
+  }
+
+  export type IdentityEventCountOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    date?: SortOrder
+    estimatedCostDollars?: SortOrder
+    isFlexible?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentityEventAvgOrderByAggregateInput = {
+    estimatedCostDollars?: SortOrder
+    sortOrder?: SortOrder
+  }
+
+  export type IdentityEventMaxOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    date?: SortOrder
+    estimatedCostDollars?: SortOrder
+    isFlexible?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentityEventMinOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    label?: SortOrder
+    date?: SortOrder
+    estimatedCostDollars?: SortOrder
+    isFlexible?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentityEventSumOrderByAggregateInput = {
+    estimatedCostDollars?: SortOrder
+    sortOrder?: SortOrder
+  }
+
+  export type IdentityHouseholdMemberCountOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    name?: SortOrder
+    relationship?: SortOrder
+    financiallyEntwined?: SortOrder
+    ageRange?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentityHouseholdMemberAvgOrderByAggregateInput = {
+    sortOrder?: SortOrder
+  }
+
+  export type IdentityHouseholdMemberMaxOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    name?: SortOrder
+    relationship?: SortOrder
+    financiallyEntwined?: SortOrder
+    ageRange?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentityHouseholdMemberMinOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    name?: SortOrder
+    relationship?: SortOrder
+    financiallyEntwined?: SortOrder
+    ageRange?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentityHouseholdMemberSumOrderByAggregateInput = {
+    sortOrder?: SortOrder
+  }
+
+  export type OnboardingMessageCountOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    role?: SortOrder
+    content?: SortOrder
+    toolCallId?: SortOrder
+    toolCallsJson?: SortOrder
+    seq?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type OnboardingMessageAvgOrderByAggregateInput = {
+    seq?: SortOrder
+  }
+
+  export type OnboardingMessageMaxOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    role?: SortOrder
+    content?: SortOrder
+    toolCallId?: SortOrder
+    toolCallsJson?: SortOrder
+    seq?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type OnboardingMessageMinOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    role?: SortOrder
+    content?: SortOrder
+    toolCallId?: SortOrder
+    toolCallsJson?: SortOrder
+    seq?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type OnboardingMessageSumOrderByAggregateInput = {
+    seq?: SortOrder
+  }
+
   export type SessionCreateNestedManyWithoutUserInput = {
     create?: XOR<SessionCreateWithoutUserInput, SessionUncheckedCreateWithoutUserInput> | SessionCreateWithoutUserInput[] | SessionUncheckedCreateWithoutUserInput[]
     connectOrCreate?: SessionCreateOrConnectWithoutUserInput | SessionCreateOrConnectWithoutUserInput[]
@@ -19605,6 +33646,12 @@ export namespace Prisma {
     connect?: AuditLogWhereUniqueInput | AuditLogWhereUniqueInput[]
   }
 
+  export type FinancialIdentityCreateNestedOneWithoutUserInput = {
+    create?: XOR<FinancialIdentityCreateWithoutUserInput, FinancialIdentityUncheckedCreateWithoutUserInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutUserInput
+    connect?: FinancialIdentityWhereUniqueInput
+  }
+
   export type SessionUncheckedCreateNestedManyWithoutUserInput = {
     create?: XOR<SessionCreateWithoutUserInput, SessionUncheckedCreateWithoutUserInput> | SessionCreateWithoutUserInput[] | SessionUncheckedCreateWithoutUserInput[]
     connectOrCreate?: SessionCreateOrConnectWithoutUserInput | SessionCreateOrConnectWithoutUserInput[]
@@ -19659,6 +33706,12 @@ export namespace Prisma {
     connectOrCreate?: AuditLogCreateOrConnectWithoutUserInput | AuditLogCreateOrConnectWithoutUserInput[]
     createMany?: AuditLogCreateManyUserInputEnvelope
     connect?: AuditLogWhereUniqueInput | AuditLogWhereUniqueInput[]
+  }
+
+  export type FinancialIdentityUncheckedCreateNestedOneWithoutUserInput = {
+    create?: XOR<FinancialIdentityCreateWithoutUserInput, FinancialIdentityUncheckedCreateWithoutUserInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutUserInput
+    connect?: FinancialIdentityWhereUniqueInput
   }
 
   export type StringFieldUpdateOperationsInput = {
@@ -19793,6 +33846,16 @@ export namespace Prisma {
     deleteMany?: AuditLogScalarWhereInput | AuditLogScalarWhereInput[]
   }
 
+  export type FinancialIdentityUpdateOneWithoutUserNestedInput = {
+    create?: XOR<FinancialIdentityCreateWithoutUserInput, FinancialIdentityUncheckedCreateWithoutUserInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutUserInput
+    upsert?: FinancialIdentityUpsertWithoutUserInput
+    disconnect?: FinancialIdentityWhereInput | boolean
+    delete?: FinancialIdentityWhereInput | boolean
+    connect?: FinancialIdentityWhereUniqueInput
+    update?: XOR<XOR<FinancialIdentityUpdateToOneWithWhereWithoutUserInput, FinancialIdentityUpdateWithoutUserInput>, FinancialIdentityUncheckedUpdateWithoutUserInput>
+  }
+
   export type SessionUncheckedUpdateManyWithoutUserNestedInput = {
     create?: XOR<SessionCreateWithoutUserInput, SessionUncheckedCreateWithoutUserInput> | SessionCreateWithoutUserInput[] | SessionUncheckedCreateWithoutUserInput[]
     connectOrCreate?: SessionCreateOrConnectWithoutUserInput | SessionCreateOrConnectWithoutUserInput[]
@@ -19903,6 +33966,16 @@ export namespace Prisma {
     update?: AuditLogUpdateWithWhereUniqueWithoutUserInput | AuditLogUpdateWithWhereUniqueWithoutUserInput[]
     updateMany?: AuditLogUpdateManyWithWhereWithoutUserInput | AuditLogUpdateManyWithWhereWithoutUserInput[]
     deleteMany?: AuditLogScalarWhereInput | AuditLogScalarWhereInput[]
+  }
+
+  export type FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput = {
+    create?: XOR<FinancialIdentityCreateWithoutUserInput, FinancialIdentityUncheckedCreateWithoutUserInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutUserInput
+    upsert?: FinancialIdentityUpsertWithoutUserInput
+    disconnect?: FinancialIdentityWhereInput | boolean
+    delete?: FinancialIdentityWhereInput | boolean
+    connect?: FinancialIdentityWhereUniqueInput
+    update?: XOR<XOR<FinancialIdentityUpdateToOneWithWhereWithoutUserInput, FinancialIdentityUpdateWithoutUserInput>, FinancialIdentityUncheckedUpdateWithoutUserInput>
   }
 
   export type UserCreateNestedOneWithoutSessionsInput = {
@@ -20323,6 +34396,476 @@ export namespace Prisma {
     update?: XOR<XOR<UserUpdateToOneWithWhereWithoutAuditLogInput, UserUpdateWithoutAuditLogInput>, UserUncheckedUpdateWithoutAuditLogInput>
   }
 
+  export type UserCreateNestedOneWithoutIdentityInput = {
+    create?: XOR<UserCreateWithoutIdentityInput, UserUncheckedCreateWithoutIdentityInput>
+    connectOrCreate?: UserCreateOrConnectWithoutIdentityInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type IdentityIncomeCreateNestedManyWithoutIdentityInput = {
+    create?: XOR<IdentityIncomeCreateWithoutIdentityInput, IdentityIncomeUncheckedCreateWithoutIdentityInput> | IdentityIncomeCreateWithoutIdentityInput[] | IdentityIncomeUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityIncomeCreateOrConnectWithoutIdentityInput | IdentityIncomeCreateOrConnectWithoutIdentityInput[]
+    createMany?: IdentityIncomeCreateManyIdentityInputEnvelope
+    connect?: IdentityIncomeWhereUniqueInput | IdentityIncomeWhereUniqueInput[]
+  }
+
+  export type IdentityExpenseCreateNestedManyWithoutIdentityInput = {
+    create?: XOR<IdentityExpenseCreateWithoutIdentityInput, IdentityExpenseUncheckedCreateWithoutIdentityInput> | IdentityExpenseCreateWithoutIdentityInput[] | IdentityExpenseUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityExpenseCreateOrConnectWithoutIdentityInput | IdentityExpenseCreateOrConnectWithoutIdentityInput[]
+    createMany?: IdentityExpenseCreateManyIdentityInputEnvelope
+    connect?: IdentityExpenseWhereUniqueInput | IdentityExpenseWhereUniqueInput[]
+  }
+
+  export type IdentityDebtCreateNestedManyWithoutIdentityInput = {
+    create?: XOR<IdentityDebtCreateWithoutIdentityInput, IdentityDebtUncheckedCreateWithoutIdentityInput> | IdentityDebtCreateWithoutIdentityInput[] | IdentityDebtUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityDebtCreateOrConnectWithoutIdentityInput | IdentityDebtCreateOrConnectWithoutIdentityInput[]
+    createMany?: IdentityDebtCreateManyIdentityInputEnvelope
+    connect?: IdentityDebtWhereUniqueInput | IdentityDebtWhereUniqueInput[]
+  }
+
+  export type IdentityAssetCreateNestedManyWithoutIdentityInput = {
+    create?: XOR<IdentityAssetCreateWithoutIdentityInput, IdentityAssetUncheckedCreateWithoutIdentityInput> | IdentityAssetCreateWithoutIdentityInput[] | IdentityAssetUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityAssetCreateOrConnectWithoutIdentityInput | IdentityAssetCreateOrConnectWithoutIdentityInput[]
+    createMany?: IdentityAssetCreateManyIdentityInputEnvelope
+    connect?: IdentityAssetWhereUniqueInput | IdentityAssetWhereUniqueInput[]
+  }
+
+  export type IdentityGoalCreateNestedManyWithoutIdentityInput = {
+    create?: XOR<IdentityGoalCreateWithoutIdentityInput, IdentityGoalUncheckedCreateWithoutIdentityInput> | IdentityGoalCreateWithoutIdentityInput[] | IdentityGoalUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityGoalCreateOrConnectWithoutIdentityInput | IdentityGoalCreateOrConnectWithoutIdentityInput[]
+    createMany?: IdentityGoalCreateManyIdentityInputEnvelope
+    connect?: IdentityGoalWhereUniqueInput | IdentityGoalWhereUniqueInput[]
+  }
+
+  export type IdentityEventCreateNestedManyWithoutIdentityInput = {
+    create?: XOR<IdentityEventCreateWithoutIdentityInput, IdentityEventUncheckedCreateWithoutIdentityInput> | IdentityEventCreateWithoutIdentityInput[] | IdentityEventUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityEventCreateOrConnectWithoutIdentityInput | IdentityEventCreateOrConnectWithoutIdentityInput[]
+    createMany?: IdentityEventCreateManyIdentityInputEnvelope
+    connect?: IdentityEventWhereUniqueInput | IdentityEventWhereUniqueInput[]
+  }
+
+  export type IdentityHouseholdMemberCreateNestedManyWithoutIdentityInput = {
+    create?: XOR<IdentityHouseholdMemberCreateWithoutIdentityInput, IdentityHouseholdMemberUncheckedCreateWithoutIdentityInput> | IdentityHouseholdMemberCreateWithoutIdentityInput[] | IdentityHouseholdMemberUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityHouseholdMemberCreateOrConnectWithoutIdentityInput | IdentityHouseholdMemberCreateOrConnectWithoutIdentityInput[]
+    createMany?: IdentityHouseholdMemberCreateManyIdentityInputEnvelope
+    connect?: IdentityHouseholdMemberWhereUniqueInput | IdentityHouseholdMemberWhereUniqueInput[]
+  }
+
+  export type OnboardingMessageCreateNestedManyWithoutIdentityInput = {
+    create?: XOR<OnboardingMessageCreateWithoutIdentityInput, OnboardingMessageUncheckedCreateWithoutIdentityInput> | OnboardingMessageCreateWithoutIdentityInput[] | OnboardingMessageUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: OnboardingMessageCreateOrConnectWithoutIdentityInput | OnboardingMessageCreateOrConnectWithoutIdentityInput[]
+    createMany?: OnboardingMessageCreateManyIdentityInputEnvelope
+    connect?: OnboardingMessageWhereUniqueInput | OnboardingMessageWhereUniqueInput[]
+  }
+
+  export type IdentityIncomeUncheckedCreateNestedManyWithoutIdentityInput = {
+    create?: XOR<IdentityIncomeCreateWithoutIdentityInput, IdentityIncomeUncheckedCreateWithoutIdentityInput> | IdentityIncomeCreateWithoutIdentityInput[] | IdentityIncomeUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityIncomeCreateOrConnectWithoutIdentityInput | IdentityIncomeCreateOrConnectWithoutIdentityInput[]
+    createMany?: IdentityIncomeCreateManyIdentityInputEnvelope
+    connect?: IdentityIncomeWhereUniqueInput | IdentityIncomeWhereUniqueInput[]
+  }
+
+  export type IdentityExpenseUncheckedCreateNestedManyWithoutIdentityInput = {
+    create?: XOR<IdentityExpenseCreateWithoutIdentityInput, IdentityExpenseUncheckedCreateWithoutIdentityInput> | IdentityExpenseCreateWithoutIdentityInput[] | IdentityExpenseUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityExpenseCreateOrConnectWithoutIdentityInput | IdentityExpenseCreateOrConnectWithoutIdentityInput[]
+    createMany?: IdentityExpenseCreateManyIdentityInputEnvelope
+    connect?: IdentityExpenseWhereUniqueInput | IdentityExpenseWhereUniqueInput[]
+  }
+
+  export type IdentityDebtUncheckedCreateNestedManyWithoutIdentityInput = {
+    create?: XOR<IdentityDebtCreateWithoutIdentityInput, IdentityDebtUncheckedCreateWithoutIdentityInput> | IdentityDebtCreateWithoutIdentityInput[] | IdentityDebtUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityDebtCreateOrConnectWithoutIdentityInput | IdentityDebtCreateOrConnectWithoutIdentityInput[]
+    createMany?: IdentityDebtCreateManyIdentityInputEnvelope
+    connect?: IdentityDebtWhereUniqueInput | IdentityDebtWhereUniqueInput[]
+  }
+
+  export type IdentityAssetUncheckedCreateNestedManyWithoutIdentityInput = {
+    create?: XOR<IdentityAssetCreateWithoutIdentityInput, IdentityAssetUncheckedCreateWithoutIdentityInput> | IdentityAssetCreateWithoutIdentityInput[] | IdentityAssetUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityAssetCreateOrConnectWithoutIdentityInput | IdentityAssetCreateOrConnectWithoutIdentityInput[]
+    createMany?: IdentityAssetCreateManyIdentityInputEnvelope
+    connect?: IdentityAssetWhereUniqueInput | IdentityAssetWhereUniqueInput[]
+  }
+
+  export type IdentityGoalUncheckedCreateNestedManyWithoutIdentityInput = {
+    create?: XOR<IdentityGoalCreateWithoutIdentityInput, IdentityGoalUncheckedCreateWithoutIdentityInput> | IdentityGoalCreateWithoutIdentityInput[] | IdentityGoalUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityGoalCreateOrConnectWithoutIdentityInput | IdentityGoalCreateOrConnectWithoutIdentityInput[]
+    createMany?: IdentityGoalCreateManyIdentityInputEnvelope
+    connect?: IdentityGoalWhereUniqueInput | IdentityGoalWhereUniqueInput[]
+  }
+
+  export type IdentityEventUncheckedCreateNestedManyWithoutIdentityInput = {
+    create?: XOR<IdentityEventCreateWithoutIdentityInput, IdentityEventUncheckedCreateWithoutIdentityInput> | IdentityEventCreateWithoutIdentityInput[] | IdentityEventUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityEventCreateOrConnectWithoutIdentityInput | IdentityEventCreateOrConnectWithoutIdentityInput[]
+    createMany?: IdentityEventCreateManyIdentityInputEnvelope
+    connect?: IdentityEventWhereUniqueInput | IdentityEventWhereUniqueInput[]
+  }
+
+  export type IdentityHouseholdMemberUncheckedCreateNestedManyWithoutIdentityInput = {
+    create?: XOR<IdentityHouseholdMemberCreateWithoutIdentityInput, IdentityHouseholdMemberUncheckedCreateWithoutIdentityInput> | IdentityHouseholdMemberCreateWithoutIdentityInput[] | IdentityHouseholdMemberUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityHouseholdMemberCreateOrConnectWithoutIdentityInput | IdentityHouseholdMemberCreateOrConnectWithoutIdentityInput[]
+    createMany?: IdentityHouseholdMemberCreateManyIdentityInputEnvelope
+    connect?: IdentityHouseholdMemberWhereUniqueInput | IdentityHouseholdMemberWhereUniqueInput[]
+  }
+
+  export type OnboardingMessageUncheckedCreateNestedManyWithoutIdentityInput = {
+    create?: XOR<OnboardingMessageCreateWithoutIdentityInput, OnboardingMessageUncheckedCreateWithoutIdentityInput> | OnboardingMessageCreateWithoutIdentityInput[] | OnboardingMessageUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: OnboardingMessageCreateOrConnectWithoutIdentityInput | OnboardingMessageCreateOrConnectWithoutIdentityInput[]
+    createMany?: OnboardingMessageCreateManyIdentityInputEnvelope
+    connect?: OnboardingMessageWhereUniqueInput | OnboardingMessageWhereUniqueInput[]
+  }
+
+  export type UserUpdateOneRequiredWithoutIdentityNestedInput = {
+    create?: XOR<UserCreateWithoutIdentityInput, UserUncheckedCreateWithoutIdentityInput>
+    connectOrCreate?: UserCreateOrConnectWithoutIdentityInput
+    upsert?: UserUpsertWithoutIdentityInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutIdentityInput, UserUpdateWithoutIdentityInput>, UserUncheckedUpdateWithoutIdentityInput>
+  }
+
+  export type IdentityIncomeUpdateManyWithoutIdentityNestedInput = {
+    create?: XOR<IdentityIncomeCreateWithoutIdentityInput, IdentityIncomeUncheckedCreateWithoutIdentityInput> | IdentityIncomeCreateWithoutIdentityInput[] | IdentityIncomeUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityIncomeCreateOrConnectWithoutIdentityInput | IdentityIncomeCreateOrConnectWithoutIdentityInput[]
+    upsert?: IdentityIncomeUpsertWithWhereUniqueWithoutIdentityInput | IdentityIncomeUpsertWithWhereUniqueWithoutIdentityInput[]
+    createMany?: IdentityIncomeCreateManyIdentityInputEnvelope
+    set?: IdentityIncomeWhereUniqueInput | IdentityIncomeWhereUniqueInput[]
+    disconnect?: IdentityIncomeWhereUniqueInput | IdentityIncomeWhereUniqueInput[]
+    delete?: IdentityIncomeWhereUniqueInput | IdentityIncomeWhereUniqueInput[]
+    connect?: IdentityIncomeWhereUniqueInput | IdentityIncomeWhereUniqueInput[]
+    update?: IdentityIncomeUpdateWithWhereUniqueWithoutIdentityInput | IdentityIncomeUpdateWithWhereUniqueWithoutIdentityInput[]
+    updateMany?: IdentityIncomeUpdateManyWithWhereWithoutIdentityInput | IdentityIncomeUpdateManyWithWhereWithoutIdentityInput[]
+    deleteMany?: IdentityIncomeScalarWhereInput | IdentityIncomeScalarWhereInput[]
+  }
+
+  export type IdentityExpenseUpdateManyWithoutIdentityNestedInput = {
+    create?: XOR<IdentityExpenseCreateWithoutIdentityInput, IdentityExpenseUncheckedCreateWithoutIdentityInput> | IdentityExpenseCreateWithoutIdentityInput[] | IdentityExpenseUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityExpenseCreateOrConnectWithoutIdentityInput | IdentityExpenseCreateOrConnectWithoutIdentityInput[]
+    upsert?: IdentityExpenseUpsertWithWhereUniqueWithoutIdentityInput | IdentityExpenseUpsertWithWhereUniqueWithoutIdentityInput[]
+    createMany?: IdentityExpenseCreateManyIdentityInputEnvelope
+    set?: IdentityExpenseWhereUniqueInput | IdentityExpenseWhereUniqueInput[]
+    disconnect?: IdentityExpenseWhereUniqueInput | IdentityExpenseWhereUniqueInput[]
+    delete?: IdentityExpenseWhereUniqueInput | IdentityExpenseWhereUniqueInput[]
+    connect?: IdentityExpenseWhereUniqueInput | IdentityExpenseWhereUniqueInput[]
+    update?: IdentityExpenseUpdateWithWhereUniqueWithoutIdentityInput | IdentityExpenseUpdateWithWhereUniqueWithoutIdentityInput[]
+    updateMany?: IdentityExpenseUpdateManyWithWhereWithoutIdentityInput | IdentityExpenseUpdateManyWithWhereWithoutIdentityInput[]
+    deleteMany?: IdentityExpenseScalarWhereInput | IdentityExpenseScalarWhereInput[]
+  }
+
+  export type IdentityDebtUpdateManyWithoutIdentityNestedInput = {
+    create?: XOR<IdentityDebtCreateWithoutIdentityInput, IdentityDebtUncheckedCreateWithoutIdentityInput> | IdentityDebtCreateWithoutIdentityInput[] | IdentityDebtUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityDebtCreateOrConnectWithoutIdentityInput | IdentityDebtCreateOrConnectWithoutIdentityInput[]
+    upsert?: IdentityDebtUpsertWithWhereUniqueWithoutIdentityInput | IdentityDebtUpsertWithWhereUniqueWithoutIdentityInput[]
+    createMany?: IdentityDebtCreateManyIdentityInputEnvelope
+    set?: IdentityDebtWhereUniqueInput | IdentityDebtWhereUniqueInput[]
+    disconnect?: IdentityDebtWhereUniqueInput | IdentityDebtWhereUniqueInput[]
+    delete?: IdentityDebtWhereUniqueInput | IdentityDebtWhereUniqueInput[]
+    connect?: IdentityDebtWhereUniqueInput | IdentityDebtWhereUniqueInput[]
+    update?: IdentityDebtUpdateWithWhereUniqueWithoutIdentityInput | IdentityDebtUpdateWithWhereUniqueWithoutIdentityInput[]
+    updateMany?: IdentityDebtUpdateManyWithWhereWithoutIdentityInput | IdentityDebtUpdateManyWithWhereWithoutIdentityInput[]
+    deleteMany?: IdentityDebtScalarWhereInput | IdentityDebtScalarWhereInput[]
+  }
+
+  export type IdentityAssetUpdateManyWithoutIdentityNestedInput = {
+    create?: XOR<IdentityAssetCreateWithoutIdentityInput, IdentityAssetUncheckedCreateWithoutIdentityInput> | IdentityAssetCreateWithoutIdentityInput[] | IdentityAssetUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityAssetCreateOrConnectWithoutIdentityInput | IdentityAssetCreateOrConnectWithoutIdentityInput[]
+    upsert?: IdentityAssetUpsertWithWhereUniqueWithoutIdentityInput | IdentityAssetUpsertWithWhereUniqueWithoutIdentityInput[]
+    createMany?: IdentityAssetCreateManyIdentityInputEnvelope
+    set?: IdentityAssetWhereUniqueInput | IdentityAssetWhereUniqueInput[]
+    disconnect?: IdentityAssetWhereUniqueInput | IdentityAssetWhereUniqueInput[]
+    delete?: IdentityAssetWhereUniqueInput | IdentityAssetWhereUniqueInput[]
+    connect?: IdentityAssetWhereUniqueInput | IdentityAssetWhereUniqueInput[]
+    update?: IdentityAssetUpdateWithWhereUniqueWithoutIdentityInput | IdentityAssetUpdateWithWhereUniqueWithoutIdentityInput[]
+    updateMany?: IdentityAssetUpdateManyWithWhereWithoutIdentityInput | IdentityAssetUpdateManyWithWhereWithoutIdentityInput[]
+    deleteMany?: IdentityAssetScalarWhereInput | IdentityAssetScalarWhereInput[]
+  }
+
+  export type IdentityGoalUpdateManyWithoutIdentityNestedInput = {
+    create?: XOR<IdentityGoalCreateWithoutIdentityInput, IdentityGoalUncheckedCreateWithoutIdentityInput> | IdentityGoalCreateWithoutIdentityInput[] | IdentityGoalUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityGoalCreateOrConnectWithoutIdentityInput | IdentityGoalCreateOrConnectWithoutIdentityInput[]
+    upsert?: IdentityGoalUpsertWithWhereUniqueWithoutIdentityInput | IdentityGoalUpsertWithWhereUniqueWithoutIdentityInput[]
+    createMany?: IdentityGoalCreateManyIdentityInputEnvelope
+    set?: IdentityGoalWhereUniqueInput | IdentityGoalWhereUniqueInput[]
+    disconnect?: IdentityGoalWhereUniqueInput | IdentityGoalWhereUniqueInput[]
+    delete?: IdentityGoalWhereUniqueInput | IdentityGoalWhereUniqueInput[]
+    connect?: IdentityGoalWhereUniqueInput | IdentityGoalWhereUniqueInput[]
+    update?: IdentityGoalUpdateWithWhereUniqueWithoutIdentityInput | IdentityGoalUpdateWithWhereUniqueWithoutIdentityInput[]
+    updateMany?: IdentityGoalUpdateManyWithWhereWithoutIdentityInput | IdentityGoalUpdateManyWithWhereWithoutIdentityInput[]
+    deleteMany?: IdentityGoalScalarWhereInput | IdentityGoalScalarWhereInput[]
+  }
+
+  export type IdentityEventUpdateManyWithoutIdentityNestedInput = {
+    create?: XOR<IdentityEventCreateWithoutIdentityInput, IdentityEventUncheckedCreateWithoutIdentityInput> | IdentityEventCreateWithoutIdentityInput[] | IdentityEventUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityEventCreateOrConnectWithoutIdentityInput | IdentityEventCreateOrConnectWithoutIdentityInput[]
+    upsert?: IdentityEventUpsertWithWhereUniqueWithoutIdentityInput | IdentityEventUpsertWithWhereUniqueWithoutIdentityInput[]
+    createMany?: IdentityEventCreateManyIdentityInputEnvelope
+    set?: IdentityEventWhereUniqueInput | IdentityEventWhereUniqueInput[]
+    disconnect?: IdentityEventWhereUniqueInput | IdentityEventWhereUniqueInput[]
+    delete?: IdentityEventWhereUniqueInput | IdentityEventWhereUniqueInput[]
+    connect?: IdentityEventWhereUniqueInput | IdentityEventWhereUniqueInput[]
+    update?: IdentityEventUpdateWithWhereUniqueWithoutIdentityInput | IdentityEventUpdateWithWhereUniqueWithoutIdentityInput[]
+    updateMany?: IdentityEventUpdateManyWithWhereWithoutIdentityInput | IdentityEventUpdateManyWithWhereWithoutIdentityInput[]
+    deleteMany?: IdentityEventScalarWhereInput | IdentityEventScalarWhereInput[]
+  }
+
+  export type IdentityHouseholdMemberUpdateManyWithoutIdentityNestedInput = {
+    create?: XOR<IdentityHouseholdMemberCreateWithoutIdentityInput, IdentityHouseholdMemberUncheckedCreateWithoutIdentityInput> | IdentityHouseholdMemberCreateWithoutIdentityInput[] | IdentityHouseholdMemberUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityHouseholdMemberCreateOrConnectWithoutIdentityInput | IdentityHouseholdMemberCreateOrConnectWithoutIdentityInput[]
+    upsert?: IdentityHouseholdMemberUpsertWithWhereUniqueWithoutIdentityInput | IdentityHouseholdMemberUpsertWithWhereUniqueWithoutIdentityInput[]
+    createMany?: IdentityHouseholdMemberCreateManyIdentityInputEnvelope
+    set?: IdentityHouseholdMemberWhereUniqueInput | IdentityHouseholdMemberWhereUniqueInput[]
+    disconnect?: IdentityHouseholdMemberWhereUniqueInput | IdentityHouseholdMemberWhereUniqueInput[]
+    delete?: IdentityHouseholdMemberWhereUniqueInput | IdentityHouseholdMemberWhereUniqueInput[]
+    connect?: IdentityHouseholdMemberWhereUniqueInput | IdentityHouseholdMemberWhereUniqueInput[]
+    update?: IdentityHouseholdMemberUpdateWithWhereUniqueWithoutIdentityInput | IdentityHouseholdMemberUpdateWithWhereUniqueWithoutIdentityInput[]
+    updateMany?: IdentityHouseholdMemberUpdateManyWithWhereWithoutIdentityInput | IdentityHouseholdMemberUpdateManyWithWhereWithoutIdentityInput[]
+    deleteMany?: IdentityHouseholdMemberScalarWhereInput | IdentityHouseholdMemberScalarWhereInput[]
+  }
+
+  export type OnboardingMessageUpdateManyWithoutIdentityNestedInput = {
+    create?: XOR<OnboardingMessageCreateWithoutIdentityInput, OnboardingMessageUncheckedCreateWithoutIdentityInput> | OnboardingMessageCreateWithoutIdentityInput[] | OnboardingMessageUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: OnboardingMessageCreateOrConnectWithoutIdentityInput | OnboardingMessageCreateOrConnectWithoutIdentityInput[]
+    upsert?: OnboardingMessageUpsertWithWhereUniqueWithoutIdentityInput | OnboardingMessageUpsertWithWhereUniqueWithoutIdentityInput[]
+    createMany?: OnboardingMessageCreateManyIdentityInputEnvelope
+    set?: OnboardingMessageWhereUniqueInput | OnboardingMessageWhereUniqueInput[]
+    disconnect?: OnboardingMessageWhereUniqueInput | OnboardingMessageWhereUniqueInput[]
+    delete?: OnboardingMessageWhereUniqueInput | OnboardingMessageWhereUniqueInput[]
+    connect?: OnboardingMessageWhereUniqueInput | OnboardingMessageWhereUniqueInput[]
+    update?: OnboardingMessageUpdateWithWhereUniqueWithoutIdentityInput | OnboardingMessageUpdateWithWhereUniqueWithoutIdentityInput[]
+    updateMany?: OnboardingMessageUpdateManyWithWhereWithoutIdentityInput | OnboardingMessageUpdateManyWithWhereWithoutIdentityInput[]
+    deleteMany?: OnboardingMessageScalarWhereInput | OnboardingMessageScalarWhereInput[]
+  }
+
+  export type IdentityIncomeUncheckedUpdateManyWithoutIdentityNestedInput = {
+    create?: XOR<IdentityIncomeCreateWithoutIdentityInput, IdentityIncomeUncheckedCreateWithoutIdentityInput> | IdentityIncomeCreateWithoutIdentityInput[] | IdentityIncomeUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityIncomeCreateOrConnectWithoutIdentityInput | IdentityIncomeCreateOrConnectWithoutIdentityInput[]
+    upsert?: IdentityIncomeUpsertWithWhereUniqueWithoutIdentityInput | IdentityIncomeUpsertWithWhereUniqueWithoutIdentityInput[]
+    createMany?: IdentityIncomeCreateManyIdentityInputEnvelope
+    set?: IdentityIncomeWhereUniqueInput | IdentityIncomeWhereUniqueInput[]
+    disconnect?: IdentityIncomeWhereUniqueInput | IdentityIncomeWhereUniqueInput[]
+    delete?: IdentityIncomeWhereUniqueInput | IdentityIncomeWhereUniqueInput[]
+    connect?: IdentityIncomeWhereUniqueInput | IdentityIncomeWhereUniqueInput[]
+    update?: IdentityIncomeUpdateWithWhereUniqueWithoutIdentityInput | IdentityIncomeUpdateWithWhereUniqueWithoutIdentityInput[]
+    updateMany?: IdentityIncomeUpdateManyWithWhereWithoutIdentityInput | IdentityIncomeUpdateManyWithWhereWithoutIdentityInput[]
+    deleteMany?: IdentityIncomeScalarWhereInput | IdentityIncomeScalarWhereInput[]
+  }
+
+  export type IdentityExpenseUncheckedUpdateManyWithoutIdentityNestedInput = {
+    create?: XOR<IdentityExpenseCreateWithoutIdentityInput, IdentityExpenseUncheckedCreateWithoutIdentityInput> | IdentityExpenseCreateWithoutIdentityInput[] | IdentityExpenseUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityExpenseCreateOrConnectWithoutIdentityInput | IdentityExpenseCreateOrConnectWithoutIdentityInput[]
+    upsert?: IdentityExpenseUpsertWithWhereUniqueWithoutIdentityInput | IdentityExpenseUpsertWithWhereUniqueWithoutIdentityInput[]
+    createMany?: IdentityExpenseCreateManyIdentityInputEnvelope
+    set?: IdentityExpenseWhereUniqueInput | IdentityExpenseWhereUniqueInput[]
+    disconnect?: IdentityExpenseWhereUniqueInput | IdentityExpenseWhereUniqueInput[]
+    delete?: IdentityExpenseWhereUniqueInput | IdentityExpenseWhereUniqueInput[]
+    connect?: IdentityExpenseWhereUniqueInput | IdentityExpenseWhereUniqueInput[]
+    update?: IdentityExpenseUpdateWithWhereUniqueWithoutIdentityInput | IdentityExpenseUpdateWithWhereUniqueWithoutIdentityInput[]
+    updateMany?: IdentityExpenseUpdateManyWithWhereWithoutIdentityInput | IdentityExpenseUpdateManyWithWhereWithoutIdentityInput[]
+    deleteMany?: IdentityExpenseScalarWhereInput | IdentityExpenseScalarWhereInput[]
+  }
+
+  export type IdentityDebtUncheckedUpdateManyWithoutIdentityNestedInput = {
+    create?: XOR<IdentityDebtCreateWithoutIdentityInput, IdentityDebtUncheckedCreateWithoutIdentityInput> | IdentityDebtCreateWithoutIdentityInput[] | IdentityDebtUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityDebtCreateOrConnectWithoutIdentityInput | IdentityDebtCreateOrConnectWithoutIdentityInput[]
+    upsert?: IdentityDebtUpsertWithWhereUniqueWithoutIdentityInput | IdentityDebtUpsertWithWhereUniqueWithoutIdentityInput[]
+    createMany?: IdentityDebtCreateManyIdentityInputEnvelope
+    set?: IdentityDebtWhereUniqueInput | IdentityDebtWhereUniqueInput[]
+    disconnect?: IdentityDebtWhereUniqueInput | IdentityDebtWhereUniqueInput[]
+    delete?: IdentityDebtWhereUniqueInput | IdentityDebtWhereUniqueInput[]
+    connect?: IdentityDebtWhereUniqueInput | IdentityDebtWhereUniqueInput[]
+    update?: IdentityDebtUpdateWithWhereUniqueWithoutIdentityInput | IdentityDebtUpdateWithWhereUniqueWithoutIdentityInput[]
+    updateMany?: IdentityDebtUpdateManyWithWhereWithoutIdentityInput | IdentityDebtUpdateManyWithWhereWithoutIdentityInput[]
+    deleteMany?: IdentityDebtScalarWhereInput | IdentityDebtScalarWhereInput[]
+  }
+
+  export type IdentityAssetUncheckedUpdateManyWithoutIdentityNestedInput = {
+    create?: XOR<IdentityAssetCreateWithoutIdentityInput, IdentityAssetUncheckedCreateWithoutIdentityInput> | IdentityAssetCreateWithoutIdentityInput[] | IdentityAssetUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityAssetCreateOrConnectWithoutIdentityInput | IdentityAssetCreateOrConnectWithoutIdentityInput[]
+    upsert?: IdentityAssetUpsertWithWhereUniqueWithoutIdentityInput | IdentityAssetUpsertWithWhereUniqueWithoutIdentityInput[]
+    createMany?: IdentityAssetCreateManyIdentityInputEnvelope
+    set?: IdentityAssetWhereUniqueInput | IdentityAssetWhereUniqueInput[]
+    disconnect?: IdentityAssetWhereUniqueInput | IdentityAssetWhereUniqueInput[]
+    delete?: IdentityAssetWhereUniqueInput | IdentityAssetWhereUniqueInput[]
+    connect?: IdentityAssetWhereUniqueInput | IdentityAssetWhereUniqueInput[]
+    update?: IdentityAssetUpdateWithWhereUniqueWithoutIdentityInput | IdentityAssetUpdateWithWhereUniqueWithoutIdentityInput[]
+    updateMany?: IdentityAssetUpdateManyWithWhereWithoutIdentityInput | IdentityAssetUpdateManyWithWhereWithoutIdentityInput[]
+    deleteMany?: IdentityAssetScalarWhereInput | IdentityAssetScalarWhereInput[]
+  }
+
+  export type IdentityGoalUncheckedUpdateManyWithoutIdentityNestedInput = {
+    create?: XOR<IdentityGoalCreateWithoutIdentityInput, IdentityGoalUncheckedCreateWithoutIdentityInput> | IdentityGoalCreateWithoutIdentityInput[] | IdentityGoalUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityGoalCreateOrConnectWithoutIdentityInput | IdentityGoalCreateOrConnectWithoutIdentityInput[]
+    upsert?: IdentityGoalUpsertWithWhereUniqueWithoutIdentityInput | IdentityGoalUpsertWithWhereUniqueWithoutIdentityInput[]
+    createMany?: IdentityGoalCreateManyIdentityInputEnvelope
+    set?: IdentityGoalWhereUniqueInput | IdentityGoalWhereUniqueInput[]
+    disconnect?: IdentityGoalWhereUniqueInput | IdentityGoalWhereUniqueInput[]
+    delete?: IdentityGoalWhereUniqueInput | IdentityGoalWhereUniqueInput[]
+    connect?: IdentityGoalWhereUniqueInput | IdentityGoalWhereUniqueInput[]
+    update?: IdentityGoalUpdateWithWhereUniqueWithoutIdentityInput | IdentityGoalUpdateWithWhereUniqueWithoutIdentityInput[]
+    updateMany?: IdentityGoalUpdateManyWithWhereWithoutIdentityInput | IdentityGoalUpdateManyWithWhereWithoutIdentityInput[]
+    deleteMany?: IdentityGoalScalarWhereInput | IdentityGoalScalarWhereInput[]
+  }
+
+  export type IdentityEventUncheckedUpdateManyWithoutIdentityNestedInput = {
+    create?: XOR<IdentityEventCreateWithoutIdentityInput, IdentityEventUncheckedCreateWithoutIdentityInput> | IdentityEventCreateWithoutIdentityInput[] | IdentityEventUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityEventCreateOrConnectWithoutIdentityInput | IdentityEventCreateOrConnectWithoutIdentityInput[]
+    upsert?: IdentityEventUpsertWithWhereUniqueWithoutIdentityInput | IdentityEventUpsertWithWhereUniqueWithoutIdentityInput[]
+    createMany?: IdentityEventCreateManyIdentityInputEnvelope
+    set?: IdentityEventWhereUniqueInput | IdentityEventWhereUniqueInput[]
+    disconnect?: IdentityEventWhereUniqueInput | IdentityEventWhereUniqueInput[]
+    delete?: IdentityEventWhereUniqueInput | IdentityEventWhereUniqueInput[]
+    connect?: IdentityEventWhereUniqueInput | IdentityEventWhereUniqueInput[]
+    update?: IdentityEventUpdateWithWhereUniqueWithoutIdentityInput | IdentityEventUpdateWithWhereUniqueWithoutIdentityInput[]
+    updateMany?: IdentityEventUpdateManyWithWhereWithoutIdentityInput | IdentityEventUpdateManyWithWhereWithoutIdentityInput[]
+    deleteMany?: IdentityEventScalarWhereInput | IdentityEventScalarWhereInput[]
+  }
+
+  export type IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityNestedInput = {
+    create?: XOR<IdentityHouseholdMemberCreateWithoutIdentityInput, IdentityHouseholdMemberUncheckedCreateWithoutIdentityInput> | IdentityHouseholdMemberCreateWithoutIdentityInput[] | IdentityHouseholdMemberUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentityHouseholdMemberCreateOrConnectWithoutIdentityInput | IdentityHouseholdMemberCreateOrConnectWithoutIdentityInput[]
+    upsert?: IdentityHouseholdMemberUpsertWithWhereUniqueWithoutIdentityInput | IdentityHouseholdMemberUpsertWithWhereUniqueWithoutIdentityInput[]
+    createMany?: IdentityHouseholdMemberCreateManyIdentityInputEnvelope
+    set?: IdentityHouseholdMemberWhereUniqueInput | IdentityHouseholdMemberWhereUniqueInput[]
+    disconnect?: IdentityHouseholdMemberWhereUniqueInput | IdentityHouseholdMemberWhereUniqueInput[]
+    delete?: IdentityHouseholdMemberWhereUniqueInput | IdentityHouseholdMemberWhereUniqueInput[]
+    connect?: IdentityHouseholdMemberWhereUniqueInput | IdentityHouseholdMemberWhereUniqueInput[]
+    update?: IdentityHouseholdMemberUpdateWithWhereUniqueWithoutIdentityInput | IdentityHouseholdMemberUpdateWithWhereUniqueWithoutIdentityInput[]
+    updateMany?: IdentityHouseholdMemberUpdateManyWithWhereWithoutIdentityInput | IdentityHouseholdMemberUpdateManyWithWhereWithoutIdentityInput[]
+    deleteMany?: IdentityHouseholdMemberScalarWhereInput | IdentityHouseholdMemberScalarWhereInput[]
+  }
+
+  export type OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput = {
+    create?: XOR<OnboardingMessageCreateWithoutIdentityInput, OnboardingMessageUncheckedCreateWithoutIdentityInput> | OnboardingMessageCreateWithoutIdentityInput[] | OnboardingMessageUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: OnboardingMessageCreateOrConnectWithoutIdentityInput | OnboardingMessageCreateOrConnectWithoutIdentityInput[]
+    upsert?: OnboardingMessageUpsertWithWhereUniqueWithoutIdentityInput | OnboardingMessageUpsertWithWhereUniqueWithoutIdentityInput[]
+    createMany?: OnboardingMessageCreateManyIdentityInputEnvelope
+    set?: OnboardingMessageWhereUniqueInput | OnboardingMessageWhereUniqueInput[]
+    disconnect?: OnboardingMessageWhereUniqueInput | OnboardingMessageWhereUniqueInput[]
+    delete?: OnboardingMessageWhereUniqueInput | OnboardingMessageWhereUniqueInput[]
+    connect?: OnboardingMessageWhereUniqueInput | OnboardingMessageWhereUniqueInput[]
+    update?: OnboardingMessageUpdateWithWhereUniqueWithoutIdentityInput | OnboardingMessageUpdateWithWhereUniqueWithoutIdentityInput[]
+    updateMany?: OnboardingMessageUpdateManyWithWhereWithoutIdentityInput | OnboardingMessageUpdateManyWithWhereWithoutIdentityInput[]
+    deleteMany?: OnboardingMessageScalarWhereInput | OnboardingMessageScalarWhereInput[]
+  }
+
+  export type FinancialIdentityCreateNestedOneWithoutIncomesInput = {
+    create?: XOR<FinancialIdentityCreateWithoutIncomesInput, FinancialIdentityUncheckedCreateWithoutIncomesInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutIncomesInput
+    connect?: FinancialIdentityWhereUniqueInput
+  }
+
+  export type FinancialIdentityUpdateOneRequiredWithoutIncomesNestedInput = {
+    create?: XOR<FinancialIdentityCreateWithoutIncomesInput, FinancialIdentityUncheckedCreateWithoutIncomesInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutIncomesInput
+    upsert?: FinancialIdentityUpsertWithoutIncomesInput
+    connect?: FinancialIdentityWhereUniqueInput
+    update?: XOR<XOR<FinancialIdentityUpdateToOneWithWhereWithoutIncomesInput, FinancialIdentityUpdateWithoutIncomesInput>, FinancialIdentityUncheckedUpdateWithoutIncomesInput>
+  }
+
+  export type FinancialIdentityCreateNestedOneWithoutExpensesInput = {
+    create?: XOR<FinancialIdentityCreateWithoutExpensesInput, FinancialIdentityUncheckedCreateWithoutExpensesInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutExpensesInput
+    connect?: FinancialIdentityWhereUniqueInput
+  }
+
+  export type FinancialIdentityUpdateOneRequiredWithoutExpensesNestedInput = {
+    create?: XOR<FinancialIdentityCreateWithoutExpensesInput, FinancialIdentityUncheckedCreateWithoutExpensesInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutExpensesInput
+    upsert?: FinancialIdentityUpsertWithoutExpensesInput
+    connect?: FinancialIdentityWhereUniqueInput
+    update?: XOR<XOR<FinancialIdentityUpdateToOneWithWhereWithoutExpensesInput, FinancialIdentityUpdateWithoutExpensesInput>, FinancialIdentityUncheckedUpdateWithoutExpensesInput>
+  }
+
+  export type FinancialIdentityCreateNestedOneWithoutDebtsInput = {
+    create?: XOR<FinancialIdentityCreateWithoutDebtsInput, FinancialIdentityUncheckedCreateWithoutDebtsInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutDebtsInput
+    connect?: FinancialIdentityWhereUniqueInput
+  }
+
+  export type FloatFieldUpdateOperationsInput = {
+    set?: number
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
+  }
+
+  export type FinancialIdentityUpdateOneRequiredWithoutDebtsNestedInput = {
+    create?: XOR<FinancialIdentityCreateWithoutDebtsInput, FinancialIdentityUncheckedCreateWithoutDebtsInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutDebtsInput
+    upsert?: FinancialIdentityUpsertWithoutDebtsInput
+    connect?: FinancialIdentityWhereUniqueInput
+    update?: XOR<XOR<FinancialIdentityUpdateToOneWithWhereWithoutDebtsInput, FinancialIdentityUpdateWithoutDebtsInput>, FinancialIdentityUncheckedUpdateWithoutDebtsInput>
+  }
+
+  export type FinancialIdentityCreateNestedOneWithoutAssetsInput = {
+    create?: XOR<FinancialIdentityCreateWithoutAssetsInput, FinancialIdentityUncheckedCreateWithoutAssetsInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutAssetsInput
+    connect?: FinancialIdentityWhereUniqueInput
+  }
+
+  export type FinancialIdentityUpdateOneRequiredWithoutAssetsNestedInput = {
+    create?: XOR<FinancialIdentityCreateWithoutAssetsInput, FinancialIdentityUncheckedCreateWithoutAssetsInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutAssetsInput
+    upsert?: FinancialIdentityUpsertWithoutAssetsInput
+    connect?: FinancialIdentityWhereUniqueInput
+    update?: XOR<XOR<FinancialIdentityUpdateToOneWithWhereWithoutAssetsInput, FinancialIdentityUpdateWithoutAssetsInput>, FinancialIdentityUncheckedUpdateWithoutAssetsInput>
+  }
+
+  export type FinancialIdentityCreateNestedOneWithoutGoalsInput = {
+    create?: XOR<FinancialIdentityCreateWithoutGoalsInput, FinancialIdentityUncheckedCreateWithoutGoalsInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutGoalsInput
+    connect?: FinancialIdentityWhereUniqueInput
+  }
+
+  export type FinancialIdentityUpdateOneRequiredWithoutGoalsNestedInput = {
+    create?: XOR<FinancialIdentityCreateWithoutGoalsInput, FinancialIdentityUncheckedCreateWithoutGoalsInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutGoalsInput
+    upsert?: FinancialIdentityUpsertWithoutGoalsInput
+    connect?: FinancialIdentityWhereUniqueInput
+    update?: XOR<XOR<FinancialIdentityUpdateToOneWithWhereWithoutGoalsInput, FinancialIdentityUpdateWithoutGoalsInput>, FinancialIdentityUncheckedUpdateWithoutGoalsInput>
+  }
+
+  export type FinancialIdentityCreateNestedOneWithoutEventsInput = {
+    create?: XOR<FinancialIdentityCreateWithoutEventsInput, FinancialIdentityUncheckedCreateWithoutEventsInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutEventsInput
+    connect?: FinancialIdentityWhereUniqueInput
+  }
+
+  export type FinancialIdentityUpdateOneRequiredWithoutEventsNestedInput = {
+    create?: XOR<FinancialIdentityCreateWithoutEventsInput, FinancialIdentityUncheckedCreateWithoutEventsInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutEventsInput
+    upsert?: FinancialIdentityUpsertWithoutEventsInput
+    connect?: FinancialIdentityWhereUniqueInput
+    update?: XOR<XOR<FinancialIdentityUpdateToOneWithWhereWithoutEventsInput, FinancialIdentityUpdateWithoutEventsInput>, FinancialIdentityUncheckedUpdateWithoutEventsInput>
+  }
+
+  export type FinancialIdentityCreateNestedOneWithoutHouseholdInput = {
+    create?: XOR<FinancialIdentityCreateWithoutHouseholdInput, FinancialIdentityUncheckedCreateWithoutHouseholdInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutHouseholdInput
+    connect?: FinancialIdentityWhereUniqueInput
+  }
+
+  export type FinancialIdentityUpdateOneRequiredWithoutHouseholdNestedInput = {
+    create?: XOR<FinancialIdentityCreateWithoutHouseholdInput, FinancialIdentityUncheckedCreateWithoutHouseholdInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutHouseholdInput
+    upsert?: FinancialIdentityUpsertWithoutHouseholdInput
+    connect?: FinancialIdentityWhereUniqueInput
+    update?: XOR<XOR<FinancialIdentityUpdateToOneWithWhereWithoutHouseholdInput, FinancialIdentityUpdateWithoutHouseholdInput>, FinancialIdentityUncheckedUpdateWithoutHouseholdInput>
+  }
+
+  export type FinancialIdentityCreateNestedOneWithoutMessagesInput = {
+    create?: XOR<FinancialIdentityCreateWithoutMessagesInput, FinancialIdentityUncheckedCreateWithoutMessagesInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutMessagesInput
+    connect?: FinancialIdentityWhereUniqueInput
+  }
+
+  export type FinancialIdentityUpdateOneRequiredWithoutMessagesNestedInput = {
+    create?: XOR<FinancialIdentityCreateWithoutMessagesInput, FinancialIdentityUncheckedCreateWithoutMessagesInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutMessagesInput
+    upsert?: FinancialIdentityUpsertWithoutMessagesInput
+    connect?: FinancialIdentityWhereUniqueInput
+    update?: XOR<XOR<FinancialIdentityUpdateToOneWithWhereWithoutMessagesInput, FinancialIdentityUpdateWithoutMessagesInput>, FinancialIdentityUncheckedUpdateWithoutMessagesInput>
+  }
+
   export type NestedStringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[]
@@ -20556,6 +35099,22 @@ export namespace Prisma {
     gt?: number | FloatFieldRefInput<$PrismaModel>
     gte?: number | FloatFieldRefInput<$PrismaModel>
     not?: NestedFloatNullableFilter<$PrismaModel> | number | null
+  }
+
+  export type NestedFloatWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[]
+    notIn?: number[]
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedFloatFilter<$PrismaModel>
+    _min?: NestedFloatFilter<$PrismaModel>
+    _max?: NestedFloatFilter<$PrismaModel>
   }
 
   export type SessionCreateWithoutUserInput = {
@@ -20848,6 +35407,77 @@ export namespace Prisma {
     data: AuditLogCreateManyUserInput | AuditLogCreateManyUserInput[]
   }
 
+  export type FinancialIdentityCreateWithoutUserInput = {
+    id?: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    incomes?: IdentityIncomeCreateNestedManyWithoutIdentityInput
+    expenses?: IdentityExpenseCreateNestedManyWithoutIdentityInput
+    debts?: IdentityDebtCreateNestedManyWithoutIdentityInput
+    assets?: IdentityAssetCreateNestedManyWithoutIdentityInput
+    goals?: IdentityGoalCreateNestedManyWithoutIdentityInput
+    events?: IdentityEventCreateNestedManyWithoutIdentityInput
+    household?: IdentityHouseholdMemberCreateNestedManyWithoutIdentityInput
+    messages?: OnboardingMessageCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityUncheckedCreateWithoutUserInput = {
+    id?: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    incomes?: IdentityIncomeUncheckedCreateNestedManyWithoutIdentityInput
+    expenses?: IdentityExpenseUncheckedCreateNestedManyWithoutIdentityInput
+    debts?: IdentityDebtUncheckedCreateNestedManyWithoutIdentityInput
+    assets?: IdentityAssetUncheckedCreateNestedManyWithoutIdentityInput
+    goals?: IdentityGoalUncheckedCreateNestedManyWithoutIdentityInput
+    events?: IdentityEventUncheckedCreateNestedManyWithoutIdentityInput
+    household?: IdentityHouseholdMemberUncheckedCreateNestedManyWithoutIdentityInput
+    messages?: OnboardingMessageUncheckedCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityCreateOrConnectWithoutUserInput = {
+    where: FinancialIdentityWhereUniqueInput
+    create: XOR<FinancialIdentityCreateWithoutUserInput, FinancialIdentityUncheckedCreateWithoutUserInput>
+  }
+
   export type SessionUpsertWithWhereUniqueWithoutUserInput = {
     where: SessionWhereUniqueInput
     update: XOR<SessionUpdateWithoutUserInput, SessionUncheckedUpdateWithoutUserInput>
@@ -21112,6 +35742,83 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"AuditLog"> | Date | string
   }
 
+  export type FinancialIdentityUpsertWithoutUserInput = {
+    update: XOR<FinancialIdentityUpdateWithoutUserInput, FinancialIdentityUncheckedUpdateWithoutUserInput>
+    create: XOR<FinancialIdentityCreateWithoutUserInput, FinancialIdentityUncheckedCreateWithoutUserInput>
+    where?: FinancialIdentityWhereInput
+  }
+
+  export type FinancialIdentityUpdateToOneWithWhereWithoutUserInput = {
+    where?: FinancialIdentityWhereInput
+    data: XOR<FinancialIdentityUpdateWithoutUserInput, FinancialIdentityUncheckedUpdateWithoutUserInput>
+  }
+
+  export type FinancialIdentityUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    incomes?: IdentityIncomeUpdateManyWithoutIdentityNestedInput
+    expenses?: IdentityExpenseUpdateManyWithoutIdentityNestedInput
+    debts?: IdentityDebtUpdateManyWithoutIdentityNestedInput
+    assets?: IdentityAssetUpdateManyWithoutIdentityNestedInput
+    goals?: IdentityGoalUpdateManyWithoutIdentityNestedInput
+    events?: IdentityEventUpdateManyWithoutIdentityNestedInput
+    household?: IdentityHouseholdMemberUpdateManyWithoutIdentityNestedInput
+    messages?: OnboardingMessageUpdateManyWithoutIdentityNestedInput
+  }
+
+  export type FinancialIdentityUncheckedUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    incomes?: IdentityIncomeUncheckedUpdateManyWithoutIdentityNestedInput
+    expenses?: IdentityExpenseUncheckedUpdateManyWithoutIdentityNestedInput
+    debts?: IdentityDebtUncheckedUpdateManyWithoutIdentityNestedInput
+    assets?: IdentityAssetUncheckedUpdateManyWithoutIdentityNestedInput
+    goals?: IdentityGoalUncheckedUpdateManyWithoutIdentityNestedInput
+    events?: IdentityEventUncheckedUpdateManyWithoutIdentityNestedInput
+    household?: IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityNestedInput
+    messages?: OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput
+  }
+
   export type UserCreateWithoutSessionsInput = {
     id?: string
     name: string
@@ -21130,6 +35837,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutSessionsInput = {
@@ -21150,6 +35858,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutSessionsInput = {
@@ -21186,6 +35895,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutSessionsInput = {
@@ -21206,6 +35916,7 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type UserCreateWithoutAccountsInput = {
@@ -21226,6 +35937,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutAccountsInput = {
@@ -21246,6 +35958,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutAccountsInput = {
@@ -21358,6 +36071,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutAccountsInput = {
@@ -21378,6 +36092,7 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type TransactionUpsertWithWhereUniqueWithoutAccountInput = {
@@ -21430,6 +36145,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutEnvelopesInput = {
@@ -21450,6 +36166,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutEnvelopesInput = {
@@ -21558,6 +36275,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutEnvelopesInput = {
@@ -21578,6 +36296,7 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type TransactionUpsertWithWhereUniqueWithoutEnvelopeInput = {
@@ -21643,6 +36362,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutTransactionsInput = {
@@ -21663,6 +36383,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutTransactionsInput = {
@@ -21777,6 +36498,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutTransactionsInput = {
@@ -21797,6 +36519,7 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type AccountUpsertWithoutTransactionsInput = {
@@ -21907,6 +36630,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutPaySchedulesInput = {
@@ -21927,6 +36651,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutPaySchedulesInput = {
@@ -22000,6 +36725,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutPaySchedulesInput = {
@@ -22020,6 +36746,7 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type AccountUpsertWithoutPaySchedulesInput = {
@@ -22083,6 +36810,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutGoalsInput = {
@@ -22103,6 +36831,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutGoalsInput = {
@@ -22139,6 +36868,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutGoalsInput = {
@@ -22159,6 +36889,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type UserCreateWithoutAllocationPlansInput = {
@@ -22179,6 +36910,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutAllocationPlansInput = {
@@ -22199,6 +36931,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutAllocationPlansInput = {
@@ -22262,6 +36995,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutAllocationPlansInput = {
@@ -22282,6 +37016,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type AllocationRuleUpsertWithWhereUniqueWithoutPlanInput = {
@@ -22462,6 +37197,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutAuditLogInput = {
@@ -22482,6 +37218,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutAuditLogInput = {
@@ -22518,6 +37255,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutAuditLogInput = {
@@ -22538,6 +37276,1772 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
+  }
+
+  export type UserCreateWithoutIdentityInput = {
+    id?: string
+    name: string
+    email: string
+    passwordHash: string
+    aiTier?: number
+    routingLevel?: number
+    defaultViewId?: string | null
+    settings?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    sessions?: SessionCreateNestedManyWithoutUserInput
+    accounts?: AccountCreateNestedManyWithoutUserInput
+    envelopes?: EnvelopeCreateNestedManyWithoutUserInput
+    transactions?: TransactionCreateNestedManyWithoutUserInput
+    paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
+    goals?: GoalCreateNestedManyWithoutUserInput
+    allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    auditLog?: AuditLogCreateNestedManyWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutIdentityInput = {
+    id?: string
+    name: string
+    email: string
+    passwordHash: string
+    aiTier?: number
+    routingLevel?: number
+    defaultViewId?: string | null
+    settings?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
+    accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
+    envelopes?: EnvelopeUncheckedCreateNestedManyWithoutUserInput
+    transactions?: TransactionUncheckedCreateNestedManyWithoutUserInput
+    paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
+    goals?: GoalUncheckedCreateNestedManyWithoutUserInput
+    allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutIdentityInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutIdentityInput, UserUncheckedCreateWithoutIdentityInput>
+  }
+
+  export type IdentityIncomeCreateWithoutIdentityInput = {
+    id?: string
+    label: string
+    cadence?: string | null
+    amountDollars?: number | null
+    isPrimary?: boolean
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityIncomeUncheckedCreateWithoutIdentityInput = {
+    id?: string
+    label: string
+    cadence?: string | null
+    amountDollars?: number | null
+    isPrimary?: boolean
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityIncomeCreateOrConnectWithoutIdentityInput = {
+    where: IdentityIncomeWhereUniqueInput
+    create: XOR<IdentityIncomeCreateWithoutIdentityInput, IdentityIncomeUncheckedCreateWithoutIdentityInput>
+  }
+
+  export type IdentityIncomeCreateManyIdentityInputEnvelope = {
+    data: IdentityIncomeCreateManyIdentityInput | IdentityIncomeCreateManyIdentityInput[]
+  }
+
+  export type IdentityExpenseCreateWithoutIdentityInput = {
+    id?: string
+    label: string
+    amountDollars: number
+    cadence: string
+    category: string
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityExpenseUncheckedCreateWithoutIdentityInput = {
+    id?: string
+    label: string
+    amountDollars: number
+    cadence: string
+    category: string
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityExpenseCreateOrConnectWithoutIdentityInput = {
+    where: IdentityExpenseWhereUniqueInput
+    create: XOR<IdentityExpenseCreateWithoutIdentityInput, IdentityExpenseUncheckedCreateWithoutIdentityInput>
+  }
+
+  export type IdentityExpenseCreateManyIdentityInputEnvelope = {
+    data: IdentityExpenseCreateManyIdentityInput | IdentityExpenseCreateManyIdentityInput[]
+  }
+
+  export type IdentityDebtCreateWithoutIdentityInput = {
+    id?: string
+    label: string
+    kind: string
+    balanceDollars?: number
+    aprPercent?: number
+    minPaymentDollars?: number
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityDebtUncheckedCreateWithoutIdentityInput = {
+    id?: string
+    label: string
+    kind: string
+    balanceDollars?: number
+    aprPercent?: number
+    minPaymentDollars?: number
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityDebtCreateOrConnectWithoutIdentityInput = {
+    where: IdentityDebtWhereUniqueInput
+    create: XOR<IdentityDebtCreateWithoutIdentityInput, IdentityDebtUncheckedCreateWithoutIdentityInput>
+  }
+
+  export type IdentityDebtCreateManyIdentityInputEnvelope = {
+    data: IdentityDebtCreateManyIdentityInput | IdentityDebtCreateManyIdentityInput[]
+  }
+
+  export type IdentityAssetCreateWithoutIdentityInput = {
+    id?: string
+    label: string
+    kind: string
+    balanceDollars?: number
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityAssetUncheckedCreateWithoutIdentityInput = {
+    id?: string
+    label: string
+    kind: string
+    balanceDollars?: number
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityAssetCreateOrConnectWithoutIdentityInput = {
+    where: IdentityAssetWhereUniqueInput
+    create: XOR<IdentityAssetCreateWithoutIdentityInput, IdentityAssetUncheckedCreateWithoutIdentityInput>
+  }
+
+  export type IdentityAssetCreateManyIdentityInputEnvelope = {
+    data: IdentityAssetCreateManyIdentityInput | IdentityAssetCreateManyIdentityInput[]
+  }
+
+  export type IdentityGoalCreateWithoutIdentityInput = {
+    id?: string
+    label: string
+    targetDollars: number
+    targetDate?: Date | string | null
+    perPaycheckDollars?: number | null
+    kind: string
+    goalType?: string | null
+    priority?: number
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityGoalUncheckedCreateWithoutIdentityInput = {
+    id?: string
+    label: string
+    targetDollars: number
+    targetDate?: Date | string | null
+    perPaycheckDollars?: number | null
+    kind: string
+    goalType?: string | null
+    priority?: number
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityGoalCreateOrConnectWithoutIdentityInput = {
+    where: IdentityGoalWhereUniqueInput
+    create: XOR<IdentityGoalCreateWithoutIdentityInput, IdentityGoalUncheckedCreateWithoutIdentityInput>
+  }
+
+  export type IdentityGoalCreateManyIdentityInputEnvelope = {
+    data: IdentityGoalCreateManyIdentityInput | IdentityGoalCreateManyIdentityInput[]
+  }
+
+  export type IdentityEventCreateWithoutIdentityInput = {
+    id?: string
+    label: string
+    date?: Date | string | null
+    estimatedCostDollars?: number
+    isFlexible?: boolean
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityEventUncheckedCreateWithoutIdentityInput = {
+    id?: string
+    label: string
+    date?: Date | string | null
+    estimatedCostDollars?: number
+    isFlexible?: boolean
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityEventCreateOrConnectWithoutIdentityInput = {
+    where: IdentityEventWhereUniqueInput
+    create: XOR<IdentityEventCreateWithoutIdentityInput, IdentityEventUncheckedCreateWithoutIdentityInput>
+  }
+
+  export type IdentityEventCreateManyIdentityInputEnvelope = {
+    data: IdentityEventCreateManyIdentityInput | IdentityEventCreateManyIdentityInput[]
+  }
+
+  export type IdentityHouseholdMemberCreateWithoutIdentityInput = {
+    id?: string
+    name: string
+    relationship: string
+    financiallyEntwined?: boolean
+    ageRange?: string | null
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityHouseholdMemberUncheckedCreateWithoutIdentityInput = {
+    id?: string
+    name: string
+    relationship: string
+    financiallyEntwined?: boolean
+    ageRange?: string | null
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityHouseholdMemberCreateOrConnectWithoutIdentityInput = {
+    where: IdentityHouseholdMemberWhereUniqueInput
+    create: XOR<IdentityHouseholdMemberCreateWithoutIdentityInput, IdentityHouseholdMemberUncheckedCreateWithoutIdentityInput>
+  }
+
+  export type IdentityHouseholdMemberCreateManyIdentityInputEnvelope = {
+    data: IdentityHouseholdMemberCreateManyIdentityInput | IdentityHouseholdMemberCreateManyIdentityInput[]
+  }
+
+  export type OnboardingMessageCreateWithoutIdentityInput = {
+    id?: string
+    role: string
+    content: string
+    toolCallId?: string | null
+    toolCallsJson?: string | null
+    seq: number
+    createdAt?: Date | string
+  }
+
+  export type OnboardingMessageUncheckedCreateWithoutIdentityInput = {
+    id?: string
+    role: string
+    content: string
+    toolCallId?: string | null
+    toolCallsJson?: string | null
+    seq: number
+    createdAt?: Date | string
+  }
+
+  export type OnboardingMessageCreateOrConnectWithoutIdentityInput = {
+    where: OnboardingMessageWhereUniqueInput
+    create: XOR<OnboardingMessageCreateWithoutIdentityInput, OnboardingMessageUncheckedCreateWithoutIdentityInput>
+  }
+
+  export type OnboardingMessageCreateManyIdentityInputEnvelope = {
+    data: OnboardingMessageCreateManyIdentityInput | OnboardingMessageCreateManyIdentityInput[]
+  }
+
+  export type UserUpsertWithoutIdentityInput = {
+    update: XOR<UserUpdateWithoutIdentityInput, UserUncheckedUpdateWithoutIdentityInput>
+    create: XOR<UserCreateWithoutIdentityInput, UserUncheckedCreateWithoutIdentityInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutIdentityInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutIdentityInput, UserUncheckedUpdateWithoutIdentityInput>
+  }
+
+  export type UserUpdateWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    aiTier?: IntFieldUpdateOperationsInput | number
+    routingLevel?: IntFieldUpdateOperationsInput | number
+    defaultViewId?: NullableStringFieldUpdateOperationsInput | string | null
+    settings?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    sessions?: SessionUpdateManyWithoutUserNestedInput
+    accounts?: AccountUpdateManyWithoutUserNestedInput
+    envelopes?: EnvelopeUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUpdateManyWithoutUserNestedInput
+    paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
+    goals?: GoalUpdateManyWithoutUserNestedInput
+    allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    aiTier?: IntFieldUpdateOperationsInput | number
+    routingLevel?: IntFieldUpdateOperationsInput | number
+    defaultViewId?: NullableStringFieldUpdateOperationsInput | string | null
+    settings?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
+    accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
+    envelopes?: EnvelopeUncheckedUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUncheckedUpdateManyWithoutUserNestedInput
+    paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
+    goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
+    allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type IdentityIncomeUpsertWithWhereUniqueWithoutIdentityInput = {
+    where: IdentityIncomeWhereUniqueInput
+    update: XOR<IdentityIncomeUpdateWithoutIdentityInput, IdentityIncomeUncheckedUpdateWithoutIdentityInput>
+    create: XOR<IdentityIncomeCreateWithoutIdentityInput, IdentityIncomeUncheckedCreateWithoutIdentityInput>
+  }
+
+  export type IdentityIncomeUpdateWithWhereUniqueWithoutIdentityInput = {
+    where: IdentityIncomeWhereUniqueInput
+    data: XOR<IdentityIncomeUpdateWithoutIdentityInput, IdentityIncomeUncheckedUpdateWithoutIdentityInput>
+  }
+
+  export type IdentityIncomeUpdateManyWithWhereWithoutIdentityInput = {
+    where: IdentityIncomeScalarWhereInput
+    data: XOR<IdentityIncomeUpdateManyMutationInput, IdentityIncomeUncheckedUpdateManyWithoutIdentityInput>
+  }
+
+  export type IdentityIncomeScalarWhereInput = {
+    AND?: IdentityIncomeScalarWhereInput | IdentityIncomeScalarWhereInput[]
+    OR?: IdentityIncomeScalarWhereInput[]
+    NOT?: IdentityIncomeScalarWhereInput | IdentityIncomeScalarWhereInput[]
+    id?: StringFilter<"IdentityIncome"> | string
+    identityId?: StringFilter<"IdentityIncome"> | string
+    label?: StringFilter<"IdentityIncome"> | string
+    cadence?: StringNullableFilter<"IdentityIncome"> | string | null
+    amountDollars?: IntNullableFilter<"IdentityIncome"> | number | null
+    isPrimary?: BoolFilter<"IdentityIncome"> | boolean
+    sortOrder?: IntFilter<"IdentityIncome"> | number
+    createdAt?: DateTimeFilter<"IdentityIncome"> | Date | string
+  }
+
+  export type IdentityExpenseUpsertWithWhereUniqueWithoutIdentityInput = {
+    where: IdentityExpenseWhereUniqueInput
+    update: XOR<IdentityExpenseUpdateWithoutIdentityInput, IdentityExpenseUncheckedUpdateWithoutIdentityInput>
+    create: XOR<IdentityExpenseCreateWithoutIdentityInput, IdentityExpenseUncheckedCreateWithoutIdentityInput>
+  }
+
+  export type IdentityExpenseUpdateWithWhereUniqueWithoutIdentityInput = {
+    where: IdentityExpenseWhereUniqueInput
+    data: XOR<IdentityExpenseUpdateWithoutIdentityInput, IdentityExpenseUncheckedUpdateWithoutIdentityInput>
+  }
+
+  export type IdentityExpenseUpdateManyWithWhereWithoutIdentityInput = {
+    where: IdentityExpenseScalarWhereInput
+    data: XOR<IdentityExpenseUpdateManyMutationInput, IdentityExpenseUncheckedUpdateManyWithoutIdentityInput>
+  }
+
+  export type IdentityExpenseScalarWhereInput = {
+    AND?: IdentityExpenseScalarWhereInput | IdentityExpenseScalarWhereInput[]
+    OR?: IdentityExpenseScalarWhereInput[]
+    NOT?: IdentityExpenseScalarWhereInput | IdentityExpenseScalarWhereInput[]
+    id?: StringFilter<"IdentityExpense"> | string
+    identityId?: StringFilter<"IdentityExpense"> | string
+    label?: StringFilter<"IdentityExpense"> | string
+    amountDollars?: IntFilter<"IdentityExpense"> | number
+    cadence?: StringFilter<"IdentityExpense"> | string
+    category?: StringFilter<"IdentityExpense"> | string
+    sortOrder?: IntFilter<"IdentityExpense"> | number
+    createdAt?: DateTimeFilter<"IdentityExpense"> | Date | string
+  }
+
+  export type IdentityDebtUpsertWithWhereUniqueWithoutIdentityInput = {
+    where: IdentityDebtWhereUniqueInput
+    update: XOR<IdentityDebtUpdateWithoutIdentityInput, IdentityDebtUncheckedUpdateWithoutIdentityInput>
+    create: XOR<IdentityDebtCreateWithoutIdentityInput, IdentityDebtUncheckedCreateWithoutIdentityInput>
+  }
+
+  export type IdentityDebtUpdateWithWhereUniqueWithoutIdentityInput = {
+    where: IdentityDebtWhereUniqueInput
+    data: XOR<IdentityDebtUpdateWithoutIdentityInput, IdentityDebtUncheckedUpdateWithoutIdentityInput>
+  }
+
+  export type IdentityDebtUpdateManyWithWhereWithoutIdentityInput = {
+    where: IdentityDebtScalarWhereInput
+    data: XOR<IdentityDebtUpdateManyMutationInput, IdentityDebtUncheckedUpdateManyWithoutIdentityInput>
+  }
+
+  export type IdentityDebtScalarWhereInput = {
+    AND?: IdentityDebtScalarWhereInput | IdentityDebtScalarWhereInput[]
+    OR?: IdentityDebtScalarWhereInput[]
+    NOT?: IdentityDebtScalarWhereInput | IdentityDebtScalarWhereInput[]
+    id?: StringFilter<"IdentityDebt"> | string
+    identityId?: StringFilter<"IdentityDebt"> | string
+    label?: StringFilter<"IdentityDebt"> | string
+    kind?: StringFilter<"IdentityDebt"> | string
+    balanceDollars?: IntFilter<"IdentityDebt"> | number
+    aprPercent?: FloatFilter<"IdentityDebt"> | number
+    minPaymentDollars?: IntFilter<"IdentityDebt"> | number
+    sortOrder?: IntFilter<"IdentityDebt"> | number
+    createdAt?: DateTimeFilter<"IdentityDebt"> | Date | string
+  }
+
+  export type IdentityAssetUpsertWithWhereUniqueWithoutIdentityInput = {
+    where: IdentityAssetWhereUniqueInput
+    update: XOR<IdentityAssetUpdateWithoutIdentityInput, IdentityAssetUncheckedUpdateWithoutIdentityInput>
+    create: XOR<IdentityAssetCreateWithoutIdentityInput, IdentityAssetUncheckedCreateWithoutIdentityInput>
+  }
+
+  export type IdentityAssetUpdateWithWhereUniqueWithoutIdentityInput = {
+    where: IdentityAssetWhereUniqueInput
+    data: XOR<IdentityAssetUpdateWithoutIdentityInput, IdentityAssetUncheckedUpdateWithoutIdentityInput>
+  }
+
+  export type IdentityAssetUpdateManyWithWhereWithoutIdentityInput = {
+    where: IdentityAssetScalarWhereInput
+    data: XOR<IdentityAssetUpdateManyMutationInput, IdentityAssetUncheckedUpdateManyWithoutIdentityInput>
+  }
+
+  export type IdentityAssetScalarWhereInput = {
+    AND?: IdentityAssetScalarWhereInput | IdentityAssetScalarWhereInput[]
+    OR?: IdentityAssetScalarWhereInput[]
+    NOT?: IdentityAssetScalarWhereInput | IdentityAssetScalarWhereInput[]
+    id?: StringFilter<"IdentityAsset"> | string
+    identityId?: StringFilter<"IdentityAsset"> | string
+    label?: StringFilter<"IdentityAsset"> | string
+    kind?: StringFilter<"IdentityAsset"> | string
+    balanceDollars?: IntFilter<"IdentityAsset"> | number
+    sortOrder?: IntFilter<"IdentityAsset"> | number
+    createdAt?: DateTimeFilter<"IdentityAsset"> | Date | string
+  }
+
+  export type IdentityGoalUpsertWithWhereUniqueWithoutIdentityInput = {
+    where: IdentityGoalWhereUniqueInput
+    update: XOR<IdentityGoalUpdateWithoutIdentityInput, IdentityGoalUncheckedUpdateWithoutIdentityInput>
+    create: XOR<IdentityGoalCreateWithoutIdentityInput, IdentityGoalUncheckedCreateWithoutIdentityInput>
+  }
+
+  export type IdentityGoalUpdateWithWhereUniqueWithoutIdentityInput = {
+    where: IdentityGoalWhereUniqueInput
+    data: XOR<IdentityGoalUpdateWithoutIdentityInput, IdentityGoalUncheckedUpdateWithoutIdentityInput>
+  }
+
+  export type IdentityGoalUpdateManyWithWhereWithoutIdentityInput = {
+    where: IdentityGoalScalarWhereInput
+    data: XOR<IdentityGoalUpdateManyMutationInput, IdentityGoalUncheckedUpdateManyWithoutIdentityInput>
+  }
+
+  export type IdentityGoalScalarWhereInput = {
+    AND?: IdentityGoalScalarWhereInput | IdentityGoalScalarWhereInput[]
+    OR?: IdentityGoalScalarWhereInput[]
+    NOT?: IdentityGoalScalarWhereInput | IdentityGoalScalarWhereInput[]
+    id?: StringFilter<"IdentityGoal"> | string
+    identityId?: StringFilter<"IdentityGoal"> | string
+    label?: StringFilter<"IdentityGoal"> | string
+    targetDollars?: IntFilter<"IdentityGoal"> | number
+    targetDate?: DateTimeNullableFilter<"IdentityGoal"> | Date | string | null
+    perPaycheckDollars?: IntNullableFilter<"IdentityGoal"> | number | null
+    kind?: StringFilter<"IdentityGoal"> | string
+    goalType?: StringNullableFilter<"IdentityGoal"> | string | null
+    priority?: IntFilter<"IdentityGoal"> | number
+    sortOrder?: IntFilter<"IdentityGoal"> | number
+    createdAt?: DateTimeFilter<"IdentityGoal"> | Date | string
+  }
+
+  export type IdentityEventUpsertWithWhereUniqueWithoutIdentityInput = {
+    where: IdentityEventWhereUniqueInput
+    update: XOR<IdentityEventUpdateWithoutIdentityInput, IdentityEventUncheckedUpdateWithoutIdentityInput>
+    create: XOR<IdentityEventCreateWithoutIdentityInput, IdentityEventUncheckedCreateWithoutIdentityInput>
+  }
+
+  export type IdentityEventUpdateWithWhereUniqueWithoutIdentityInput = {
+    where: IdentityEventWhereUniqueInput
+    data: XOR<IdentityEventUpdateWithoutIdentityInput, IdentityEventUncheckedUpdateWithoutIdentityInput>
+  }
+
+  export type IdentityEventUpdateManyWithWhereWithoutIdentityInput = {
+    where: IdentityEventScalarWhereInput
+    data: XOR<IdentityEventUpdateManyMutationInput, IdentityEventUncheckedUpdateManyWithoutIdentityInput>
+  }
+
+  export type IdentityEventScalarWhereInput = {
+    AND?: IdentityEventScalarWhereInput | IdentityEventScalarWhereInput[]
+    OR?: IdentityEventScalarWhereInput[]
+    NOT?: IdentityEventScalarWhereInput | IdentityEventScalarWhereInput[]
+    id?: StringFilter<"IdentityEvent"> | string
+    identityId?: StringFilter<"IdentityEvent"> | string
+    label?: StringFilter<"IdentityEvent"> | string
+    date?: DateTimeNullableFilter<"IdentityEvent"> | Date | string | null
+    estimatedCostDollars?: IntFilter<"IdentityEvent"> | number
+    isFlexible?: BoolFilter<"IdentityEvent"> | boolean
+    sortOrder?: IntFilter<"IdentityEvent"> | number
+    createdAt?: DateTimeFilter<"IdentityEvent"> | Date | string
+  }
+
+  export type IdentityHouseholdMemberUpsertWithWhereUniqueWithoutIdentityInput = {
+    where: IdentityHouseholdMemberWhereUniqueInput
+    update: XOR<IdentityHouseholdMemberUpdateWithoutIdentityInput, IdentityHouseholdMemberUncheckedUpdateWithoutIdentityInput>
+    create: XOR<IdentityHouseholdMemberCreateWithoutIdentityInput, IdentityHouseholdMemberUncheckedCreateWithoutIdentityInput>
+  }
+
+  export type IdentityHouseholdMemberUpdateWithWhereUniqueWithoutIdentityInput = {
+    where: IdentityHouseholdMemberWhereUniqueInput
+    data: XOR<IdentityHouseholdMemberUpdateWithoutIdentityInput, IdentityHouseholdMemberUncheckedUpdateWithoutIdentityInput>
+  }
+
+  export type IdentityHouseholdMemberUpdateManyWithWhereWithoutIdentityInput = {
+    where: IdentityHouseholdMemberScalarWhereInput
+    data: XOR<IdentityHouseholdMemberUpdateManyMutationInput, IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityInput>
+  }
+
+  export type IdentityHouseholdMemberScalarWhereInput = {
+    AND?: IdentityHouseholdMemberScalarWhereInput | IdentityHouseholdMemberScalarWhereInput[]
+    OR?: IdentityHouseholdMemberScalarWhereInput[]
+    NOT?: IdentityHouseholdMemberScalarWhereInput | IdentityHouseholdMemberScalarWhereInput[]
+    id?: StringFilter<"IdentityHouseholdMember"> | string
+    identityId?: StringFilter<"IdentityHouseholdMember"> | string
+    name?: StringFilter<"IdentityHouseholdMember"> | string
+    relationship?: StringFilter<"IdentityHouseholdMember"> | string
+    financiallyEntwined?: BoolFilter<"IdentityHouseholdMember"> | boolean
+    ageRange?: StringNullableFilter<"IdentityHouseholdMember"> | string | null
+    sortOrder?: IntFilter<"IdentityHouseholdMember"> | number
+    createdAt?: DateTimeFilter<"IdentityHouseholdMember"> | Date | string
+  }
+
+  export type OnboardingMessageUpsertWithWhereUniqueWithoutIdentityInput = {
+    where: OnboardingMessageWhereUniqueInput
+    update: XOR<OnboardingMessageUpdateWithoutIdentityInput, OnboardingMessageUncheckedUpdateWithoutIdentityInput>
+    create: XOR<OnboardingMessageCreateWithoutIdentityInput, OnboardingMessageUncheckedCreateWithoutIdentityInput>
+  }
+
+  export type OnboardingMessageUpdateWithWhereUniqueWithoutIdentityInput = {
+    where: OnboardingMessageWhereUniqueInput
+    data: XOR<OnboardingMessageUpdateWithoutIdentityInput, OnboardingMessageUncheckedUpdateWithoutIdentityInput>
+  }
+
+  export type OnboardingMessageUpdateManyWithWhereWithoutIdentityInput = {
+    where: OnboardingMessageScalarWhereInput
+    data: XOR<OnboardingMessageUpdateManyMutationInput, OnboardingMessageUncheckedUpdateManyWithoutIdentityInput>
+  }
+
+  export type OnboardingMessageScalarWhereInput = {
+    AND?: OnboardingMessageScalarWhereInput | OnboardingMessageScalarWhereInput[]
+    OR?: OnboardingMessageScalarWhereInput[]
+    NOT?: OnboardingMessageScalarWhereInput | OnboardingMessageScalarWhereInput[]
+    id?: StringFilter<"OnboardingMessage"> | string
+    identityId?: StringFilter<"OnboardingMessage"> | string
+    role?: StringFilter<"OnboardingMessage"> | string
+    content?: StringFilter<"OnboardingMessage"> | string
+    toolCallId?: StringNullableFilter<"OnboardingMessage"> | string | null
+    toolCallsJson?: StringNullableFilter<"OnboardingMessage"> | string | null
+    seq?: IntFilter<"OnboardingMessage"> | number
+    createdAt?: DateTimeFilter<"OnboardingMessage"> | Date | string
+  }
+
+  export type FinancialIdentityCreateWithoutIncomesInput = {
+    id?: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutIdentityInput
+    expenses?: IdentityExpenseCreateNestedManyWithoutIdentityInput
+    debts?: IdentityDebtCreateNestedManyWithoutIdentityInput
+    assets?: IdentityAssetCreateNestedManyWithoutIdentityInput
+    goals?: IdentityGoalCreateNestedManyWithoutIdentityInput
+    events?: IdentityEventCreateNestedManyWithoutIdentityInput
+    household?: IdentityHouseholdMemberCreateNestedManyWithoutIdentityInput
+    messages?: OnboardingMessageCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityUncheckedCreateWithoutIncomesInput = {
+    id?: string
+    userId: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    expenses?: IdentityExpenseUncheckedCreateNestedManyWithoutIdentityInput
+    debts?: IdentityDebtUncheckedCreateNestedManyWithoutIdentityInput
+    assets?: IdentityAssetUncheckedCreateNestedManyWithoutIdentityInput
+    goals?: IdentityGoalUncheckedCreateNestedManyWithoutIdentityInput
+    events?: IdentityEventUncheckedCreateNestedManyWithoutIdentityInput
+    household?: IdentityHouseholdMemberUncheckedCreateNestedManyWithoutIdentityInput
+    messages?: OnboardingMessageUncheckedCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityCreateOrConnectWithoutIncomesInput = {
+    where: FinancialIdentityWhereUniqueInput
+    create: XOR<FinancialIdentityCreateWithoutIncomesInput, FinancialIdentityUncheckedCreateWithoutIncomesInput>
+  }
+
+  export type FinancialIdentityUpsertWithoutIncomesInput = {
+    update: XOR<FinancialIdentityUpdateWithoutIncomesInput, FinancialIdentityUncheckedUpdateWithoutIncomesInput>
+    create: XOR<FinancialIdentityCreateWithoutIncomesInput, FinancialIdentityUncheckedCreateWithoutIncomesInput>
+    where?: FinancialIdentityWhereInput
+  }
+
+  export type FinancialIdentityUpdateToOneWithWhereWithoutIncomesInput = {
+    where?: FinancialIdentityWhereInput
+    data: XOR<FinancialIdentityUpdateWithoutIncomesInput, FinancialIdentityUncheckedUpdateWithoutIncomesInput>
+  }
+
+  export type FinancialIdentityUpdateWithoutIncomesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutIdentityNestedInput
+    expenses?: IdentityExpenseUpdateManyWithoutIdentityNestedInput
+    debts?: IdentityDebtUpdateManyWithoutIdentityNestedInput
+    assets?: IdentityAssetUpdateManyWithoutIdentityNestedInput
+    goals?: IdentityGoalUpdateManyWithoutIdentityNestedInput
+    events?: IdentityEventUpdateManyWithoutIdentityNestedInput
+    household?: IdentityHouseholdMemberUpdateManyWithoutIdentityNestedInput
+    messages?: OnboardingMessageUpdateManyWithoutIdentityNestedInput
+  }
+
+  export type FinancialIdentityUncheckedUpdateWithoutIncomesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    expenses?: IdentityExpenseUncheckedUpdateManyWithoutIdentityNestedInput
+    debts?: IdentityDebtUncheckedUpdateManyWithoutIdentityNestedInput
+    assets?: IdentityAssetUncheckedUpdateManyWithoutIdentityNestedInput
+    goals?: IdentityGoalUncheckedUpdateManyWithoutIdentityNestedInput
+    events?: IdentityEventUncheckedUpdateManyWithoutIdentityNestedInput
+    household?: IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityNestedInput
+    messages?: OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput
+  }
+
+  export type FinancialIdentityCreateWithoutExpensesInput = {
+    id?: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutIdentityInput
+    incomes?: IdentityIncomeCreateNestedManyWithoutIdentityInput
+    debts?: IdentityDebtCreateNestedManyWithoutIdentityInput
+    assets?: IdentityAssetCreateNestedManyWithoutIdentityInput
+    goals?: IdentityGoalCreateNestedManyWithoutIdentityInput
+    events?: IdentityEventCreateNestedManyWithoutIdentityInput
+    household?: IdentityHouseholdMemberCreateNestedManyWithoutIdentityInput
+    messages?: OnboardingMessageCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityUncheckedCreateWithoutExpensesInput = {
+    id?: string
+    userId: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    incomes?: IdentityIncomeUncheckedCreateNestedManyWithoutIdentityInput
+    debts?: IdentityDebtUncheckedCreateNestedManyWithoutIdentityInput
+    assets?: IdentityAssetUncheckedCreateNestedManyWithoutIdentityInput
+    goals?: IdentityGoalUncheckedCreateNestedManyWithoutIdentityInput
+    events?: IdentityEventUncheckedCreateNestedManyWithoutIdentityInput
+    household?: IdentityHouseholdMemberUncheckedCreateNestedManyWithoutIdentityInput
+    messages?: OnboardingMessageUncheckedCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityCreateOrConnectWithoutExpensesInput = {
+    where: FinancialIdentityWhereUniqueInput
+    create: XOR<FinancialIdentityCreateWithoutExpensesInput, FinancialIdentityUncheckedCreateWithoutExpensesInput>
+  }
+
+  export type FinancialIdentityUpsertWithoutExpensesInput = {
+    update: XOR<FinancialIdentityUpdateWithoutExpensesInput, FinancialIdentityUncheckedUpdateWithoutExpensesInput>
+    create: XOR<FinancialIdentityCreateWithoutExpensesInput, FinancialIdentityUncheckedCreateWithoutExpensesInput>
+    where?: FinancialIdentityWhereInput
+  }
+
+  export type FinancialIdentityUpdateToOneWithWhereWithoutExpensesInput = {
+    where?: FinancialIdentityWhereInput
+    data: XOR<FinancialIdentityUpdateWithoutExpensesInput, FinancialIdentityUncheckedUpdateWithoutExpensesInput>
+  }
+
+  export type FinancialIdentityUpdateWithoutExpensesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutIdentityNestedInput
+    incomes?: IdentityIncomeUpdateManyWithoutIdentityNestedInput
+    debts?: IdentityDebtUpdateManyWithoutIdentityNestedInput
+    assets?: IdentityAssetUpdateManyWithoutIdentityNestedInput
+    goals?: IdentityGoalUpdateManyWithoutIdentityNestedInput
+    events?: IdentityEventUpdateManyWithoutIdentityNestedInput
+    household?: IdentityHouseholdMemberUpdateManyWithoutIdentityNestedInput
+    messages?: OnboardingMessageUpdateManyWithoutIdentityNestedInput
+  }
+
+  export type FinancialIdentityUncheckedUpdateWithoutExpensesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    incomes?: IdentityIncomeUncheckedUpdateManyWithoutIdentityNestedInput
+    debts?: IdentityDebtUncheckedUpdateManyWithoutIdentityNestedInput
+    assets?: IdentityAssetUncheckedUpdateManyWithoutIdentityNestedInput
+    goals?: IdentityGoalUncheckedUpdateManyWithoutIdentityNestedInput
+    events?: IdentityEventUncheckedUpdateManyWithoutIdentityNestedInput
+    household?: IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityNestedInput
+    messages?: OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput
+  }
+
+  export type FinancialIdentityCreateWithoutDebtsInput = {
+    id?: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutIdentityInput
+    incomes?: IdentityIncomeCreateNestedManyWithoutIdentityInput
+    expenses?: IdentityExpenseCreateNestedManyWithoutIdentityInput
+    assets?: IdentityAssetCreateNestedManyWithoutIdentityInput
+    goals?: IdentityGoalCreateNestedManyWithoutIdentityInput
+    events?: IdentityEventCreateNestedManyWithoutIdentityInput
+    household?: IdentityHouseholdMemberCreateNestedManyWithoutIdentityInput
+    messages?: OnboardingMessageCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityUncheckedCreateWithoutDebtsInput = {
+    id?: string
+    userId: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    incomes?: IdentityIncomeUncheckedCreateNestedManyWithoutIdentityInput
+    expenses?: IdentityExpenseUncheckedCreateNestedManyWithoutIdentityInput
+    assets?: IdentityAssetUncheckedCreateNestedManyWithoutIdentityInput
+    goals?: IdentityGoalUncheckedCreateNestedManyWithoutIdentityInput
+    events?: IdentityEventUncheckedCreateNestedManyWithoutIdentityInput
+    household?: IdentityHouseholdMemberUncheckedCreateNestedManyWithoutIdentityInput
+    messages?: OnboardingMessageUncheckedCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityCreateOrConnectWithoutDebtsInput = {
+    where: FinancialIdentityWhereUniqueInput
+    create: XOR<FinancialIdentityCreateWithoutDebtsInput, FinancialIdentityUncheckedCreateWithoutDebtsInput>
+  }
+
+  export type FinancialIdentityUpsertWithoutDebtsInput = {
+    update: XOR<FinancialIdentityUpdateWithoutDebtsInput, FinancialIdentityUncheckedUpdateWithoutDebtsInput>
+    create: XOR<FinancialIdentityCreateWithoutDebtsInput, FinancialIdentityUncheckedCreateWithoutDebtsInput>
+    where?: FinancialIdentityWhereInput
+  }
+
+  export type FinancialIdentityUpdateToOneWithWhereWithoutDebtsInput = {
+    where?: FinancialIdentityWhereInput
+    data: XOR<FinancialIdentityUpdateWithoutDebtsInput, FinancialIdentityUncheckedUpdateWithoutDebtsInput>
+  }
+
+  export type FinancialIdentityUpdateWithoutDebtsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutIdentityNestedInput
+    incomes?: IdentityIncomeUpdateManyWithoutIdentityNestedInput
+    expenses?: IdentityExpenseUpdateManyWithoutIdentityNestedInput
+    assets?: IdentityAssetUpdateManyWithoutIdentityNestedInput
+    goals?: IdentityGoalUpdateManyWithoutIdentityNestedInput
+    events?: IdentityEventUpdateManyWithoutIdentityNestedInput
+    household?: IdentityHouseholdMemberUpdateManyWithoutIdentityNestedInput
+    messages?: OnboardingMessageUpdateManyWithoutIdentityNestedInput
+  }
+
+  export type FinancialIdentityUncheckedUpdateWithoutDebtsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    incomes?: IdentityIncomeUncheckedUpdateManyWithoutIdentityNestedInput
+    expenses?: IdentityExpenseUncheckedUpdateManyWithoutIdentityNestedInput
+    assets?: IdentityAssetUncheckedUpdateManyWithoutIdentityNestedInput
+    goals?: IdentityGoalUncheckedUpdateManyWithoutIdentityNestedInput
+    events?: IdentityEventUncheckedUpdateManyWithoutIdentityNestedInput
+    household?: IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityNestedInput
+    messages?: OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput
+  }
+
+  export type FinancialIdentityCreateWithoutAssetsInput = {
+    id?: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutIdentityInput
+    incomes?: IdentityIncomeCreateNestedManyWithoutIdentityInput
+    expenses?: IdentityExpenseCreateNestedManyWithoutIdentityInput
+    debts?: IdentityDebtCreateNestedManyWithoutIdentityInput
+    goals?: IdentityGoalCreateNestedManyWithoutIdentityInput
+    events?: IdentityEventCreateNestedManyWithoutIdentityInput
+    household?: IdentityHouseholdMemberCreateNestedManyWithoutIdentityInput
+    messages?: OnboardingMessageCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityUncheckedCreateWithoutAssetsInput = {
+    id?: string
+    userId: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    incomes?: IdentityIncomeUncheckedCreateNestedManyWithoutIdentityInput
+    expenses?: IdentityExpenseUncheckedCreateNestedManyWithoutIdentityInput
+    debts?: IdentityDebtUncheckedCreateNestedManyWithoutIdentityInput
+    goals?: IdentityGoalUncheckedCreateNestedManyWithoutIdentityInput
+    events?: IdentityEventUncheckedCreateNestedManyWithoutIdentityInput
+    household?: IdentityHouseholdMemberUncheckedCreateNestedManyWithoutIdentityInput
+    messages?: OnboardingMessageUncheckedCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityCreateOrConnectWithoutAssetsInput = {
+    where: FinancialIdentityWhereUniqueInput
+    create: XOR<FinancialIdentityCreateWithoutAssetsInput, FinancialIdentityUncheckedCreateWithoutAssetsInput>
+  }
+
+  export type FinancialIdentityUpsertWithoutAssetsInput = {
+    update: XOR<FinancialIdentityUpdateWithoutAssetsInput, FinancialIdentityUncheckedUpdateWithoutAssetsInput>
+    create: XOR<FinancialIdentityCreateWithoutAssetsInput, FinancialIdentityUncheckedCreateWithoutAssetsInput>
+    where?: FinancialIdentityWhereInput
+  }
+
+  export type FinancialIdentityUpdateToOneWithWhereWithoutAssetsInput = {
+    where?: FinancialIdentityWhereInput
+    data: XOR<FinancialIdentityUpdateWithoutAssetsInput, FinancialIdentityUncheckedUpdateWithoutAssetsInput>
+  }
+
+  export type FinancialIdentityUpdateWithoutAssetsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutIdentityNestedInput
+    incomes?: IdentityIncomeUpdateManyWithoutIdentityNestedInput
+    expenses?: IdentityExpenseUpdateManyWithoutIdentityNestedInput
+    debts?: IdentityDebtUpdateManyWithoutIdentityNestedInput
+    goals?: IdentityGoalUpdateManyWithoutIdentityNestedInput
+    events?: IdentityEventUpdateManyWithoutIdentityNestedInput
+    household?: IdentityHouseholdMemberUpdateManyWithoutIdentityNestedInput
+    messages?: OnboardingMessageUpdateManyWithoutIdentityNestedInput
+  }
+
+  export type FinancialIdentityUncheckedUpdateWithoutAssetsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    incomes?: IdentityIncomeUncheckedUpdateManyWithoutIdentityNestedInput
+    expenses?: IdentityExpenseUncheckedUpdateManyWithoutIdentityNestedInput
+    debts?: IdentityDebtUncheckedUpdateManyWithoutIdentityNestedInput
+    goals?: IdentityGoalUncheckedUpdateManyWithoutIdentityNestedInput
+    events?: IdentityEventUncheckedUpdateManyWithoutIdentityNestedInput
+    household?: IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityNestedInput
+    messages?: OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput
+  }
+
+  export type FinancialIdentityCreateWithoutGoalsInput = {
+    id?: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutIdentityInput
+    incomes?: IdentityIncomeCreateNestedManyWithoutIdentityInput
+    expenses?: IdentityExpenseCreateNestedManyWithoutIdentityInput
+    debts?: IdentityDebtCreateNestedManyWithoutIdentityInput
+    assets?: IdentityAssetCreateNestedManyWithoutIdentityInput
+    events?: IdentityEventCreateNestedManyWithoutIdentityInput
+    household?: IdentityHouseholdMemberCreateNestedManyWithoutIdentityInput
+    messages?: OnboardingMessageCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityUncheckedCreateWithoutGoalsInput = {
+    id?: string
+    userId: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    incomes?: IdentityIncomeUncheckedCreateNestedManyWithoutIdentityInput
+    expenses?: IdentityExpenseUncheckedCreateNestedManyWithoutIdentityInput
+    debts?: IdentityDebtUncheckedCreateNestedManyWithoutIdentityInput
+    assets?: IdentityAssetUncheckedCreateNestedManyWithoutIdentityInput
+    events?: IdentityEventUncheckedCreateNestedManyWithoutIdentityInput
+    household?: IdentityHouseholdMemberUncheckedCreateNestedManyWithoutIdentityInput
+    messages?: OnboardingMessageUncheckedCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityCreateOrConnectWithoutGoalsInput = {
+    where: FinancialIdentityWhereUniqueInput
+    create: XOR<FinancialIdentityCreateWithoutGoalsInput, FinancialIdentityUncheckedCreateWithoutGoalsInput>
+  }
+
+  export type FinancialIdentityUpsertWithoutGoalsInput = {
+    update: XOR<FinancialIdentityUpdateWithoutGoalsInput, FinancialIdentityUncheckedUpdateWithoutGoalsInput>
+    create: XOR<FinancialIdentityCreateWithoutGoalsInput, FinancialIdentityUncheckedCreateWithoutGoalsInput>
+    where?: FinancialIdentityWhereInput
+  }
+
+  export type FinancialIdentityUpdateToOneWithWhereWithoutGoalsInput = {
+    where?: FinancialIdentityWhereInput
+    data: XOR<FinancialIdentityUpdateWithoutGoalsInput, FinancialIdentityUncheckedUpdateWithoutGoalsInput>
+  }
+
+  export type FinancialIdentityUpdateWithoutGoalsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutIdentityNestedInput
+    incomes?: IdentityIncomeUpdateManyWithoutIdentityNestedInput
+    expenses?: IdentityExpenseUpdateManyWithoutIdentityNestedInput
+    debts?: IdentityDebtUpdateManyWithoutIdentityNestedInput
+    assets?: IdentityAssetUpdateManyWithoutIdentityNestedInput
+    events?: IdentityEventUpdateManyWithoutIdentityNestedInput
+    household?: IdentityHouseholdMemberUpdateManyWithoutIdentityNestedInput
+    messages?: OnboardingMessageUpdateManyWithoutIdentityNestedInput
+  }
+
+  export type FinancialIdentityUncheckedUpdateWithoutGoalsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    incomes?: IdentityIncomeUncheckedUpdateManyWithoutIdentityNestedInput
+    expenses?: IdentityExpenseUncheckedUpdateManyWithoutIdentityNestedInput
+    debts?: IdentityDebtUncheckedUpdateManyWithoutIdentityNestedInput
+    assets?: IdentityAssetUncheckedUpdateManyWithoutIdentityNestedInput
+    events?: IdentityEventUncheckedUpdateManyWithoutIdentityNestedInput
+    household?: IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityNestedInput
+    messages?: OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput
+  }
+
+  export type FinancialIdentityCreateWithoutEventsInput = {
+    id?: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutIdentityInput
+    incomes?: IdentityIncomeCreateNestedManyWithoutIdentityInput
+    expenses?: IdentityExpenseCreateNestedManyWithoutIdentityInput
+    debts?: IdentityDebtCreateNestedManyWithoutIdentityInput
+    assets?: IdentityAssetCreateNestedManyWithoutIdentityInput
+    goals?: IdentityGoalCreateNestedManyWithoutIdentityInput
+    household?: IdentityHouseholdMemberCreateNestedManyWithoutIdentityInput
+    messages?: OnboardingMessageCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityUncheckedCreateWithoutEventsInput = {
+    id?: string
+    userId: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    incomes?: IdentityIncomeUncheckedCreateNestedManyWithoutIdentityInput
+    expenses?: IdentityExpenseUncheckedCreateNestedManyWithoutIdentityInput
+    debts?: IdentityDebtUncheckedCreateNestedManyWithoutIdentityInput
+    assets?: IdentityAssetUncheckedCreateNestedManyWithoutIdentityInput
+    goals?: IdentityGoalUncheckedCreateNestedManyWithoutIdentityInput
+    household?: IdentityHouseholdMemberUncheckedCreateNestedManyWithoutIdentityInput
+    messages?: OnboardingMessageUncheckedCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityCreateOrConnectWithoutEventsInput = {
+    where: FinancialIdentityWhereUniqueInput
+    create: XOR<FinancialIdentityCreateWithoutEventsInput, FinancialIdentityUncheckedCreateWithoutEventsInput>
+  }
+
+  export type FinancialIdentityUpsertWithoutEventsInput = {
+    update: XOR<FinancialIdentityUpdateWithoutEventsInput, FinancialIdentityUncheckedUpdateWithoutEventsInput>
+    create: XOR<FinancialIdentityCreateWithoutEventsInput, FinancialIdentityUncheckedCreateWithoutEventsInput>
+    where?: FinancialIdentityWhereInput
+  }
+
+  export type FinancialIdentityUpdateToOneWithWhereWithoutEventsInput = {
+    where?: FinancialIdentityWhereInput
+    data: XOR<FinancialIdentityUpdateWithoutEventsInput, FinancialIdentityUncheckedUpdateWithoutEventsInput>
+  }
+
+  export type FinancialIdentityUpdateWithoutEventsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutIdentityNestedInput
+    incomes?: IdentityIncomeUpdateManyWithoutIdentityNestedInput
+    expenses?: IdentityExpenseUpdateManyWithoutIdentityNestedInput
+    debts?: IdentityDebtUpdateManyWithoutIdentityNestedInput
+    assets?: IdentityAssetUpdateManyWithoutIdentityNestedInput
+    goals?: IdentityGoalUpdateManyWithoutIdentityNestedInput
+    household?: IdentityHouseholdMemberUpdateManyWithoutIdentityNestedInput
+    messages?: OnboardingMessageUpdateManyWithoutIdentityNestedInput
+  }
+
+  export type FinancialIdentityUncheckedUpdateWithoutEventsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    incomes?: IdentityIncomeUncheckedUpdateManyWithoutIdentityNestedInput
+    expenses?: IdentityExpenseUncheckedUpdateManyWithoutIdentityNestedInput
+    debts?: IdentityDebtUncheckedUpdateManyWithoutIdentityNestedInput
+    assets?: IdentityAssetUncheckedUpdateManyWithoutIdentityNestedInput
+    goals?: IdentityGoalUncheckedUpdateManyWithoutIdentityNestedInput
+    household?: IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityNestedInput
+    messages?: OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput
+  }
+
+  export type FinancialIdentityCreateWithoutHouseholdInput = {
+    id?: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutIdentityInput
+    incomes?: IdentityIncomeCreateNestedManyWithoutIdentityInput
+    expenses?: IdentityExpenseCreateNestedManyWithoutIdentityInput
+    debts?: IdentityDebtCreateNestedManyWithoutIdentityInput
+    assets?: IdentityAssetCreateNestedManyWithoutIdentityInput
+    goals?: IdentityGoalCreateNestedManyWithoutIdentityInput
+    events?: IdentityEventCreateNestedManyWithoutIdentityInput
+    messages?: OnboardingMessageCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityUncheckedCreateWithoutHouseholdInput = {
+    id?: string
+    userId: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    incomes?: IdentityIncomeUncheckedCreateNestedManyWithoutIdentityInput
+    expenses?: IdentityExpenseUncheckedCreateNestedManyWithoutIdentityInput
+    debts?: IdentityDebtUncheckedCreateNestedManyWithoutIdentityInput
+    assets?: IdentityAssetUncheckedCreateNestedManyWithoutIdentityInput
+    goals?: IdentityGoalUncheckedCreateNestedManyWithoutIdentityInput
+    events?: IdentityEventUncheckedCreateNestedManyWithoutIdentityInput
+    messages?: OnboardingMessageUncheckedCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityCreateOrConnectWithoutHouseholdInput = {
+    where: FinancialIdentityWhereUniqueInput
+    create: XOR<FinancialIdentityCreateWithoutHouseholdInput, FinancialIdentityUncheckedCreateWithoutHouseholdInput>
+  }
+
+  export type FinancialIdentityUpsertWithoutHouseholdInput = {
+    update: XOR<FinancialIdentityUpdateWithoutHouseholdInput, FinancialIdentityUncheckedUpdateWithoutHouseholdInput>
+    create: XOR<FinancialIdentityCreateWithoutHouseholdInput, FinancialIdentityUncheckedCreateWithoutHouseholdInput>
+    where?: FinancialIdentityWhereInput
+  }
+
+  export type FinancialIdentityUpdateToOneWithWhereWithoutHouseholdInput = {
+    where?: FinancialIdentityWhereInput
+    data: XOR<FinancialIdentityUpdateWithoutHouseholdInput, FinancialIdentityUncheckedUpdateWithoutHouseholdInput>
+  }
+
+  export type FinancialIdentityUpdateWithoutHouseholdInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutIdentityNestedInput
+    incomes?: IdentityIncomeUpdateManyWithoutIdentityNestedInput
+    expenses?: IdentityExpenseUpdateManyWithoutIdentityNestedInput
+    debts?: IdentityDebtUpdateManyWithoutIdentityNestedInput
+    assets?: IdentityAssetUpdateManyWithoutIdentityNestedInput
+    goals?: IdentityGoalUpdateManyWithoutIdentityNestedInput
+    events?: IdentityEventUpdateManyWithoutIdentityNestedInput
+    messages?: OnboardingMessageUpdateManyWithoutIdentityNestedInput
+  }
+
+  export type FinancialIdentityUncheckedUpdateWithoutHouseholdInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    incomes?: IdentityIncomeUncheckedUpdateManyWithoutIdentityNestedInput
+    expenses?: IdentityExpenseUncheckedUpdateManyWithoutIdentityNestedInput
+    debts?: IdentityDebtUncheckedUpdateManyWithoutIdentityNestedInput
+    assets?: IdentityAssetUncheckedUpdateManyWithoutIdentityNestedInput
+    goals?: IdentityGoalUncheckedUpdateManyWithoutIdentityNestedInput
+    events?: IdentityEventUncheckedUpdateManyWithoutIdentityNestedInput
+    messages?: OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput
+  }
+
+  export type FinancialIdentityCreateWithoutMessagesInput = {
+    id?: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutIdentityInput
+    incomes?: IdentityIncomeCreateNestedManyWithoutIdentityInput
+    expenses?: IdentityExpenseCreateNestedManyWithoutIdentityInput
+    debts?: IdentityDebtCreateNestedManyWithoutIdentityInput
+    assets?: IdentityAssetCreateNestedManyWithoutIdentityInput
+    goals?: IdentityGoalCreateNestedManyWithoutIdentityInput
+    events?: IdentityEventCreateNestedManyWithoutIdentityInput
+    household?: IdentityHouseholdMemberCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityUncheckedCreateWithoutMessagesInput = {
+    id?: string
+    userId: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    incomes?: IdentityIncomeUncheckedCreateNestedManyWithoutIdentityInput
+    expenses?: IdentityExpenseUncheckedCreateNestedManyWithoutIdentityInput
+    debts?: IdentityDebtUncheckedCreateNestedManyWithoutIdentityInput
+    assets?: IdentityAssetUncheckedCreateNestedManyWithoutIdentityInput
+    goals?: IdentityGoalUncheckedCreateNestedManyWithoutIdentityInput
+    events?: IdentityEventUncheckedCreateNestedManyWithoutIdentityInput
+    household?: IdentityHouseholdMemberUncheckedCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityCreateOrConnectWithoutMessagesInput = {
+    where: FinancialIdentityWhereUniqueInput
+    create: XOR<FinancialIdentityCreateWithoutMessagesInput, FinancialIdentityUncheckedCreateWithoutMessagesInput>
+  }
+
+  export type FinancialIdentityUpsertWithoutMessagesInput = {
+    update: XOR<FinancialIdentityUpdateWithoutMessagesInput, FinancialIdentityUncheckedUpdateWithoutMessagesInput>
+    create: XOR<FinancialIdentityCreateWithoutMessagesInput, FinancialIdentityUncheckedCreateWithoutMessagesInput>
+    where?: FinancialIdentityWhereInput
+  }
+
+  export type FinancialIdentityUpdateToOneWithWhereWithoutMessagesInput = {
+    where?: FinancialIdentityWhereInput
+    data: XOR<FinancialIdentityUpdateWithoutMessagesInput, FinancialIdentityUncheckedUpdateWithoutMessagesInput>
+  }
+
+  export type FinancialIdentityUpdateWithoutMessagesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutIdentityNestedInput
+    incomes?: IdentityIncomeUpdateManyWithoutIdentityNestedInput
+    expenses?: IdentityExpenseUpdateManyWithoutIdentityNestedInput
+    debts?: IdentityDebtUpdateManyWithoutIdentityNestedInput
+    assets?: IdentityAssetUpdateManyWithoutIdentityNestedInput
+    goals?: IdentityGoalUpdateManyWithoutIdentityNestedInput
+    events?: IdentityEventUpdateManyWithoutIdentityNestedInput
+    household?: IdentityHouseholdMemberUpdateManyWithoutIdentityNestedInput
+  }
+
+  export type FinancialIdentityUncheckedUpdateWithoutMessagesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    incomes?: IdentityIncomeUncheckedUpdateManyWithoutIdentityNestedInput
+    expenses?: IdentityExpenseUncheckedUpdateManyWithoutIdentityNestedInput
+    debts?: IdentityDebtUncheckedUpdateManyWithoutIdentityNestedInput
+    assets?: IdentityAssetUncheckedUpdateManyWithoutIdentityNestedInput
+    goals?: IdentityGoalUncheckedUpdateManyWithoutIdentityNestedInput
+    events?: IdentityEventUncheckedUpdateManyWithoutIdentityNestedInput
+    household?: IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityNestedInput
   }
 
   export type SessionCreateManyUserInput = {
@@ -23223,6 +39727,338 @@ export namespace Prisma {
     pct?: IntFieldUpdateOperationsInput | number
     fixedCents?: NullableIntFieldUpdateOperationsInput | number | null
     sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityIncomeCreateManyIdentityInput = {
+    id?: string
+    label: string
+    cadence?: string | null
+    amountDollars?: number | null
+    isPrimary?: boolean
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityExpenseCreateManyIdentityInput = {
+    id?: string
+    label: string
+    amountDollars: number
+    cadence: string
+    category: string
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityDebtCreateManyIdentityInput = {
+    id?: string
+    label: string
+    kind: string
+    balanceDollars?: number
+    aprPercent?: number
+    minPaymentDollars?: number
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityAssetCreateManyIdentityInput = {
+    id?: string
+    label: string
+    kind: string
+    balanceDollars?: number
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityGoalCreateManyIdentityInput = {
+    id?: string
+    label: string
+    targetDollars: number
+    targetDate?: Date | string | null
+    perPaycheckDollars?: number | null
+    kind: string
+    goalType?: string | null
+    priority?: number
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityEventCreateManyIdentityInput = {
+    id?: string
+    label: string
+    date?: Date | string | null
+    estimatedCostDollars?: number
+    isFlexible?: boolean
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityHouseholdMemberCreateManyIdentityInput = {
+    id?: string
+    name: string
+    relationship: string
+    financiallyEntwined?: boolean
+    ageRange?: string | null
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type OnboardingMessageCreateManyIdentityInput = {
+    id?: string
+    role: string
+    content: string
+    toolCallId?: string | null
+    toolCallsJson?: string | null
+    seq: number
+    createdAt?: Date | string
+  }
+
+  export type IdentityIncomeUpdateWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    cadence?: NullableStringFieldUpdateOperationsInput | string | null
+    amountDollars?: NullableIntFieldUpdateOperationsInput | number | null
+    isPrimary?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityIncomeUncheckedUpdateWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    cadence?: NullableStringFieldUpdateOperationsInput | string | null
+    amountDollars?: NullableIntFieldUpdateOperationsInput | number | null
+    isPrimary?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityIncomeUncheckedUpdateManyWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    cadence?: NullableStringFieldUpdateOperationsInput | string | null
+    amountDollars?: NullableIntFieldUpdateOperationsInput | number | null
+    isPrimary?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityExpenseUpdateWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    amountDollars?: IntFieldUpdateOperationsInput | number
+    cadence?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityExpenseUncheckedUpdateWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    amountDollars?: IntFieldUpdateOperationsInput | number
+    cadence?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityExpenseUncheckedUpdateManyWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    amountDollars?: IntFieldUpdateOperationsInput | number
+    cadence?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityDebtUpdateWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    balanceDollars?: IntFieldUpdateOperationsInput | number
+    aprPercent?: FloatFieldUpdateOperationsInput | number
+    minPaymentDollars?: IntFieldUpdateOperationsInput | number
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityDebtUncheckedUpdateWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    balanceDollars?: IntFieldUpdateOperationsInput | number
+    aprPercent?: FloatFieldUpdateOperationsInput | number
+    minPaymentDollars?: IntFieldUpdateOperationsInput | number
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityDebtUncheckedUpdateManyWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    balanceDollars?: IntFieldUpdateOperationsInput | number
+    aprPercent?: FloatFieldUpdateOperationsInput | number
+    minPaymentDollars?: IntFieldUpdateOperationsInput | number
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityAssetUpdateWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    balanceDollars?: IntFieldUpdateOperationsInput | number
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityAssetUncheckedUpdateWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    balanceDollars?: IntFieldUpdateOperationsInput | number
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityAssetUncheckedUpdateManyWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    balanceDollars?: IntFieldUpdateOperationsInput | number
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityGoalUpdateWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    targetDollars?: IntFieldUpdateOperationsInput | number
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    perPaycheckDollars?: NullableIntFieldUpdateOperationsInput | number | null
+    kind?: StringFieldUpdateOperationsInput | string
+    goalType?: NullableStringFieldUpdateOperationsInput | string | null
+    priority?: IntFieldUpdateOperationsInput | number
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityGoalUncheckedUpdateWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    targetDollars?: IntFieldUpdateOperationsInput | number
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    perPaycheckDollars?: NullableIntFieldUpdateOperationsInput | number | null
+    kind?: StringFieldUpdateOperationsInput | string
+    goalType?: NullableStringFieldUpdateOperationsInput | string | null
+    priority?: IntFieldUpdateOperationsInput | number
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityGoalUncheckedUpdateManyWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    targetDollars?: IntFieldUpdateOperationsInput | number
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    perPaycheckDollars?: NullableIntFieldUpdateOperationsInput | number | null
+    kind?: StringFieldUpdateOperationsInput | string
+    goalType?: NullableStringFieldUpdateOperationsInput | string | null
+    priority?: IntFieldUpdateOperationsInput | number
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityEventUpdateWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    estimatedCostDollars?: IntFieldUpdateOperationsInput | number
+    isFlexible?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityEventUncheckedUpdateWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    estimatedCostDollars?: IntFieldUpdateOperationsInput | number
+    isFlexible?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityEventUncheckedUpdateManyWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    estimatedCostDollars?: IntFieldUpdateOperationsInput | number
+    isFlexible?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityHouseholdMemberUpdateWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    relationship?: StringFieldUpdateOperationsInput | string
+    financiallyEntwined?: BoolFieldUpdateOperationsInput | boolean
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityHouseholdMemberUncheckedUpdateWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    relationship?: StringFieldUpdateOperationsInput | string
+    financiallyEntwined?: BoolFieldUpdateOperationsInput | boolean
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    relationship?: StringFieldUpdateOperationsInput | string
+    financiallyEntwined?: BoolFieldUpdateOperationsInput | boolean
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type OnboardingMessageUpdateWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    role?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    toolCallId?: NullableStringFieldUpdateOperationsInput | string | null
+    toolCallsJson?: NullableStringFieldUpdateOperationsInput | string | null
+    seq?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type OnboardingMessageUncheckedUpdateWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    role?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    toolCallId?: NullableStringFieldUpdateOperationsInput | string | null
+    toolCallsJson?: NullableStringFieldUpdateOperationsInput | string | null
+    seq?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type OnboardingMessageUncheckedUpdateManyWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    role?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    toolCallId?: NullableStringFieldUpdateOperationsInput | string | null
+    toolCallsJson?: NullableStringFieldUpdateOperationsInput | string | null
+    seq?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
