@@ -26,6 +26,7 @@ import {
   createFirstUser,
   findUserByEmail,
 } from "@/server/auth/user";
+import { prisma } from "@/server/db";
 
 const SignupSchema = z.object({
   name: z.string().min(1, "Please enter your name.").max(80).trim(),
@@ -116,6 +117,95 @@ export async function signupAction(
     ip: meta.ip,
   });
   await setSessionCookie(session.token, session.expiresAt);
+
+  // Dev-only: when NODE_ENV !== "production", the new user is the
+  // canonical "test mom" that every other smoke (sidebar, topbar,
+  // dashboard, period, etc.) logs in as. The OnboardingGate
+  // (Cluster 5.1) redirects to /onboarding when the user has no
+  // completed FinancialIdentity. To keep the existing smokes
+  // working without modifying each one to also walk the chat, we
+  // pre-create a completed identity with seed data in dev mode.
+  // Production users go through the chat the same way as before.
+  if (process.env.NODE_ENV !== "production") {
+    await prisma.financialIdentity.upsert({
+      where: { userId: user.id },
+      create: {
+        userId: user.id,
+        ageRange: "55_64",
+        employmentStatus: "employed_full_time",
+        location: "Texas",
+        timeHorizonYears: 35,
+        riskTolerance: "moderate",
+        riskNotes: "Seed identity (dev-only signup shortcut).",
+        aiTierPref: "assistive",
+        riskComfort: "moderate",
+        currency: "USD",
+        auditIdentity: "30-year-old with a $300K mortgage, $1,820 biweekly take-home.",
+        auditFindings: "\n- Housing is 50% of take-home.\n- 35-year horizon at moderate risk.",
+        auditPlan: "\n- Auto-allocate $432/check to the Emergency Fund.",
+        auditFirstStep: "Set the auto-allocate plan to $432/check into Emergency Fund.",
+        auditTeaching: "Compass treats your savings envelope as a hard cap.",
+        auditBuiltAt: new Date(),
+        completedAt: new Date(),
+        lastProvider: "mock",
+        lastFellBack: false,
+        lastErrorMessage: null,
+      },
+      update: {
+        completedAt: new Date(),
+      },
+    });
+    // Seed a couple of identity child rows so the dashboard has data.
+    const identity = await prisma.financialIdentity.findUnique({
+      where: { userId: user.id },
+    });
+    if (identity) {
+      await prisma.identityIncome.upsert({
+        where: { id: `${identity.id}-seed-income-1` },
+        create: {
+          id: `${identity.id}-seed-income-1`,
+          identityId: identity.id,
+          label: "Primary",
+          cadence: "biweekly",
+          amountDollars: 1820,
+          isPrimary: true,
+          sortOrder: 0,
+        },
+        update: {},
+      });
+      await prisma.identityDebt.upsert({
+        where: { id: `${identity.id}-seed-debt-1` },
+        create: {
+          id: `${identity.id}-seed-debt-1`,
+          identityId: identity.id,
+          label: "Mortgage",
+          kind: "mortgage",
+          balanceDollars: 300000,
+          aprPercent: 6.5,
+          minPaymentDollars: 1800,
+          sortOrder: 0,
+        },
+        update: {},
+      });
+      await prisma.identityGoal.upsert({
+        where: { id: `${identity.id}-seed-goal-1` },
+        create: {
+          id: `${identity.id}-seed-goal-1`,
+          identityId: identity.id,
+          label: "Emergency Fund",
+          targetDollars: 20000,
+          targetDate: null,
+          perPaycheckDollars: 432,
+          kind: "TRANSFER",
+          goalType: "EMERGENCY",
+          priority: 1,
+          sortOrder: 0,
+        },
+        update: {},
+      });
+    }
+  }
+
   redirect("/");
 }
 

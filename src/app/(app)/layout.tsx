@@ -1,5 +1,6 @@
 import * as React from "react";
 import { requireUser } from "@/server/auth/user";
+import { requireCompletedOnboarding } from "@/lib/onboarding/gate";
 import { AppSidebar } from "@/components/sidebar/AppSidebar";
 import { BottomNav } from "@/components/shell/BottomNav";
 import { TopAppBar } from "@/components/shell/TopAppBar";
@@ -24,8 +25,16 @@ import { getActiveEngineLevel } from "@/app/(app)/settings/engine-actions";
  * props. Force-dynamic so changes show up immediately after a
  * server action like toggleEngineAction.
  *
- * The dashboard (`/`) lives outside this group at the root, so it
- * renders its own TopAppBar + BottomNav + AlertBay explicitly.
+ * Onboarding gate (Cluster 5.1): if the user has no completed
+ * FinancialIdentity, redirect to /onboarding. The check is a
+ * single SELECT on FinancialIdentity.completedAt (indexed by
+ * userId via the @unique constraint). Once the agent calls
+ * markOnboardingComplete, the gate passes.
+ *
+ * The dashboard (`/`) lives outside this group at the root and
+ * applies the same gate in its own page body (the COORDINATION
+ * note about Cluster 5.1.5 will refactor that into a shared
+ * component when there's a second consumer).
  */
 export default async function AppLayout({
   children,
@@ -33,6 +42,7 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const user = await requireUser();
+  await requireCompletedOnboarding(user.id);
 
   // Live envelope state — drives the alert bay.
   const ENVELOPES = liveEnvelopes();

@@ -1,5 +1,6 @@
 import * as React from "react";
 import { requireUser } from "@/server/auth/user";
+import { requireCompletedOnboarding } from "@/lib/onboarding/gate";
 import { AppSidebar } from "@/components/sidebar/AppSidebar";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { DashboardGrid } from "@/components/dashboard/DashboardGrid";
@@ -67,6 +68,10 @@ export const dynamic = "force-dynamic";
  */
 export default async function Dashboard() {
   const user = await requireUser();
+  // Onboarding gate (Cluster 5.1): redirect to /onboarding if the
+  // user has no completed FinancialIdentity. Same helper as the
+  // (app) layout uses — keeps the gate logic in one place.
+  await requireCompletedOnboarding(user.id);
 
   // Live reads
   const ENVELOPES = liveEnvelopes();

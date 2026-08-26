@@ -65,6 +65,94 @@ async function ensureUserRow(userId: string): Promise<void> {
   });
 }
 
+/**
+ * Dev-only: ensure the canonical "mom" test user has a completed
+ * FinancialIdentity. Most smokes (sidebar, topbar, dashboard, etc.)
+ * log in as mom; the OnboardingGate (Cluster 5.1) blocks them if
+ * mom has no completed identity. The onboarding smoke's resetAll
+ * wipes all FinancialIdentity rows, which would break every
+ * subsequent smoke. This helper re-onboards mom so the dev DB
+ * always has her ready. Idempotent — no-op if she's already set.
+ */
+async function ensureMomOnboarded(): Promise<void> {
+  const mom = await prisma.user.findUnique({ where: { email: "mom@compass.local" } });
+  if (!mom) return; // smoke-auth.mjs will create her on its next run
+  const existing = await prisma.financialIdentity.findUnique({
+    where: { userId: mom.id },
+  });
+  if (existing?.completedAt) return; // already onboarded
+  const identity = await prisma.financialIdentity.upsert({
+    where: { userId: mom.id },
+    create: {
+      userId: mom.id,
+      ageRange: "55_64",
+      employmentStatus: "employed_full_time",
+      location: "Texas",
+      timeHorizonYears: 35,
+      riskTolerance: "moderate",
+      riskNotes: "Dev seed for mom (canonical test user).",
+      aiTierPref: "assistive",
+      riskComfort: "moderate",
+      currency: "USD",
+      auditIdentity: "30-year-old with a $300K mortgage, $1,820 biweekly take-home.",
+      auditFindings: "\n- Housing is 50% of take-home.\n- 35-year horizon at moderate risk.",
+      auditPlan: "\n- Auto-allocate $432/check to the Emergency Fund.",
+      auditFirstStep: "Set the auto-allocate plan to $432/check into Emergency Fund.",
+      auditTeaching: "Compass treats your savings envelope as a hard cap.",
+      auditBuiltAt: new Date(),
+      completedAt: new Date(),
+      lastProvider: "mock",
+      lastFellBack: false,
+      lastErrorMessage: null,
+    },
+    update: { completedAt: new Date() },
+  });
+  // Seed income/debt/goal so the dashboard isn't empty.
+  await prisma.identityIncome.upsert({
+    where: { id: `${identity.id}-dev-income-1` },
+    create: {
+      id: `${identity.id}-dev-income-1`,
+      identityId: identity.id,
+      label: "Primary",
+      cadence: "biweekly",
+      amountDollars: 1820,
+      isPrimary: true,
+      sortOrder: 0,
+    },
+    update: {},
+  });
+  await prisma.identityDebt.upsert({
+    where: { id: `${identity.id}-dev-debt-1` },
+    create: {
+      id: `${identity.id}-dev-debt-1`,
+      identityId: identity.id,
+      label: "Mortgage",
+      kind: "mortgage",
+      balanceDollars: 300000,
+      aprPercent: 6.5,
+      minPaymentDollars: 1800,
+      sortOrder: 0,
+    },
+    update: {},
+  });
+  await prisma.identityGoal.upsert({
+    where: { id: `${identity.id}-dev-goal-1` },
+    create: {
+      id: `${identity.id}-dev-goal-1`,
+      identityId: identity.id,
+      label: "Emergency Fund",
+      targetDollars: 20000,
+      targetDate: null,
+      perPaycheckDollars: 432,
+      kind: "TRANSFER",
+      goalType: "EMERGENCY",
+      priority: 1,
+      sortOrder: 0,
+    },
+    update: {},
+  });
+}
+
 export async function POST(req: NextRequest) {
   // Dev-only guard: refuse to run in production.
   if (process.env.NODE_ENV === "production") {
@@ -93,6 +181,14 @@ export async function POST(req: NextRequest) {
   // runs (or runs after a manual env change) picks up the new
   // provider instead of the cached one.
   resetLLMConfig();
+
+  // Dev-only: keep the canonical "mom" test user in a fully-onboarded
+  // state so the other smokes (sidebar, topbar, dashboard, period,
+  // etc.) that log in as her can hit the dashboard without being
+  // redirected to /onboarding by the gate. This is a no-op when mom
+  // is already onboarded; only re-fires when the onboarding smoke's
+  // resetAll has wiped her identity.
+  await ensureMomOnboarded();
 
   if (typeof body.userMessage !== "string") {
     return NextResponse.json({ error: "userMessage is required" }, { status: 400 });
