@@ -61,15 +61,23 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  sessions        Session[]
-  accounts        Account[]
-  envelopes       Envelope[]
-  transactions    Transaction[]
-  paySchedules    PaySchedule[]
-  goals           Goal[]
-  allocationPlans AllocationPlan[]
-  auditLog        AuditLog[]
-  identity        FinancialIdentity?
+  sessions         Session[]
+  accounts         Account[]
+  envelopes        Envelope[]
+  transactions     Transaction[]
+  paySchedules     PaySchedule[]
+  goals            Goal[]
+  allocationPlans  AllocationPlan[]
+  bills            Bill[]
+  auditLog         AuditLog[]
+  identity         FinancialIdentity?
+  /// Phase 2.0 — Vault (self-custodial bill-reserve). One vault per
+  /// user in v1. Cascaded on user delete.
+  vaultAccount     VaultAccount?
+  /// Phase 2.5 — Vault user preferences (yield routing strategy,
+  /// risk-disclosure acknowledgment). One row per user. Cascaded
+  /// on user delete.
+  vaultPreferences VaultPreferences?
 
   @@index([email])
 }
@@ -101,6 +109,16 @@ model Session {
 
 /// Where money lives. In v1 these are "connected" via the mock flow
 /// (Cluster 1 step 14). L2 routing (Plaid) is a future feature.
+///
+/// Cluster 5.2.6 widget switch: added `source` so the production
+/// reads can filter the canonical ACCOUNT_SEED (source="seed")
+/// apart from any future user-entered accounts (source="user") and
+/// the projected accounts from the onboarding chat
+/// (source="identity" — the projection prefixes names with
+/// "[identity] " and inserts them without a `source` field set,
+/// but a future cluster can backfill source="identity" so the
+/// filter is symmetric with the other tables). For v1 the
+/// `source` field filters canonical vs everything-else.
 model Account {
   id             String   @id @default(cuid())
   userId         String
@@ -114,6 +132,13 @@ model Account {
   mask           String?
   /// When L2 lands: whether the app can move money on this account.
   routingEnabled Boolean  @default(false)
+  /// "seed" (the canonical ACCOUNT_SEED, migrated by
+  /// ensureUserAccountsSeeded), "user" (manually added via a
+  /// future /accounts form), or "identity" (projected from the
+  /// chat). The onboarding projection currently inserts without
+  /// setting source — a follow-up backfill pass will mark those
+  /// rows source="identity" so the filter is uniform.
+  source         String   @default("seed")
   isArchived     Boolean  @default(false)
   sortOrder      Int      @default(0)
   createdAt      DateTime @default(now())
@@ -124,14 +149,25 @@ model Account {
   paySchedules PaySchedule[]
 
   @@index([userId])
+  @@index([userId, source])
 }
 
 /// A vessel. The 7 default envelopes are seeded with planetary affiliation
 /// (D14) so each one carries a glyph + color (visual only — never labeled in copy).
+///
+/// Cluster 5.2.6 widget switch: added `source` so the production reads
+/// can filter the canonical 7 vessels (source="seed") apart from any
+/// user-added envelopes (source="user") and the projected envelopes
+/// from the onboarding chat (source="identity", future).
 model Envelope {
   id                   String   @id @default(cuid())
   userId               String
   name                 String
+  /// Where this envelope came from: "seed" (the 7 canonical vessels in
+  /// ENVELOPES_SEED, migrated by ensureUserEnvelopesSeeded), "identity"
+  /// (projected from the chat — future cluster), or "user" (manually
+  /// added via the /envelopes/new form — future cluster).
+  source               String   @default("seed")
   /// Target balance in cents (the cap / goal).
   targetBalance        Int      @default(0)
   /// Cached current balance. Recomputed on every transaction; kept in sync
@@ -157,8 +193,13 @@ model Envelope {
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions    Transaction[]
   allocationRules AllocationRule[]
+  /// Phase 2.0 — Vault back-reference. One VaultEnvelope per Compass
+  /// envelope. Cascaded on envelope delete (the vault's seed re-runs
+  /// from the live envelopes, so losing the vault row is recoverable).
+  vaultEnvelope   VaultEnvelope?
 
   @@index([userId])
+  @@index([userId, source])
 }
 
 /// The atomic money event. Amount is signed: +income, -expense, integer cents.
@@ -226,10 +267,13 @@ model PaySchedule {
 /// A recurring bill (Cluster 1.8). Originally seeded in the in-memory
 /// store (BILLS_SEED in src/lib/mock-seed.ts); Cluster 5.2.5 added
 /// this Prisma model so the onboarding chat's expenses can project
-/// into it via projection.ts. The deep pages still read from the
-/// in-memory seed for now; the projection populates the table for
-/// future migration. Once a widget reads from here, the BillSeed
-/// entries can be migrated too.
+/// into it via projection.ts. Cluster 5.2.6 (widget switch): the
+/// /recurring + dashboard + calendar widgets now read from this
+/// table. The in-memory BILLS_SEED entries are migrated into
+/// `source="seed"` rows on first use (idempotent via
+/// `ensureUserBillsSeeded` in src/lib/seed-bills.ts), the projected
+/// chat expenses land as `source="identity"`, and any future
+/// user-entered bills would land as `source="user"`.
 model Bill {
   id          String    @id @default(cuid())
   userId      String
@@ -243,18 +287,34 @@ model Bill {
   autopay     Boolean   @default(false)
   /// Optional ISO timestamp of the most recent payment. Null if not yet paid for the current period.
   paidAt      DateTime?
-  /// Where this bill came from: "seed" (the in-memory BILLS_SEED), "identity" (projected from the chat's expenses), or "user" (manually entered in a future cluster).
+  /// Where this bill came from: "seed" (the in-memory BILLS_SEED, migrated by ensureUserBillsSeeded), "identity" (projected from the chat's expenses), or "user" (manually entered via the /recurring/new form).
   source      String    @default("seed")
   isArchived  Boolean   @default(false)
+  /// Optional vessel this bill funds (e.g. the Rent envelope). Mirrors BILLS_SEED.envelopeId.
+  envelopeId  String?
+  /// Optional account the bill auto-pays from. Mirrors BILLS_SEED.accountId.
+  accountId   String?
+  /// Stable list order within the user's bill set. Mirrors BILLS_SEED.sortOrder.
+  sortOrder   Int       @default(0)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([source])
+  @@index([userId, source])
+  @@index([userId, sortOrder])
 }
 
 /// A life goal the user is working toward. The "Your Direction" section.
 /// Top priority flag controls what shows in the dashboard hero.
+///
+/// Cluster 5.2.6 widget switch: added `source` so the production
+/// reads can filter canonical GOALS_SEED (source="seed") from
+/// user-entered (source="user") and projected (source="identity")
+/// goals. Also added the `user` back-relation (was missing — caused
+/// orphan rows after user delete).
 model Goal {
   id            String    @id @default(cuid())
   userId        String
@@ -283,6 +343,10 @@ model Goal {
   /// Null for custom goals (trip, purchase, anything else).
   /// The /goals page filters by `?kind=emergency|invest`.
   goalType      GoalType?
+  /// "seed" (the canonical GOALS_SEED, migrated by
+  /// ensureUserGoalsSeeded), "user" (added via the /goals/new
+  /// form), or "identity" (projected from the chat).
+  source        String    @default("seed")
   sortOrder     Int       @default(0)
   isArchived    Boolean   @default(false)
   createdAt     DateTime  @default(now())
@@ -292,10 +356,16 @@ model Goal {
 
   @@index([userId])
   @@index([isPrimary])
+  @@index([userId, source])
 }
 
 /// A user's allocation plan (D11/D12). When armed, every paycheck
 /// transaction triggers the rules silently — no confirm modal (D12).
+///
+/// Cluster 5.2.6 widget switch: added `source` so the production
+/// reads can filter the canonical ALLOCATION_PLAN_SEED (source="seed")
+/// apart from any future user-edited plans (source="user") and
+/// projected plans from the onboarding chat (source="identity", future).
 model AllocationPlan {
   id         String   @id @default(cuid())
   userId     String
@@ -305,6 +375,10 @@ model AllocationPlan {
   isArmed    Boolean  @default(false)
   /// Optional human-readable name ("Mom's plan").
   name       String?
+  /// "seed" (the canonical ALLOCATION_PLAN_SEED, migrated by
+  /// ensureUserAllocationSeeded), "user" (edited via a future
+  /// /allocation edit form), or "identity" (projected from the chat).
+  source     String   @default("seed")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -312,25 +386,54 @@ model AllocationPlan {
   rules AllocationRule[]
 
   @@index([userId])
+  @@index([userId, source])
 }
 
 /// One row per (plan, envelope) — the percentage of each paycheck that
 /// gets distributed into that envelope. Sums should be ≤ 100 (remainder
 /// goes to a default "buffer" or is held).
+///
+/// Cluster 5.2.6 widget switch: the rule's "mode" + "value" pair
+/// (percent / fixed / remainder) is stored as the two nullable
+/// columns `pct` (0–100) and `fixedCents` (integer cents) on the
+/// schema. The mapping in `livePlanFromDb` reconstructs the legacy
+/// `mode + value` shape from these two columns:
+///
+///   - `fixedCents !== null`           → mode="fixed",    value=fixedCents
+///   - else `pct > 0`                  → mode="percent",  value=pct
+///   - else                            → mode="remainder", value=0
+///
+/// The reverse mapping (in `ensureUserAllocationSeeded`) is:
+///   - mode="percent"   → pct=value, fixedCents=null
+///   - mode="fixed"     → pct=0,     fixedCents=value
+///   - mode="remainder" → pct=0,     fixedCents=null
+///
+/// Added `source` for symmetry with the plan (rules inherit their
+/// plan's source on a fresh seed). The Rule has no `userId` (it's
+/// reached through plan → user), so no `@@index([userId, source])`
+/// here — filtering by source is via the parent plan.
 model AllocationRule {
   id         String   @id @default(cuid())
   planId     String
   envelopeId String
-  /// 0–100. Integer percent.
-  pct        Int
+  /// 0–100. Integer percent. Null/0 for "fixed" and "remainder" modes.
+  pct        Int      @default(0)
   /// Optional per-rule override: distribute a fixed amount in cents instead.
   /// If both are set, the engine uses fixedCents if set, else pct of paycheck.
   fixedCents Int?
+  /// Inherited from the parent plan's source on a fresh seed. Default
+  /// "seed" matches the canonical ALLOCATION_PLAN_SEED.
+  source     String   @default("seed")
   sortOrder  Int      @default(0)
   createdAt  DateTime @default(now())
 
   plan     AllocationPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
-  envelope Envelope       @relation(fields: [envelopeId], references: [id])
+  /// Cascade-delete when the envelope is deleted so /api/reset-seed
+  /// (which wipes + reseeds envelopes) doesn't hit a FK violation on
+  /// the rules that point at them. The rule's plan is also deleted
+  /// by the same reset (which cascades to the rule), so the rule
+  /// can't outlive either of its parents.
+  envelope Envelope       @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
 
   @@index([planId])
   @@index([envelopeId])
@@ -639,4 +742,226 @@ model OnboardingMessage {
   identity FinancialIdentity @relation(fields: [identityId], references: [id], onDelete: Cascade)
 
   @@index([identityId, seq])
+}
+
+// ───────────────────────────────────────────────────────────────────
+// Cluster 5.2.x — Vault Phase 2.0 (xKryptic 2026-08-25)
+//
+// Self-custodial bill-reserve feature. Source spec at
+// DeFi/Compass vault spec.md. All money fields are integer cents
+// (per project rule — never floats). APY is a Float (a single scalar
+// per vault, no currency math on it).
+//
+// Phase 1.0 was the simulation — vault data was derived in-memory
+// from the live Envelope + BillSeed. Phase 2.0 makes it real: the
+// /vault page reads from these tables. The seed hydrates from the
+// in-memory envelopes + bills (until Cluster 2 flips the production
+// Bill reads — that's a different cluster's work).
+// ───────────────────────────────────────────────────────────────────
+
+/// The user's vault. One row per user in v1; the unique userId
+/// enforces that. The simulatedApy is a Float because it's a
+/// single scalar rate (0.0352 = 3.52%); never multiply money by it
+/// without going through calculateEnvelopeYield which uses integer
+/// math.
+model VaultAccount {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  chainId             Int      @default(1)
+  /// Placeholder Safe address in Phase 1/2; viem-validated in Phase 3.
+  smartAccountAddress String
+  /// "USDC" in Phase 1/2; widens in Phase 3.
+  baseAsset           String   @default("USDC")
+  /// ACTIVE | PAUSED | RECOVERY_MODE
+  status              String   @default("ACTIVE")
+  availableBalance    Int      @default(0)
+  settlementReserve   Int      @default(0)
+  deployedToYield     Int      @default(0)
+  accruedYield        Int      @default(0)
+  simulatedApy        Float    @default(0.0352)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  envelopes   VaultEnvelope[]
+  bills       ScheduledBill[]
+  yieldEvents YieldEvent[]
+
+  @@index([status])
+}
+
+/// The Vault-side projection of a Compass Envelope. The
+/// compassEnvelopeId is unique (one vault envelope per live
+/// envelope) and is the back-reference for the seed.
+model VaultEnvelope {
+  id                    String    @id @default(cuid())
+  vaultId               String
+  compassEnvelopeId     String    @unique
+  name                  String
+  /// RENT | UTILITIES | INSURANCE | DEBT | SUBSCRIPTION | OTHER
+  /// String instead of a Prisma enum because (a) SQLite, (b) the TS
+  /// union is the canonical contract — DB just stores a label.
+  category              String
+  principalAllocated    Int       @default(0)
+  accruedYield          Int       @default(0)
+  reservedForBills      Int       @default(0)
+  availableToReallocate Int       @default(0)
+  isPolicyLocked        Boolean   @default(true)
+  nextObligationDate    DateTime?
+  /// CALM | WATCH | OVER | LOCKED
+  status                String    @default("CALM")
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  vault           VaultAccount    @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  compassEnvelope Envelope        @relation(fields: [compassEnvelopeId], references: [id], onDelete: Cascade)
+  bills           ScheduledBill[]
+  yieldEvents     YieldEvent[]
+
+  @@index([vaultId])
+  @@index([category])
+  @@index([status])
+}
+
+/// A scheduled bill. Backed by the in-memory BillSeed.id (NOT a
+/// FK to the new Bill table — that coupling is a future cluster's
+/// concern, when the obligations widget flips to production reads).
+/// We use a soft reference (illerId is a String) so the vault
+/// works regardless of how the live bills are sourced.
+model ScheduledBill {
+  id                   String    @id @default(cuid())
+  vaultId              String
+  envelopeId           String
+  billerName           String
+  /// Soft ref to the live bill (BillSeed.id today; Bill.id in future).
+  billerId             String
+  maskedAccountNumber  String
+  amount               Int
+  maxAuthorizedAmount  Int
+  currency             String    @default("USD")
+  /// WEEKLY | MONTHLY | QUARTERLY | ANNUALLY | ONE_TIME
+  frequency            String
+  dueDate              DateTime
+  executionWindowStart DateTime
+  executionWindowEnd   DateTime
+  /// The 13 BillStatus values as a String (same SQLite rationale as
+  /// VaultEnvelope.category). TS union is the canonical contract.
+  status               String    @default("DRAFT")
+  providerPreference   String?
+  lastAttemptAt        DateTime?
+  settlementReference  String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  vault           VaultAccount     @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  envelope        VaultEnvelope    @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
+  paymentAttempts PaymentAttempt[]
+
+  @@unique([vaultId, billerId])
+  @@index([vaultId, dueDate])
+  @@index([vaultId, status])
+  @@index([envelopeId])
+}
+
+/// Append-only yield ledger. envelopeId is nullable for vault-wide
+/// events. Money in integer cents; rate in Float (single scalar).
+model YieldEvent {
+  id             String   @id @default(cuid())
+  vaultId        String
+  envelopeId     String?
+  /// USDC | USDS | sUSDS
+  asset          String
+  amount         Int
+  annualizedRate Float?
+  /// AAVE | SKY | OTHER
+  source         String
+  /// ACCRUED | COMPOUNDED | ALLOCATED_TO_BILL | MOVED_TO_AVAILABLE
+  action         String
+  occurredAt     DateTime @default(now())
+
+  vault    VaultAccount   @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  envelope VaultEnvelope? @relation(fields: [envelopeId], references: [id], onDelete: SetNull)
+
+  @@index([vaultId, occurredAt])
+  @@index([envelopeId, occurredAt])
+}
+
+/// One row per (provider, idempotencyKey). The unique index makes
+/// the off-ramp call truly idempotent — re-submitting the same key
+/// returns the same transactionId and never creates a duplicate row.
+///
+/// The 3 result branches (per the spec's OffRampResult discriminated
+/// union) are stored as separate columns so the UI can render each
+/// branch correctly:
+///   - result:        "SUCCESS" | "DEGRADED" | "FAILURE"
+///   - transactionId: set on SUCCESS and DEGRADED
+///   - warningMessage: set on DEGRADED
+///   - errorMessage:  set on FAILURE
+///   - retryable:     true if the gateway should try another adapter
+model PaymentAttempt {
+  id             String    @id @default(cuid())
+  billId         String
+  providerName   String
+  /// Caller-supplied idempotency key. Unique per provider.
+  idempotencyKey String
+  requestAmount  Int
+  /// SUCCESS | DEGRADED | FAILURE
+  result         String
+  transactionId  String?
+  warningMessage String?
+  errorMessage   String?
+  retryable      Boolean   @default(false)
+  attemptedAt    DateTime  @default(now())
+  completedAt    DateTime?
+
+  bill           ScheduledBill   @relation(fields: [billId], references: [id], onDelete: Cascade)
+  providerEvents ProviderEvent[]
+
+  @@unique([providerName, idempotencyKey])
+  @@index([billId])
+  @@index([result])
+}
+
+/// Per-call event log for an off-ramp adapter. Append-only.
+/// `payload` is a JSON-encoded string (SQLite-friendly, matches the
+/// `metadata` pattern on Transaction).
+model ProviderEvent {
+  id           String   @id @default(cuid())
+  attemptId    String
+  providerName String
+  /// REQUEST | RESPONSE | WEBHOOK | RETRY | SETTLED
+  eventType    String
+  /// JSON-encoded payload, the request body, the response body, etc.
+  payload      String   @default("{}")
+  occurredAt   DateTime @default(now())
+
+  attempt PaymentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@index([attemptId, occurredAt])
+  @@index([providerName, occurredAt])
+}
+
+/// Phase 2.5 — Vault user preferences. One row per user.
+///
+/// Tracks the user's choices about yield routing (default: COMPOUND per
+/// spec) and whether the user has acknowledged the risk disclosure. The
+/// top-of-page risk modal is suppressed after `riskAcknowledgedAt` is
+/// set; re-acknowledgment is required when the user adds a new bill or
+/// changes yield-routing strategy in a future slice.
+model VaultPreferences {
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// One of YieldRoutingStrategy (TS union in src/lib/vault/types.ts):
+  /// COMPOUND | APPLY_TO_NEXT_BILL | MOVE_TO_AVAILABLE | SPLIT_BY_ENVELOPE.
+  /// String column rather than Prisma enum to match the rest of the
+  /// vault's string columns and to keep the migration surface additive.
+  yieldRoutingStrategy String    @default("COMPOUND")
+  /// When the user acknowledged the risk disclosure. NULL = not yet;
+  /// the top-of-page risk modal renders only when this is null.
+  riskAcknowledgedAt   DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([userId])
 }

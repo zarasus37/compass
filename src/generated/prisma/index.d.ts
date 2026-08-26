@@ -29,12 +29,27 @@ export type Session = $Result.DefaultSelection<Prisma.$SessionPayload>
  * Model Account
  * Where money lives. In v1 these are "connected" via the mock flow
  * (Cluster 1 step 14). L2 routing (Plaid) is a future feature.
+ * 
+ * Cluster 5.2.6 widget switch: added `source` so the production
+ * reads can filter the canonical ACCOUNT_SEED (source="seed")
+ * apart from any future user-entered accounts (source="user") and
+ * the projected accounts from the onboarding chat
+ * (source="identity" — the projection prefixes names with
+ * "[identity] " and inserts them without a `source` field set,
+ * but a future cluster can backfill source="identity" so the
+ * filter is symmetric with the other tables). For v1 the
+ * `source` field filters canonical vs everything-else.
  */
 export type Account = $Result.DefaultSelection<Prisma.$AccountPayload>
 /**
  * Model Envelope
  * A vessel. The 7 default envelopes are seeded with planetary affiliation
  * (D14) so each one carries a glyph + color (visual only — never labeled in copy).
+ * 
+ * Cluster 5.2.6 widget switch: added `source` so the production reads
+ * can filter the canonical 7 vessels (source="seed") apart from any
+ * user-added envelopes (source="user") and the projected envelopes
+ * from the onboarding chat (source="identity", future).
  */
 export type Envelope = $Result.DefaultSelection<Prisma.$EnvelopePayload>
 /**
@@ -54,22 +69,36 @@ export type PaySchedule = $Result.DefaultSelection<Prisma.$PaySchedulePayload>
  * A recurring bill (Cluster 1.8). Originally seeded in the in-memory
  * store (BILLS_SEED in src/lib/mock-seed.ts); Cluster 5.2.5 added
  * this Prisma model so the onboarding chat's expenses can project
- * into it via projection.ts. The deep pages still read from the
- * in-memory seed for now; the projection populates the table for
- * future migration. Once a widget reads from here, the BillSeed
- * entries can be migrated too.
+ * into it via projection.ts. Cluster 5.2.6 (widget switch): the
+ * /recurring + dashboard + calendar widgets now read from this
+ * table. The in-memory BILLS_SEED entries are migrated into
+ * `source="seed"` rows on first use (idempotent via
+ * `ensureUserBillsSeeded` in src/lib/seed-bills.ts), the projected
+ * chat expenses land as `source="identity"`, and any future
+ * user-entered bills would land as `source="user"`.
  */
 export type Bill = $Result.DefaultSelection<Prisma.$BillPayload>
 /**
  * Model Goal
  * A life goal the user is working toward. The "Your Direction" section.
  * Top priority flag controls what shows in the dashboard hero.
+ * 
+ * Cluster 5.2.6 widget switch: added `source` so the production
+ * reads can filter canonical GOALS_SEED (source="seed") from
+ * user-entered (source="user") and projected (source="identity")
+ * goals. Also added the `user` back-relation (was missing — caused
+ * orphan rows after user delete).
  */
 export type Goal = $Result.DefaultSelection<Prisma.$GoalPayload>
 /**
  * Model AllocationPlan
  * A user's allocation plan (D11/D12). When armed, every paycheck
  * transaction triggers the rules silently — no confirm modal (D12).
+ * 
+ * Cluster 5.2.6 widget switch: added `source` so the production
+ * reads can filter the canonical ALLOCATION_PLAN_SEED (source="seed")
+ * apart from any future user-edited plans (source="user") and
+ * projected plans from the onboarding chat (source="identity", future).
  */
 export type AllocationPlan = $Result.DefaultSelection<Prisma.$AllocationPlanPayload>
 /**
@@ -77,6 +106,26 @@ export type AllocationPlan = $Result.DefaultSelection<Prisma.$AllocationPlanPayl
  * One row per (plan, envelope) — the percentage of each paycheck that
  * gets distributed into that envelope. Sums should be ≤ 100 (remainder
  * goes to a default "buffer" or is held).
+ * 
+ * Cluster 5.2.6 widget switch: the rule's "mode" + "value" pair
+ * (percent / fixed / remainder) is stored as the two nullable
+ * columns `pct` (0–100) and `fixedCents` (integer cents) on the
+ * schema. The mapping in `livePlanFromDb` reconstructs the legacy
+ * `mode + value` shape from these two columns:
+ * 
+ * - `fixedCents !== null`           → mode="fixed",    value=fixedCents
+ * - else `pct > 0`                  → mode="percent",  value=pct
+ * - else                            → mode="remainder", value=0
+ * 
+ * The reverse mapping (in `ensureUserAllocationSeeded`) is:
+ * - mode="percent"   → pct=value, fixedCents=null
+ * - mode="fixed"     → pct=0,     fixedCents=value
+ * - mode="remainder" → pct=0,     fixedCents=null
+ * 
+ * Added `source` for symmetry with the plan (rules inherit their
+ * plan's source on a fresh seed). The Rule has no `userId` (it's
+ * reached through plan → user), so no `@@index([userId, source])`
+ * here — filtering by source is via the parent plan.
  */
 export type AllocationRule = $Result.DefaultSelection<Prisma.$AllocationRulePayload>
 /**
@@ -169,6 +218,71 @@ export type IdentityHouseholdMember = $Result.DefaultSelection<Prisma.$IdentityH
  * tool calls when it picks up after a primary-provider failure.
  */
 export type OnboardingMessage = $Result.DefaultSelection<Prisma.$OnboardingMessagePayload>
+/**
+ * Model VaultAccount
+ * The user's vault. One row per user in v1; the unique userId
+ * enforces that. The simulatedApy is a Float because it's a
+ * single scalar rate (0.0352 = 3.52%); never multiply money by it
+ * without going through calculateEnvelopeYield which uses integer
+ * math.
+ */
+export type VaultAccount = $Result.DefaultSelection<Prisma.$VaultAccountPayload>
+/**
+ * Model VaultEnvelope
+ * The Vault-side projection of a Compass Envelope. The
+ * compassEnvelopeId is unique (one vault envelope per live
+ * envelope) and is the back-reference for the seed.
+ */
+export type VaultEnvelope = $Result.DefaultSelection<Prisma.$VaultEnvelopePayload>
+/**
+ * Model ScheduledBill
+ * A scheduled bill. Backed by the in-memory BillSeed.id (NOT a
+ * FK to the new Bill table — that coupling is a future cluster's
+ * concern, when the obligations widget flips to production reads).
+ * We use a soft reference (illerId is a String) so the vault
+ * works regardless of how the live bills are sourced.
+ */
+export type ScheduledBill = $Result.DefaultSelection<Prisma.$ScheduledBillPayload>
+/**
+ * Model YieldEvent
+ * Append-only yield ledger. envelopeId is nullable for vault-wide
+ * events. Money in integer cents; rate in Float (single scalar).
+ */
+export type YieldEvent = $Result.DefaultSelection<Prisma.$YieldEventPayload>
+/**
+ * Model PaymentAttempt
+ * One row per (provider, idempotencyKey). The unique index makes
+ * the off-ramp call truly idempotent — re-submitting the same key
+ * returns the same transactionId and never creates a duplicate row.
+ * 
+ * The 3 result branches (per the spec's OffRampResult discriminated
+ * union) are stored as separate columns so the UI can render each
+ * branch correctly:
+ * - result:        "SUCCESS" | "DEGRADED" | "FAILURE"
+ * - transactionId: set on SUCCESS and DEGRADED
+ * - warningMessage: set on DEGRADED
+ * - errorMessage:  set on FAILURE
+ * - retryable:     true if the gateway should try another adapter
+ */
+export type PaymentAttempt = $Result.DefaultSelection<Prisma.$PaymentAttemptPayload>
+/**
+ * Model ProviderEvent
+ * Per-call event log for an off-ramp adapter. Append-only.
+ * `payload` is a JSON-encoded string (SQLite-friendly, matches the
+ * `metadata` pattern on Transaction).
+ */
+export type ProviderEvent = $Result.DefaultSelection<Prisma.$ProviderEventPayload>
+/**
+ * Model VaultPreferences
+ * Phase 2.5 — Vault user preferences. One row per user.
+ * 
+ * Tracks the user's choices about yield routing (default: COMPOUND per
+ * spec) and whether the user has acknowledged the risk disclosure. The
+ * top-of-page risk modal is suppressed after `riskAcknowledgedAt` is
+ * set; re-acknowledgment is required when the user adds a new bill or
+ * changes yield-routing strategy in a future slice.
+ */
+export type VaultPreferences = $Result.DefaultSelection<Prisma.$VaultPreferencesPayload>
 
 /**
  * Enums
@@ -539,6 +653,76 @@ export class PrismaClient<
     * ```
     */
   get onboardingMessage(): Prisma.OnboardingMessageDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.vaultAccount`: Exposes CRUD operations for the **VaultAccount** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more VaultAccounts
+    * const vaultAccounts = await prisma.vaultAccount.findMany()
+    * ```
+    */
+  get vaultAccount(): Prisma.VaultAccountDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.vaultEnvelope`: Exposes CRUD operations for the **VaultEnvelope** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more VaultEnvelopes
+    * const vaultEnvelopes = await prisma.vaultEnvelope.findMany()
+    * ```
+    */
+  get vaultEnvelope(): Prisma.VaultEnvelopeDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.scheduledBill`: Exposes CRUD operations for the **ScheduledBill** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more ScheduledBills
+    * const scheduledBills = await prisma.scheduledBill.findMany()
+    * ```
+    */
+  get scheduledBill(): Prisma.ScheduledBillDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.yieldEvent`: Exposes CRUD operations for the **YieldEvent** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more YieldEvents
+    * const yieldEvents = await prisma.yieldEvent.findMany()
+    * ```
+    */
+  get yieldEvent(): Prisma.YieldEventDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.paymentAttempt`: Exposes CRUD operations for the **PaymentAttempt** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more PaymentAttempts
+    * const paymentAttempts = await prisma.paymentAttempt.findMany()
+    * ```
+    */
+  get paymentAttempt(): Prisma.PaymentAttemptDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.providerEvent`: Exposes CRUD operations for the **ProviderEvent** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more ProviderEvents
+    * const providerEvents = await prisma.providerEvent.findMany()
+    * ```
+    */
+  get providerEvent(): Prisma.ProviderEventDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.vaultPreferences`: Exposes CRUD operations for the **VaultPreferences** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more VaultPreferences
+    * const vaultPreferences = await prisma.vaultPreferences.findMany()
+    * ```
+    */
+  get vaultPreferences(): Prisma.VaultPreferencesDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -1007,7 +1191,14 @@ export namespace Prisma {
     IdentityGoal: 'IdentityGoal',
     IdentityEvent: 'IdentityEvent',
     IdentityHouseholdMember: 'IdentityHouseholdMember',
-    OnboardingMessage: 'OnboardingMessage'
+    OnboardingMessage: 'OnboardingMessage',
+    VaultAccount: 'VaultAccount',
+    VaultEnvelope: 'VaultEnvelope',
+    ScheduledBill: 'ScheduledBill',
+    YieldEvent: 'YieldEvent',
+    PaymentAttempt: 'PaymentAttempt',
+    ProviderEvent: 'ProviderEvent',
+    VaultPreferences: 'VaultPreferences'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -1023,7 +1214,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "session" | "account" | "envelope" | "transaction" | "paySchedule" | "bill" | "goal" | "allocationPlan" | "allocationRule" | "auditLog" | "systemSettings" | "payPeriod" | "financialIdentity" | "identityIncome" | "identityExpense" | "identityDebt" | "identityAsset" | "identityGoal" | "identityEvent" | "identityHouseholdMember" | "onboardingMessage"
+      modelProps: "user" | "session" | "account" | "envelope" | "transaction" | "paySchedule" | "bill" | "goal" | "allocationPlan" | "allocationRule" | "auditLog" | "systemSettings" | "payPeriod" | "financialIdentity" | "identityIncome" | "identityExpense" | "identityDebt" | "identityAsset" | "identityGoal" | "identityEvent" | "identityHouseholdMember" | "onboardingMessage" | "vaultAccount" | "vaultEnvelope" | "scheduledBill" | "yieldEvent" | "paymentAttempt" | "providerEvent" | "vaultPreferences"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -2655,6 +2846,524 @@ export namespace Prisma {
           }
         }
       }
+      VaultAccount: {
+        payload: Prisma.$VaultAccountPayload<ExtArgs>
+        fields: Prisma.VaultAccountFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.VaultAccountFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultAccountPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.VaultAccountFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultAccountPayload>
+          }
+          findFirst: {
+            args: Prisma.VaultAccountFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultAccountPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.VaultAccountFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultAccountPayload>
+          }
+          findMany: {
+            args: Prisma.VaultAccountFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultAccountPayload>[]
+          }
+          create: {
+            args: Prisma.VaultAccountCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultAccountPayload>
+          }
+          createMany: {
+            args: Prisma.VaultAccountCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.VaultAccountCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultAccountPayload>[]
+          }
+          delete: {
+            args: Prisma.VaultAccountDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultAccountPayload>
+          }
+          update: {
+            args: Prisma.VaultAccountUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultAccountPayload>
+          }
+          deleteMany: {
+            args: Prisma.VaultAccountDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.VaultAccountUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.VaultAccountUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultAccountPayload>[]
+          }
+          upsert: {
+            args: Prisma.VaultAccountUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultAccountPayload>
+          }
+          aggregate: {
+            args: Prisma.VaultAccountAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateVaultAccount>
+          }
+          groupBy: {
+            args: Prisma.VaultAccountGroupByArgs<ExtArgs>
+            result: $Utils.Optional<VaultAccountGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.VaultAccountCountArgs<ExtArgs>
+            result: $Utils.Optional<VaultAccountCountAggregateOutputType> | number
+          }
+        }
+      }
+      VaultEnvelope: {
+        payload: Prisma.$VaultEnvelopePayload<ExtArgs>
+        fields: Prisma.VaultEnvelopeFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.VaultEnvelopeFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultEnvelopePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.VaultEnvelopeFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultEnvelopePayload>
+          }
+          findFirst: {
+            args: Prisma.VaultEnvelopeFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultEnvelopePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.VaultEnvelopeFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultEnvelopePayload>
+          }
+          findMany: {
+            args: Prisma.VaultEnvelopeFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultEnvelopePayload>[]
+          }
+          create: {
+            args: Prisma.VaultEnvelopeCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultEnvelopePayload>
+          }
+          createMany: {
+            args: Prisma.VaultEnvelopeCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.VaultEnvelopeCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultEnvelopePayload>[]
+          }
+          delete: {
+            args: Prisma.VaultEnvelopeDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultEnvelopePayload>
+          }
+          update: {
+            args: Prisma.VaultEnvelopeUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultEnvelopePayload>
+          }
+          deleteMany: {
+            args: Prisma.VaultEnvelopeDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.VaultEnvelopeUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.VaultEnvelopeUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultEnvelopePayload>[]
+          }
+          upsert: {
+            args: Prisma.VaultEnvelopeUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultEnvelopePayload>
+          }
+          aggregate: {
+            args: Prisma.VaultEnvelopeAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateVaultEnvelope>
+          }
+          groupBy: {
+            args: Prisma.VaultEnvelopeGroupByArgs<ExtArgs>
+            result: $Utils.Optional<VaultEnvelopeGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.VaultEnvelopeCountArgs<ExtArgs>
+            result: $Utils.Optional<VaultEnvelopeCountAggregateOutputType> | number
+          }
+        }
+      }
+      ScheduledBill: {
+        payload: Prisma.$ScheduledBillPayload<ExtArgs>
+        fields: Prisma.ScheduledBillFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.ScheduledBillFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ScheduledBillPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.ScheduledBillFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ScheduledBillPayload>
+          }
+          findFirst: {
+            args: Prisma.ScheduledBillFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ScheduledBillPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.ScheduledBillFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ScheduledBillPayload>
+          }
+          findMany: {
+            args: Prisma.ScheduledBillFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ScheduledBillPayload>[]
+          }
+          create: {
+            args: Prisma.ScheduledBillCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ScheduledBillPayload>
+          }
+          createMany: {
+            args: Prisma.ScheduledBillCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.ScheduledBillCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ScheduledBillPayload>[]
+          }
+          delete: {
+            args: Prisma.ScheduledBillDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ScheduledBillPayload>
+          }
+          update: {
+            args: Prisma.ScheduledBillUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ScheduledBillPayload>
+          }
+          deleteMany: {
+            args: Prisma.ScheduledBillDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.ScheduledBillUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.ScheduledBillUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ScheduledBillPayload>[]
+          }
+          upsert: {
+            args: Prisma.ScheduledBillUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ScheduledBillPayload>
+          }
+          aggregate: {
+            args: Prisma.ScheduledBillAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateScheduledBill>
+          }
+          groupBy: {
+            args: Prisma.ScheduledBillGroupByArgs<ExtArgs>
+            result: $Utils.Optional<ScheduledBillGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.ScheduledBillCountArgs<ExtArgs>
+            result: $Utils.Optional<ScheduledBillCountAggregateOutputType> | number
+          }
+        }
+      }
+      YieldEvent: {
+        payload: Prisma.$YieldEventPayload<ExtArgs>
+        fields: Prisma.YieldEventFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.YieldEventFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$YieldEventPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.YieldEventFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$YieldEventPayload>
+          }
+          findFirst: {
+            args: Prisma.YieldEventFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$YieldEventPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.YieldEventFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$YieldEventPayload>
+          }
+          findMany: {
+            args: Prisma.YieldEventFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$YieldEventPayload>[]
+          }
+          create: {
+            args: Prisma.YieldEventCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$YieldEventPayload>
+          }
+          createMany: {
+            args: Prisma.YieldEventCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.YieldEventCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$YieldEventPayload>[]
+          }
+          delete: {
+            args: Prisma.YieldEventDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$YieldEventPayload>
+          }
+          update: {
+            args: Prisma.YieldEventUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$YieldEventPayload>
+          }
+          deleteMany: {
+            args: Prisma.YieldEventDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.YieldEventUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.YieldEventUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$YieldEventPayload>[]
+          }
+          upsert: {
+            args: Prisma.YieldEventUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$YieldEventPayload>
+          }
+          aggregate: {
+            args: Prisma.YieldEventAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateYieldEvent>
+          }
+          groupBy: {
+            args: Prisma.YieldEventGroupByArgs<ExtArgs>
+            result: $Utils.Optional<YieldEventGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.YieldEventCountArgs<ExtArgs>
+            result: $Utils.Optional<YieldEventCountAggregateOutputType> | number
+          }
+        }
+      }
+      PaymentAttempt: {
+        payload: Prisma.$PaymentAttemptPayload<ExtArgs>
+        fields: Prisma.PaymentAttemptFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.PaymentAttemptFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaymentAttemptPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.PaymentAttemptFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaymentAttemptPayload>
+          }
+          findFirst: {
+            args: Prisma.PaymentAttemptFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaymentAttemptPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.PaymentAttemptFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaymentAttemptPayload>
+          }
+          findMany: {
+            args: Prisma.PaymentAttemptFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaymentAttemptPayload>[]
+          }
+          create: {
+            args: Prisma.PaymentAttemptCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaymentAttemptPayload>
+          }
+          createMany: {
+            args: Prisma.PaymentAttemptCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.PaymentAttemptCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaymentAttemptPayload>[]
+          }
+          delete: {
+            args: Prisma.PaymentAttemptDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaymentAttemptPayload>
+          }
+          update: {
+            args: Prisma.PaymentAttemptUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaymentAttemptPayload>
+          }
+          deleteMany: {
+            args: Prisma.PaymentAttemptDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.PaymentAttemptUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.PaymentAttemptUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaymentAttemptPayload>[]
+          }
+          upsert: {
+            args: Prisma.PaymentAttemptUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaymentAttemptPayload>
+          }
+          aggregate: {
+            args: Prisma.PaymentAttemptAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregatePaymentAttempt>
+          }
+          groupBy: {
+            args: Prisma.PaymentAttemptGroupByArgs<ExtArgs>
+            result: $Utils.Optional<PaymentAttemptGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.PaymentAttemptCountArgs<ExtArgs>
+            result: $Utils.Optional<PaymentAttemptCountAggregateOutputType> | number
+          }
+        }
+      }
+      ProviderEvent: {
+        payload: Prisma.$ProviderEventPayload<ExtArgs>
+        fields: Prisma.ProviderEventFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.ProviderEventFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderEventPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.ProviderEventFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderEventPayload>
+          }
+          findFirst: {
+            args: Prisma.ProviderEventFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderEventPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.ProviderEventFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderEventPayload>
+          }
+          findMany: {
+            args: Prisma.ProviderEventFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderEventPayload>[]
+          }
+          create: {
+            args: Prisma.ProviderEventCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderEventPayload>
+          }
+          createMany: {
+            args: Prisma.ProviderEventCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.ProviderEventCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderEventPayload>[]
+          }
+          delete: {
+            args: Prisma.ProviderEventDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderEventPayload>
+          }
+          update: {
+            args: Prisma.ProviderEventUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderEventPayload>
+          }
+          deleteMany: {
+            args: Prisma.ProviderEventDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.ProviderEventUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.ProviderEventUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderEventPayload>[]
+          }
+          upsert: {
+            args: Prisma.ProviderEventUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderEventPayload>
+          }
+          aggregate: {
+            args: Prisma.ProviderEventAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateProviderEvent>
+          }
+          groupBy: {
+            args: Prisma.ProviderEventGroupByArgs<ExtArgs>
+            result: $Utils.Optional<ProviderEventGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.ProviderEventCountArgs<ExtArgs>
+            result: $Utils.Optional<ProviderEventCountAggregateOutputType> | number
+          }
+        }
+      }
+      VaultPreferences: {
+        payload: Prisma.$VaultPreferencesPayload<ExtArgs>
+        fields: Prisma.VaultPreferencesFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.VaultPreferencesFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultPreferencesPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.VaultPreferencesFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultPreferencesPayload>
+          }
+          findFirst: {
+            args: Prisma.VaultPreferencesFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultPreferencesPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.VaultPreferencesFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultPreferencesPayload>
+          }
+          findMany: {
+            args: Prisma.VaultPreferencesFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultPreferencesPayload>[]
+          }
+          create: {
+            args: Prisma.VaultPreferencesCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultPreferencesPayload>
+          }
+          createMany: {
+            args: Prisma.VaultPreferencesCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.VaultPreferencesCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultPreferencesPayload>[]
+          }
+          delete: {
+            args: Prisma.VaultPreferencesDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultPreferencesPayload>
+          }
+          update: {
+            args: Prisma.VaultPreferencesUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultPreferencesPayload>
+          }
+          deleteMany: {
+            args: Prisma.VaultPreferencesDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.VaultPreferencesUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.VaultPreferencesUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultPreferencesPayload>[]
+          }
+          upsert: {
+            args: Prisma.VaultPreferencesUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultPreferencesPayload>
+          }
+          aggregate: {
+            args: Prisma.VaultPreferencesAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateVaultPreferences>
+          }
+          groupBy: {
+            args: Prisma.VaultPreferencesGroupByArgs<ExtArgs>
+            result: $Utils.Optional<VaultPreferencesGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.VaultPreferencesCountArgs<ExtArgs>
+            result: $Utils.Optional<VaultPreferencesCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -2800,6 +3509,13 @@ export namespace Prisma {
     identityEvent?: IdentityEventOmit
     identityHouseholdMember?: IdentityHouseholdMemberOmit
     onboardingMessage?: OnboardingMessageOmit
+    vaultAccount?: VaultAccountOmit
+    vaultEnvelope?: VaultEnvelopeOmit
+    scheduledBill?: ScheduledBillOmit
+    yieldEvent?: YieldEventOmit
+    paymentAttempt?: PaymentAttemptOmit
+    providerEvent?: ProviderEventOmit
+    vaultPreferences?: VaultPreferencesOmit
   }
 
   /* Types for Logging */
@@ -2887,6 +3603,7 @@ export namespace Prisma {
     paySchedules: number
     goals: number
     allocationPlans: number
+    bills: number
     auditLog: number
   }
 
@@ -2898,6 +3615,7 @@ export namespace Prisma {
     paySchedules?: boolean | UserCountOutputTypeCountPaySchedulesArgs
     goals?: boolean | UserCountOutputTypeCountGoalsArgs
     allocationPlans?: boolean | UserCountOutputTypeCountAllocationPlansArgs
+    bills?: boolean | UserCountOutputTypeCountBillsArgs
     auditLog?: boolean | UserCountOutputTypeCountAuditLogArgs
   }
 
@@ -2959,6 +3677,13 @@ export namespace Prisma {
    */
   export type UserCountOutputTypeCountAllocationPlansArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: AllocationPlanWhereInput
+  }
+
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountBillsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: BillWhereInput
   }
 
   /**
@@ -3171,6 +3896,157 @@ export namespace Prisma {
    */
   export type FinancialIdentityCountOutputTypeCountMessagesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: OnboardingMessageWhereInput
+  }
+
+
+  /**
+   * Count Type VaultAccountCountOutputType
+   */
+
+  export type VaultAccountCountOutputType = {
+    envelopes: number
+    bills: number
+    yieldEvents: number
+  }
+
+  export type VaultAccountCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    envelopes?: boolean | VaultAccountCountOutputTypeCountEnvelopesArgs
+    bills?: boolean | VaultAccountCountOutputTypeCountBillsArgs
+    yieldEvents?: boolean | VaultAccountCountOutputTypeCountYieldEventsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * VaultAccountCountOutputType without action
+   */
+  export type VaultAccountCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultAccountCountOutputType
+     */
+    select?: VaultAccountCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * VaultAccountCountOutputType without action
+   */
+  export type VaultAccountCountOutputTypeCountEnvelopesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: VaultEnvelopeWhereInput
+  }
+
+  /**
+   * VaultAccountCountOutputType without action
+   */
+  export type VaultAccountCountOutputTypeCountBillsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ScheduledBillWhereInput
+  }
+
+  /**
+   * VaultAccountCountOutputType without action
+   */
+  export type VaultAccountCountOutputTypeCountYieldEventsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: YieldEventWhereInput
+  }
+
+
+  /**
+   * Count Type VaultEnvelopeCountOutputType
+   */
+
+  export type VaultEnvelopeCountOutputType = {
+    bills: number
+    yieldEvents: number
+  }
+
+  export type VaultEnvelopeCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    bills?: boolean | VaultEnvelopeCountOutputTypeCountBillsArgs
+    yieldEvents?: boolean | VaultEnvelopeCountOutputTypeCountYieldEventsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * VaultEnvelopeCountOutputType without action
+   */
+  export type VaultEnvelopeCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultEnvelopeCountOutputType
+     */
+    select?: VaultEnvelopeCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * VaultEnvelopeCountOutputType without action
+   */
+  export type VaultEnvelopeCountOutputTypeCountBillsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ScheduledBillWhereInput
+  }
+
+  /**
+   * VaultEnvelopeCountOutputType without action
+   */
+  export type VaultEnvelopeCountOutputTypeCountYieldEventsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: YieldEventWhereInput
+  }
+
+
+  /**
+   * Count Type ScheduledBillCountOutputType
+   */
+
+  export type ScheduledBillCountOutputType = {
+    paymentAttempts: number
+  }
+
+  export type ScheduledBillCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    paymentAttempts?: boolean | ScheduledBillCountOutputTypeCountPaymentAttemptsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * ScheduledBillCountOutputType without action
+   */
+  export type ScheduledBillCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ScheduledBillCountOutputType
+     */
+    select?: ScheduledBillCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * ScheduledBillCountOutputType without action
+   */
+  export type ScheduledBillCountOutputTypeCountPaymentAttemptsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: PaymentAttemptWhereInput
+  }
+
+
+  /**
+   * Count Type PaymentAttemptCountOutputType
+   */
+
+  export type PaymentAttemptCountOutputType = {
+    providerEvents: number
+  }
+
+  export type PaymentAttemptCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    providerEvents?: boolean | PaymentAttemptCountOutputTypeCountProviderEventsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * PaymentAttemptCountOutputType without action
+   */
+  export type PaymentAttemptCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaymentAttemptCountOutputType
+     */
+    select?: PaymentAttemptCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * PaymentAttemptCountOutputType without action
+   */
+  export type PaymentAttemptCountOutputTypeCountProviderEventsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ProviderEventWhereInput
   }
 
 
@@ -3427,8 +4303,11 @@ export namespace Prisma {
     paySchedules?: boolean | User$paySchedulesArgs<ExtArgs>
     goals?: boolean | User$goalsArgs<ExtArgs>
     allocationPlans?: boolean | User$allocationPlansArgs<ExtArgs>
+    bills?: boolean | User$billsArgs<ExtArgs>
     auditLog?: boolean | User$auditLogArgs<ExtArgs>
     identity?: boolean | User$identityArgs<ExtArgs>
+    vaultAccount?: boolean | User$vaultAccountArgs<ExtArgs>
+    vaultPreferences?: boolean | User$vaultPreferencesArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["user"]>
 
@@ -3480,8 +4359,11 @@ export namespace Prisma {
     paySchedules?: boolean | User$paySchedulesArgs<ExtArgs>
     goals?: boolean | User$goalsArgs<ExtArgs>
     allocationPlans?: boolean | User$allocationPlansArgs<ExtArgs>
+    bills?: boolean | User$billsArgs<ExtArgs>
     auditLog?: boolean | User$auditLogArgs<ExtArgs>
     identity?: boolean | User$identityArgs<ExtArgs>
+    vaultAccount?: boolean | User$vaultAccountArgs<ExtArgs>
+    vaultPreferences?: boolean | User$vaultPreferencesArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type UserIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -3497,8 +4379,20 @@ export namespace Prisma {
       paySchedules: Prisma.$PaySchedulePayload<ExtArgs>[]
       goals: Prisma.$GoalPayload<ExtArgs>[]
       allocationPlans: Prisma.$AllocationPlanPayload<ExtArgs>[]
+      bills: Prisma.$BillPayload<ExtArgs>[]
       auditLog: Prisma.$AuditLogPayload<ExtArgs>[]
       identity: Prisma.$FinancialIdentityPayload<ExtArgs> | null
+      /**
+       * Phase 2.0 — Vault (self-custodial bill-reserve). One vault per
+       * user in v1. Cascaded on user delete.
+       */
+      vaultAccount: Prisma.$VaultAccountPayload<ExtArgs> | null
+      /**
+       * Phase 2.5 — Vault user preferences (yield routing strategy,
+       * risk-disclosure acknowledgment). One row per user. Cascaded
+       * on user delete.
+       */
+      vaultPreferences: Prisma.$VaultPreferencesPayload<ExtArgs> | null
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -3927,8 +4821,11 @@ export namespace Prisma {
     paySchedules<T extends User$paySchedulesArgs<ExtArgs> = {}>(args?: Subset<T, User$paySchedulesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PaySchedulePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     goals<T extends User$goalsArgs<ExtArgs> = {}>(args?: Subset<T, User$goalsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$GoalPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     allocationPlans<T extends User$allocationPlansArgs<ExtArgs> = {}>(args?: Subset<T, User$allocationPlansArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AllocationPlanPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    bills<T extends User$billsArgs<ExtArgs> = {}>(args?: Subset<T, User$billsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BillPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     auditLog<T extends User$auditLogArgs<ExtArgs> = {}>(args?: Subset<T, User$auditLogArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AuditLogPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     identity<T extends User$identityArgs<ExtArgs> = {}>(args?: Subset<T, User$identityArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    vaultAccount<T extends User$vaultAccountArgs<ExtArgs> = {}>(args?: Subset<T, User$vaultAccountArgs<ExtArgs>>): Prisma__VaultAccountClient<$Result.GetResult<Prisma.$VaultAccountPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    vaultPreferences<T extends User$vaultPreferencesArgs<ExtArgs> = {}>(args?: Subset<T, User$vaultPreferencesArgs<ExtArgs>>): Prisma__VaultPreferencesClient<$Result.GetResult<Prisma.$VaultPreferencesPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -4527,6 +5424,30 @@ export namespace Prisma {
   }
 
   /**
+   * User.bills
+   */
+  export type User$billsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Bill
+     */
+    select?: BillSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Bill
+     */
+    omit?: BillOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BillInclude<ExtArgs> | null
+    where?: BillWhereInput
+    orderBy?: BillOrderByWithRelationInput | BillOrderByWithRelationInput[]
+    cursor?: BillWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: BillScalarFieldEnum | BillScalarFieldEnum[]
+  }
+
+  /**
    * User.auditLog
    */
   export type User$auditLogArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -4567,6 +5488,44 @@ export namespace Prisma {
      */
     include?: FinancialIdentityInclude<ExtArgs> | null
     where?: FinancialIdentityWhereInput
+  }
+
+  /**
+   * User.vaultAccount
+   */
+  export type User$vaultAccountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultAccount
+     */
+    select?: VaultAccountSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultAccount
+     */
+    omit?: VaultAccountOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultAccountInclude<ExtArgs> | null
+    where?: VaultAccountWhereInput
+  }
+
+  /**
+   * User.vaultPreferences
+   */
+  export type User$vaultPreferencesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultPreferences
+     */
+    select?: VaultPreferencesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultPreferences
+     */
+    omit?: VaultPreferencesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultPreferencesInclude<ExtArgs> | null
+    where?: VaultPreferencesWhereInput
   }
 
   /**
@@ -5731,6 +6690,7 @@ export namespace Prisma {
     institution: string | null
     mask: string | null
     routingEnabled: boolean | null
+    source: string | null
     isArchived: boolean | null
     sortOrder: number | null
     createdAt: Date | null
@@ -5746,6 +6706,7 @@ export namespace Prisma {
     institution: string | null
     mask: string | null
     routingEnabled: boolean | null
+    source: string | null
     isArchived: boolean | null
     sortOrder: number | null
     createdAt: Date | null
@@ -5761,6 +6722,7 @@ export namespace Prisma {
     institution: number
     mask: number
     routingEnabled: number
+    source: number
     isArchived: number
     sortOrder: number
     createdAt: number
@@ -5788,6 +6750,7 @@ export namespace Prisma {
     institution?: true
     mask?: true
     routingEnabled?: true
+    source?: true
     isArchived?: true
     sortOrder?: true
     createdAt?: true
@@ -5803,6 +6766,7 @@ export namespace Prisma {
     institution?: true
     mask?: true
     routingEnabled?: true
+    source?: true
     isArchived?: true
     sortOrder?: true
     createdAt?: true
@@ -5818,6 +6782,7 @@ export namespace Prisma {
     institution?: true
     mask?: true
     routingEnabled?: true
+    source?: true
     isArchived?: true
     sortOrder?: true
     createdAt?: true
@@ -5920,6 +6885,7 @@ export namespace Prisma {
     institution: string | null
     mask: string | null
     routingEnabled: boolean
+    source: string
     isArchived: boolean
     sortOrder: number
     createdAt: Date
@@ -5954,6 +6920,7 @@ export namespace Prisma {
     institution?: boolean
     mask?: boolean
     routingEnabled?: boolean
+    source?: boolean
     isArchived?: boolean
     sortOrder?: boolean
     createdAt?: boolean
@@ -5973,6 +6940,7 @@ export namespace Prisma {
     institution?: boolean
     mask?: boolean
     routingEnabled?: boolean
+    source?: boolean
     isArchived?: boolean
     sortOrder?: boolean
     createdAt?: boolean
@@ -5989,6 +6957,7 @@ export namespace Prisma {
     institution?: boolean
     mask?: boolean
     routingEnabled?: boolean
+    source?: boolean
     isArchived?: boolean
     sortOrder?: boolean
     createdAt?: boolean
@@ -6005,13 +6974,14 @@ export namespace Prisma {
     institution?: boolean
     mask?: boolean
     routingEnabled?: boolean
+    source?: boolean
     isArchived?: boolean
     sortOrder?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type AccountOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "name" | "type" | "currentBalance" | "institution" | "mask" | "routingEnabled" | "isArchived" | "sortOrder" | "createdAt" | "updatedAt", ExtArgs["result"]["account"]>
+  export type AccountOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "name" | "type" | "currentBalance" | "institution" | "mask" | "routingEnabled" | "source" | "isArchived" | "sortOrder" | "createdAt" | "updatedAt", ExtArgs["result"]["account"]>
   export type AccountInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
     transactions?: boolean | Account$transactionsArgs<ExtArgs>
@@ -6053,6 +7023,15 @@ export namespace Prisma {
        * When L2 lands: whether the app can move money on this account.
        */
       routingEnabled: boolean
+      /**
+       * "seed" (the canonical ACCOUNT_SEED, migrated by
+       * ensureUserAccountsSeeded), "user" (manually added via a
+       * future /accounts form), or "identity" (projected from the
+       * chat). The onboarding projection currently inserts without
+       * setting source — a follow-up backfill pass will mark those
+       * rows source="identity" so the filter is uniform.
+       */
+      source: string
       isArchived: boolean
       sortOrder: number
       createdAt: Date
@@ -6491,6 +7470,7 @@ export namespace Prisma {
     readonly institution: FieldRef<"Account", 'String'>
     readonly mask: FieldRef<"Account", 'String'>
     readonly routingEnabled: FieldRef<"Account", 'Boolean'>
+    readonly source: FieldRef<"Account", 'String'>
     readonly isArchived: FieldRef<"Account", 'Boolean'>
     readonly sortOrder: FieldRef<"Account", 'Int'>
     readonly createdAt: FieldRef<"Account", 'DateTime'>
@@ -6988,6 +7968,7 @@ export namespace Prisma {
     id: string | null
     userId: string | null
     name: string | null
+    source: string | null
     targetBalance: number | null
     currentBalance: number | null
     planet: string | null
@@ -7005,6 +7986,7 @@ export namespace Prisma {
     id: string | null
     userId: string | null
     name: string | null
+    source: string | null
     targetBalance: number | null
     currentBalance: number | null
     planet: string | null
@@ -7022,6 +8004,7 @@ export namespace Prisma {
     id: number
     userId: number
     name: number
+    source: number
     targetBalance: number
     currentBalance: number
     planet: number
@@ -7053,6 +8036,7 @@ export namespace Prisma {
     id?: true
     userId?: true
     name?: true
+    source?: true
     targetBalance?: true
     currentBalance?: true
     planet?: true
@@ -7070,6 +8054,7 @@ export namespace Prisma {
     id?: true
     userId?: true
     name?: true
+    source?: true
     targetBalance?: true
     currentBalance?: true
     planet?: true
@@ -7087,6 +8072,7 @@ export namespace Prisma {
     id?: true
     userId?: true
     name?: true
+    source?: true
     targetBalance?: true
     currentBalance?: true
     planet?: true
@@ -7191,6 +8177,7 @@ export namespace Prisma {
     id: string
     userId: string
     name: string
+    source: string
     targetBalance: number
     currentBalance: number
     planet: string | null
@@ -7227,6 +8214,7 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     name?: boolean
+    source?: boolean
     targetBalance?: boolean
     currentBalance?: boolean
     planet?: boolean
@@ -7241,6 +8229,7 @@ export namespace Prisma {
     user?: boolean | UserDefaultArgs<ExtArgs>
     transactions?: boolean | Envelope$transactionsArgs<ExtArgs>
     allocationRules?: boolean | Envelope$allocationRulesArgs<ExtArgs>
+    vaultEnvelope?: boolean | Envelope$vaultEnvelopeArgs<ExtArgs>
     _count?: boolean | EnvelopeCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["envelope"]>
 
@@ -7248,6 +8237,7 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     name?: boolean
+    source?: boolean
     targetBalance?: boolean
     currentBalance?: boolean
     planet?: boolean
@@ -7266,6 +8256,7 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     name?: boolean
+    source?: boolean
     targetBalance?: boolean
     currentBalance?: boolean
     planet?: boolean
@@ -7284,6 +8275,7 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     name?: boolean
+    source?: boolean
     targetBalance?: boolean
     currentBalance?: boolean
     planet?: boolean
@@ -7297,11 +8289,12 @@ export namespace Prisma {
     updatedAt?: boolean
   }
 
-  export type EnvelopeOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "name" | "targetBalance" | "currentBalance" | "planet" | "color" | "icon" | "destinationAccountId" | "enforceHardCap" | "sortOrder" | "isArchived" | "createdAt" | "updatedAt", ExtArgs["result"]["envelope"]>
+  export type EnvelopeOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "name" | "source" | "targetBalance" | "currentBalance" | "planet" | "color" | "icon" | "destinationAccountId" | "enforceHardCap" | "sortOrder" | "isArchived" | "createdAt" | "updatedAt", ExtArgs["result"]["envelope"]>
   export type EnvelopeInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
     transactions?: boolean | Envelope$transactionsArgs<ExtArgs>
     allocationRules?: boolean | Envelope$allocationRulesArgs<ExtArgs>
+    vaultEnvelope?: boolean | Envelope$vaultEnvelopeArgs<ExtArgs>
     _count?: boolean | EnvelopeCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type EnvelopeIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -7317,11 +8310,24 @@ export namespace Prisma {
       user: Prisma.$UserPayload<ExtArgs>
       transactions: Prisma.$TransactionPayload<ExtArgs>[]
       allocationRules: Prisma.$AllocationRulePayload<ExtArgs>[]
+      /**
+       * Phase 2.0 — Vault back-reference. One VaultEnvelope per Compass
+       * envelope. Cascaded on envelope delete (the vault's seed re-runs
+       * from the live envelopes, so losing the vault row is recoverable).
+       */
+      vaultEnvelope: Prisma.$VaultEnvelopePayload<ExtArgs> | null
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
       userId: string
       name: string
+      /**
+       * Where this envelope came from: "seed" (the 7 canonical vessels in
+       * ENVELOPES_SEED, migrated by ensureUserEnvelopesSeeded), "identity"
+       * (projected from the chat — future cluster), or "user" (manually
+       * added via the /envelopes/new form — future cluster).
+       */
+      source: string
       /**
        * Target balance in cents (the cap / goal).
        */
@@ -7756,6 +8762,7 @@ export namespace Prisma {
     user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
     transactions<T extends Envelope$transactionsArgs<ExtArgs> = {}>(args?: Subset<T, Envelope$transactionsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TransactionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     allocationRules<T extends Envelope$allocationRulesArgs<ExtArgs> = {}>(args?: Subset<T, Envelope$allocationRulesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AllocationRulePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    vaultEnvelope<T extends Envelope$vaultEnvelopeArgs<ExtArgs> = {}>(args?: Subset<T, Envelope$vaultEnvelopeArgs<ExtArgs>>): Prisma__VaultEnvelopeClient<$Result.GetResult<Prisma.$VaultEnvelopePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -7788,6 +8795,7 @@ export namespace Prisma {
     readonly id: FieldRef<"Envelope", 'String'>
     readonly userId: FieldRef<"Envelope", 'String'>
     readonly name: FieldRef<"Envelope", 'String'>
+    readonly source: FieldRef<"Envelope", 'String'>
     readonly targetBalance: FieldRef<"Envelope", 'Int'>
     readonly currentBalance: FieldRef<"Envelope", 'Int'>
     readonly planet: FieldRef<"Envelope", 'String'>
@@ -8243,6 +9251,25 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: AllocationRuleScalarFieldEnum | AllocationRuleScalarFieldEnum[]
+  }
+
+  /**
+   * Envelope.vaultEnvelope
+   */
+  export type Envelope$vaultEnvelopeArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultEnvelope
+     */
+    select?: VaultEnvelopeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultEnvelope
+     */
+    omit?: VaultEnvelopeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultEnvelopeInclude<ExtArgs> | null
+    where?: VaultEnvelopeWhereInput
   }
 
   /**
@@ -10740,11 +11767,13 @@ export namespace Prisma {
   export type BillAvgAggregateOutputType = {
     amountCents: number | null
     dueDay: number | null
+    sortOrder: number | null
   }
 
   export type BillSumAggregateOutputType = {
     amountCents: number | null
     dueDay: number | null
+    sortOrder: number | null
   }
 
   export type BillMinAggregateOutputType = {
@@ -10758,6 +11787,9 @@ export namespace Prisma {
     paidAt: Date | null
     source: string | null
     isArchived: boolean | null
+    envelopeId: string | null
+    accountId: string | null
+    sortOrder: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -10773,6 +11805,9 @@ export namespace Prisma {
     paidAt: Date | null
     source: string | null
     isArchived: boolean | null
+    envelopeId: string | null
+    accountId: string | null
+    sortOrder: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -10788,6 +11823,9 @@ export namespace Prisma {
     paidAt: number
     source: number
     isArchived: number
+    envelopeId: number
+    accountId: number
+    sortOrder: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -10797,11 +11835,13 @@ export namespace Prisma {
   export type BillAvgAggregateInputType = {
     amountCents?: true
     dueDay?: true
+    sortOrder?: true
   }
 
   export type BillSumAggregateInputType = {
     amountCents?: true
     dueDay?: true
+    sortOrder?: true
   }
 
   export type BillMinAggregateInputType = {
@@ -10815,6 +11855,9 @@ export namespace Prisma {
     paidAt?: true
     source?: true
     isArchived?: true
+    envelopeId?: true
+    accountId?: true
+    sortOrder?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -10830,6 +11873,9 @@ export namespace Prisma {
     paidAt?: true
     source?: true
     isArchived?: true
+    envelopeId?: true
+    accountId?: true
+    sortOrder?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -10845,6 +11891,9 @@ export namespace Prisma {
     paidAt?: true
     source?: true
     isArchived?: true
+    envelopeId?: true
+    accountId?: true
+    sortOrder?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -10947,6 +11996,9 @@ export namespace Prisma {
     paidAt: Date | null
     source: string
     isArchived: boolean
+    envelopeId: string | null
+    accountId: string | null
+    sortOrder: number
     createdAt: Date
     updatedAt: Date
     _count: BillCountAggregateOutputType | null
@@ -10981,8 +12033,12 @@ export namespace Prisma {
     paidAt?: boolean
     source?: boolean
     isArchived?: boolean
+    envelopeId?: boolean
+    accountId?: boolean
+    sortOrder?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["bill"]>
 
   export type BillSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -10996,8 +12052,12 @@ export namespace Prisma {
     paidAt?: boolean
     source?: boolean
     isArchived?: boolean
+    envelopeId?: boolean
+    accountId?: boolean
+    sortOrder?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["bill"]>
 
   export type BillSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -11011,8 +12071,12 @@ export namespace Prisma {
     paidAt?: boolean
     source?: boolean
     isArchived?: boolean
+    envelopeId?: boolean
+    accountId?: boolean
+    sortOrder?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["bill"]>
 
   export type BillSelectScalar = {
@@ -11026,15 +12090,29 @@ export namespace Prisma {
     paidAt?: boolean
     source?: boolean
     isArchived?: boolean
+    envelopeId?: boolean
+    accountId?: boolean
+    sortOrder?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type BillOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "name" | "amountCents" | "cadence" | "dueDay" | "autopay" | "paidAt" | "source" | "isArchived" | "createdAt" | "updatedAt", ExtArgs["result"]["bill"]>
+  export type BillOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "name" | "amountCents" | "cadence" | "dueDay" | "autopay" | "paidAt" | "source" | "isArchived" | "envelopeId" | "accountId" | "sortOrder" | "createdAt" | "updatedAt", ExtArgs["result"]["bill"]>
+  export type BillInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type BillIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type BillIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
 
   export type $BillPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "Bill"
-    objects: {}
+    objects: {
+      user: Prisma.$UserPayload<ExtArgs>
+    }
     scalars: $Extensions.GetPayloadResult<{
       id: string
       userId: string
@@ -11057,10 +12135,22 @@ export namespace Prisma {
        */
       paidAt: Date | null
       /**
-       * Where this bill came from: "seed" (the in-memory BILLS_SEED), "identity" (projected from the chat's expenses), or "user" (manually entered in a future cluster).
+       * Where this bill came from: "seed" (the in-memory BILLS_SEED, migrated by ensureUserBillsSeeded), "identity" (projected from the chat's expenses), or "user" (manually entered via the /recurring/new form).
        */
       source: string
       isArchived: boolean
+      /**
+       * Optional vessel this bill funds (e.g. the Rent envelope). Mirrors BILLS_SEED.envelopeId.
+       */
+      envelopeId: string | null
+      /**
+       * Optional account the bill auto-pays from. Mirrors BILLS_SEED.accountId.
+       */
+      accountId: string | null
+      /**
+       * Stable list order within the user's bill set. Mirrors BILLS_SEED.sortOrder.
+       */
+      sortOrder: number
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["bill"]>
@@ -11457,6 +12547,7 @@ export namespace Prisma {
    */
   export interface Prisma__BillClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -11496,6 +12587,9 @@ export namespace Prisma {
     readonly paidAt: FieldRef<"Bill", 'DateTime'>
     readonly source: FieldRef<"Bill", 'String'>
     readonly isArchived: FieldRef<"Bill", 'Boolean'>
+    readonly envelopeId: FieldRef<"Bill", 'String'>
+    readonly accountId: FieldRef<"Bill", 'String'>
+    readonly sortOrder: FieldRef<"Bill", 'Int'>
     readonly createdAt: FieldRef<"Bill", 'DateTime'>
     readonly updatedAt: FieldRef<"Bill", 'DateTime'>
   }
@@ -11515,6 +12609,10 @@ export namespace Prisma {
      */
     omit?: BillOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BillInclude<ExtArgs> | null
+    /**
      * Filter, which Bill to fetch.
      */
     where: BillWhereUniqueInput
@@ -11533,6 +12631,10 @@ export namespace Prisma {
      */
     omit?: BillOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BillInclude<ExtArgs> | null
+    /**
      * Filter, which Bill to fetch.
      */
     where: BillWhereUniqueInput
@@ -11550,6 +12652,10 @@ export namespace Prisma {
      * Omit specific fields from the Bill
      */
     omit?: BillOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BillInclude<ExtArgs> | null
     /**
      * Filter, which Bill to fetch.
      */
@@ -11599,6 +12705,10 @@ export namespace Prisma {
      */
     omit?: BillOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BillInclude<ExtArgs> | null
+    /**
      * Filter, which Bill to fetch.
      */
     where?: BillWhereInput
@@ -11646,6 +12756,10 @@ export namespace Prisma {
      * Omit specific fields from the Bill
      */
     omit?: BillOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BillInclude<ExtArgs> | null
     /**
      * Filter, which Bills to fetch.
      */
@@ -11695,6 +12809,10 @@ export namespace Prisma {
      */
     omit?: BillOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BillInclude<ExtArgs> | null
+    /**
      * The data needed to create a Bill.
      */
     data: XOR<BillCreateInput, BillUncheckedCreateInput>
@@ -11726,6 +12844,10 @@ export namespace Prisma {
      * The data used to create many Bills.
      */
     data: BillCreateManyInput | BillCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BillIncludeCreateManyAndReturn<ExtArgs> | null
   }
 
   /**
@@ -11740,6 +12862,10 @@ export namespace Prisma {
      * Omit specific fields from the Bill
      */
     omit?: BillOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BillInclude<ExtArgs> | null
     /**
      * The data needed to update a Bill.
      */
@@ -11792,6 +12918,10 @@ export namespace Prisma {
      * Limit how many Bills to update.
      */
     limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BillIncludeUpdateManyAndReturn<ExtArgs> | null
   }
 
   /**
@@ -11806,6 +12936,10 @@ export namespace Prisma {
      * Omit specific fields from the Bill
      */
     omit?: BillOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BillInclude<ExtArgs> | null
     /**
      * The filter to search for the Bill to update in case it exists.
      */
@@ -11832,6 +12966,10 @@ export namespace Prisma {
      * Omit specific fields from the Bill
      */
     omit?: BillOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BillInclude<ExtArgs> | null
     /**
      * Filter which Bill to delete.
      */
@@ -11864,6 +13002,10 @@ export namespace Prisma {
      * Omit specific fields from the Bill
      */
     omit?: BillOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BillInclude<ExtArgs> | null
   }
 
 
@@ -11904,6 +13046,7 @@ export namespace Prisma {
     isPrimary: boolean | null
     kind: $Enums.GoalKind | null
     goalType: $Enums.GoalType | null
+    source: string | null
     sortOrder: number | null
     isArchived: boolean | null
     createdAt: Date | null
@@ -11923,6 +13066,7 @@ export namespace Prisma {
     isPrimary: boolean | null
     kind: $Enums.GoalKind | null
     goalType: $Enums.GoalType | null
+    source: string | null
     sortOrder: number | null
     isArchived: boolean | null
     createdAt: Date | null
@@ -11942,6 +13086,7 @@ export namespace Prisma {
     isPrimary: number
     kind: number
     goalType: number
+    source: number
     sortOrder: number
     isArchived: number
     createdAt: number
@@ -11975,6 +13120,7 @@ export namespace Prisma {
     isPrimary?: true
     kind?: true
     goalType?: true
+    source?: true
     sortOrder?: true
     isArchived?: true
     createdAt?: true
@@ -11994,6 +13140,7 @@ export namespace Prisma {
     isPrimary?: true
     kind?: true
     goalType?: true
+    source?: true
     sortOrder?: true
     isArchived?: true
     createdAt?: true
@@ -12013,6 +13160,7 @@ export namespace Prisma {
     isPrimary?: true
     kind?: true
     goalType?: true
+    source?: true
     sortOrder?: true
     isArchived?: true
     createdAt?: true
@@ -12119,6 +13267,7 @@ export namespace Prisma {
     isPrimary: boolean
     kind: $Enums.GoalKind
     goalType: $Enums.GoalType | null
+    source: string
     sortOrder: number
     isArchived: boolean
     createdAt: Date
@@ -12157,6 +13306,7 @@ export namespace Prisma {
     isPrimary?: boolean
     kind?: boolean
     goalType?: boolean
+    source?: boolean
     sortOrder?: boolean
     isArchived?: boolean
     createdAt?: boolean
@@ -12177,6 +13327,7 @@ export namespace Prisma {
     isPrimary?: boolean
     kind?: boolean
     goalType?: boolean
+    source?: boolean
     sortOrder?: boolean
     isArchived?: boolean
     createdAt?: boolean
@@ -12197,6 +13348,7 @@ export namespace Prisma {
     isPrimary?: boolean
     kind?: boolean
     goalType?: boolean
+    source?: boolean
     sortOrder?: boolean
     isArchived?: boolean
     createdAt?: boolean
@@ -12217,13 +13369,14 @@ export namespace Prisma {
     isPrimary?: boolean
     kind?: boolean
     goalType?: boolean
+    source?: boolean
     sortOrder?: boolean
     isArchived?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type GoalOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "name" | "description" | "targetAmount" | "currentAmount" | "targetDate" | "envelopeId" | "planet" | "isPrimary" | "kind" | "goalType" | "sortOrder" | "isArchived" | "createdAt" | "updatedAt", ExtArgs["result"]["goal"]>
+  export type GoalOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "name" | "description" | "targetAmount" | "currentAmount" | "targetDate" | "envelopeId" | "planet" | "isPrimary" | "kind" | "goalType" | "source" | "sortOrder" | "isArchived" | "createdAt" | "updatedAt", ExtArgs["result"]["goal"]>
   export type GoalInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
   }
@@ -12283,6 +13436,12 @@ export namespace Prisma {
        * The /goals page filters by `?kind=emergency|invest`.
        */
       goalType: $Enums.GoalType | null
+      /**
+       * "seed" (the canonical GOALS_SEED, migrated by
+       * ensureUserGoalsSeeded), "user" (added via the /goals/new
+       * form), or "identity" (projected from the chat).
+       */
+      source: string
       sortOrder: number
       isArchived: boolean
       createdAt: Date
@@ -12723,6 +13882,7 @@ export namespace Prisma {
     readonly isPrimary: FieldRef<"Goal", 'Boolean'>
     readonly kind: FieldRef<"Goal", 'GoalKind'>
     readonly goalType: FieldRef<"Goal", 'GoalType'>
+    readonly source: FieldRef<"Goal", 'String'>
     readonly sortOrder: FieldRef<"Goal", 'Int'>
     readonly isArchived: FieldRef<"Goal", 'Boolean'>
     readonly createdAt: FieldRef<"Goal", 'DateTime'>
@@ -13160,6 +14320,7 @@ export namespace Prisma {
     strategyId: string | null
     isArmed: boolean | null
     name: string | null
+    source: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -13170,6 +14331,7 @@ export namespace Prisma {
     strategyId: string | null
     isArmed: boolean | null
     name: string | null
+    source: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -13180,6 +14342,7 @@ export namespace Prisma {
     strategyId: number
     isArmed: number
     name: number
+    source: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -13192,6 +14355,7 @@ export namespace Prisma {
     strategyId?: true
     isArmed?: true
     name?: true
+    source?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -13202,6 +14366,7 @@ export namespace Prisma {
     strategyId?: true
     isArmed?: true
     name?: true
+    source?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -13212,6 +14377,7 @@ export namespace Prisma {
     strategyId?: true
     isArmed?: true
     name?: true
+    source?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -13295,6 +14461,7 @@ export namespace Prisma {
     strategyId: string
     isArmed: boolean
     name: string | null
+    source: string
     createdAt: Date
     updatedAt: Date
     _count: AllocationPlanCountAggregateOutputType | null
@@ -13322,6 +14489,7 @@ export namespace Prisma {
     strategyId?: boolean
     isArmed?: boolean
     name?: boolean
+    source?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
@@ -13335,6 +14503,7 @@ export namespace Prisma {
     strategyId?: boolean
     isArmed?: boolean
     name?: boolean
+    source?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
@@ -13346,6 +14515,7 @@ export namespace Prisma {
     strategyId?: boolean
     isArmed?: boolean
     name?: boolean
+    source?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
@@ -13357,11 +14527,12 @@ export namespace Prisma {
     strategyId?: boolean
     isArmed?: boolean
     name?: boolean
+    source?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type AllocationPlanOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "strategyId" | "isArmed" | "name" | "createdAt" | "updatedAt", ExtArgs["result"]["allocationPlan"]>
+  export type AllocationPlanOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "strategyId" | "isArmed" | "name" | "source" | "createdAt" | "updatedAt", ExtArgs["result"]["allocationPlan"]>
   export type AllocationPlanInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
     rules?: boolean | AllocationPlan$rulesArgs<ExtArgs>
@@ -13395,6 +14566,12 @@ export namespace Prisma {
        * Optional human-readable name ("Mom's plan").
        */
       name: string | null
+      /**
+       * "seed" (the canonical ALLOCATION_PLAN_SEED, migrated by
+       * ensureUserAllocationSeeded), "user" (edited via a future
+       * /allocation edit form), or "identity" (projected from the chat).
+       */
+      source: string
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["allocationPlan"]>
@@ -13827,6 +15004,7 @@ export namespace Prisma {
     readonly strategyId: FieldRef<"AllocationPlan", 'String'>
     readonly isArmed: FieldRef<"AllocationPlan", 'Boolean'>
     readonly name: FieldRef<"AllocationPlan", 'String'>
+    readonly source: FieldRef<"AllocationPlan", 'String'>
     readonly createdAt: FieldRef<"AllocationPlan", 'DateTime'>
     readonly updatedAt: FieldRef<"AllocationPlan", 'DateTime'>
   }
@@ -14300,6 +15478,7 @@ export namespace Prisma {
     envelopeId: string | null
     pct: number | null
     fixedCents: number | null
+    source: string | null
     sortOrder: number | null
     createdAt: Date | null
   }
@@ -14310,6 +15489,7 @@ export namespace Prisma {
     envelopeId: string | null
     pct: number | null
     fixedCents: number | null
+    source: string | null
     sortOrder: number | null
     createdAt: Date | null
   }
@@ -14320,6 +15500,7 @@ export namespace Prisma {
     envelopeId: number
     pct: number
     fixedCents: number
+    source: number
     sortOrder: number
     createdAt: number
     _all: number
@@ -14344,6 +15525,7 @@ export namespace Prisma {
     envelopeId?: true
     pct?: true
     fixedCents?: true
+    source?: true
     sortOrder?: true
     createdAt?: true
   }
@@ -14354,6 +15536,7 @@ export namespace Prisma {
     envelopeId?: true
     pct?: true
     fixedCents?: true
+    source?: true
     sortOrder?: true
     createdAt?: true
   }
@@ -14364,6 +15547,7 @@ export namespace Prisma {
     envelopeId?: true
     pct?: true
     fixedCents?: true
+    source?: true
     sortOrder?: true
     createdAt?: true
     _all?: true
@@ -14461,6 +15645,7 @@ export namespace Prisma {
     envelopeId: string
     pct: number
     fixedCents: number | null
+    source: string
     sortOrder: number
     createdAt: Date
     _count: AllocationRuleCountAggregateOutputType | null
@@ -14490,6 +15675,7 @@ export namespace Prisma {
     envelopeId?: boolean
     pct?: boolean
     fixedCents?: boolean
+    source?: boolean
     sortOrder?: boolean
     createdAt?: boolean
     plan?: boolean | AllocationPlanDefaultArgs<ExtArgs>
@@ -14502,6 +15688,7 @@ export namespace Prisma {
     envelopeId?: boolean
     pct?: boolean
     fixedCents?: boolean
+    source?: boolean
     sortOrder?: boolean
     createdAt?: boolean
     plan?: boolean | AllocationPlanDefaultArgs<ExtArgs>
@@ -14514,6 +15701,7 @@ export namespace Prisma {
     envelopeId?: boolean
     pct?: boolean
     fixedCents?: boolean
+    source?: boolean
     sortOrder?: boolean
     createdAt?: boolean
     plan?: boolean | AllocationPlanDefaultArgs<ExtArgs>
@@ -14526,11 +15714,12 @@ export namespace Prisma {
     envelopeId?: boolean
     pct?: boolean
     fixedCents?: boolean
+    source?: boolean
     sortOrder?: boolean
     createdAt?: boolean
   }
 
-  export type AllocationRuleOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "planId" | "envelopeId" | "pct" | "fixedCents" | "sortOrder" | "createdAt", ExtArgs["result"]["allocationRule"]>
+  export type AllocationRuleOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "planId" | "envelopeId" | "pct" | "fixedCents" | "source" | "sortOrder" | "createdAt", ExtArgs["result"]["allocationRule"]>
   export type AllocationRuleInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     plan?: boolean | AllocationPlanDefaultArgs<ExtArgs>
     envelope?: boolean | EnvelopeDefaultArgs<ExtArgs>
@@ -14548,6 +15737,13 @@ export namespace Prisma {
     name: "AllocationRule"
     objects: {
       plan: Prisma.$AllocationPlanPayload<ExtArgs>
+      /**
+       * Cascade-delete when the envelope is deleted so /api/reset-seed
+       * (which wipes + reseeds envelopes) doesn't hit a FK violation on
+       * the rules that point at them. The rule's plan is also deleted
+       * by the same reset (which cascades to the rule), so the rule
+       * can't outlive either of its parents.
+       */
       envelope: Prisma.$EnvelopePayload<ExtArgs>
     }
     scalars: $Extensions.GetPayloadResult<{
@@ -14555,7 +15751,7 @@ export namespace Prisma {
       planId: string
       envelopeId: string
       /**
-       * 0–100. Integer percent.
+       * 0–100. Integer percent. Null/0 for "fixed" and "remainder" modes.
        */
       pct: number
       /**
@@ -14563,6 +15759,11 @@ export namespace Prisma {
        * If both are set, the engine uses fixedCents if set, else pct of paycheck.
        */
       fixedCents: number | null
+      /**
+       * Inherited from the parent plan's source on a fresh seed. Default
+       * "seed" matches the canonical ALLOCATION_PLAN_SEED.
+       */
+      source: string
       sortOrder: number
       createdAt: Date
     }, ExtArgs["result"]["allocationRule"]>
@@ -14995,6 +16196,7 @@ export namespace Prisma {
     readonly envelopeId: FieldRef<"AllocationRule", 'String'>
     readonly pct: FieldRef<"AllocationRule", 'Int'>
     readonly fixedCents: FieldRef<"AllocationRule", 'Int'>
+    readonly source: FieldRef<"AllocationRule", 'String'>
     readonly sortOrder: FieldRef<"AllocationRule", 'Int'>
     readonly createdAt: FieldRef<"AllocationRule", 'DateTime'>
   }
@@ -29305,6 +30507,8520 @@ export namespace Prisma {
 
 
   /**
+   * Model VaultAccount
+   */
+
+  export type AggregateVaultAccount = {
+    _count: VaultAccountCountAggregateOutputType | null
+    _avg: VaultAccountAvgAggregateOutputType | null
+    _sum: VaultAccountSumAggregateOutputType | null
+    _min: VaultAccountMinAggregateOutputType | null
+    _max: VaultAccountMaxAggregateOutputType | null
+  }
+
+  export type VaultAccountAvgAggregateOutputType = {
+    chainId: number | null
+    availableBalance: number | null
+    settlementReserve: number | null
+    deployedToYield: number | null
+    accruedYield: number | null
+    simulatedApy: number | null
+  }
+
+  export type VaultAccountSumAggregateOutputType = {
+    chainId: number | null
+    availableBalance: number | null
+    settlementReserve: number | null
+    deployedToYield: number | null
+    accruedYield: number | null
+    simulatedApy: number | null
+  }
+
+  export type VaultAccountMinAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    chainId: number | null
+    smartAccountAddress: string | null
+    baseAsset: string | null
+    status: string | null
+    availableBalance: number | null
+    settlementReserve: number | null
+    deployedToYield: number | null
+    accruedYield: number | null
+    simulatedApy: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type VaultAccountMaxAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    chainId: number | null
+    smartAccountAddress: string | null
+    baseAsset: string | null
+    status: string | null
+    availableBalance: number | null
+    settlementReserve: number | null
+    deployedToYield: number | null
+    accruedYield: number | null
+    simulatedApy: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type VaultAccountCountAggregateOutputType = {
+    id: number
+    userId: number
+    chainId: number
+    smartAccountAddress: number
+    baseAsset: number
+    status: number
+    availableBalance: number
+    settlementReserve: number
+    deployedToYield: number
+    accruedYield: number
+    simulatedApy: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type VaultAccountAvgAggregateInputType = {
+    chainId?: true
+    availableBalance?: true
+    settlementReserve?: true
+    deployedToYield?: true
+    accruedYield?: true
+    simulatedApy?: true
+  }
+
+  export type VaultAccountSumAggregateInputType = {
+    chainId?: true
+    availableBalance?: true
+    settlementReserve?: true
+    deployedToYield?: true
+    accruedYield?: true
+    simulatedApy?: true
+  }
+
+  export type VaultAccountMinAggregateInputType = {
+    id?: true
+    userId?: true
+    chainId?: true
+    smartAccountAddress?: true
+    baseAsset?: true
+    status?: true
+    availableBalance?: true
+    settlementReserve?: true
+    deployedToYield?: true
+    accruedYield?: true
+    simulatedApy?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type VaultAccountMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    chainId?: true
+    smartAccountAddress?: true
+    baseAsset?: true
+    status?: true
+    availableBalance?: true
+    settlementReserve?: true
+    deployedToYield?: true
+    accruedYield?: true
+    simulatedApy?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type VaultAccountCountAggregateInputType = {
+    id?: true
+    userId?: true
+    chainId?: true
+    smartAccountAddress?: true
+    baseAsset?: true
+    status?: true
+    availableBalance?: true
+    settlementReserve?: true
+    deployedToYield?: true
+    accruedYield?: true
+    simulatedApy?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type VaultAccountAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which VaultAccount to aggregate.
+     */
+    where?: VaultAccountWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of VaultAccounts to fetch.
+     */
+    orderBy?: VaultAccountOrderByWithRelationInput | VaultAccountOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: VaultAccountWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` VaultAccounts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` VaultAccounts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned VaultAccounts
+    **/
+    _count?: true | VaultAccountCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: VaultAccountAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: VaultAccountSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: VaultAccountMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: VaultAccountMaxAggregateInputType
+  }
+
+  export type GetVaultAccountAggregateType<T extends VaultAccountAggregateArgs> = {
+        [P in keyof T & keyof AggregateVaultAccount]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateVaultAccount[P]>
+      : GetScalarType<T[P], AggregateVaultAccount[P]>
+  }
+
+
+
+
+  export type VaultAccountGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: VaultAccountWhereInput
+    orderBy?: VaultAccountOrderByWithAggregationInput | VaultAccountOrderByWithAggregationInput[]
+    by: VaultAccountScalarFieldEnum[] | VaultAccountScalarFieldEnum
+    having?: VaultAccountScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: VaultAccountCountAggregateInputType | true
+    _avg?: VaultAccountAvgAggregateInputType
+    _sum?: VaultAccountSumAggregateInputType
+    _min?: VaultAccountMinAggregateInputType
+    _max?: VaultAccountMaxAggregateInputType
+  }
+
+  export type VaultAccountGroupByOutputType = {
+    id: string
+    userId: string
+    chainId: number
+    smartAccountAddress: string
+    baseAsset: string
+    status: string
+    availableBalance: number
+    settlementReserve: number
+    deployedToYield: number
+    accruedYield: number
+    simulatedApy: number
+    createdAt: Date
+    updatedAt: Date
+    _count: VaultAccountCountAggregateOutputType | null
+    _avg: VaultAccountAvgAggregateOutputType | null
+    _sum: VaultAccountSumAggregateOutputType | null
+    _min: VaultAccountMinAggregateOutputType | null
+    _max: VaultAccountMaxAggregateOutputType | null
+  }
+
+  type GetVaultAccountGroupByPayload<T extends VaultAccountGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<VaultAccountGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof VaultAccountGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], VaultAccountGroupByOutputType[P]>
+            : GetScalarType<T[P], VaultAccountGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type VaultAccountSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    chainId?: boolean
+    smartAccountAddress?: boolean
+    baseAsset?: boolean
+    status?: boolean
+    availableBalance?: boolean
+    settlementReserve?: boolean
+    deployedToYield?: boolean
+    accruedYield?: boolean
+    simulatedApy?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    envelopes?: boolean | VaultAccount$envelopesArgs<ExtArgs>
+    bills?: boolean | VaultAccount$billsArgs<ExtArgs>
+    yieldEvents?: boolean | VaultAccount$yieldEventsArgs<ExtArgs>
+    _count?: boolean | VaultAccountCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["vaultAccount"]>
+
+  export type VaultAccountSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    chainId?: boolean
+    smartAccountAddress?: boolean
+    baseAsset?: boolean
+    status?: boolean
+    availableBalance?: boolean
+    settlementReserve?: boolean
+    deployedToYield?: boolean
+    accruedYield?: boolean
+    simulatedApy?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["vaultAccount"]>
+
+  export type VaultAccountSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    chainId?: boolean
+    smartAccountAddress?: boolean
+    baseAsset?: boolean
+    status?: boolean
+    availableBalance?: boolean
+    settlementReserve?: boolean
+    deployedToYield?: boolean
+    accruedYield?: boolean
+    simulatedApy?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["vaultAccount"]>
+
+  export type VaultAccountSelectScalar = {
+    id?: boolean
+    userId?: boolean
+    chainId?: boolean
+    smartAccountAddress?: boolean
+    baseAsset?: boolean
+    status?: boolean
+    availableBalance?: boolean
+    settlementReserve?: boolean
+    deployedToYield?: boolean
+    accruedYield?: boolean
+    simulatedApy?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type VaultAccountOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "chainId" | "smartAccountAddress" | "baseAsset" | "status" | "availableBalance" | "settlementReserve" | "deployedToYield" | "accruedYield" | "simulatedApy" | "createdAt" | "updatedAt", ExtArgs["result"]["vaultAccount"]>
+  export type VaultAccountInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    envelopes?: boolean | VaultAccount$envelopesArgs<ExtArgs>
+    bills?: boolean | VaultAccount$billsArgs<ExtArgs>
+    yieldEvents?: boolean | VaultAccount$yieldEventsArgs<ExtArgs>
+    _count?: boolean | VaultAccountCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type VaultAccountIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type VaultAccountIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+
+  export type $VaultAccountPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "VaultAccount"
+    objects: {
+      user: Prisma.$UserPayload<ExtArgs>
+      envelopes: Prisma.$VaultEnvelopePayload<ExtArgs>[]
+      bills: Prisma.$ScheduledBillPayload<ExtArgs>[]
+      yieldEvents: Prisma.$YieldEventPayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      userId: string
+      chainId: number
+      /**
+       * Placeholder Safe address in Phase 1/2; viem-validated in Phase 3.
+       */
+      smartAccountAddress: string
+      /**
+       * "USDC" in Phase 1/2; widens in Phase 3.
+       */
+      baseAsset: string
+      /**
+       * ACTIVE | PAUSED | RECOVERY_MODE
+       */
+      status: string
+      availableBalance: number
+      settlementReserve: number
+      deployedToYield: number
+      accruedYield: number
+      simulatedApy: number
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["vaultAccount"]>
+    composites: {}
+  }
+
+  type VaultAccountGetPayload<S extends boolean | null | undefined | VaultAccountDefaultArgs> = $Result.GetResult<Prisma.$VaultAccountPayload, S>
+
+  type VaultAccountCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<VaultAccountFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: VaultAccountCountAggregateInputType | true
+    }
+
+  export interface VaultAccountDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['VaultAccount'], meta: { name: 'VaultAccount' } }
+    /**
+     * Find zero or one VaultAccount that matches the filter.
+     * @param {VaultAccountFindUniqueArgs} args - Arguments to find a VaultAccount
+     * @example
+     * // Get one VaultAccount
+     * const vaultAccount = await prisma.vaultAccount.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends VaultAccountFindUniqueArgs>(args: SelectSubset<T, VaultAccountFindUniqueArgs<ExtArgs>>): Prisma__VaultAccountClient<$Result.GetResult<Prisma.$VaultAccountPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one VaultAccount that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {VaultAccountFindUniqueOrThrowArgs} args - Arguments to find a VaultAccount
+     * @example
+     * // Get one VaultAccount
+     * const vaultAccount = await prisma.vaultAccount.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends VaultAccountFindUniqueOrThrowArgs>(args: SelectSubset<T, VaultAccountFindUniqueOrThrowArgs<ExtArgs>>): Prisma__VaultAccountClient<$Result.GetResult<Prisma.$VaultAccountPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first VaultAccount that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultAccountFindFirstArgs} args - Arguments to find a VaultAccount
+     * @example
+     * // Get one VaultAccount
+     * const vaultAccount = await prisma.vaultAccount.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends VaultAccountFindFirstArgs>(args?: SelectSubset<T, VaultAccountFindFirstArgs<ExtArgs>>): Prisma__VaultAccountClient<$Result.GetResult<Prisma.$VaultAccountPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first VaultAccount that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultAccountFindFirstOrThrowArgs} args - Arguments to find a VaultAccount
+     * @example
+     * // Get one VaultAccount
+     * const vaultAccount = await prisma.vaultAccount.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends VaultAccountFindFirstOrThrowArgs>(args?: SelectSubset<T, VaultAccountFindFirstOrThrowArgs<ExtArgs>>): Prisma__VaultAccountClient<$Result.GetResult<Prisma.$VaultAccountPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more VaultAccounts that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultAccountFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all VaultAccounts
+     * const vaultAccounts = await prisma.vaultAccount.findMany()
+     * 
+     * // Get first 10 VaultAccounts
+     * const vaultAccounts = await prisma.vaultAccount.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const vaultAccountWithIdOnly = await prisma.vaultAccount.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends VaultAccountFindManyArgs>(args?: SelectSubset<T, VaultAccountFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$VaultAccountPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a VaultAccount.
+     * @param {VaultAccountCreateArgs} args - Arguments to create a VaultAccount.
+     * @example
+     * // Create one VaultAccount
+     * const VaultAccount = await prisma.vaultAccount.create({
+     *   data: {
+     *     // ... data to create a VaultAccount
+     *   }
+     * })
+     * 
+     */
+    create<T extends VaultAccountCreateArgs>(args: SelectSubset<T, VaultAccountCreateArgs<ExtArgs>>): Prisma__VaultAccountClient<$Result.GetResult<Prisma.$VaultAccountPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many VaultAccounts.
+     * @param {VaultAccountCreateManyArgs} args - Arguments to create many VaultAccounts.
+     * @example
+     * // Create many VaultAccounts
+     * const vaultAccount = await prisma.vaultAccount.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends VaultAccountCreateManyArgs>(args?: SelectSubset<T, VaultAccountCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many VaultAccounts and returns the data saved in the database.
+     * @param {VaultAccountCreateManyAndReturnArgs} args - Arguments to create many VaultAccounts.
+     * @example
+     * // Create many VaultAccounts
+     * const vaultAccount = await prisma.vaultAccount.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many VaultAccounts and only return the `id`
+     * const vaultAccountWithIdOnly = await prisma.vaultAccount.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends VaultAccountCreateManyAndReturnArgs>(args?: SelectSubset<T, VaultAccountCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$VaultAccountPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a VaultAccount.
+     * @param {VaultAccountDeleteArgs} args - Arguments to delete one VaultAccount.
+     * @example
+     * // Delete one VaultAccount
+     * const VaultAccount = await prisma.vaultAccount.delete({
+     *   where: {
+     *     // ... filter to delete one VaultAccount
+     *   }
+     * })
+     * 
+     */
+    delete<T extends VaultAccountDeleteArgs>(args: SelectSubset<T, VaultAccountDeleteArgs<ExtArgs>>): Prisma__VaultAccountClient<$Result.GetResult<Prisma.$VaultAccountPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one VaultAccount.
+     * @param {VaultAccountUpdateArgs} args - Arguments to update one VaultAccount.
+     * @example
+     * // Update one VaultAccount
+     * const vaultAccount = await prisma.vaultAccount.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends VaultAccountUpdateArgs>(args: SelectSubset<T, VaultAccountUpdateArgs<ExtArgs>>): Prisma__VaultAccountClient<$Result.GetResult<Prisma.$VaultAccountPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more VaultAccounts.
+     * @param {VaultAccountDeleteManyArgs} args - Arguments to filter VaultAccounts to delete.
+     * @example
+     * // Delete a few VaultAccounts
+     * const { count } = await prisma.vaultAccount.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends VaultAccountDeleteManyArgs>(args?: SelectSubset<T, VaultAccountDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more VaultAccounts.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultAccountUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many VaultAccounts
+     * const vaultAccount = await prisma.vaultAccount.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends VaultAccountUpdateManyArgs>(args: SelectSubset<T, VaultAccountUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more VaultAccounts and returns the data updated in the database.
+     * @param {VaultAccountUpdateManyAndReturnArgs} args - Arguments to update many VaultAccounts.
+     * @example
+     * // Update many VaultAccounts
+     * const vaultAccount = await prisma.vaultAccount.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more VaultAccounts and only return the `id`
+     * const vaultAccountWithIdOnly = await prisma.vaultAccount.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends VaultAccountUpdateManyAndReturnArgs>(args: SelectSubset<T, VaultAccountUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$VaultAccountPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one VaultAccount.
+     * @param {VaultAccountUpsertArgs} args - Arguments to update or create a VaultAccount.
+     * @example
+     * // Update or create a VaultAccount
+     * const vaultAccount = await prisma.vaultAccount.upsert({
+     *   create: {
+     *     // ... data to create a VaultAccount
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the VaultAccount we want to update
+     *   }
+     * })
+     */
+    upsert<T extends VaultAccountUpsertArgs>(args: SelectSubset<T, VaultAccountUpsertArgs<ExtArgs>>): Prisma__VaultAccountClient<$Result.GetResult<Prisma.$VaultAccountPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of VaultAccounts.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultAccountCountArgs} args - Arguments to filter VaultAccounts to count.
+     * @example
+     * // Count the number of VaultAccounts
+     * const count = await prisma.vaultAccount.count({
+     *   where: {
+     *     // ... the filter for the VaultAccounts we want to count
+     *   }
+     * })
+    **/
+    count<T extends VaultAccountCountArgs>(
+      args?: Subset<T, VaultAccountCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], VaultAccountCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a VaultAccount.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultAccountAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends VaultAccountAggregateArgs>(args: Subset<T, VaultAccountAggregateArgs>): Prisma.PrismaPromise<GetVaultAccountAggregateType<T>>
+
+    /**
+     * Group by VaultAccount.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultAccountGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends VaultAccountGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: VaultAccountGroupByArgs['orderBy'] }
+        : { orderBy?: VaultAccountGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, VaultAccountGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetVaultAccountGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the VaultAccount model
+   */
+  readonly fields: VaultAccountFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for VaultAccount.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__VaultAccountClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    envelopes<T extends VaultAccount$envelopesArgs<ExtArgs> = {}>(args?: Subset<T, VaultAccount$envelopesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$VaultEnvelopePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    bills<T extends VaultAccount$billsArgs<ExtArgs> = {}>(args?: Subset<T, VaultAccount$billsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ScheduledBillPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    yieldEvents<T extends VaultAccount$yieldEventsArgs<ExtArgs> = {}>(args?: Subset<T, VaultAccount$yieldEventsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$YieldEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the VaultAccount model
+   */
+  interface VaultAccountFieldRefs {
+    readonly id: FieldRef<"VaultAccount", 'String'>
+    readonly userId: FieldRef<"VaultAccount", 'String'>
+    readonly chainId: FieldRef<"VaultAccount", 'Int'>
+    readonly smartAccountAddress: FieldRef<"VaultAccount", 'String'>
+    readonly baseAsset: FieldRef<"VaultAccount", 'String'>
+    readonly status: FieldRef<"VaultAccount", 'String'>
+    readonly availableBalance: FieldRef<"VaultAccount", 'Int'>
+    readonly settlementReserve: FieldRef<"VaultAccount", 'Int'>
+    readonly deployedToYield: FieldRef<"VaultAccount", 'Int'>
+    readonly accruedYield: FieldRef<"VaultAccount", 'Int'>
+    readonly simulatedApy: FieldRef<"VaultAccount", 'Float'>
+    readonly createdAt: FieldRef<"VaultAccount", 'DateTime'>
+    readonly updatedAt: FieldRef<"VaultAccount", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * VaultAccount findUnique
+   */
+  export type VaultAccountFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultAccount
+     */
+    select?: VaultAccountSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultAccount
+     */
+    omit?: VaultAccountOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultAccountInclude<ExtArgs> | null
+    /**
+     * Filter, which VaultAccount to fetch.
+     */
+    where: VaultAccountWhereUniqueInput
+  }
+
+  /**
+   * VaultAccount findUniqueOrThrow
+   */
+  export type VaultAccountFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultAccount
+     */
+    select?: VaultAccountSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultAccount
+     */
+    omit?: VaultAccountOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultAccountInclude<ExtArgs> | null
+    /**
+     * Filter, which VaultAccount to fetch.
+     */
+    where: VaultAccountWhereUniqueInput
+  }
+
+  /**
+   * VaultAccount findFirst
+   */
+  export type VaultAccountFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultAccount
+     */
+    select?: VaultAccountSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultAccount
+     */
+    omit?: VaultAccountOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultAccountInclude<ExtArgs> | null
+    /**
+     * Filter, which VaultAccount to fetch.
+     */
+    where?: VaultAccountWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of VaultAccounts to fetch.
+     */
+    orderBy?: VaultAccountOrderByWithRelationInput | VaultAccountOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for VaultAccounts.
+     */
+    cursor?: VaultAccountWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` VaultAccounts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` VaultAccounts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of VaultAccounts.
+     */
+    distinct?: VaultAccountScalarFieldEnum | VaultAccountScalarFieldEnum[]
+  }
+
+  /**
+   * VaultAccount findFirstOrThrow
+   */
+  export type VaultAccountFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultAccount
+     */
+    select?: VaultAccountSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultAccount
+     */
+    omit?: VaultAccountOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultAccountInclude<ExtArgs> | null
+    /**
+     * Filter, which VaultAccount to fetch.
+     */
+    where?: VaultAccountWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of VaultAccounts to fetch.
+     */
+    orderBy?: VaultAccountOrderByWithRelationInput | VaultAccountOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for VaultAccounts.
+     */
+    cursor?: VaultAccountWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` VaultAccounts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` VaultAccounts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of VaultAccounts.
+     */
+    distinct?: VaultAccountScalarFieldEnum | VaultAccountScalarFieldEnum[]
+  }
+
+  /**
+   * VaultAccount findMany
+   */
+  export type VaultAccountFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultAccount
+     */
+    select?: VaultAccountSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultAccount
+     */
+    omit?: VaultAccountOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultAccountInclude<ExtArgs> | null
+    /**
+     * Filter, which VaultAccounts to fetch.
+     */
+    where?: VaultAccountWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of VaultAccounts to fetch.
+     */
+    orderBy?: VaultAccountOrderByWithRelationInput | VaultAccountOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing VaultAccounts.
+     */
+    cursor?: VaultAccountWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` VaultAccounts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` VaultAccounts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of VaultAccounts.
+     */
+    distinct?: VaultAccountScalarFieldEnum | VaultAccountScalarFieldEnum[]
+  }
+
+  /**
+   * VaultAccount create
+   */
+  export type VaultAccountCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultAccount
+     */
+    select?: VaultAccountSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultAccount
+     */
+    omit?: VaultAccountOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultAccountInclude<ExtArgs> | null
+    /**
+     * The data needed to create a VaultAccount.
+     */
+    data: XOR<VaultAccountCreateInput, VaultAccountUncheckedCreateInput>
+  }
+
+  /**
+   * VaultAccount createMany
+   */
+  export type VaultAccountCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many VaultAccounts.
+     */
+    data: VaultAccountCreateManyInput | VaultAccountCreateManyInput[]
+  }
+
+  /**
+   * VaultAccount createManyAndReturn
+   */
+  export type VaultAccountCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultAccount
+     */
+    select?: VaultAccountSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultAccount
+     */
+    omit?: VaultAccountOmit<ExtArgs> | null
+    /**
+     * The data used to create many VaultAccounts.
+     */
+    data: VaultAccountCreateManyInput | VaultAccountCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultAccountIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * VaultAccount update
+   */
+  export type VaultAccountUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultAccount
+     */
+    select?: VaultAccountSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultAccount
+     */
+    omit?: VaultAccountOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultAccountInclude<ExtArgs> | null
+    /**
+     * The data needed to update a VaultAccount.
+     */
+    data: XOR<VaultAccountUpdateInput, VaultAccountUncheckedUpdateInput>
+    /**
+     * Choose, which VaultAccount to update.
+     */
+    where: VaultAccountWhereUniqueInput
+  }
+
+  /**
+   * VaultAccount updateMany
+   */
+  export type VaultAccountUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update VaultAccounts.
+     */
+    data: XOR<VaultAccountUpdateManyMutationInput, VaultAccountUncheckedUpdateManyInput>
+    /**
+     * Filter which VaultAccounts to update
+     */
+    where?: VaultAccountWhereInput
+    /**
+     * Limit how many VaultAccounts to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * VaultAccount updateManyAndReturn
+   */
+  export type VaultAccountUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultAccount
+     */
+    select?: VaultAccountSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultAccount
+     */
+    omit?: VaultAccountOmit<ExtArgs> | null
+    /**
+     * The data used to update VaultAccounts.
+     */
+    data: XOR<VaultAccountUpdateManyMutationInput, VaultAccountUncheckedUpdateManyInput>
+    /**
+     * Filter which VaultAccounts to update
+     */
+    where?: VaultAccountWhereInput
+    /**
+     * Limit how many VaultAccounts to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultAccountIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * VaultAccount upsert
+   */
+  export type VaultAccountUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultAccount
+     */
+    select?: VaultAccountSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultAccount
+     */
+    omit?: VaultAccountOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultAccountInclude<ExtArgs> | null
+    /**
+     * The filter to search for the VaultAccount to update in case it exists.
+     */
+    where: VaultAccountWhereUniqueInput
+    /**
+     * In case the VaultAccount found by the `where` argument doesn't exist, create a new VaultAccount with this data.
+     */
+    create: XOR<VaultAccountCreateInput, VaultAccountUncheckedCreateInput>
+    /**
+     * In case the VaultAccount was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<VaultAccountUpdateInput, VaultAccountUncheckedUpdateInput>
+  }
+
+  /**
+   * VaultAccount delete
+   */
+  export type VaultAccountDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultAccount
+     */
+    select?: VaultAccountSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultAccount
+     */
+    omit?: VaultAccountOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultAccountInclude<ExtArgs> | null
+    /**
+     * Filter which VaultAccount to delete.
+     */
+    where: VaultAccountWhereUniqueInput
+  }
+
+  /**
+   * VaultAccount deleteMany
+   */
+  export type VaultAccountDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which VaultAccounts to delete
+     */
+    where?: VaultAccountWhereInput
+    /**
+     * Limit how many VaultAccounts to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * VaultAccount.envelopes
+   */
+  export type VaultAccount$envelopesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultEnvelope
+     */
+    select?: VaultEnvelopeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultEnvelope
+     */
+    omit?: VaultEnvelopeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultEnvelopeInclude<ExtArgs> | null
+    where?: VaultEnvelopeWhereInput
+    orderBy?: VaultEnvelopeOrderByWithRelationInput | VaultEnvelopeOrderByWithRelationInput[]
+    cursor?: VaultEnvelopeWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: VaultEnvelopeScalarFieldEnum | VaultEnvelopeScalarFieldEnum[]
+  }
+
+  /**
+   * VaultAccount.bills
+   */
+  export type VaultAccount$billsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ScheduledBill
+     */
+    select?: ScheduledBillSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ScheduledBill
+     */
+    omit?: ScheduledBillOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ScheduledBillInclude<ExtArgs> | null
+    where?: ScheduledBillWhereInput
+    orderBy?: ScheduledBillOrderByWithRelationInput | ScheduledBillOrderByWithRelationInput[]
+    cursor?: ScheduledBillWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: ScheduledBillScalarFieldEnum | ScheduledBillScalarFieldEnum[]
+  }
+
+  /**
+   * VaultAccount.yieldEvents
+   */
+  export type VaultAccount$yieldEventsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the YieldEvent
+     */
+    select?: YieldEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the YieldEvent
+     */
+    omit?: YieldEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: YieldEventInclude<ExtArgs> | null
+    where?: YieldEventWhereInput
+    orderBy?: YieldEventOrderByWithRelationInput | YieldEventOrderByWithRelationInput[]
+    cursor?: YieldEventWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: YieldEventScalarFieldEnum | YieldEventScalarFieldEnum[]
+  }
+
+  /**
+   * VaultAccount without action
+   */
+  export type VaultAccountDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultAccount
+     */
+    select?: VaultAccountSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultAccount
+     */
+    omit?: VaultAccountOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultAccountInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model VaultEnvelope
+   */
+
+  export type AggregateVaultEnvelope = {
+    _count: VaultEnvelopeCountAggregateOutputType | null
+    _avg: VaultEnvelopeAvgAggregateOutputType | null
+    _sum: VaultEnvelopeSumAggregateOutputType | null
+    _min: VaultEnvelopeMinAggregateOutputType | null
+    _max: VaultEnvelopeMaxAggregateOutputType | null
+  }
+
+  export type VaultEnvelopeAvgAggregateOutputType = {
+    principalAllocated: number | null
+    accruedYield: number | null
+    reservedForBills: number | null
+    availableToReallocate: number | null
+  }
+
+  export type VaultEnvelopeSumAggregateOutputType = {
+    principalAllocated: number | null
+    accruedYield: number | null
+    reservedForBills: number | null
+    availableToReallocate: number | null
+  }
+
+  export type VaultEnvelopeMinAggregateOutputType = {
+    id: string | null
+    vaultId: string | null
+    compassEnvelopeId: string | null
+    name: string | null
+    category: string | null
+    principalAllocated: number | null
+    accruedYield: number | null
+    reservedForBills: number | null
+    availableToReallocate: number | null
+    isPolicyLocked: boolean | null
+    nextObligationDate: Date | null
+    status: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type VaultEnvelopeMaxAggregateOutputType = {
+    id: string | null
+    vaultId: string | null
+    compassEnvelopeId: string | null
+    name: string | null
+    category: string | null
+    principalAllocated: number | null
+    accruedYield: number | null
+    reservedForBills: number | null
+    availableToReallocate: number | null
+    isPolicyLocked: boolean | null
+    nextObligationDate: Date | null
+    status: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type VaultEnvelopeCountAggregateOutputType = {
+    id: number
+    vaultId: number
+    compassEnvelopeId: number
+    name: number
+    category: number
+    principalAllocated: number
+    accruedYield: number
+    reservedForBills: number
+    availableToReallocate: number
+    isPolicyLocked: number
+    nextObligationDate: number
+    status: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type VaultEnvelopeAvgAggregateInputType = {
+    principalAllocated?: true
+    accruedYield?: true
+    reservedForBills?: true
+    availableToReallocate?: true
+  }
+
+  export type VaultEnvelopeSumAggregateInputType = {
+    principalAllocated?: true
+    accruedYield?: true
+    reservedForBills?: true
+    availableToReallocate?: true
+  }
+
+  export type VaultEnvelopeMinAggregateInputType = {
+    id?: true
+    vaultId?: true
+    compassEnvelopeId?: true
+    name?: true
+    category?: true
+    principalAllocated?: true
+    accruedYield?: true
+    reservedForBills?: true
+    availableToReallocate?: true
+    isPolicyLocked?: true
+    nextObligationDate?: true
+    status?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type VaultEnvelopeMaxAggregateInputType = {
+    id?: true
+    vaultId?: true
+    compassEnvelopeId?: true
+    name?: true
+    category?: true
+    principalAllocated?: true
+    accruedYield?: true
+    reservedForBills?: true
+    availableToReallocate?: true
+    isPolicyLocked?: true
+    nextObligationDate?: true
+    status?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type VaultEnvelopeCountAggregateInputType = {
+    id?: true
+    vaultId?: true
+    compassEnvelopeId?: true
+    name?: true
+    category?: true
+    principalAllocated?: true
+    accruedYield?: true
+    reservedForBills?: true
+    availableToReallocate?: true
+    isPolicyLocked?: true
+    nextObligationDate?: true
+    status?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type VaultEnvelopeAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which VaultEnvelope to aggregate.
+     */
+    where?: VaultEnvelopeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of VaultEnvelopes to fetch.
+     */
+    orderBy?: VaultEnvelopeOrderByWithRelationInput | VaultEnvelopeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: VaultEnvelopeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` VaultEnvelopes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` VaultEnvelopes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned VaultEnvelopes
+    **/
+    _count?: true | VaultEnvelopeCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: VaultEnvelopeAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: VaultEnvelopeSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: VaultEnvelopeMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: VaultEnvelopeMaxAggregateInputType
+  }
+
+  export type GetVaultEnvelopeAggregateType<T extends VaultEnvelopeAggregateArgs> = {
+        [P in keyof T & keyof AggregateVaultEnvelope]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateVaultEnvelope[P]>
+      : GetScalarType<T[P], AggregateVaultEnvelope[P]>
+  }
+
+
+
+
+  export type VaultEnvelopeGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: VaultEnvelopeWhereInput
+    orderBy?: VaultEnvelopeOrderByWithAggregationInput | VaultEnvelopeOrderByWithAggregationInput[]
+    by: VaultEnvelopeScalarFieldEnum[] | VaultEnvelopeScalarFieldEnum
+    having?: VaultEnvelopeScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: VaultEnvelopeCountAggregateInputType | true
+    _avg?: VaultEnvelopeAvgAggregateInputType
+    _sum?: VaultEnvelopeSumAggregateInputType
+    _min?: VaultEnvelopeMinAggregateInputType
+    _max?: VaultEnvelopeMaxAggregateInputType
+  }
+
+  export type VaultEnvelopeGroupByOutputType = {
+    id: string
+    vaultId: string
+    compassEnvelopeId: string
+    name: string
+    category: string
+    principalAllocated: number
+    accruedYield: number
+    reservedForBills: number
+    availableToReallocate: number
+    isPolicyLocked: boolean
+    nextObligationDate: Date | null
+    status: string
+    createdAt: Date
+    updatedAt: Date
+    _count: VaultEnvelopeCountAggregateOutputType | null
+    _avg: VaultEnvelopeAvgAggregateOutputType | null
+    _sum: VaultEnvelopeSumAggregateOutputType | null
+    _min: VaultEnvelopeMinAggregateOutputType | null
+    _max: VaultEnvelopeMaxAggregateOutputType | null
+  }
+
+  type GetVaultEnvelopeGroupByPayload<T extends VaultEnvelopeGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<VaultEnvelopeGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof VaultEnvelopeGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], VaultEnvelopeGroupByOutputType[P]>
+            : GetScalarType<T[P], VaultEnvelopeGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type VaultEnvelopeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    vaultId?: boolean
+    compassEnvelopeId?: boolean
+    name?: boolean
+    category?: boolean
+    principalAllocated?: boolean
+    accruedYield?: boolean
+    reservedForBills?: boolean
+    availableToReallocate?: boolean
+    isPolicyLocked?: boolean
+    nextObligationDate?: boolean
+    status?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
+    compassEnvelope?: boolean | EnvelopeDefaultArgs<ExtArgs>
+    bills?: boolean | VaultEnvelope$billsArgs<ExtArgs>
+    yieldEvents?: boolean | VaultEnvelope$yieldEventsArgs<ExtArgs>
+    _count?: boolean | VaultEnvelopeCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["vaultEnvelope"]>
+
+  export type VaultEnvelopeSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    vaultId?: boolean
+    compassEnvelopeId?: boolean
+    name?: boolean
+    category?: boolean
+    principalAllocated?: boolean
+    accruedYield?: boolean
+    reservedForBills?: boolean
+    availableToReallocate?: boolean
+    isPolicyLocked?: boolean
+    nextObligationDate?: boolean
+    status?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
+    compassEnvelope?: boolean | EnvelopeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["vaultEnvelope"]>
+
+  export type VaultEnvelopeSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    vaultId?: boolean
+    compassEnvelopeId?: boolean
+    name?: boolean
+    category?: boolean
+    principalAllocated?: boolean
+    accruedYield?: boolean
+    reservedForBills?: boolean
+    availableToReallocate?: boolean
+    isPolicyLocked?: boolean
+    nextObligationDate?: boolean
+    status?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
+    compassEnvelope?: boolean | EnvelopeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["vaultEnvelope"]>
+
+  export type VaultEnvelopeSelectScalar = {
+    id?: boolean
+    vaultId?: boolean
+    compassEnvelopeId?: boolean
+    name?: boolean
+    category?: boolean
+    principalAllocated?: boolean
+    accruedYield?: boolean
+    reservedForBills?: boolean
+    availableToReallocate?: boolean
+    isPolicyLocked?: boolean
+    nextObligationDate?: boolean
+    status?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type VaultEnvelopeOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "vaultId" | "compassEnvelopeId" | "name" | "category" | "principalAllocated" | "accruedYield" | "reservedForBills" | "availableToReallocate" | "isPolicyLocked" | "nextObligationDate" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["vaultEnvelope"]>
+  export type VaultEnvelopeInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
+    compassEnvelope?: boolean | EnvelopeDefaultArgs<ExtArgs>
+    bills?: boolean | VaultEnvelope$billsArgs<ExtArgs>
+    yieldEvents?: boolean | VaultEnvelope$yieldEventsArgs<ExtArgs>
+    _count?: boolean | VaultEnvelopeCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type VaultEnvelopeIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
+    compassEnvelope?: boolean | EnvelopeDefaultArgs<ExtArgs>
+  }
+  export type VaultEnvelopeIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
+    compassEnvelope?: boolean | EnvelopeDefaultArgs<ExtArgs>
+  }
+
+  export type $VaultEnvelopePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "VaultEnvelope"
+    objects: {
+      vault: Prisma.$VaultAccountPayload<ExtArgs>
+      compassEnvelope: Prisma.$EnvelopePayload<ExtArgs>
+      bills: Prisma.$ScheduledBillPayload<ExtArgs>[]
+      yieldEvents: Prisma.$YieldEventPayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      vaultId: string
+      compassEnvelopeId: string
+      name: string
+      /**
+       * RENT | UTILITIES | INSURANCE | DEBT | SUBSCRIPTION | OTHER
+       * String instead of a Prisma enum because (a) SQLite, (b) the TS
+       * union is the canonical contract — DB just stores a label.
+       */
+      category: string
+      principalAllocated: number
+      accruedYield: number
+      reservedForBills: number
+      availableToReallocate: number
+      isPolicyLocked: boolean
+      nextObligationDate: Date | null
+      /**
+       * CALM | WATCH | OVER | LOCKED
+       */
+      status: string
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["vaultEnvelope"]>
+    composites: {}
+  }
+
+  type VaultEnvelopeGetPayload<S extends boolean | null | undefined | VaultEnvelopeDefaultArgs> = $Result.GetResult<Prisma.$VaultEnvelopePayload, S>
+
+  type VaultEnvelopeCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<VaultEnvelopeFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: VaultEnvelopeCountAggregateInputType | true
+    }
+
+  export interface VaultEnvelopeDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['VaultEnvelope'], meta: { name: 'VaultEnvelope' } }
+    /**
+     * Find zero or one VaultEnvelope that matches the filter.
+     * @param {VaultEnvelopeFindUniqueArgs} args - Arguments to find a VaultEnvelope
+     * @example
+     * // Get one VaultEnvelope
+     * const vaultEnvelope = await prisma.vaultEnvelope.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends VaultEnvelopeFindUniqueArgs>(args: SelectSubset<T, VaultEnvelopeFindUniqueArgs<ExtArgs>>): Prisma__VaultEnvelopeClient<$Result.GetResult<Prisma.$VaultEnvelopePayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one VaultEnvelope that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {VaultEnvelopeFindUniqueOrThrowArgs} args - Arguments to find a VaultEnvelope
+     * @example
+     * // Get one VaultEnvelope
+     * const vaultEnvelope = await prisma.vaultEnvelope.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends VaultEnvelopeFindUniqueOrThrowArgs>(args: SelectSubset<T, VaultEnvelopeFindUniqueOrThrowArgs<ExtArgs>>): Prisma__VaultEnvelopeClient<$Result.GetResult<Prisma.$VaultEnvelopePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first VaultEnvelope that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultEnvelopeFindFirstArgs} args - Arguments to find a VaultEnvelope
+     * @example
+     * // Get one VaultEnvelope
+     * const vaultEnvelope = await prisma.vaultEnvelope.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends VaultEnvelopeFindFirstArgs>(args?: SelectSubset<T, VaultEnvelopeFindFirstArgs<ExtArgs>>): Prisma__VaultEnvelopeClient<$Result.GetResult<Prisma.$VaultEnvelopePayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first VaultEnvelope that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultEnvelopeFindFirstOrThrowArgs} args - Arguments to find a VaultEnvelope
+     * @example
+     * // Get one VaultEnvelope
+     * const vaultEnvelope = await prisma.vaultEnvelope.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends VaultEnvelopeFindFirstOrThrowArgs>(args?: SelectSubset<T, VaultEnvelopeFindFirstOrThrowArgs<ExtArgs>>): Prisma__VaultEnvelopeClient<$Result.GetResult<Prisma.$VaultEnvelopePayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more VaultEnvelopes that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultEnvelopeFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all VaultEnvelopes
+     * const vaultEnvelopes = await prisma.vaultEnvelope.findMany()
+     * 
+     * // Get first 10 VaultEnvelopes
+     * const vaultEnvelopes = await prisma.vaultEnvelope.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const vaultEnvelopeWithIdOnly = await prisma.vaultEnvelope.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends VaultEnvelopeFindManyArgs>(args?: SelectSubset<T, VaultEnvelopeFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$VaultEnvelopePayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a VaultEnvelope.
+     * @param {VaultEnvelopeCreateArgs} args - Arguments to create a VaultEnvelope.
+     * @example
+     * // Create one VaultEnvelope
+     * const VaultEnvelope = await prisma.vaultEnvelope.create({
+     *   data: {
+     *     // ... data to create a VaultEnvelope
+     *   }
+     * })
+     * 
+     */
+    create<T extends VaultEnvelopeCreateArgs>(args: SelectSubset<T, VaultEnvelopeCreateArgs<ExtArgs>>): Prisma__VaultEnvelopeClient<$Result.GetResult<Prisma.$VaultEnvelopePayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many VaultEnvelopes.
+     * @param {VaultEnvelopeCreateManyArgs} args - Arguments to create many VaultEnvelopes.
+     * @example
+     * // Create many VaultEnvelopes
+     * const vaultEnvelope = await prisma.vaultEnvelope.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends VaultEnvelopeCreateManyArgs>(args?: SelectSubset<T, VaultEnvelopeCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many VaultEnvelopes and returns the data saved in the database.
+     * @param {VaultEnvelopeCreateManyAndReturnArgs} args - Arguments to create many VaultEnvelopes.
+     * @example
+     * // Create many VaultEnvelopes
+     * const vaultEnvelope = await prisma.vaultEnvelope.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many VaultEnvelopes and only return the `id`
+     * const vaultEnvelopeWithIdOnly = await prisma.vaultEnvelope.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends VaultEnvelopeCreateManyAndReturnArgs>(args?: SelectSubset<T, VaultEnvelopeCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$VaultEnvelopePayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a VaultEnvelope.
+     * @param {VaultEnvelopeDeleteArgs} args - Arguments to delete one VaultEnvelope.
+     * @example
+     * // Delete one VaultEnvelope
+     * const VaultEnvelope = await prisma.vaultEnvelope.delete({
+     *   where: {
+     *     // ... filter to delete one VaultEnvelope
+     *   }
+     * })
+     * 
+     */
+    delete<T extends VaultEnvelopeDeleteArgs>(args: SelectSubset<T, VaultEnvelopeDeleteArgs<ExtArgs>>): Prisma__VaultEnvelopeClient<$Result.GetResult<Prisma.$VaultEnvelopePayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one VaultEnvelope.
+     * @param {VaultEnvelopeUpdateArgs} args - Arguments to update one VaultEnvelope.
+     * @example
+     * // Update one VaultEnvelope
+     * const vaultEnvelope = await prisma.vaultEnvelope.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends VaultEnvelopeUpdateArgs>(args: SelectSubset<T, VaultEnvelopeUpdateArgs<ExtArgs>>): Prisma__VaultEnvelopeClient<$Result.GetResult<Prisma.$VaultEnvelopePayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more VaultEnvelopes.
+     * @param {VaultEnvelopeDeleteManyArgs} args - Arguments to filter VaultEnvelopes to delete.
+     * @example
+     * // Delete a few VaultEnvelopes
+     * const { count } = await prisma.vaultEnvelope.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends VaultEnvelopeDeleteManyArgs>(args?: SelectSubset<T, VaultEnvelopeDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more VaultEnvelopes.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultEnvelopeUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many VaultEnvelopes
+     * const vaultEnvelope = await prisma.vaultEnvelope.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends VaultEnvelopeUpdateManyArgs>(args: SelectSubset<T, VaultEnvelopeUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more VaultEnvelopes and returns the data updated in the database.
+     * @param {VaultEnvelopeUpdateManyAndReturnArgs} args - Arguments to update many VaultEnvelopes.
+     * @example
+     * // Update many VaultEnvelopes
+     * const vaultEnvelope = await prisma.vaultEnvelope.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more VaultEnvelopes and only return the `id`
+     * const vaultEnvelopeWithIdOnly = await prisma.vaultEnvelope.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends VaultEnvelopeUpdateManyAndReturnArgs>(args: SelectSubset<T, VaultEnvelopeUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$VaultEnvelopePayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one VaultEnvelope.
+     * @param {VaultEnvelopeUpsertArgs} args - Arguments to update or create a VaultEnvelope.
+     * @example
+     * // Update or create a VaultEnvelope
+     * const vaultEnvelope = await prisma.vaultEnvelope.upsert({
+     *   create: {
+     *     // ... data to create a VaultEnvelope
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the VaultEnvelope we want to update
+     *   }
+     * })
+     */
+    upsert<T extends VaultEnvelopeUpsertArgs>(args: SelectSubset<T, VaultEnvelopeUpsertArgs<ExtArgs>>): Prisma__VaultEnvelopeClient<$Result.GetResult<Prisma.$VaultEnvelopePayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of VaultEnvelopes.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultEnvelopeCountArgs} args - Arguments to filter VaultEnvelopes to count.
+     * @example
+     * // Count the number of VaultEnvelopes
+     * const count = await prisma.vaultEnvelope.count({
+     *   where: {
+     *     // ... the filter for the VaultEnvelopes we want to count
+     *   }
+     * })
+    **/
+    count<T extends VaultEnvelopeCountArgs>(
+      args?: Subset<T, VaultEnvelopeCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], VaultEnvelopeCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a VaultEnvelope.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultEnvelopeAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends VaultEnvelopeAggregateArgs>(args: Subset<T, VaultEnvelopeAggregateArgs>): Prisma.PrismaPromise<GetVaultEnvelopeAggregateType<T>>
+
+    /**
+     * Group by VaultEnvelope.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultEnvelopeGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends VaultEnvelopeGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: VaultEnvelopeGroupByArgs['orderBy'] }
+        : { orderBy?: VaultEnvelopeGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, VaultEnvelopeGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetVaultEnvelopeGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the VaultEnvelope model
+   */
+  readonly fields: VaultEnvelopeFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for VaultEnvelope.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__VaultEnvelopeClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    vault<T extends VaultAccountDefaultArgs<ExtArgs> = {}>(args?: Subset<T, VaultAccountDefaultArgs<ExtArgs>>): Prisma__VaultAccountClient<$Result.GetResult<Prisma.$VaultAccountPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    compassEnvelope<T extends EnvelopeDefaultArgs<ExtArgs> = {}>(args?: Subset<T, EnvelopeDefaultArgs<ExtArgs>>): Prisma__EnvelopeClient<$Result.GetResult<Prisma.$EnvelopePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    bills<T extends VaultEnvelope$billsArgs<ExtArgs> = {}>(args?: Subset<T, VaultEnvelope$billsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ScheduledBillPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    yieldEvents<T extends VaultEnvelope$yieldEventsArgs<ExtArgs> = {}>(args?: Subset<T, VaultEnvelope$yieldEventsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$YieldEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the VaultEnvelope model
+   */
+  interface VaultEnvelopeFieldRefs {
+    readonly id: FieldRef<"VaultEnvelope", 'String'>
+    readonly vaultId: FieldRef<"VaultEnvelope", 'String'>
+    readonly compassEnvelopeId: FieldRef<"VaultEnvelope", 'String'>
+    readonly name: FieldRef<"VaultEnvelope", 'String'>
+    readonly category: FieldRef<"VaultEnvelope", 'String'>
+    readonly principalAllocated: FieldRef<"VaultEnvelope", 'Int'>
+    readonly accruedYield: FieldRef<"VaultEnvelope", 'Int'>
+    readonly reservedForBills: FieldRef<"VaultEnvelope", 'Int'>
+    readonly availableToReallocate: FieldRef<"VaultEnvelope", 'Int'>
+    readonly isPolicyLocked: FieldRef<"VaultEnvelope", 'Boolean'>
+    readonly nextObligationDate: FieldRef<"VaultEnvelope", 'DateTime'>
+    readonly status: FieldRef<"VaultEnvelope", 'String'>
+    readonly createdAt: FieldRef<"VaultEnvelope", 'DateTime'>
+    readonly updatedAt: FieldRef<"VaultEnvelope", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * VaultEnvelope findUnique
+   */
+  export type VaultEnvelopeFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultEnvelope
+     */
+    select?: VaultEnvelopeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultEnvelope
+     */
+    omit?: VaultEnvelopeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultEnvelopeInclude<ExtArgs> | null
+    /**
+     * Filter, which VaultEnvelope to fetch.
+     */
+    where: VaultEnvelopeWhereUniqueInput
+  }
+
+  /**
+   * VaultEnvelope findUniqueOrThrow
+   */
+  export type VaultEnvelopeFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultEnvelope
+     */
+    select?: VaultEnvelopeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultEnvelope
+     */
+    omit?: VaultEnvelopeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultEnvelopeInclude<ExtArgs> | null
+    /**
+     * Filter, which VaultEnvelope to fetch.
+     */
+    where: VaultEnvelopeWhereUniqueInput
+  }
+
+  /**
+   * VaultEnvelope findFirst
+   */
+  export type VaultEnvelopeFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultEnvelope
+     */
+    select?: VaultEnvelopeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultEnvelope
+     */
+    omit?: VaultEnvelopeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultEnvelopeInclude<ExtArgs> | null
+    /**
+     * Filter, which VaultEnvelope to fetch.
+     */
+    where?: VaultEnvelopeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of VaultEnvelopes to fetch.
+     */
+    orderBy?: VaultEnvelopeOrderByWithRelationInput | VaultEnvelopeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for VaultEnvelopes.
+     */
+    cursor?: VaultEnvelopeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` VaultEnvelopes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` VaultEnvelopes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of VaultEnvelopes.
+     */
+    distinct?: VaultEnvelopeScalarFieldEnum | VaultEnvelopeScalarFieldEnum[]
+  }
+
+  /**
+   * VaultEnvelope findFirstOrThrow
+   */
+  export type VaultEnvelopeFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultEnvelope
+     */
+    select?: VaultEnvelopeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultEnvelope
+     */
+    omit?: VaultEnvelopeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultEnvelopeInclude<ExtArgs> | null
+    /**
+     * Filter, which VaultEnvelope to fetch.
+     */
+    where?: VaultEnvelopeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of VaultEnvelopes to fetch.
+     */
+    orderBy?: VaultEnvelopeOrderByWithRelationInput | VaultEnvelopeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for VaultEnvelopes.
+     */
+    cursor?: VaultEnvelopeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` VaultEnvelopes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` VaultEnvelopes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of VaultEnvelopes.
+     */
+    distinct?: VaultEnvelopeScalarFieldEnum | VaultEnvelopeScalarFieldEnum[]
+  }
+
+  /**
+   * VaultEnvelope findMany
+   */
+  export type VaultEnvelopeFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultEnvelope
+     */
+    select?: VaultEnvelopeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultEnvelope
+     */
+    omit?: VaultEnvelopeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultEnvelopeInclude<ExtArgs> | null
+    /**
+     * Filter, which VaultEnvelopes to fetch.
+     */
+    where?: VaultEnvelopeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of VaultEnvelopes to fetch.
+     */
+    orderBy?: VaultEnvelopeOrderByWithRelationInput | VaultEnvelopeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing VaultEnvelopes.
+     */
+    cursor?: VaultEnvelopeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` VaultEnvelopes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` VaultEnvelopes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of VaultEnvelopes.
+     */
+    distinct?: VaultEnvelopeScalarFieldEnum | VaultEnvelopeScalarFieldEnum[]
+  }
+
+  /**
+   * VaultEnvelope create
+   */
+  export type VaultEnvelopeCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultEnvelope
+     */
+    select?: VaultEnvelopeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultEnvelope
+     */
+    omit?: VaultEnvelopeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultEnvelopeInclude<ExtArgs> | null
+    /**
+     * The data needed to create a VaultEnvelope.
+     */
+    data: XOR<VaultEnvelopeCreateInput, VaultEnvelopeUncheckedCreateInput>
+  }
+
+  /**
+   * VaultEnvelope createMany
+   */
+  export type VaultEnvelopeCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many VaultEnvelopes.
+     */
+    data: VaultEnvelopeCreateManyInput | VaultEnvelopeCreateManyInput[]
+  }
+
+  /**
+   * VaultEnvelope createManyAndReturn
+   */
+  export type VaultEnvelopeCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultEnvelope
+     */
+    select?: VaultEnvelopeSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultEnvelope
+     */
+    omit?: VaultEnvelopeOmit<ExtArgs> | null
+    /**
+     * The data used to create many VaultEnvelopes.
+     */
+    data: VaultEnvelopeCreateManyInput | VaultEnvelopeCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultEnvelopeIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * VaultEnvelope update
+   */
+  export type VaultEnvelopeUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultEnvelope
+     */
+    select?: VaultEnvelopeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultEnvelope
+     */
+    omit?: VaultEnvelopeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultEnvelopeInclude<ExtArgs> | null
+    /**
+     * The data needed to update a VaultEnvelope.
+     */
+    data: XOR<VaultEnvelopeUpdateInput, VaultEnvelopeUncheckedUpdateInput>
+    /**
+     * Choose, which VaultEnvelope to update.
+     */
+    where: VaultEnvelopeWhereUniqueInput
+  }
+
+  /**
+   * VaultEnvelope updateMany
+   */
+  export type VaultEnvelopeUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update VaultEnvelopes.
+     */
+    data: XOR<VaultEnvelopeUpdateManyMutationInput, VaultEnvelopeUncheckedUpdateManyInput>
+    /**
+     * Filter which VaultEnvelopes to update
+     */
+    where?: VaultEnvelopeWhereInput
+    /**
+     * Limit how many VaultEnvelopes to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * VaultEnvelope updateManyAndReturn
+   */
+  export type VaultEnvelopeUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultEnvelope
+     */
+    select?: VaultEnvelopeSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultEnvelope
+     */
+    omit?: VaultEnvelopeOmit<ExtArgs> | null
+    /**
+     * The data used to update VaultEnvelopes.
+     */
+    data: XOR<VaultEnvelopeUpdateManyMutationInput, VaultEnvelopeUncheckedUpdateManyInput>
+    /**
+     * Filter which VaultEnvelopes to update
+     */
+    where?: VaultEnvelopeWhereInput
+    /**
+     * Limit how many VaultEnvelopes to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultEnvelopeIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * VaultEnvelope upsert
+   */
+  export type VaultEnvelopeUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultEnvelope
+     */
+    select?: VaultEnvelopeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultEnvelope
+     */
+    omit?: VaultEnvelopeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultEnvelopeInclude<ExtArgs> | null
+    /**
+     * The filter to search for the VaultEnvelope to update in case it exists.
+     */
+    where: VaultEnvelopeWhereUniqueInput
+    /**
+     * In case the VaultEnvelope found by the `where` argument doesn't exist, create a new VaultEnvelope with this data.
+     */
+    create: XOR<VaultEnvelopeCreateInput, VaultEnvelopeUncheckedCreateInput>
+    /**
+     * In case the VaultEnvelope was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<VaultEnvelopeUpdateInput, VaultEnvelopeUncheckedUpdateInput>
+  }
+
+  /**
+   * VaultEnvelope delete
+   */
+  export type VaultEnvelopeDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultEnvelope
+     */
+    select?: VaultEnvelopeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultEnvelope
+     */
+    omit?: VaultEnvelopeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultEnvelopeInclude<ExtArgs> | null
+    /**
+     * Filter which VaultEnvelope to delete.
+     */
+    where: VaultEnvelopeWhereUniqueInput
+  }
+
+  /**
+   * VaultEnvelope deleteMany
+   */
+  export type VaultEnvelopeDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which VaultEnvelopes to delete
+     */
+    where?: VaultEnvelopeWhereInput
+    /**
+     * Limit how many VaultEnvelopes to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * VaultEnvelope.bills
+   */
+  export type VaultEnvelope$billsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ScheduledBill
+     */
+    select?: ScheduledBillSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ScheduledBill
+     */
+    omit?: ScheduledBillOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ScheduledBillInclude<ExtArgs> | null
+    where?: ScheduledBillWhereInput
+    orderBy?: ScheduledBillOrderByWithRelationInput | ScheduledBillOrderByWithRelationInput[]
+    cursor?: ScheduledBillWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: ScheduledBillScalarFieldEnum | ScheduledBillScalarFieldEnum[]
+  }
+
+  /**
+   * VaultEnvelope.yieldEvents
+   */
+  export type VaultEnvelope$yieldEventsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the YieldEvent
+     */
+    select?: YieldEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the YieldEvent
+     */
+    omit?: YieldEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: YieldEventInclude<ExtArgs> | null
+    where?: YieldEventWhereInput
+    orderBy?: YieldEventOrderByWithRelationInput | YieldEventOrderByWithRelationInput[]
+    cursor?: YieldEventWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: YieldEventScalarFieldEnum | YieldEventScalarFieldEnum[]
+  }
+
+  /**
+   * VaultEnvelope without action
+   */
+  export type VaultEnvelopeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultEnvelope
+     */
+    select?: VaultEnvelopeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultEnvelope
+     */
+    omit?: VaultEnvelopeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultEnvelopeInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model ScheduledBill
+   */
+
+  export type AggregateScheduledBill = {
+    _count: ScheduledBillCountAggregateOutputType | null
+    _avg: ScheduledBillAvgAggregateOutputType | null
+    _sum: ScheduledBillSumAggregateOutputType | null
+    _min: ScheduledBillMinAggregateOutputType | null
+    _max: ScheduledBillMaxAggregateOutputType | null
+  }
+
+  export type ScheduledBillAvgAggregateOutputType = {
+    amount: number | null
+    maxAuthorizedAmount: number | null
+  }
+
+  export type ScheduledBillSumAggregateOutputType = {
+    amount: number | null
+    maxAuthorizedAmount: number | null
+  }
+
+  export type ScheduledBillMinAggregateOutputType = {
+    id: string | null
+    vaultId: string | null
+    envelopeId: string | null
+    billerName: string | null
+    billerId: string | null
+    maskedAccountNumber: string | null
+    amount: number | null
+    maxAuthorizedAmount: number | null
+    currency: string | null
+    frequency: string | null
+    dueDate: Date | null
+    executionWindowStart: Date | null
+    executionWindowEnd: Date | null
+    status: string | null
+    providerPreference: string | null
+    lastAttemptAt: Date | null
+    settlementReference: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ScheduledBillMaxAggregateOutputType = {
+    id: string | null
+    vaultId: string | null
+    envelopeId: string | null
+    billerName: string | null
+    billerId: string | null
+    maskedAccountNumber: string | null
+    amount: number | null
+    maxAuthorizedAmount: number | null
+    currency: string | null
+    frequency: string | null
+    dueDate: Date | null
+    executionWindowStart: Date | null
+    executionWindowEnd: Date | null
+    status: string | null
+    providerPreference: string | null
+    lastAttemptAt: Date | null
+    settlementReference: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ScheduledBillCountAggregateOutputType = {
+    id: number
+    vaultId: number
+    envelopeId: number
+    billerName: number
+    billerId: number
+    maskedAccountNumber: number
+    amount: number
+    maxAuthorizedAmount: number
+    currency: number
+    frequency: number
+    dueDate: number
+    executionWindowStart: number
+    executionWindowEnd: number
+    status: number
+    providerPreference: number
+    lastAttemptAt: number
+    settlementReference: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type ScheduledBillAvgAggregateInputType = {
+    amount?: true
+    maxAuthorizedAmount?: true
+  }
+
+  export type ScheduledBillSumAggregateInputType = {
+    amount?: true
+    maxAuthorizedAmount?: true
+  }
+
+  export type ScheduledBillMinAggregateInputType = {
+    id?: true
+    vaultId?: true
+    envelopeId?: true
+    billerName?: true
+    billerId?: true
+    maskedAccountNumber?: true
+    amount?: true
+    maxAuthorizedAmount?: true
+    currency?: true
+    frequency?: true
+    dueDate?: true
+    executionWindowStart?: true
+    executionWindowEnd?: true
+    status?: true
+    providerPreference?: true
+    lastAttemptAt?: true
+    settlementReference?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ScheduledBillMaxAggregateInputType = {
+    id?: true
+    vaultId?: true
+    envelopeId?: true
+    billerName?: true
+    billerId?: true
+    maskedAccountNumber?: true
+    amount?: true
+    maxAuthorizedAmount?: true
+    currency?: true
+    frequency?: true
+    dueDate?: true
+    executionWindowStart?: true
+    executionWindowEnd?: true
+    status?: true
+    providerPreference?: true
+    lastAttemptAt?: true
+    settlementReference?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ScheduledBillCountAggregateInputType = {
+    id?: true
+    vaultId?: true
+    envelopeId?: true
+    billerName?: true
+    billerId?: true
+    maskedAccountNumber?: true
+    amount?: true
+    maxAuthorizedAmount?: true
+    currency?: true
+    frequency?: true
+    dueDate?: true
+    executionWindowStart?: true
+    executionWindowEnd?: true
+    status?: true
+    providerPreference?: true
+    lastAttemptAt?: true
+    settlementReference?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type ScheduledBillAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ScheduledBill to aggregate.
+     */
+    where?: ScheduledBillWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ScheduledBills to fetch.
+     */
+    orderBy?: ScheduledBillOrderByWithRelationInput | ScheduledBillOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: ScheduledBillWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ScheduledBills from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ScheduledBills.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned ScheduledBills
+    **/
+    _count?: true | ScheduledBillCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: ScheduledBillAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: ScheduledBillSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: ScheduledBillMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: ScheduledBillMaxAggregateInputType
+  }
+
+  export type GetScheduledBillAggregateType<T extends ScheduledBillAggregateArgs> = {
+        [P in keyof T & keyof AggregateScheduledBill]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateScheduledBill[P]>
+      : GetScalarType<T[P], AggregateScheduledBill[P]>
+  }
+
+
+
+
+  export type ScheduledBillGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ScheduledBillWhereInput
+    orderBy?: ScheduledBillOrderByWithAggregationInput | ScheduledBillOrderByWithAggregationInput[]
+    by: ScheduledBillScalarFieldEnum[] | ScheduledBillScalarFieldEnum
+    having?: ScheduledBillScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: ScheduledBillCountAggregateInputType | true
+    _avg?: ScheduledBillAvgAggregateInputType
+    _sum?: ScheduledBillSumAggregateInputType
+    _min?: ScheduledBillMinAggregateInputType
+    _max?: ScheduledBillMaxAggregateInputType
+  }
+
+  export type ScheduledBillGroupByOutputType = {
+    id: string
+    vaultId: string
+    envelopeId: string
+    billerName: string
+    billerId: string
+    maskedAccountNumber: string
+    amount: number
+    maxAuthorizedAmount: number
+    currency: string
+    frequency: string
+    dueDate: Date
+    executionWindowStart: Date
+    executionWindowEnd: Date
+    status: string
+    providerPreference: string | null
+    lastAttemptAt: Date | null
+    settlementReference: string | null
+    createdAt: Date
+    updatedAt: Date
+    _count: ScheduledBillCountAggregateOutputType | null
+    _avg: ScheduledBillAvgAggregateOutputType | null
+    _sum: ScheduledBillSumAggregateOutputType | null
+    _min: ScheduledBillMinAggregateOutputType | null
+    _max: ScheduledBillMaxAggregateOutputType | null
+  }
+
+  type GetScheduledBillGroupByPayload<T extends ScheduledBillGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<ScheduledBillGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof ScheduledBillGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], ScheduledBillGroupByOutputType[P]>
+            : GetScalarType<T[P], ScheduledBillGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type ScheduledBillSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    vaultId?: boolean
+    envelopeId?: boolean
+    billerName?: boolean
+    billerId?: boolean
+    maskedAccountNumber?: boolean
+    amount?: boolean
+    maxAuthorizedAmount?: boolean
+    currency?: boolean
+    frequency?: boolean
+    dueDate?: boolean
+    executionWindowStart?: boolean
+    executionWindowEnd?: boolean
+    status?: boolean
+    providerPreference?: boolean
+    lastAttemptAt?: boolean
+    settlementReference?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
+    envelope?: boolean | VaultEnvelopeDefaultArgs<ExtArgs>
+    paymentAttempts?: boolean | ScheduledBill$paymentAttemptsArgs<ExtArgs>
+    _count?: boolean | ScheduledBillCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["scheduledBill"]>
+
+  export type ScheduledBillSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    vaultId?: boolean
+    envelopeId?: boolean
+    billerName?: boolean
+    billerId?: boolean
+    maskedAccountNumber?: boolean
+    amount?: boolean
+    maxAuthorizedAmount?: boolean
+    currency?: boolean
+    frequency?: boolean
+    dueDate?: boolean
+    executionWindowStart?: boolean
+    executionWindowEnd?: boolean
+    status?: boolean
+    providerPreference?: boolean
+    lastAttemptAt?: boolean
+    settlementReference?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
+    envelope?: boolean | VaultEnvelopeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["scheduledBill"]>
+
+  export type ScheduledBillSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    vaultId?: boolean
+    envelopeId?: boolean
+    billerName?: boolean
+    billerId?: boolean
+    maskedAccountNumber?: boolean
+    amount?: boolean
+    maxAuthorizedAmount?: boolean
+    currency?: boolean
+    frequency?: boolean
+    dueDate?: boolean
+    executionWindowStart?: boolean
+    executionWindowEnd?: boolean
+    status?: boolean
+    providerPreference?: boolean
+    lastAttemptAt?: boolean
+    settlementReference?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
+    envelope?: boolean | VaultEnvelopeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["scheduledBill"]>
+
+  export type ScheduledBillSelectScalar = {
+    id?: boolean
+    vaultId?: boolean
+    envelopeId?: boolean
+    billerName?: boolean
+    billerId?: boolean
+    maskedAccountNumber?: boolean
+    amount?: boolean
+    maxAuthorizedAmount?: boolean
+    currency?: boolean
+    frequency?: boolean
+    dueDate?: boolean
+    executionWindowStart?: boolean
+    executionWindowEnd?: boolean
+    status?: boolean
+    providerPreference?: boolean
+    lastAttemptAt?: boolean
+    settlementReference?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type ScheduledBillOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "vaultId" | "envelopeId" | "billerName" | "billerId" | "maskedAccountNumber" | "amount" | "maxAuthorizedAmount" | "currency" | "frequency" | "dueDate" | "executionWindowStart" | "executionWindowEnd" | "status" | "providerPreference" | "lastAttemptAt" | "settlementReference" | "createdAt" | "updatedAt", ExtArgs["result"]["scheduledBill"]>
+  export type ScheduledBillInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
+    envelope?: boolean | VaultEnvelopeDefaultArgs<ExtArgs>
+    paymentAttempts?: boolean | ScheduledBill$paymentAttemptsArgs<ExtArgs>
+    _count?: boolean | ScheduledBillCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type ScheduledBillIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
+    envelope?: boolean | VaultEnvelopeDefaultArgs<ExtArgs>
+  }
+  export type ScheduledBillIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
+    envelope?: boolean | VaultEnvelopeDefaultArgs<ExtArgs>
+  }
+
+  export type $ScheduledBillPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "ScheduledBill"
+    objects: {
+      vault: Prisma.$VaultAccountPayload<ExtArgs>
+      envelope: Prisma.$VaultEnvelopePayload<ExtArgs>
+      paymentAttempts: Prisma.$PaymentAttemptPayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      vaultId: string
+      envelopeId: string
+      billerName: string
+      /**
+       * Soft ref to the live bill (BillSeed.id today; Bill.id in future).
+       */
+      billerId: string
+      maskedAccountNumber: string
+      amount: number
+      maxAuthorizedAmount: number
+      currency: string
+      /**
+       * WEEKLY | MONTHLY | QUARTERLY | ANNUALLY | ONE_TIME
+       */
+      frequency: string
+      dueDate: Date
+      executionWindowStart: Date
+      executionWindowEnd: Date
+      /**
+       * The 13 BillStatus values as a String (same SQLite rationale as
+       * VaultEnvelope.category). TS union is the canonical contract.
+       */
+      status: string
+      providerPreference: string | null
+      lastAttemptAt: Date | null
+      settlementReference: string | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["scheduledBill"]>
+    composites: {}
+  }
+
+  type ScheduledBillGetPayload<S extends boolean | null | undefined | ScheduledBillDefaultArgs> = $Result.GetResult<Prisma.$ScheduledBillPayload, S>
+
+  type ScheduledBillCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<ScheduledBillFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: ScheduledBillCountAggregateInputType | true
+    }
+
+  export interface ScheduledBillDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['ScheduledBill'], meta: { name: 'ScheduledBill' } }
+    /**
+     * Find zero or one ScheduledBill that matches the filter.
+     * @param {ScheduledBillFindUniqueArgs} args - Arguments to find a ScheduledBill
+     * @example
+     * // Get one ScheduledBill
+     * const scheduledBill = await prisma.scheduledBill.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends ScheduledBillFindUniqueArgs>(args: SelectSubset<T, ScheduledBillFindUniqueArgs<ExtArgs>>): Prisma__ScheduledBillClient<$Result.GetResult<Prisma.$ScheduledBillPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one ScheduledBill that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {ScheduledBillFindUniqueOrThrowArgs} args - Arguments to find a ScheduledBill
+     * @example
+     * // Get one ScheduledBill
+     * const scheduledBill = await prisma.scheduledBill.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends ScheduledBillFindUniqueOrThrowArgs>(args: SelectSubset<T, ScheduledBillFindUniqueOrThrowArgs<ExtArgs>>): Prisma__ScheduledBillClient<$Result.GetResult<Prisma.$ScheduledBillPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first ScheduledBill that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ScheduledBillFindFirstArgs} args - Arguments to find a ScheduledBill
+     * @example
+     * // Get one ScheduledBill
+     * const scheduledBill = await prisma.scheduledBill.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends ScheduledBillFindFirstArgs>(args?: SelectSubset<T, ScheduledBillFindFirstArgs<ExtArgs>>): Prisma__ScheduledBillClient<$Result.GetResult<Prisma.$ScheduledBillPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first ScheduledBill that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ScheduledBillFindFirstOrThrowArgs} args - Arguments to find a ScheduledBill
+     * @example
+     * // Get one ScheduledBill
+     * const scheduledBill = await prisma.scheduledBill.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends ScheduledBillFindFirstOrThrowArgs>(args?: SelectSubset<T, ScheduledBillFindFirstOrThrowArgs<ExtArgs>>): Prisma__ScheduledBillClient<$Result.GetResult<Prisma.$ScheduledBillPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more ScheduledBills that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ScheduledBillFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all ScheduledBills
+     * const scheduledBills = await prisma.scheduledBill.findMany()
+     * 
+     * // Get first 10 ScheduledBills
+     * const scheduledBills = await prisma.scheduledBill.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const scheduledBillWithIdOnly = await prisma.scheduledBill.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends ScheduledBillFindManyArgs>(args?: SelectSubset<T, ScheduledBillFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ScheduledBillPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a ScheduledBill.
+     * @param {ScheduledBillCreateArgs} args - Arguments to create a ScheduledBill.
+     * @example
+     * // Create one ScheduledBill
+     * const ScheduledBill = await prisma.scheduledBill.create({
+     *   data: {
+     *     // ... data to create a ScheduledBill
+     *   }
+     * })
+     * 
+     */
+    create<T extends ScheduledBillCreateArgs>(args: SelectSubset<T, ScheduledBillCreateArgs<ExtArgs>>): Prisma__ScheduledBillClient<$Result.GetResult<Prisma.$ScheduledBillPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many ScheduledBills.
+     * @param {ScheduledBillCreateManyArgs} args - Arguments to create many ScheduledBills.
+     * @example
+     * // Create many ScheduledBills
+     * const scheduledBill = await prisma.scheduledBill.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends ScheduledBillCreateManyArgs>(args?: SelectSubset<T, ScheduledBillCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many ScheduledBills and returns the data saved in the database.
+     * @param {ScheduledBillCreateManyAndReturnArgs} args - Arguments to create many ScheduledBills.
+     * @example
+     * // Create many ScheduledBills
+     * const scheduledBill = await prisma.scheduledBill.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many ScheduledBills and only return the `id`
+     * const scheduledBillWithIdOnly = await prisma.scheduledBill.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends ScheduledBillCreateManyAndReturnArgs>(args?: SelectSubset<T, ScheduledBillCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ScheduledBillPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a ScheduledBill.
+     * @param {ScheduledBillDeleteArgs} args - Arguments to delete one ScheduledBill.
+     * @example
+     * // Delete one ScheduledBill
+     * const ScheduledBill = await prisma.scheduledBill.delete({
+     *   where: {
+     *     // ... filter to delete one ScheduledBill
+     *   }
+     * })
+     * 
+     */
+    delete<T extends ScheduledBillDeleteArgs>(args: SelectSubset<T, ScheduledBillDeleteArgs<ExtArgs>>): Prisma__ScheduledBillClient<$Result.GetResult<Prisma.$ScheduledBillPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one ScheduledBill.
+     * @param {ScheduledBillUpdateArgs} args - Arguments to update one ScheduledBill.
+     * @example
+     * // Update one ScheduledBill
+     * const scheduledBill = await prisma.scheduledBill.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends ScheduledBillUpdateArgs>(args: SelectSubset<T, ScheduledBillUpdateArgs<ExtArgs>>): Prisma__ScheduledBillClient<$Result.GetResult<Prisma.$ScheduledBillPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more ScheduledBills.
+     * @param {ScheduledBillDeleteManyArgs} args - Arguments to filter ScheduledBills to delete.
+     * @example
+     * // Delete a few ScheduledBills
+     * const { count } = await prisma.scheduledBill.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends ScheduledBillDeleteManyArgs>(args?: SelectSubset<T, ScheduledBillDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ScheduledBills.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ScheduledBillUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many ScheduledBills
+     * const scheduledBill = await prisma.scheduledBill.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends ScheduledBillUpdateManyArgs>(args: SelectSubset<T, ScheduledBillUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ScheduledBills and returns the data updated in the database.
+     * @param {ScheduledBillUpdateManyAndReturnArgs} args - Arguments to update many ScheduledBills.
+     * @example
+     * // Update many ScheduledBills
+     * const scheduledBill = await prisma.scheduledBill.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more ScheduledBills and only return the `id`
+     * const scheduledBillWithIdOnly = await prisma.scheduledBill.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends ScheduledBillUpdateManyAndReturnArgs>(args: SelectSubset<T, ScheduledBillUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ScheduledBillPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one ScheduledBill.
+     * @param {ScheduledBillUpsertArgs} args - Arguments to update or create a ScheduledBill.
+     * @example
+     * // Update or create a ScheduledBill
+     * const scheduledBill = await prisma.scheduledBill.upsert({
+     *   create: {
+     *     // ... data to create a ScheduledBill
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the ScheduledBill we want to update
+     *   }
+     * })
+     */
+    upsert<T extends ScheduledBillUpsertArgs>(args: SelectSubset<T, ScheduledBillUpsertArgs<ExtArgs>>): Prisma__ScheduledBillClient<$Result.GetResult<Prisma.$ScheduledBillPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of ScheduledBills.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ScheduledBillCountArgs} args - Arguments to filter ScheduledBills to count.
+     * @example
+     * // Count the number of ScheduledBills
+     * const count = await prisma.scheduledBill.count({
+     *   where: {
+     *     // ... the filter for the ScheduledBills we want to count
+     *   }
+     * })
+    **/
+    count<T extends ScheduledBillCountArgs>(
+      args?: Subset<T, ScheduledBillCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], ScheduledBillCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a ScheduledBill.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ScheduledBillAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends ScheduledBillAggregateArgs>(args: Subset<T, ScheduledBillAggregateArgs>): Prisma.PrismaPromise<GetScheduledBillAggregateType<T>>
+
+    /**
+     * Group by ScheduledBill.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ScheduledBillGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends ScheduledBillGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: ScheduledBillGroupByArgs['orderBy'] }
+        : { orderBy?: ScheduledBillGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, ScheduledBillGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetScheduledBillGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the ScheduledBill model
+   */
+  readonly fields: ScheduledBillFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for ScheduledBill.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__ScheduledBillClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    vault<T extends VaultAccountDefaultArgs<ExtArgs> = {}>(args?: Subset<T, VaultAccountDefaultArgs<ExtArgs>>): Prisma__VaultAccountClient<$Result.GetResult<Prisma.$VaultAccountPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    envelope<T extends VaultEnvelopeDefaultArgs<ExtArgs> = {}>(args?: Subset<T, VaultEnvelopeDefaultArgs<ExtArgs>>): Prisma__VaultEnvelopeClient<$Result.GetResult<Prisma.$VaultEnvelopePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    paymentAttempts<T extends ScheduledBill$paymentAttemptsArgs<ExtArgs> = {}>(args?: Subset<T, ScheduledBill$paymentAttemptsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PaymentAttemptPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the ScheduledBill model
+   */
+  interface ScheduledBillFieldRefs {
+    readonly id: FieldRef<"ScheduledBill", 'String'>
+    readonly vaultId: FieldRef<"ScheduledBill", 'String'>
+    readonly envelopeId: FieldRef<"ScheduledBill", 'String'>
+    readonly billerName: FieldRef<"ScheduledBill", 'String'>
+    readonly billerId: FieldRef<"ScheduledBill", 'String'>
+    readonly maskedAccountNumber: FieldRef<"ScheduledBill", 'String'>
+    readonly amount: FieldRef<"ScheduledBill", 'Int'>
+    readonly maxAuthorizedAmount: FieldRef<"ScheduledBill", 'Int'>
+    readonly currency: FieldRef<"ScheduledBill", 'String'>
+    readonly frequency: FieldRef<"ScheduledBill", 'String'>
+    readonly dueDate: FieldRef<"ScheduledBill", 'DateTime'>
+    readonly executionWindowStart: FieldRef<"ScheduledBill", 'DateTime'>
+    readonly executionWindowEnd: FieldRef<"ScheduledBill", 'DateTime'>
+    readonly status: FieldRef<"ScheduledBill", 'String'>
+    readonly providerPreference: FieldRef<"ScheduledBill", 'String'>
+    readonly lastAttemptAt: FieldRef<"ScheduledBill", 'DateTime'>
+    readonly settlementReference: FieldRef<"ScheduledBill", 'String'>
+    readonly createdAt: FieldRef<"ScheduledBill", 'DateTime'>
+    readonly updatedAt: FieldRef<"ScheduledBill", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * ScheduledBill findUnique
+   */
+  export type ScheduledBillFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ScheduledBill
+     */
+    select?: ScheduledBillSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ScheduledBill
+     */
+    omit?: ScheduledBillOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ScheduledBillInclude<ExtArgs> | null
+    /**
+     * Filter, which ScheduledBill to fetch.
+     */
+    where: ScheduledBillWhereUniqueInput
+  }
+
+  /**
+   * ScheduledBill findUniqueOrThrow
+   */
+  export type ScheduledBillFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ScheduledBill
+     */
+    select?: ScheduledBillSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ScheduledBill
+     */
+    omit?: ScheduledBillOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ScheduledBillInclude<ExtArgs> | null
+    /**
+     * Filter, which ScheduledBill to fetch.
+     */
+    where: ScheduledBillWhereUniqueInput
+  }
+
+  /**
+   * ScheduledBill findFirst
+   */
+  export type ScheduledBillFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ScheduledBill
+     */
+    select?: ScheduledBillSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ScheduledBill
+     */
+    omit?: ScheduledBillOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ScheduledBillInclude<ExtArgs> | null
+    /**
+     * Filter, which ScheduledBill to fetch.
+     */
+    where?: ScheduledBillWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ScheduledBills to fetch.
+     */
+    orderBy?: ScheduledBillOrderByWithRelationInput | ScheduledBillOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ScheduledBills.
+     */
+    cursor?: ScheduledBillWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ScheduledBills from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ScheduledBills.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ScheduledBills.
+     */
+    distinct?: ScheduledBillScalarFieldEnum | ScheduledBillScalarFieldEnum[]
+  }
+
+  /**
+   * ScheduledBill findFirstOrThrow
+   */
+  export type ScheduledBillFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ScheduledBill
+     */
+    select?: ScheduledBillSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ScheduledBill
+     */
+    omit?: ScheduledBillOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ScheduledBillInclude<ExtArgs> | null
+    /**
+     * Filter, which ScheduledBill to fetch.
+     */
+    where?: ScheduledBillWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ScheduledBills to fetch.
+     */
+    orderBy?: ScheduledBillOrderByWithRelationInput | ScheduledBillOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ScheduledBills.
+     */
+    cursor?: ScheduledBillWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ScheduledBills from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ScheduledBills.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ScheduledBills.
+     */
+    distinct?: ScheduledBillScalarFieldEnum | ScheduledBillScalarFieldEnum[]
+  }
+
+  /**
+   * ScheduledBill findMany
+   */
+  export type ScheduledBillFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ScheduledBill
+     */
+    select?: ScheduledBillSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ScheduledBill
+     */
+    omit?: ScheduledBillOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ScheduledBillInclude<ExtArgs> | null
+    /**
+     * Filter, which ScheduledBills to fetch.
+     */
+    where?: ScheduledBillWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ScheduledBills to fetch.
+     */
+    orderBy?: ScheduledBillOrderByWithRelationInput | ScheduledBillOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing ScheduledBills.
+     */
+    cursor?: ScheduledBillWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ScheduledBills from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ScheduledBills.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ScheduledBills.
+     */
+    distinct?: ScheduledBillScalarFieldEnum | ScheduledBillScalarFieldEnum[]
+  }
+
+  /**
+   * ScheduledBill create
+   */
+  export type ScheduledBillCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ScheduledBill
+     */
+    select?: ScheduledBillSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ScheduledBill
+     */
+    omit?: ScheduledBillOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ScheduledBillInclude<ExtArgs> | null
+    /**
+     * The data needed to create a ScheduledBill.
+     */
+    data: XOR<ScheduledBillCreateInput, ScheduledBillUncheckedCreateInput>
+  }
+
+  /**
+   * ScheduledBill createMany
+   */
+  export type ScheduledBillCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many ScheduledBills.
+     */
+    data: ScheduledBillCreateManyInput | ScheduledBillCreateManyInput[]
+  }
+
+  /**
+   * ScheduledBill createManyAndReturn
+   */
+  export type ScheduledBillCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ScheduledBill
+     */
+    select?: ScheduledBillSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the ScheduledBill
+     */
+    omit?: ScheduledBillOmit<ExtArgs> | null
+    /**
+     * The data used to create many ScheduledBills.
+     */
+    data: ScheduledBillCreateManyInput | ScheduledBillCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ScheduledBillIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * ScheduledBill update
+   */
+  export type ScheduledBillUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ScheduledBill
+     */
+    select?: ScheduledBillSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ScheduledBill
+     */
+    omit?: ScheduledBillOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ScheduledBillInclude<ExtArgs> | null
+    /**
+     * The data needed to update a ScheduledBill.
+     */
+    data: XOR<ScheduledBillUpdateInput, ScheduledBillUncheckedUpdateInput>
+    /**
+     * Choose, which ScheduledBill to update.
+     */
+    where: ScheduledBillWhereUniqueInput
+  }
+
+  /**
+   * ScheduledBill updateMany
+   */
+  export type ScheduledBillUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update ScheduledBills.
+     */
+    data: XOR<ScheduledBillUpdateManyMutationInput, ScheduledBillUncheckedUpdateManyInput>
+    /**
+     * Filter which ScheduledBills to update
+     */
+    where?: ScheduledBillWhereInput
+    /**
+     * Limit how many ScheduledBills to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * ScheduledBill updateManyAndReturn
+   */
+  export type ScheduledBillUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ScheduledBill
+     */
+    select?: ScheduledBillSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the ScheduledBill
+     */
+    omit?: ScheduledBillOmit<ExtArgs> | null
+    /**
+     * The data used to update ScheduledBills.
+     */
+    data: XOR<ScheduledBillUpdateManyMutationInput, ScheduledBillUncheckedUpdateManyInput>
+    /**
+     * Filter which ScheduledBills to update
+     */
+    where?: ScheduledBillWhereInput
+    /**
+     * Limit how many ScheduledBills to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ScheduledBillIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * ScheduledBill upsert
+   */
+  export type ScheduledBillUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ScheduledBill
+     */
+    select?: ScheduledBillSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ScheduledBill
+     */
+    omit?: ScheduledBillOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ScheduledBillInclude<ExtArgs> | null
+    /**
+     * The filter to search for the ScheduledBill to update in case it exists.
+     */
+    where: ScheduledBillWhereUniqueInput
+    /**
+     * In case the ScheduledBill found by the `where` argument doesn't exist, create a new ScheduledBill with this data.
+     */
+    create: XOR<ScheduledBillCreateInput, ScheduledBillUncheckedCreateInput>
+    /**
+     * In case the ScheduledBill was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<ScheduledBillUpdateInput, ScheduledBillUncheckedUpdateInput>
+  }
+
+  /**
+   * ScheduledBill delete
+   */
+  export type ScheduledBillDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ScheduledBill
+     */
+    select?: ScheduledBillSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ScheduledBill
+     */
+    omit?: ScheduledBillOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ScheduledBillInclude<ExtArgs> | null
+    /**
+     * Filter which ScheduledBill to delete.
+     */
+    where: ScheduledBillWhereUniqueInput
+  }
+
+  /**
+   * ScheduledBill deleteMany
+   */
+  export type ScheduledBillDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ScheduledBills to delete
+     */
+    where?: ScheduledBillWhereInput
+    /**
+     * Limit how many ScheduledBills to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * ScheduledBill.paymentAttempts
+   */
+  export type ScheduledBill$paymentAttemptsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaymentAttempt
+     */
+    select?: PaymentAttemptSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaymentAttempt
+     */
+    omit?: PaymentAttemptOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaymentAttemptInclude<ExtArgs> | null
+    where?: PaymentAttemptWhereInput
+    orderBy?: PaymentAttemptOrderByWithRelationInput | PaymentAttemptOrderByWithRelationInput[]
+    cursor?: PaymentAttemptWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: PaymentAttemptScalarFieldEnum | PaymentAttemptScalarFieldEnum[]
+  }
+
+  /**
+   * ScheduledBill without action
+   */
+  export type ScheduledBillDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ScheduledBill
+     */
+    select?: ScheduledBillSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ScheduledBill
+     */
+    omit?: ScheduledBillOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ScheduledBillInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model YieldEvent
+   */
+
+  export type AggregateYieldEvent = {
+    _count: YieldEventCountAggregateOutputType | null
+    _avg: YieldEventAvgAggregateOutputType | null
+    _sum: YieldEventSumAggregateOutputType | null
+    _min: YieldEventMinAggregateOutputType | null
+    _max: YieldEventMaxAggregateOutputType | null
+  }
+
+  export type YieldEventAvgAggregateOutputType = {
+    amount: number | null
+    annualizedRate: number | null
+  }
+
+  export type YieldEventSumAggregateOutputType = {
+    amount: number | null
+    annualizedRate: number | null
+  }
+
+  export type YieldEventMinAggregateOutputType = {
+    id: string | null
+    vaultId: string | null
+    envelopeId: string | null
+    asset: string | null
+    amount: number | null
+    annualizedRate: number | null
+    source: string | null
+    action: string | null
+    occurredAt: Date | null
+  }
+
+  export type YieldEventMaxAggregateOutputType = {
+    id: string | null
+    vaultId: string | null
+    envelopeId: string | null
+    asset: string | null
+    amount: number | null
+    annualizedRate: number | null
+    source: string | null
+    action: string | null
+    occurredAt: Date | null
+  }
+
+  export type YieldEventCountAggregateOutputType = {
+    id: number
+    vaultId: number
+    envelopeId: number
+    asset: number
+    amount: number
+    annualizedRate: number
+    source: number
+    action: number
+    occurredAt: number
+    _all: number
+  }
+
+
+  export type YieldEventAvgAggregateInputType = {
+    amount?: true
+    annualizedRate?: true
+  }
+
+  export type YieldEventSumAggregateInputType = {
+    amount?: true
+    annualizedRate?: true
+  }
+
+  export type YieldEventMinAggregateInputType = {
+    id?: true
+    vaultId?: true
+    envelopeId?: true
+    asset?: true
+    amount?: true
+    annualizedRate?: true
+    source?: true
+    action?: true
+    occurredAt?: true
+  }
+
+  export type YieldEventMaxAggregateInputType = {
+    id?: true
+    vaultId?: true
+    envelopeId?: true
+    asset?: true
+    amount?: true
+    annualizedRate?: true
+    source?: true
+    action?: true
+    occurredAt?: true
+  }
+
+  export type YieldEventCountAggregateInputType = {
+    id?: true
+    vaultId?: true
+    envelopeId?: true
+    asset?: true
+    amount?: true
+    annualizedRate?: true
+    source?: true
+    action?: true
+    occurredAt?: true
+    _all?: true
+  }
+
+  export type YieldEventAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which YieldEvent to aggregate.
+     */
+    where?: YieldEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of YieldEvents to fetch.
+     */
+    orderBy?: YieldEventOrderByWithRelationInput | YieldEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: YieldEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` YieldEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` YieldEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned YieldEvents
+    **/
+    _count?: true | YieldEventCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: YieldEventAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: YieldEventSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: YieldEventMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: YieldEventMaxAggregateInputType
+  }
+
+  export type GetYieldEventAggregateType<T extends YieldEventAggregateArgs> = {
+        [P in keyof T & keyof AggregateYieldEvent]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateYieldEvent[P]>
+      : GetScalarType<T[P], AggregateYieldEvent[P]>
+  }
+
+
+
+
+  export type YieldEventGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: YieldEventWhereInput
+    orderBy?: YieldEventOrderByWithAggregationInput | YieldEventOrderByWithAggregationInput[]
+    by: YieldEventScalarFieldEnum[] | YieldEventScalarFieldEnum
+    having?: YieldEventScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: YieldEventCountAggregateInputType | true
+    _avg?: YieldEventAvgAggregateInputType
+    _sum?: YieldEventSumAggregateInputType
+    _min?: YieldEventMinAggregateInputType
+    _max?: YieldEventMaxAggregateInputType
+  }
+
+  export type YieldEventGroupByOutputType = {
+    id: string
+    vaultId: string
+    envelopeId: string | null
+    asset: string
+    amount: number
+    annualizedRate: number | null
+    source: string
+    action: string
+    occurredAt: Date
+    _count: YieldEventCountAggregateOutputType | null
+    _avg: YieldEventAvgAggregateOutputType | null
+    _sum: YieldEventSumAggregateOutputType | null
+    _min: YieldEventMinAggregateOutputType | null
+    _max: YieldEventMaxAggregateOutputType | null
+  }
+
+  type GetYieldEventGroupByPayload<T extends YieldEventGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<YieldEventGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof YieldEventGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], YieldEventGroupByOutputType[P]>
+            : GetScalarType<T[P], YieldEventGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type YieldEventSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    vaultId?: boolean
+    envelopeId?: boolean
+    asset?: boolean
+    amount?: boolean
+    annualizedRate?: boolean
+    source?: boolean
+    action?: boolean
+    occurredAt?: boolean
+    vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
+    envelope?: boolean | YieldEvent$envelopeArgs<ExtArgs>
+  }, ExtArgs["result"]["yieldEvent"]>
+
+  export type YieldEventSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    vaultId?: boolean
+    envelopeId?: boolean
+    asset?: boolean
+    amount?: boolean
+    annualizedRate?: boolean
+    source?: boolean
+    action?: boolean
+    occurredAt?: boolean
+    vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
+    envelope?: boolean | YieldEvent$envelopeArgs<ExtArgs>
+  }, ExtArgs["result"]["yieldEvent"]>
+
+  export type YieldEventSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    vaultId?: boolean
+    envelopeId?: boolean
+    asset?: boolean
+    amount?: boolean
+    annualizedRate?: boolean
+    source?: boolean
+    action?: boolean
+    occurredAt?: boolean
+    vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
+    envelope?: boolean | YieldEvent$envelopeArgs<ExtArgs>
+  }, ExtArgs["result"]["yieldEvent"]>
+
+  export type YieldEventSelectScalar = {
+    id?: boolean
+    vaultId?: boolean
+    envelopeId?: boolean
+    asset?: boolean
+    amount?: boolean
+    annualizedRate?: boolean
+    source?: boolean
+    action?: boolean
+    occurredAt?: boolean
+  }
+
+  export type YieldEventOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "vaultId" | "envelopeId" | "asset" | "amount" | "annualizedRate" | "source" | "action" | "occurredAt", ExtArgs["result"]["yieldEvent"]>
+  export type YieldEventInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
+    envelope?: boolean | YieldEvent$envelopeArgs<ExtArgs>
+  }
+  export type YieldEventIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
+    envelope?: boolean | YieldEvent$envelopeArgs<ExtArgs>
+  }
+  export type YieldEventIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
+    envelope?: boolean | YieldEvent$envelopeArgs<ExtArgs>
+  }
+
+  export type $YieldEventPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "YieldEvent"
+    objects: {
+      vault: Prisma.$VaultAccountPayload<ExtArgs>
+      envelope: Prisma.$VaultEnvelopePayload<ExtArgs> | null
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      vaultId: string
+      envelopeId: string | null
+      /**
+       * USDC | USDS | sUSDS
+       */
+      asset: string
+      amount: number
+      annualizedRate: number | null
+      /**
+       * AAVE | SKY | OTHER
+       */
+      source: string
+      /**
+       * ACCRUED | COMPOUNDED | ALLOCATED_TO_BILL | MOVED_TO_AVAILABLE
+       */
+      action: string
+      occurredAt: Date
+    }, ExtArgs["result"]["yieldEvent"]>
+    composites: {}
+  }
+
+  type YieldEventGetPayload<S extends boolean | null | undefined | YieldEventDefaultArgs> = $Result.GetResult<Prisma.$YieldEventPayload, S>
+
+  type YieldEventCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<YieldEventFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: YieldEventCountAggregateInputType | true
+    }
+
+  export interface YieldEventDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['YieldEvent'], meta: { name: 'YieldEvent' } }
+    /**
+     * Find zero or one YieldEvent that matches the filter.
+     * @param {YieldEventFindUniqueArgs} args - Arguments to find a YieldEvent
+     * @example
+     * // Get one YieldEvent
+     * const yieldEvent = await prisma.yieldEvent.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends YieldEventFindUniqueArgs>(args: SelectSubset<T, YieldEventFindUniqueArgs<ExtArgs>>): Prisma__YieldEventClient<$Result.GetResult<Prisma.$YieldEventPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one YieldEvent that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {YieldEventFindUniqueOrThrowArgs} args - Arguments to find a YieldEvent
+     * @example
+     * // Get one YieldEvent
+     * const yieldEvent = await prisma.yieldEvent.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends YieldEventFindUniqueOrThrowArgs>(args: SelectSubset<T, YieldEventFindUniqueOrThrowArgs<ExtArgs>>): Prisma__YieldEventClient<$Result.GetResult<Prisma.$YieldEventPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first YieldEvent that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {YieldEventFindFirstArgs} args - Arguments to find a YieldEvent
+     * @example
+     * // Get one YieldEvent
+     * const yieldEvent = await prisma.yieldEvent.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends YieldEventFindFirstArgs>(args?: SelectSubset<T, YieldEventFindFirstArgs<ExtArgs>>): Prisma__YieldEventClient<$Result.GetResult<Prisma.$YieldEventPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first YieldEvent that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {YieldEventFindFirstOrThrowArgs} args - Arguments to find a YieldEvent
+     * @example
+     * // Get one YieldEvent
+     * const yieldEvent = await prisma.yieldEvent.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends YieldEventFindFirstOrThrowArgs>(args?: SelectSubset<T, YieldEventFindFirstOrThrowArgs<ExtArgs>>): Prisma__YieldEventClient<$Result.GetResult<Prisma.$YieldEventPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more YieldEvents that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {YieldEventFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all YieldEvents
+     * const yieldEvents = await prisma.yieldEvent.findMany()
+     * 
+     * // Get first 10 YieldEvents
+     * const yieldEvents = await prisma.yieldEvent.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const yieldEventWithIdOnly = await prisma.yieldEvent.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends YieldEventFindManyArgs>(args?: SelectSubset<T, YieldEventFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$YieldEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a YieldEvent.
+     * @param {YieldEventCreateArgs} args - Arguments to create a YieldEvent.
+     * @example
+     * // Create one YieldEvent
+     * const YieldEvent = await prisma.yieldEvent.create({
+     *   data: {
+     *     // ... data to create a YieldEvent
+     *   }
+     * })
+     * 
+     */
+    create<T extends YieldEventCreateArgs>(args: SelectSubset<T, YieldEventCreateArgs<ExtArgs>>): Prisma__YieldEventClient<$Result.GetResult<Prisma.$YieldEventPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many YieldEvents.
+     * @param {YieldEventCreateManyArgs} args - Arguments to create many YieldEvents.
+     * @example
+     * // Create many YieldEvents
+     * const yieldEvent = await prisma.yieldEvent.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends YieldEventCreateManyArgs>(args?: SelectSubset<T, YieldEventCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many YieldEvents and returns the data saved in the database.
+     * @param {YieldEventCreateManyAndReturnArgs} args - Arguments to create many YieldEvents.
+     * @example
+     * // Create many YieldEvents
+     * const yieldEvent = await prisma.yieldEvent.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many YieldEvents and only return the `id`
+     * const yieldEventWithIdOnly = await prisma.yieldEvent.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends YieldEventCreateManyAndReturnArgs>(args?: SelectSubset<T, YieldEventCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$YieldEventPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a YieldEvent.
+     * @param {YieldEventDeleteArgs} args - Arguments to delete one YieldEvent.
+     * @example
+     * // Delete one YieldEvent
+     * const YieldEvent = await prisma.yieldEvent.delete({
+     *   where: {
+     *     // ... filter to delete one YieldEvent
+     *   }
+     * })
+     * 
+     */
+    delete<T extends YieldEventDeleteArgs>(args: SelectSubset<T, YieldEventDeleteArgs<ExtArgs>>): Prisma__YieldEventClient<$Result.GetResult<Prisma.$YieldEventPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one YieldEvent.
+     * @param {YieldEventUpdateArgs} args - Arguments to update one YieldEvent.
+     * @example
+     * // Update one YieldEvent
+     * const yieldEvent = await prisma.yieldEvent.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends YieldEventUpdateArgs>(args: SelectSubset<T, YieldEventUpdateArgs<ExtArgs>>): Prisma__YieldEventClient<$Result.GetResult<Prisma.$YieldEventPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more YieldEvents.
+     * @param {YieldEventDeleteManyArgs} args - Arguments to filter YieldEvents to delete.
+     * @example
+     * // Delete a few YieldEvents
+     * const { count } = await prisma.yieldEvent.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends YieldEventDeleteManyArgs>(args?: SelectSubset<T, YieldEventDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more YieldEvents.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {YieldEventUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many YieldEvents
+     * const yieldEvent = await prisma.yieldEvent.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends YieldEventUpdateManyArgs>(args: SelectSubset<T, YieldEventUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more YieldEvents and returns the data updated in the database.
+     * @param {YieldEventUpdateManyAndReturnArgs} args - Arguments to update many YieldEvents.
+     * @example
+     * // Update many YieldEvents
+     * const yieldEvent = await prisma.yieldEvent.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more YieldEvents and only return the `id`
+     * const yieldEventWithIdOnly = await prisma.yieldEvent.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends YieldEventUpdateManyAndReturnArgs>(args: SelectSubset<T, YieldEventUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$YieldEventPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one YieldEvent.
+     * @param {YieldEventUpsertArgs} args - Arguments to update or create a YieldEvent.
+     * @example
+     * // Update or create a YieldEvent
+     * const yieldEvent = await prisma.yieldEvent.upsert({
+     *   create: {
+     *     // ... data to create a YieldEvent
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the YieldEvent we want to update
+     *   }
+     * })
+     */
+    upsert<T extends YieldEventUpsertArgs>(args: SelectSubset<T, YieldEventUpsertArgs<ExtArgs>>): Prisma__YieldEventClient<$Result.GetResult<Prisma.$YieldEventPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of YieldEvents.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {YieldEventCountArgs} args - Arguments to filter YieldEvents to count.
+     * @example
+     * // Count the number of YieldEvents
+     * const count = await prisma.yieldEvent.count({
+     *   where: {
+     *     // ... the filter for the YieldEvents we want to count
+     *   }
+     * })
+    **/
+    count<T extends YieldEventCountArgs>(
+      args?: Subset<T, YieldEventCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], YieldEventCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a YieldEvent.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {YieldEventAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends YieldEventAggregateArgs>(args: Subset<T, YieldEventAggregateArgs>): Prisma.PrismaPromise<GetYieldEventAggregateType<T>>
+
+    /**
+     * Group by YieldEvent.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {YieldEventGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends YieldEventGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: YieldEventGroupByArgs['orderBy'] }
+        : { orderBy?: YieldEventGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, YieldEventGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetYieldEventGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the YieldEvent model
+   */
+  readonly fields: YieldEventFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for YieldEvent.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__YieldEventClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    vault<T extends VaultAccountDefaultArgs<ExtArgs> = {}>(args?: Subset<T, VaultAccountDefaultArgs<ExtArgs>>): Prisma__VaultAccountClient<$Result.GetResult<Prisma.$VaultAccountPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    envelope<T extends YieldEvent$envelopeArgs<ExtArgs> = {}>(args?: Subset<T, YieldEvent$envelopeArgs<ExtArgs>>): Prisma__VaultEnvelopeClient<$Result.GetResult<Prisma.$VaultEnvelopePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the YieldEvent model
+   */
+  interface YieldEventFieldRefs {
+    readonly id: FieldRef<"YieldEvent", 'String'>
+    readonly vaultId: FieldRef<"YieldEvent", 'String'>
+    readonly envelopeId: FieldRef<"YieldEvent", 'String'>
+    readonly asset: FieldRef<"YieldEvent", 'String'>
+    readonly amount: FieldRef<"YieldEvent", 'Int'>
+    readonly annualizedRate: FieldRef<"YieldEvent", 'Float'>
+    readonly source: FieldRef<"YieldEvent", 'String'>
+    readonly action: FieldRef<"YieldEvent", 'String'>
+    readonly occurredAt: FieldRef<"YieldEvent", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * YieldEvent findUnique
+   */
+  export type YieldEventFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the YieldEvent
+     */
+    select?: YieldEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the YieldEvent
+     */
+    omit?: YieldEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: YieldEventInclude<ExtArgs> | null
+    /**
+     * Filter, which YieldEvent to fetch.
+     */
+    where: YieldEventWhereUniqueInput
+  }
+
+  /**
+   * YieldEvent findUniqueOrThrow
+   */
+  export type YieldEventFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the YieldEvent
+     */
+    select?: YieldEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the YieldEvent
+     */
+    omit?: YieldEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: YieldEventInclude<ExtArgs> | null
+    /**
+     * Filter, which YieldEvent to fetch.
+     */
+    where: YieldEventWhereUniqueInput
+  }
+
+  /**
+   * YieldEvent findFirst
+   */
+  export type YieldEventFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the YieldEvent
+     */
+    select?: YieldEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the YieldEvent
+     */
+    omit?: YieldEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: YieldEventInclude<ExtArgs> | null
+    /**
+     * Filter, which YieldEvent to fetch.
+     */
+    where?: YieldEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of YieldEvents to fetch.
+     */
+    orderBy?: YieldEventOrderByWithRelationInput | YieldEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for YieldEvents.
+     */
+    cursor?: YieldEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` YieldEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` YieldEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of YieldEvents.
+     */
+    distinct?: YieldEventScalarFieldEnum | YieldEventScalarFieldEnum[]
+  }
+
+  /**
+   * YieldEvent findFirstOrThrow
+   */
+  export type YieldEventFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the YieldEvent
+     */
+    select?: YieldEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the YieldEvent
+     */
+    omit?: YieldEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: YieldEventInclude<ExtArgs> | null
+    /**
+     * Filter, which YieldEvent to fetch.
+     */
+    where?: YieldEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of YieldEvents to fetch.
+     */
+    orderBy?: YieldEventOrderByWithRelationInput | YieldEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for YieldEvents.
+     */
+    cursor?: YieldEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` YieldEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` YieldEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of YieldEvents.
+     */
+    distinct?: YieldEventScalarFieldEnum | YieldEventScalarFieldEnum[]
+  }
+
+  /**
+   * YieldEvent findMany
+   */
+  export type YieldEventFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the YieldEvent
+     */
+    select?: YieldEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the YieldEvent
+     */
+    omit?: YieldEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: YieldEventInclude<ExtArgs> | null
+    /**
+     * Filter, which YieldEvents to fetch.
+     */
+    where?: YieldEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of YieldEvents to fetch.
+     */
+    orderBy?: YieldEventOrderByWithRelationInput | YieldEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing YieldEvents.
+     */
+    cursor?: YieldEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` YieldEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` YieldEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of YieldEvents.
+     */
+    distinct?: YieldEventScalarFieldEnum | YieldEventScalarFieldEnum[]
+  }
+
+  /**
+   * YieldEvent create
+   */
+  export type YieldEventCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the YieldEvent
+     */
+    select?: YieldEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the YieldEvent
+     */
+    omit?: YieldEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: YieldEventInclude<ExtArgs> | null
+    /**
+     * The data needed to create a YieldEvent.
+     */
+    data: XOR<YieldEventCreateInput, YieldEventUncheckedCreateInput>
+  }
+
+  /**
+   * YieldEvent createMany
+   */
+  export type YieldEventCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many YieldEvents.
+     */
+    data: YieldEventCreateManyInput | YieldEventCreateManyInput[]
+  }
+
+  /**
+   * YieldEvent createManyAndReturn
+   */
+  export type YieldEventCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the YieldEvent
+     */
+    select?: YieldEventSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the YieldEvent
+     */
+    omit?: YieldEventOmit<ExtArgs> | null
+    /**
+     * The data used to create many YieldEvents.
+     */
+    data: YieldEventCreateManyInput | YieldEventCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: YieldEventIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * YieldEvent update
+   */
+  export type YieldEventUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the YieldEvent
+     */
+    select?: YieldEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the YieldEvent
+     */
+    omit?: YieldEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: YieldEventInclude<ExtArgs> | null
+    /**
+     * The data needed to update a YieldEvent.
+     */
+    data: XOR<YieldEventUpdateInput, YieldEventUncheckedUpdateInput>
+    /**
+     * Choose, which YieldEvent to update.
+     */
+    where: YieldEventWhereUniqueInput
+  }
+
+  /**
+   * YieldEvent updateMany
+   */
+  export type YieldEventUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update YieldEvents.
+     */
+    data: XOR<YieldEventUpdateManyMutationInput, YieldEventUncheckedUpdateManyInput>
+    /**
+     * Filter which YieldEvents to update
+     */
+    where?: YieldEventWhereInput
+    /**
+     * Limit how many YieldEvents to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * YieldEvent updateManyAndReturn
+   */
+  export type YieldEventUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the YieldEvent
+     */
+    select?: YieldEventSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the YieldEvent
+     */
+    omit?: YieldEventOmit<ExtArgs> | null
+    /**
+     * The data used to update YieldEvents.
+     */
+    data: XOR<YieldEventUpdateManyMutationInput, YieldEventUncheckedUpdateManyInput>
+    /**
+     * Filter which YieldEvents to update
+     */
+    where?: YieldEventWhereInput
+    /**
+     * Limit how many YieldEvents to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: YieldEventIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * YieldEvent upsert
+   */
+  export type YieldEventUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the YieldEvent
+     */
+    select?: YieldEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the YieldEvent
+     */
+    omit?: YieldEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: YieldEventInclude<ExtArgs> | null
+    /**
+     * The filter to search for the YieldEvent to update in case it exists.
+     */
+    where: YieldEventWhereUniqueInput
+    /**
+     * In case the YieldEvent found by the `where` argument doesn't exist, create a new YieldEvent with this data.
+     */
+    create: XOR<YieldEventCreateInput, YieldEventUncheckedCreateInput>
+    /**
+     * In case the YieldEvent was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<YieldEventUpdateInput, YieldEventUncheckedUpdateInput>
+  }
+
+  /**
+   * YieldEvent delete
+   */
+  export type YieldEventDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the YieldEvent
+     */
+    select?: YieldEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the YieldEvent
+     */
+    omit?: YieldEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: YieldEventInclude<ExtArgs> | null
+    /**
+     * Filter which YieldEvent to delete.
+     */
+    where: YieldEventWhereUniqueInput
+  }
+
+  /**
+   * YieldEvent deleteMany
+   */
+  export type YieldEventDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which YieldEvents to delete
+     */
+    where?: YieldEventWhereInput
+    /**
+     * Limit how many YieldEvents to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * YieldEvent.envelope
+   */
+  export type YieldEvent$envelopeArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultEnvelope
+     */
+    select?: VaultEnvelopeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultEnvelope
+     */
+    omit?: VaultEnvelopeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultEnvelopeInclude<ExtArgs> | null
+    where?: VaultEnvelopeWhereInput
+  }
+
+  /**
+   * YieldEvent without action
+   */
+  export type YieldEventDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the YieldEvent
+     */
+    select?: YieldEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the YieldEvent
+     */
+    omit?: YieldEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: YieldEventInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model PaymentAttempt
+   */
+
+  export type AggregatePaymentAttempt = {
+    _count: PaymentAttemptCountAggregateOutputType | null
+    _avg: PaymentAttemptAvgAggregateOutputType | null
+    _sum: PaymentAttemptSumAggregateOutputType | null
+    _min: PaymentAttemptMinAggregateOutputType | null
+    _max: PaymentAttemptMaxAggregateOutputType | null
+  }
+
+  export type PaymentAttemptAvgAggregateOutputType = {
+    requestAmount: number | null
+  }
+
+  export type PaymentAttemptSumAggregateOutputType = {
+    requestAmount: number | null
+  }
+
+  export type PaymentAttemptMinAggregateOutputType = {
+    id: string | null
+    billId: string | null
+    providerName: string | null
+    idempotencyKey: string | null
+    requestAmount: number | null
+    result: string | null
+    transactionId: string | null
+    warningMessage: string | null
+    errorMessage: string | null
+    retryable: boolean | null
+    attemptedAt: Date | null
+    completedAt: Date | null
+  }
+
+  export type PaymentAttemptMaxAggregateOutputType = {
+    id: string | null
+    billId: string | null
+    providerName: string | null
+    idempotencyKey: string | null
+    requestAmount: number | null
+    result: string | null
+    transactionId: string | null
+    warningMessage: string | null
+    errorMessage: string | null
+    retryable: boolean | null
+    attemptedAt: Date | null
+    completedAt: Date | null
+  }
+
+  export type PaymentAttemptCountAggregateOutputType = {
+    id: number
+    billId: number
+    providerName: number
+    idempotencyKey: number
+    requestAmount: number
+    result: number
+    transactionId: number
+    warningMessage: number
+    errorMessage: number
+    retryable: number
+    attemptedAt: number
+    completedAt: number
+    _all: number
+  }
+
+
+  export type PaymentAttemptAvgAggregateInputType = {
+    requestAmount?: true
+  }
+
+  export type PaymentAttemptSumAggregateInputType = {
+    requestAmount?: true
+  }
+
+  export type PaymentAttemptMinAggregateInputType = {
+    id?: true
+    billId?: true
+    providerName?: true
+    idempotencyKey?: true
+    requestAmount?: true
+    result?: true
+    transactionId?: true
+    warningMessage?: true
+    errorMessage?: true
+    retryable?: true
+    attemptedAt?: true
+    completedAt?: true
+  }
+
+  export type PaymentAttemptMaxAggregateInputType = {
+    id?: true
+    billId?: true
+    providerName?: true
+    idempotencyKey?: true
+    requestAmount?: true
+    result?: true
+    transactionId?: true
+    warningMessage?: true
+    errorMessage?: true
+    retryable?: true
+    attemptedAt?: true
+    completedAt?: true
+  }
+
+  export type PaymentAttemptCountAggregateInputType = {
+    id?: true
+    billId?: true
+    providerName?: true
+    idempotencyKey?: true
+    requestAmount?: true
+    result?: true
+    transactionId?: true
+    warningMessage?: true
+    errorMessage?: true
+    retryable?: true
+    attemptedAt?: true
+    completedAt?: true
+    _all?: true
+  }
+
+  export type PaymentAttemptAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which PaymentAttempt to aggregate.
+     */
+    where?: PaymentAttemptWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PaymentAttempts to fetch.
+     */
+    orderBy?: PaymentAttemptOrderByWithRelationInput | PaymentAttemptOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: PaymentAttemptWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PaymentAttempts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PaymentAttempts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned PaymentAttempts
+    **/
+    _count?: true | PaymentAttemptCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: PaymentAttemptAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: PaymentAttemptSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: PaymentAttemptMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: PaymentAttemptMaxAggregateInputType
+  }
+
+  export type GetPaymentAttemptAggregateType<T extends PaymentAttemptAggregateArgs> = {
+        [P in keyof T & keyof AggregatePaymentAttempt]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregatePaymentAttempt[P]>
+      : GetScalarType<T[P], AggregatePaymentAttempt[P]>
+  }
+
+
+
+
+  export type PaymentAttemptGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: PaymentAttemptWhereInput
+    orderBy?: PaymentAttemptOrderByWithAggregationInput | PaymentAttemptOrderByWithAggregationInput[]
+    by: PaymentAttemptScalarFieldEnum[] | PaymentAttemptScalarFieldEnum
+    having?: PaymentAttemptScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: PaymentAttemptCountAggregateInputType | true
+    _avg?: PaymentAttemptAvgAggregateInputType
+    _sum?: PaymentAttemptSumAggregateInputType
+    _min?: PaymentAttemptMinAggregateInputType
+    _max?: PaymentAttemptMaxAggregateInputType
+  }
+
+  export type PaymentAttemptGroupByOutputType = {
+    id: string
+    billId: string
+    providerName: string
+    idempotencyKey: string
+    requestAmount: number
+    result: string
+    transactionId: string | null
+    warningMessage: string | null
+    errorMessage: string | null
+    retryable: boolean
+    attemptedAt: Date
+    completedAt: Date | null
+    _count: PaymentAttemptCountAggregateOutputType | null
+    _avg: PaymentAttemptAvgAggregateOutputType | null
+    _sum: PaymentAttemptSumAggregateOutputType | null
+    _min: PaymentAttemptMinAggregateOutputType | null
+    _max: PaymentAttemptMaxAggregateOutputType | null
+  }
+
+  type GetPaymentAttemptGroupByPayload<T extends PaymentAttemptGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<PaymentAttemptGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof PaymentAttemptGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], PaymentAttemptGroupByOutputType[P]>
+            : GetScalarType<T[P], PaymentAttemptGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type PaymentAttemptSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    billId?: boolean
+    providerName?: boolean
+    idempotencyKey?: boolean
+    requestAmount?: boolean
+    result?: boolean
+    transactionId?: boolean
+    warningMessage?: boolean
+    errorMessage?: boolean
+    retryable?: boolean
+    attemptedAt?: boolean
+    completedAt?: boolean
+    bill?: boolean | ScheduledBillDefaultArgs<ExtArgs>
+    providerEvents?: boolean | PaymentAttempt$providerEventsArgs<ExtArgs>
+    _count?: boolean | PaymentAttemptCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["paymentAttempt"]>
+
+  export type PaymentAttemptSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    billId?: boolean
+    providerName?: boolean
+    idempotencyKey?: boolean
+    requestAmount?: boolean
+    result?: boolean
+    transactionId?: boolean
+    warningMessage?: boolean
+    errorMessage?: boolean
+    retryable?: boolean
+    attemptedAt?: boolean
+    completedAt?: boolean
+    bill?: boolean | ScheduledBillDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["paymentAttempt"]>
+
+  export type PaymentAttemptSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    billId?: boolean
+    providerName?: boolean
+    idempotencyKey?: boolean
+    requestAmount?: boolean
+    result?: boolean
+    transactionId?: boolean
+    warningMessage?: boolean
+    errorMessage?: boolean
+    retryable?: boolean
+    attemptedAt?: boolean
+    completedAt?: boolean
+    bill?: boolean | ScheduledBillDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["paymentAttempt"]>
+
+  export type PaymentAttemptSelectScalar = {
+    id?: boolean
+    billId?: boolean
+    providerName?: boolean
+    idempotencyKey?: boolean
+    requestAmount?: boolean
+    result?: boolean
+    transactionId?: boolean
+    warningMessage?: boolean
+    errorMessage?: boolean
+    retryable?: boolean
+    attemptedAt?: boolean
+    completedAt?: boolean
+  }
+
+  export type PaymentAttemptOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "billId" | "providerName" | "idempotencyKey" | "requestAmount" | "result" | "transactionId" | "warningMessage" | "errorMessage" | "retryable" | "attemptedAt" | "completedAt", ExtArgs["result"]["paymentAttempt"]>
+  export type PaymentAttemptInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    bill?: boolean | ScheduledBillDefaultArgs<ExtArgs>
+    providerEvents?: boolean | PaymentAttempt$providerEventsArgs<ExtArgs>
+    _count?: boolean | PaymentAttemptCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type PaymentAttemptIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    bill?: boolean | ScheduledBillDefaultArgs<ExtArgs>
+  }
+  export type PaymentAttemptIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    bill?: boolean | ScheduledBillDefaultArgs<ExtArgs>
+  }
+
+  export type $PaymentAttemptPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "PaymentAttempt"
+    objects: {
+      bill: Prisma.$ScheduledBillPayload<ExtArgs>
+      providerEvents: Prisma.$ProviderEventPayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      billId: string
+      providerName: string
+      /**
+       * Caller-supplied idempotency key. Unique per provider.
+       */
+      idempotencyKey: string
+      requestAmount: number
+      /**
+       * SUCCESS | DEGRADED | FAILURE
+       */
+      result: string
+      transactionId: string | null
+      warningMessage: string | null
+      errorMessage: string | null
+      retryable: boolean
+      attemptedAt: Date
+      completedAt: Date | null
+    }, ExtArgs["result"]["paymentAttempt"]>
+    composites: {}
+  }
+
+  type PaymentAttemptGetPayload<S extends boolean | null | undefined | PaymentAttemptDefaultArgs> = $Result.GetResult<Prisma.$PaymentAttemptPayload, S>
+
+  type PaymentAttemptCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<PaymentAttemptFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: PaymentAttemptCountAggregateInputType | true
+    }
+
+  export interface PaymentAttemptDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['PaymentAttempt'], meta: { name: 'PaymentAttempt' } }
+    /**
+     * Find zero or one PaymentAttempt that matches the filter.
+     * @param {PaymentAttemptFindUniqueArgs} args - Arguments to find a PaymentAttempt
+     * @example
+     * // Get one PaymentAttempt
+     * const paymentAttempt = await prisma.paymentAttempt.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends PaymentAttemptFindUniqueArgs>(args: SelectSubset<T, PaymentAttemptFindUniqueArgs<ExtArgs>>): Prisma__PaymentAttemptClient<$Result.GetResult<Prisma.$PaymentAttemptPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one PaymentAttempt that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {PaymentAttemptFindUniqueOrThrowArgs} args - Arguments to find a PaymentAttempt
+     * @example
+     * // Get one PaymentAttempt
+     * const paymentAttempt = await prisma.paymentAttempt.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends PaymentAttemptFindUniqueOrThrowArgs>(args: SelectSubset<T, PaymentAttemptFindUniqueOrThrowArgs<ExtArgs>>): Prisma__PaymentAttemptClient<$Result.GetResult<Prisma.$PaymentAttemptPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first PaymentAttempt that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PaymentAttemptFindFirstArgs} args - Arguments to find a PaymentAttempt
+     * @example
+     * // Get one PaymentAttempt
+     * const paymentAttempt = await prisma.paymentAttempt.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends PaymentAttemptFindFirstArgs>(args?: SelectSubset<T, PaymentAttemptFindFirstArgs<ExtArgs>>): Prisma__PaymentAttemptClient<$Result.GetResult<Prisma.$PaymentAttemptPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first PaymentAttempt that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PaymentAttemptFindFirstOrThrowArgs} args - Arguments to find a PaymentAttempt
+     * @example
+     * // Get one PaymentAttempt
+     * const paymentAttempt = await prisma.paymentAttempt.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends PaymentAttemptFindFirstOrThrowArgs>(args?: SelectSubset<T, PaymentAttemptFindFirstOrThrowArgs<ExtArgs>>): Prisma__PaymentAttemptClient<$Result.GetResult<Prisma.$PaymentAttemptPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more PaymentAttempts that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PaymentAttemptFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all PaymentAttempts
+     * const paymentAttempts = await prisma.paymentAttempt.findMany()
+     * 
+     * // Get first 10 PaymentAttempts
+     * const paymentAttempts = await prisma.paymentAttempt.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const paymentAttemptWithIdOnly = await prisma.paymentAttempt.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends PaymentAttemptFindManyArgs>(args?: SelectSubset<T, PaymentAttemptFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PaymentAttemptPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a PaymentAttempt.
+     * @param {PaymentAttemptCreateArgs} args - Arguments to create a PaymentAttempt.
+     * @example
+     * // Create one PaymentAttempt
+     * const PaymentAttempt = await prisma.paymentAttempt.create({
+     *   data: {
+     *     // ... data to create a PaymentAttempt
+     *   }
+     * })
+     * 
+     */
+    create<T extends PaymentAttemptCreateArgs>(args: SelectSubset<T, PaymentAttemptCreateArgs<ExtArgs>>): Prisma__PaymentAttemptClient<$Result.GetResult<Prisma.$PaymentAttemptPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many PaymentAttempts.
+     * @param {PaymentAttemptCreateManyArgs} args - Arguments to create many PaymentAttempts.
+     * @example
+     * // Create many PaymentAttempts
+     * const paymentAttempt = await prisma.paymentAttempt.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends PaymentAttemptCreateManyArgs>(args?: SelectSubset<T, PaymentAttemptCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many PaymentAttempts and returns the data saved in the database.
+     * @param {PaymentAttemptCreateManyAndReturnArgs} args - Arguments to create many PaymentAttempts.
+     * @example
+     * // Create many PaymentAttempts
+     * const paymentAttempt = await prisma.paymentAttempt.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many PaymentAttempts and only return the `id`
+     * const paymentAttemptWithIdOnly = await prisma.paymentAttempt.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends PaymentAttemptCreateManyAndReturnArgs>(args?: SelectSubset<T, PaymentAttemptCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PaymentAttemptPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a PaymentAttempt.
+     * @param {PaymentAttemptDeleteArgs} args - Arguments to delete one PaymentAttempt.
+     * @example
+     * // Delete one PaymentAttempt
+     * const PaymentAttempt = await prisma.paymentAttempt.delete({
+     *   where: {
+     *     // ... filter to delete one PaymentAttempt
+     *   }
+     * })
+     * 
+     */
+    delete<T extends PaymentAttemptDeleteArgs>(args: SelectSubset<T, PaymentAttemptDeleteArgs<ExtArgs>>): Prisma__PaymentAttemptClient<$Result.GetResult<Prisma.$PaymentAttemptPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one PaymentAttempt.
+     * @param {PaymentAttemptUpdateArgs} args - Arguments to update one PaymentAttempt.
+     * @example
+     * // Update one PaymentAttempt
+     * const paymentAttempt = await prisma.paymentAttempt.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends PaymentAttemptUpdateArgs>(args: SelectSubset<T, PaymentAttemptUpdateArgs<ExtArgs>>): Prisma__PaymentAttemptClient<$Result.GetResult<Prisma.$PaymentAttemptPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more PaymentAttempts.
+     * @param {PaymentAttemptDeleteManyArgs} args - Arguments to filter PaymentAttempts to delete.
+     * @example
+     * // Delete a few PaymentAttempts
+     * const { count } = await prisma.paymentAttempt.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends PaymentAttemptDeleteManyArgs>(args?: SelectSubset<T, PaymentAttemptDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more PaymentAttempts.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PaymentAttemptUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many PaymentAttempts
+     * const paymentAttempt = await prisma.paymentAttempt.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends PaymentAttemptUpdateManyArgs>(args: SelectSubset<T, PaymentAttemptUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more PaymentAttempts and returns the data updated in the database.
+     * @param {PaymentAttemptUpdateManyAndReturnArgs} args - Arguments to update many PaymentAttempts.
+     * @example
+     * // Update many PaymentAttempts
+     * const paymentAttempt = await prisma.paymentAttempt.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more PaymentAttempts and only return the `id`
+     * const paymentAttemptWithIdOnly = await prisma.paymentAttempt.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends PaymentAttemptUpdateManyAndReturnArgs>(args: SelectSubset<T, PaymentAttemptUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PaymentAttemptPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one PaymentAttempt.
+     * @param {PaymentAttemptUpsertArgs} args - Arguments to update or create a PaymentAttempt.
+     * @example
+     * // Update or create a PaymentAttempt
+     * const paymentAttempt = await prisma.paymentAttempt.upsert({
+     *   create: {
+     *     // ... data to create a PaymentAttempt
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the PaymentAttempt we want to update
+     *   }
+     * })
+     */
+    upsert<T extends PaymentAttemptUpsertArgs>(args: SelectSubset<T, PaymentAttemptUpsertArgs<ExtArgs>>): Prisma__PaymentAttemptClient<$Result.GetResult<Prisma.$PaymentAttemptPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of PaymentAttempts.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PaymentAttemptCountArgs} args - Arguments to filter PaymentAttempts to count.
+     * @example
+     * // Count the number of PaymentAttempts
+     * const count = await prisma.paymentAttempt.count({
+     *   where: {
+     *     // ... the filter for the PaymentAttempts we want to count
+     *   }
+     * })
+    **/
+    count<T extends PaymentAttemptCountArgs>(
+      args?: Subset<T, PaymentAttemptCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], PaymentAttemptCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a PaymentAttempt.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PaymentAttemptAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends PaymentAttemptAggregateArgs>(args: Subset<T, PaymentAttemptAggregateArgs>): Prisma.PrismaPromise<GetPaymentAttemptAggregateType<T>>
+
+    /**
+     * Group by PaymentAttempt.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PaymentAttemptGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends PaymentAttemptGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: PaymentAttemptGroupByArgs['orderBy'] }
+        : { orderBy?: PaymentAttemptGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, PaymentAttemptGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetPaymentAttemptGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the PaymentAttempt model
+   */
+  readonly fields: PaymentAttemptFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for PaymentAttempt.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__PaymentAttemptClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    bill<T extends ScheduledBillDefaultArgs<ExtArgs> = {}>(args?: Subset<T, ScheduledBillDefaultArgs<ExtArgs>>): Prisma__ScheduledBillClient<$Result.GetResult<Prisma.$ScheduledBillPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    providerEvents<T extends PaymentAttempt$providerEventsArgs<ExtArgs> = {}>(args?: Subset<T, PaymentAttempt$providerEventsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ProviderEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the PaymentAttempt model
+   */
+  interface PaymentAttemptFieldRefs {
+    readonly id: FieldRef<"PaymentAttempt", 'String'>
+    readonly billId: FieldRef<"PaymentAttempt", 'String'>
+    readonly providerName: FieldRef<"PaymentAttempt", 'String'>
+    readonly idempotencyKey: FieldRef<"PaymentAttempt", 'String'>
+    readonly requestAmount: FieldRef<"PaymentAttempt", 'Int'>
+    readonly result: FieldRef<"PaymentAttempt", 'String'>
+    readonly transactionId: FieldRef<"PaymentAttempt", 'String'>
+    readonly warningMessage: FieldRef<"PaymentAttempt", 'String'>
+    readonly errorMessage: FieldRef<"PaymentAttempt", 'String'>
+    readonly retryable: FieldRef<"PaymentAttempt", 'Boolean'>
+    readonly attemptedAt: FieldRef<"PaymentAttempt", 'DateTime'>
+    readonly completedAt: FieldRef<"PaymentAttempt", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * PaymentAttempt findUnique
+   */
+  export type PaymentAttemptFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaymentAttempt
+     */
+    select?: PaymentAttemptSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaymentAttempt
+     */
+    omit?: PaymentAttemptOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaymentAttemptInclude<ExtArgs> | null
+    /**
+     * Filter, which PaymentAttempt to fetch.
+     */
+    where: PaymentAttemptWhereUniqueInput
+  }
+
+  /**
+   * PaymentAttempt findUniqueOrThrow
+   */
+  export type PaymentAttemptFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaymentAttempt
+     */
+    select?: PaymentAttemptSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaymentAttempt
+     */
+    omit?: PaymentAttemptOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaymentAttemptInclude<ExtArgs> | null
+    /**
+     * Filter, which PaymentAttempt to fetch.
+     */
+    where: PaymentAttemptWhereUniqueInput
+  }
+
+  /**
+   * PaymentAttempt findFirst
+   */
+  export type PaymentAttemptFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaymentAttempt
+     */
+    select?: PaymentAttemptSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaymentAttempt
+     */
+    omit?: PaymentAttemptOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaymentAttemptInclude<ExtArgs> | null
+    /**
+     * Filter, which PaymentAttempt to fetch.
+     */
+    where?: PaymentAttemptWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PaymentAttempts to fetch.
+     */
+    orderBy?: PaymentAttemptOrderByWithRelationInput | PaymentAttemptOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for PaymentAttempts.
+     */
+    cursor?: PaymentAttemptWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PaymentAttempts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PaymentAttempts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of PaymentAttempts.
+     */
+    distinct?: PaymentAttemptScalarFieldEnum | PaymentAttemptScalarFieldEnum[]
+  }
+
+  /**
+   * PaymentAttempt findFirstOrThrow
+   */
+  export type PaymentAttemptFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaymentAttempt
+     */
+    select?: PaymentAttemptSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaymentAttempt
+     */
+    omit?: PaymentAttemptOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaymentAttemptInclude<ExtArgs> | null
+    /**
+     * Filter, which PaymentAttempt to fetch.
+     */
+    where?: PaymentAttemptWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PaymentAttempts to fetch.
+     */
+    orderBy?: PaymentAttemptOrderByWithRelationInput | PaymentAttemptOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for PaymentAttempts.
+     */
+    cursor?: PaymentAttemptWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PaymentAttempts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PaymentAttempts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of PaymentAttempts.
+     */
+    distinct?: PaymentAttemptScalarFieldEnum | PaymentAttemptScalarFieldEnum[]
+  }
+
+  /**
+   * PaymentAttempt findMany
+   */
+  export type PaymentAttemptFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaymentAttempt
+     */
+    select?: PaymentAttemptSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaymentAttempt
+     */
+    omit?: PaymentAttemptOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaymentAttemptInclude<ExtArgs> | null
+    /**
+     * Filter, which PaymentAttempts to fetch.
+     */
+    where?: PaymentAttemptWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PaymentAttempts to fetch.
+     */
+    orderBy?: PaymentAttemptOrderByWithRelationInput | PaymentAttemptOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing PaymentAttempts.
+     */
+    cursor?: PaymentAttemptWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PaymentAttempts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PaymentAttempts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of PaymentAttempts.
+     */
+    distinct?: PaymentAttemptScalarFieldEnum | PaymentAttemptScalarFieldEnum[]
+  }
+
+  /**
+   * PaymentAttempt create
+   */
+  export type PaymentAttemptCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaymentAttempt
+     */
+    select?: PaymentAttemptSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaymentAttempt
+     */
+    omit?: PaymentAttemptOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaymentAttemptInclude<ExtArgs> | null
+    /**
+     * The data needed to create a PaymentAttempt.
+     */
+    data: XOR<PaymentAttemptCreateInput, PaymentAttemptUncheckedCreateInput>
+  }
+
+  /**
+   * PaymentAttempt createMany
+   */
+  export type PaymentAttemptCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many PaymentAttempts.
+     */
+    data: PaymentAttemptCreateManyInput | PaymentAttemptCreateManyInput[]
+  }
+
+  /**
+   * PaymentAttempt createManyAndReturn
+   */
+  export type PaymentAttemptCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaymentAttempt
+     */
+    select?: PaymentAttemptSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaymentAttempt
+     */
+    omit?: PaymentAttemptOmit<ExtArgs> | null
+    /**
+     * The data used to create many PaymentAttempts.
+     */
+    data: PaymentAttemptCreateManyInput | PaymentAttemptCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaymentAttemptIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * PaymentAttempt update
+   */
+  export type PaymentAttemptUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaymentAttempt
+     */
+    select?: PaymentAttemptSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaymentAttempt
+     */
+    omit?: PaymentAttemptOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaymentAttemptInclude<ExtArgs> | null
+    /**
+     * The data needed to update a PaymentAttempt.
+     */
+    data: XOR<PaymentAttemptUpdateInput, PaymentAttemptUncheckedUpdateInput>
+    /**
+     * Choose, which PaymentAttempt to update.
+     */
+    where: PaymentAttemptWhereUniqueInput
+  }
+
+  /**
+   * PaymentAttempt updateMany
+   */
+  export type PaymentAttemptUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update PaymentAttempts.
+     */
+    data: XOR<PaymentAttemptUpdateManyMutationInput, PaymentAttemptUncheckedUpdateManyInput>
+    /**
+     * Filter which PaymentAttempts to update
+     */
+    where?: PaymentAttemptWhereInput
+    /**
+     * Limit how many PaymentAttempts to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * PaymentAttempt updateManyAndReturn
+   */
+  export type PaymentAttemptUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaymentAttempt
+     */
+    select?: PaymentAttemptSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaymentAttempt
+     */
+    omit?: PaymentAttemptOmit<ExtArgs> | null
+    /**
+     * The data used to update PaymentAttempts.
+     */
+    data: XOR<PaymentAttemptUpdateManyMutationInput, PaymentAttemptUncheckedUpdateManyInput>
+    /**
+     * Filter which PaymentAttempts to update
+     */
+    where?: PaymentAttemptWhereInput
+    /**
+     * Limit how many PaymentAttempts to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaymentAttemptIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * PaymentAttempt upsert
+   */
+  export type PaymentAttemptUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaymentAttempt
+     */
+    select?: PaymentAttemptSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaymentAttempt
+     */
+    omit?: PaymentAttemptOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaymentAttemptInclude<ExtArgs> | null
+    /**
+     * The filter to search for the PaymentAttempt to update in case it exists.
+     */
+    where: PaymentAttemptWhereUniqueInput
+    /**
+     * In case the PaymentAttempt found by the `where` argument doesn't exist, create a new PaymentAttempt with this data.
+     */
+    create: XOR<PaymentAttemptCreateInput, PaymentAttemptUncheckedCreateInput>
+    /**
+     * In case the PaymentAttempt was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<PaymentAttemptUpdateInput, PaymentAttemptUncheckedUpdateInput>
+  }
+
+  /**
+   * PaymentAttempt delete
+   */
+  export type PaymentAttemptDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaymentAttempt
+     */
+    select?: PaymentAttemptSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaymentAttempt
+     */
+    omit?: PaymentAttemptOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaymentAttemptInclude<ExtArgs> | null
+    /**
+     * Filter which PaymentAttempt to delete.
+     */
+    where: PaymentAttemptWhereUniqueInput
+  }
+
+  /**
+   * PaymentAttempt deleteMany
+   */
+  export type PaymentAttemptDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which PaymentAttempts to delete
+     */
+    where?: PaymentAttemptWhereInput
+    /**
+     * Limit how many PaymentAttempts to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * PaymentAttempt.providerEvents
+   */
+  export type PaymentAttempt$providerEventsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderEvent
+     */
+    select?: ProviderEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProviderEvent
+     */
+    omit?: ProviderEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProviderEventInclude<ExtArgs> | null
+    where?: ProviderEventWhereInput
+    orderBy?: ProviderEventOrderByWithRelationInput | ProviderEventOrderByWithRelationInput[]
+    cursor?: ProviderEventWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: ProviderEventScalarFieldEnum | ProviderEventScalarFieldEnum[]
+  }
+
+  /**
+   * PaymentAttempt without action
+   */
+  export type PaymentAttemptDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaymentAttempt
+     */
+    select?: PaymentAttemptSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaymentAttempt
+     */
+    omit?: PaymentAttemptOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaymentAttemptInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model ProviderEvent
+   */
+
+  export type AggregateProviderEvent = {
+    _count: ProviderEventCountAggregateOutputType | null
+    _min: ProviderEventMinAggregateOutputType | null
+    _max: ProviderEventMaxAggregateOutputType | null
+  }
+
+  export type ProviderEventMinAggregateOutputType = {
+    id: string | null
+    attemptId: string | null
+    providerName: string | null
+    eventType: string | null
+    payload: string | null
+    occurredAt: Date | null
+  }
+
+  export type ProviderEventMaxAggregateOutputType = {
+    id: string | null
+    attemptId: string | null
+    providerName: string | null
+    eventType: string | null
+    payload: string | null
+    occurredAt: Date | null
+  }
+
+  export type ProviderEventCountAggregateOutputType = {
+    id: number
+    attemptId: number
+    providerName: number
+    eventType: number
+    payload: number
+    occurredAt: number
+    _all: number
+  }
+
+
+  export type ProviderEventMinAggregateInputType = {
+    id?: true
+    attemptId?: true
+    providerName?: true
+    eventType?: true
+    payload?: true
+    occurredAt?: true
+  }
+
+  export type ProviderEventMaxAggregateInputType = {
+    id?: true
+    attemptId?: true
+    providerName?: true
+    eventType?: true
+    payload?: true
+    occurredAt?: true
+  }
+
+  export type ProviderEventCountAggregateInputType = {
+    id?: true
+    attemptId?: true
+    providerName?: true
+    eventType?: true
+    payload?: true
+    occurredAt?: true
+    _all?: true
+  }
+
+  export type ProviderEventAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ProviderEvent to aggregate.
+     */
+    where?: ProviderEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ProviderEvents to fetch.
+     */
+    orderBy?: ProviderEventOrderByWithRelationInput | ProviderEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: ProviderEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ProviderEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ProviderEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned ProviderEvents
+    **/
+    _count?: true | ProviderEventCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: ProviderEventMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: ProviderEventMaxAggregateInputType
+  }
+
+  export type GetProviderEventAggregateType<T extends ProviderEventAggregateArgs> = {
+        [P in keyof T & keyof AggregateProviderEvent]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateProviderEvent[P]>
+      : GetScalarType<T[P], AggregateProviderEvent[P]>
+  }
+
+
+
+
+  export type ProviderEventGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ProviderEventWhereInput
+    orderBy?: ProviderEventOrderByWithAggregationInput | ProviderEventOrderByWithAggregationInput[]
+    by: ProviderEventScalarFieldEnum[] | ProviderEventScalarFieldEnum
+    having?: ProviderEventScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: ProviderEventCountAggregateInputType | true
+    _min?: ProviderEventMinAggregateInputType
+    _max?: ProviderEventMaxAggregateInputType
+  }
+
+  export type ProviderEventGroupByOutputType = {
+    id: string
+    attemptId: string
+    providerName: string
+    eventType: string
+    payload: string
+    occurredAt: Date
+    _count: ProviderEventCountAggregateOutputType | null
+    _min: ProviderEventMinAggregateOutputType | null
+    _max: ProviderEventMaxAggregateOutputType | null
+  }
+
+  type GetProviderEventGroupByPayload<T extends ProviderEventGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<ProviderEventGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof ProviderEventGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], ProviderEventGroupByOutputType[P]>
+            : GetScalarType<T[P], ProviderEventGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type ProviderEventSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    attemptId?: boolean
+    providerName?: boolean
+    eventType?: boolean
+    payload?: boolean
+    occurredAt?: boolean
+    attempt?: boolean | PaymentAttemptDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["providerEvent"]>
+
+  export type ProviderEventSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    attemptId?: boolean
+    providerName?: boolean
+    eventType?: boolean
+    payload?: boolean
+    occurredAt?: boolean
+    attempt?: boolean | PaymentAttemptDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["providerEvent"]>
+
+  export type ProviderEventSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    attemptId?: boolean
+    providerName?: boolean
+    eventType?: boolean
+    payload?: boolean
+    occurredAt?: boolean
+    attempt?: boolean | PaymentAttemptDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["providerEvent"]>
+
+  export type ProviderEventSelectScalar = {
+    id?: boolean
+    attemptId?: boolean
+    providerName?: boolean
+    eventType?: boolean
+    payload?: boolean
+    occurredAt?: boolean
+  }
+
+  export type ProviderEventOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "attemptId" | "providerName" | "eventType" | "payload" | "occurredAt", ExtArgs["result"]["providerEvent"]>
+  export type ProviderEventInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    attempt?: boolean | PaymentAttemptDefaultArgs<ExtArgs>
+  }
+  export type ProviderEventIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    attempt?: boolean | PaymentAttemptDefaultArgs<ExtArgs>
+  }
+  export type ProviderEventIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    attempt?: boolean | PaymentAttemptDefaultArgs<ExtArgs>
+  }
+
+  export type $ProviderEventPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "ProviderEvent"
+    objects: {
+      attempt: Prisma.$PaymentAttemptPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      attemptId: string
+      providerName: string
+      /**
+       * REQUEST | RESPONSE | WEBHOOK | RETRY | SETTLED
+       */
+      eventType: string
+      /**
+       * JSON-encoded payload, the request body, the response body, etc.
+       */
+      payload: string
+      occurredAt: Date
+    }, ExtArgs["result"]["providerEvent"]>
+    composites: {}
+  }
+
+  type ProviderEventGetPayload<S extends boolean | null | undefined | ProviderEventDefaultArgs> = $Result.GetResult<Prisma.$ProviderEventPayload, S>
+
+  type ProviderEventCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<ProviderEventFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: ProviderEventCountAggregateInputType | true
+    }
+
+  export interface ProviderEventDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['ProviderEvent'], meta: { name: 'ProviderEvent' } }
+    /**
+     * Find zero or one ProviderEvent that matches the filter.
+     * @param {ProviderEventFindUniqueArgs} args - Arguments to find a ProviderEvent
+     * @example
+     * // Get one ProviderEvent
+     * const providerEvent = await prisma.providerEvent.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends ProviderEventFindUniqueArgs>(args: SelectSubset<T, ProviderEventFindUniqueArgs<ExtArgs>>): Prisma__ProviderEventClient<$Result.GetResult<Prisma.$ProviderEventPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one ProviderEvent that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {ProviderEventFindUniqueOrThrowArgs} args - Arguments to find a ProviderEvent
+     * @example
+     * // Get one ProviderEvent
+     * const providerEvent = await prisma.providerEvent.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends ProviderEventFindUniqueOrThrowArgs>(args: SelectSubset<T, ProviderEventFindUniqueOrThrowArgs<ExtArgs>>): Prisma__ProviderEventClient<$Result.GetResult<Prisma.$ProviderEventPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first ProviderEvent that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProviderEventFindFirstArgs} args - Arguments to find a ProviderEvent
+     * @example
+     * // Get one ProviderEvent
+     * const providerEvent = await prisma.providerEvent.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends ProviderEventFindFirstArgs>(args?: SelectSubset<T, ProviderEventFindFirstArgs<ExtArgs>>): Prisma__ProviderEventClient<$Result.GetResult<Prisma.$ProviderEventPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first ProviderEvent that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProviderEventFindFirstOrThrowArgs} args - Arguments to find a ProviderEvent
+     * @example
+     * // Get one ProviderEvent
+     * const providerEvent = await prisma.providerEvent.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends ProviderEventFindFirstOrThrowArgs>(args?: SelectSubset<T, ProviderEventFindFirstOrThrowArgs<ExtArgs>>): Prisma__ProviderEventClient<$Result.GetResult<Prisma.$ProviderEventPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more ProviderEvents that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProviderEventFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all ProviderEvents
+     * const providerEvents = await prisma.providerEvent.findMany()
+     * 
+     * // Get first 10 ProviderEvents
+     * const providerEvents = await prisma.providerEvent.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const providerEventWithIdOnly = await prisma.providerEvent.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends ProviderEventFindManyArgs>(args?: SelectSubset<T, ProviderEventFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ProviderEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a ProviderEvent.
+     * @param {ProviderEventCreateArgs} args - Arguments to create a ProviderEvent.
+     * @example
+     * // Create one ProviderEvent
+     * const ProviderEvent = await prisma.providerEvent.create({
+     *   data: {
+     *     // ... data to create a ProviderEvent
+     *   }
+     * })
+     * 
+     */
+    create<T extends ProviderEventCreateArgs>(args: SelectSubset<T, ProviderEventCreateArgs<ExtArgs>>): Prisma__ProviderEventClient<$Result.GetResult<Prisma.$ProviderEventPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many ProviderEvents.
+     * @param {ProviderEventCreateManyArgs} args - Arguments to create many ProviderEvents.
+     * @example
+     * // Create many ProviderEvents
+     * const providerEvent = await prisma.providerEvent.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends ProviderEventCreateManyArgs>(args?: SelectSubset<T, ProviderEventCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many ProviderEvents and returns the data saved in the database.
+     * @param {ProviderEventCreateManyAndReturnArgs} args - Arguments to create many ProviderEvents.
+     * @example
+     * // Create many ProviderEvents
+     * const providerEvent = await prisma.providerEvent.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many ProviderEvents and only return the `id`
+     * const providerEventWithIdOnly = await prisma.providerEvent.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends ProviderEventCreateManyAndReturnArgs>(args?: SelectSubset<T, ProviderEventCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ProviderEventPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a ProviderEvent.
+     * @param {ProviderEventDeleteArgs} args - Arguments to delete one ProviderEvent.
+     * @example
+     * // Delete one ProviderEvent
+     * const ProviderEvent = await prisma.providerEvent.delete({
+     *   where: {
+     *     // ... filter to delete one ProviderEvent
+     *   }
+     * })
+     * 
+     */
+    delete<T extends ProviderEventDeleteArgs>(args: SelectSubset<T, ProviderEventDeleteArgs<ExtArgs>>): Prisma__ProviderEventClient<$Result.GetResult<Prisma.$ProviderEventPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one ProviderEvent.
+     * @param {ProviderEventUpdateArgs} args - Arguments to update one ProviderEvent.
+     * @example
+     * // Update one ProviderEvent
+     * const providerEvent = await prisma.providerEvent.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends ProviderEventUpdateArgs>(args: SelectSubset<T, ProviderEventUpdateArgs<ExtArgs>>): Prisma__ProviderEventClient<$Result.GetResult<Prisma.$ProviderEventPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more ProviderEvents.
+     * @param {ProviderEventDeleteManyArgs} args - Arguments to filter ProviderEvents to delete.
+     * @example
+     * // Delete a few ProviderEvents
+     * const { count } = await prisma.providerEvent.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends ProviderEventDeleteManyArgs>(args?: SelectSubset<T, ProviderEventDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ProviderEvents.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProviderEventUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many ProviderEvents
+     * const providerEvent = await prisma.providerEvent.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends ProviderEventUpdateManyArgs>(args: SelectSubset<T, ProviderEventUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ProviderEvents and returns the data updated in the database.
+     * @param {ProviderEventUpdateManyAndReturnArgs} args - Arguments to update many ProviderEvents.
+     * @example
+     * // Update many ProviderEvents
+     * const providerEvent = await prisma.providerEvent.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more ProviderEvents and only return the `id`
+     * const providerEventWithIdOnly = await prisma.providerEvent.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends ProviderEventUpdateManyAndReturnArgs>(args: SelectSubset<T, ProviderEventUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ProviderEventPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one ProviderEvent.
+     * @param {ProviderEventUpsertArgs} args - Arguments to update or create a ProviderEvent.
+     * @example
+     * // Update or create a ProviderEvent
+     * const providerEvent = await prisma.providerEvent.upsert({
+     *   create: {
+     *     // ... data to create a ProviderEvent
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the ProviderEvent we want to update
+     *   }
+     * })
+     */
+    upsert<T extends ProviderEventUpsertArgs>(args: SelectSubset<T, ProviderEventUpsertArgs<ExtArgs>>): Prisma__ProviderEventClient<$Result.GetResult<Prisma.$ProviderEventPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of ProviderEvents.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProviderEventCountArgs} args - Arguments to filter ProviderEvents to count.
+     * @example
+     * // Count the number of ProviderEvents
+     * const count = await prisma.providerEvent.count({
+     *   where: {
+     *     // ... the filter for the ProviderEvents we want to count
+     *   }
+     * })
+    **/
+    count<T extends ProviderEventCountArgs>(
+      args?: Subset<T, ProviderEventCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], ProviderEventCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a ProviderEvent.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProviderEventAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends ProviderEventAggregateArgs>(args: Subset<T, ProviderEventAggregateArgs>): Prisma.PrismaPromise<GetProviderEventAggregateType<T>>
+
+    /**
+     * Group by ProviderEvent.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProviderEventGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends ProviderEventGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: ProviderEventGroupByArgs['orderBy'] }
+        : { orderBy?: ProviderEventGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, ProviderEventGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetProviderEventGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the ProviderEvent model
+   */
+  readonly fields: ProviderEventFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for ProviderEvent.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__ProviderEventClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    attempt<T extends PaymentAttemptDefaultArgs<ExtArgs> = {}>(args?: Subset<T, PaymentAttemptDefaultArgs<ExtArgs>>): Prisma__PaymentAttemptClient<$Result.GetResult<Prisma.$PaymentAttemptPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the ProviderEvent model
+   */
+  interface ProviderEventFieldRefs {
+    readonly id: FieldRef<"ProviderEvent", 'String'>
+    readonly attemptId: FieldRef<"ProviderEvent", 'String'>
+    readonly providerName: FieldRef<"ProviderEvent", 'String'>
+    readonly eventType: FieldRef<"ProviderEvent", 'String'>
+    readonly payload: FieldRef<"ProviderEvent", 'String'>
+    readonly occurredAt: FieldRef<"ProviderEvent", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * ProviderEvent findUnique
+   */
+  export type ProviderEventFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderEvent
+     */
+    select?: ProviderEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProviderEvent
+     */
+    omit?: ProviderEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProviderEventInclude<ExtArgs> | null
+    /**
+     * Filter, which ProviderEvent to fetch.
+     */
+    where: ProviderEventWhereUniqueInput
+  }
+
+  /**
+   * ProviderEvent findUniqueOrThrow
+   */
+  export type ProviderEventFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderEvent
+     */
+    select?: ProviderEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProviderEvent
+     */
+    omit?: ProviderEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProviderEventInclude<ExtArgs> | null
+    /**
+     * Filter, which ProviderEvent to fetch.
+     */
+    where: ProviderEventWhereUniqueInput
+  }
+
+  /**
+   * ProviderEvent findFirst
+   */
+  export type ProviderEventFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderEvent
+     */
+    select?: ProviderEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProviderEvent
+     */
+    omit?: ProviderEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProviderEventInclude<ExtArgs> | null
+    /**
+     * Filter, which ProviderEvent to fetch.
+     */
+    where?: ProviderEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ProviderEvents to fetch.
+     */
+    orderBy?: ProviderEventOrderByWithRelationInput | ProviderEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ProviderEvents.
+     */
+    cursor?: ProviderEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ProviderEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ProviderEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ProviderEvents.
+     */
+    distinct?: ProviderEventScalarFieldEnum | ProviderEventScalarFieldEnum[]
+  }
+
+  /**
+   * ProviderEvent findFirstOrThrow
+   */
+  export type ProviderEventFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderEvent
+     */
+    select?: ProviderEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProviderEvent
+     */
+    omit?: ProviderEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProviderEventInclude<ExtArgs> | null
+    /**
+     * Filter, which ProviderEvent to fetch.
+     */
+    where?: ProviderEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ProviderEvents to fetch.
+     */
+    orderBy?: ProviderEventOrderByWithRelationInput | ProviderEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ProviderEvents.
+     */
+    cursor?: ProviderEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ProviderEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ProviderEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ProviderEvents.
+     */
+    distinct?: ProviderEventScalarFieldEnum | ProviderEventScalarFieldEnum[]
+  }
+
+  /**
+   * ProviderEvent findMany
+   */
+  export type ProviderEventFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderEvent
+     */
+    select?: ProviderEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProviderEvent
+     */
+    omit?: ProviderEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProviderEventInclude<ExtArgs> | null
+    /**
+     * Filter, which ProviderEvents to fetch.
+     */
+    where?: ProviderEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ProviderEvents to fetch.
+     */
+    orderBy?: ProviderEventOrderByWithRelationInput | ProviderEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing ProviderEvents.
+     */
+    cursor?: ProviderEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ProviderEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ProviderEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ProviderEvents.
+     */
+    distinct?: ProviderEventScalarFieldEnum | ProviderEventScalarFieldEnum[]
+  }
+
+  /**
+   * ProviderEvent create
+   */
+  export type ProviderEventCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderEvent
+     */
+    select?: ProviderEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProviderEvent
+     */
+    omit?: ProviderEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProviderEventInclude<ExtArgs> | null
+    /**
+     * The data needed to create a ProviderEvent.
+     */
+    data: XOR<ProviderEventCreateInput, ProviderEventUncheckedCreateInput>
+  }
+
+  /**
+   * ProviderEvent createMany
+   */
+  export type ProviderEventCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many ProviderEvents.
+     */
+    data: ProviderEventCreateManyInput | ProviderEventCreateManyInput[]
+  }
+
+  /**
+   * ProviderEvent createManyAndReturn
+   */
+  export type ProviderEventCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderEvent
+     */
+    select?: ProviderEventSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProviderEvent
+     */
+    omit?: ProviderEventOmit<ExtArgs> | null
+    /**
+     * The data used to create many ProviderEvents.
+     */
+    data: ProviderEventCreateManyInput | ProviderEventCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProviderEventIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * ProviderEvent update
+   */
+  export type ProviderEventUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderEvent
+     */
+    select?: ProviderEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProviderEvent
+     */
+    omit?: ProviderEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProviderEventInclude<ExtArgs> | null
+    /**
+     * The data needed to update a ProviderEvent.
+     */
+    data: XOR<ProviderEventUpdateInput, ProviderEventUncheckedUpdateInput>
+    /**
+     * Choose, which ProviderEvent to update.
+     */
+    where: ProviderEventWhereUniqueInput
+  }
+
+  /**
+   * ProviderEvent updateMany
+   */
+  export type ProviderEventUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update ProviderEvents.
+     */
+    data: XOR<ProviderEventUpdateManyMutationInput, ProviderEventUncheckedUpdateManyInput>
+    /**
+     * Filter which ProviderEvents to update
+     */
+    where?: ProviderEventWhereInput
+    /**
+     * Limit how many ProviderEvents to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * ProviderEvent updateManyAndReturn
+   */
+  export type ProviderEventUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderEvent
+     */
+    select?: ProviderEventSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProviderEvent
+     */
+    omit?: ProviderEventOmit<ExtArgs> | null
+    /**
+     * The data used to update ProviderEvents.
+     */
+    data: XOR<ProviderEventUpdateManyMutationInput, ProviderEventUncheckedUpdateManyInput>
+    /**
+     * Filter which ProviderEvents to update
+     */
+    where?: ProviderEventWhereInput
+    /**
+     * Limit how many ProviderEvents to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProviderEventIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * ProviderEvent upsert
+   */
+  export type ProviderEventUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderEvent
+     */
+    select?: ProviderEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProviderEvent
+     */
+    omit?: ProviderEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProviderEventInclude<ExtArgs> | null
+    /**
+     * The filter to search for the ProviderEvent to update in case it exists.
+     */
+    where: ProviderEventWhereUniqueInput
+    /**
+     * In case the ProviderEvent found by the `where` argument doesn't exist, create a new ProviderEvent with this data.
+     */
+    create: XOR<ProviderEventCreateInput, ProviderEventUncheckedCreateInput>
+    /**
+     * In case the ProviderEvent was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<ProviderEventUpdateInput, ProviderEventUncheckedUpdateInput>
+  }
+
+  /**
+   * ProviderEvent delete
+   */
+  export type ProviderEventDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderEvent
+     */
+    select?: ProviderEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProviderEvent
+     */
+    omit?: ProviderEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProviderEventInclude<ExtArgs> | null
+    /**
+     * Filter which ProviderEvent to delete.
+     */
+    where: ProviderEventWhereUniqueInput
+  }
+
+  /**
+   * ProviderEvent deleteMany
+   */
+  export type ProviderEventDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ProviderEvents to delete
+     */
+    where?: ProviderEventWhereInput
+    /**
+     * Limit how many ProviderEvents to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * ProviderEvent without action
+   */
+  export type ProviderEventDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderEvent
+     */
+    select?: ProviderEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProviderEvent
+     */
+    omit?: ProviderEventOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProviderEventInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model VaultPreferences
+   */
+
+  export type AggregateVaultPreferences = {
+    _count: VaultPreferencesCountAggregateOutputType | null
+    _min: VaultPreferencesMinAggregateOutputType | null
+    _max: VaultPreferencesMaxAggregateOutputType | null
+  }
+
+  export type VaultPreferencesMinAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    yieldRoutingStrategy: string | null
+    riskAcknowledgedAt: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type VaultPreferencesMaxAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    yieldRoutingStrategy: string | null
+    riskAcknowledgedAt: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type VaultPreferencesCountAggregateOutputType = {
+    id: number
+    userId: number
+    yieldRoutingStrategy: number
+    riskAcknowledgedAt: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type VaultPreferencesMinAggregateInputType = {
+    id?: true
+    userId?: true
+    yieldRoutingStrategy?: true
+    riskAcknowledgedAt?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type VaultPreferencesMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    yieldRoutingStrategy?: true
+    riskAcknowledgedAt?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type VaultPreferencesCountAggregateInputType = {
+    id?: true
+    userId?: true
+    yieldRoutingStrategy?: true
+    riskAcknowledgedAt?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type VaultPreferencesAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which VaultPreferences to aggregate.
+     */
+    where?: VaultPreferencesWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of VaultPreferences to fetch.
+     */
+    orderBy?: VaultPreferencesOrderByWithRelationInput | VaultPreferencesOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: VaultPreferencesWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` VaultPreferences from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` VaultPreferences.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned VaultPreferences
+    **/
+    _count?: true | VaultPreferencesCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: VaultPreferencesMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: VaultPreferencesMaxAggregateInputType
+  }
+
+  export type GetVaultPreferencesAggregateType<T extends VaultPreferencesAggregateArgs> = {
+        [P in keyof T & keyof AggregateVaultPreferences]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateVaultPreferences[P]>
+      : GetScalarType<T[P], AggregateVaultPreferences[P]>
+  }
+
+
+
+
+  export type VaultPreferencesGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: VaultPreferencesWhereInput
+    orderBy?: VaultPreferencesOrderByWithAggregationInput | VaultPreferencesOrderByWithAggregationInput[]
+    by: VaultPreferencesScalarFieldEnum[] | VaultPreferencesScalarFieldEnum
+    having?: VaultPreferencesScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: VaultPreferencesCountAggregateInputType | true
+    _min?: VaultPreferencesMinAggregateInputType
+    _max?: VaultPreferencesMaxAggregateInputType
+  }
+
+  export type VaultPreferencesGroupByOutputType = {
+    id: string
+    userId: string
+    yieldRoutingStrategy: string
+    riskAcknowledgedAt: Date | null
+    createdAt: Date
+    updatedAt: Date
+    _count: VaultPreferencesCountAggregateOutputType | null
+    _min: VaultPreferencesMinAggregateOutputType | null
+    _max: VaultPreferencesMaxAggregateOutputType | null
+  }
+
+  type GetVaultPreferencesGroupByPayload<T extends VaultPreferencesGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<VaultPreferencesGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof VaultPreferencesGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], VaultPreferencesGroupByOutputType[P]>
+            : GetScalarType<T[P], VaultPreferencesGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type VaultPreferencesSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    yieldRoutingStrategy?: boolean
+    riskAcknowledgedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["vaultPreferences"]>
+
+  export type VaultPreferencesSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    yieldRoutingStrategy?: boolean
+    riskAcknowledgedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["vaultPreferences"]>
+
+  export type VaultPreferencesSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    yieldRoutingStrategy?: boolean
+    riskAcknowledgedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["vaultPreferences"]>
+
+  export type VaultPreferencesSelectScalar = {
+    id?: boolean
+    userId?: boolean
+    yieldRoutingStrategy?: boolean
+    riskAcknowledgedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type VaultPreferencesOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "yieldRoutingStrategy" | "riskAcknowledgedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["vaultPreferences"]>
+  export type VaultPreferencesInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type VaultPreferencesIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type VaultPreferencesIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+
+  export type $VaultPreferencesPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "VaultPreferences"
+    objects: {
+      user: Prisma.$UserPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      userId: string
+      /**
+       * One of YieldRoutingStrategy (TS union in src/lib/vault/types.ts):
+       * COMPOUND | APPLY_TO_NEXT_BILL | MOVE_TO_AVAILABLE | SPLIT_BY_ENVELOPE.
+       * String column rather than Prisma enum to match the rest of the
+       * vault's string columns and to keep the migration surface additive.
+       */
+      yieldRoutingStrategy: string
+      /**
+       * When the user acknowledged the risk disclosure. NULL = not yet;
+       * the top-of-page risk modal renders only when this is null.
+       */
+      riskAcknowledgedAt: Date | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["vaultPreferences"]>
+    composites: {}
+  }
+
+  type VaultPreferencesGetPayload<S extends boolean | null | undefined | VaultPreferencesDefaultArgs> = $Result.GetResult<Prisma.$VaultPreferencesPayload, S>
+
+  type VaultPreferencesCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<VaultPreferencesFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: VaultPreferencesCountAggregateInputType | true
+    }
+
+  export interface VaultPreferencesDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['VaultPreferences'], meta: { name: 'VaultPreferences' } }
+    /**
+     * Find zero or one VaultPreferences that matches the filter.
+     * @param {VaultPreferencesFindUniqueArgs} args - Arguments to find a VaultPreferences
+     * @example
+     * // Get one VaultPreferences
+     * const vaultPreferences = await prisma.vaultPreferences.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends VaultPreferencesFindUniqueArgs>(args: SelectSubset<T, VaultPreferencesFindUniqueArgs<ExtArgs>>): Prisma__VaultPreferencesClient<$Result.GetResult<Prisma.$VaultPreferencesPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one VaultPreferences that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {VaultPreferencesFindUniqueOrThrowArgs} args - Arguments to find a VaultPreferences
+     * @example
+     * // Get one VaultPreferences
+     * const vaultPreferences = await prisma.vaultPreferences.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends VaultPreferencesFindUniqueOrThrowArgs>(args: SelectSubset<T, VaultPreferencesFindUniqueOrThrowArgs<ExtArgs>>): Prisma__VaultPreferencesClient<$Result.GetResult<Prisma.$VaultPreferencesPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first VaultPreferences that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultPreferencesFindFirstArgs} args - Arguments to find a VaultPreferences
+     * @example
+     * // Get one VaultPreferences
+     * const vaultPreferences = await prisma.vaultPreferences.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends VaultPreferencesFindFirstArgs>(args?: SelectSubset<T, VaultPreferencesFindFirstArgs<ExtArgs>>): Prisma__VaultPreferencesClient<$Result.GetResult<Prisma.$VaultPreferencesPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first VaultPreferences that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultPreferencesFindFirstOrThrowArgs} args - Arguments to find a VaultPreferences
+     * @example
+     * // Get one VaultPreferences
+     * const vaultPreferences = await prisma.vaultPreferences.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends VaultPreferencesFindFirstOrThrowArgs>(args?: SelectSubset<T, VaultPreferencesFindFirstOrThrowArgs<ExtArgs>>): Prisma__VaultPreferencesClient<$Result.GetResult<Prisma.$VaultPreferencesPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more VaultPreferences that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultPreferencesFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all VaultPreferences
+     * const vaultPreferences = await prisma.vaultPreferences.findMany()
+     * 
+     * // Get first 10 VaultPreferences
+     * const vaultPreferences = await prisma.vaultPreferences.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const vaultPreferencesWithIdOnly = await prisma.vaultPreferences.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends VaultPreferencesFindManyArgs>(args?: SelectSubset<T, VaultPreferencesFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$VaultPreferencesPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a VaultPreferences.
+     * @param {VaultPreferencesCreateArgs} args - Arguments to create a VaultPreferences.
+     * @example
+     * // Create one VaultPreferences
+     * const VaultPreferences = await prisma.vaultPreferences.create({
+     *   data: {
+     *     // ... data to create a VaultPreferences
+     *   }
+     * })
+     * 
+     */
+    create<T extends VaultPreferencesCreateArgs>(args: SelectSubset<T, VaultPreferencesCreateArgs<ExtArgs>>): Prisma__VaultPreferencesClient<$Result.GetResult<Prisma.$VaultPreferencesPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many VaultPreferences.
+     * @param {VaultPreferencesCreateManyArgs} args - Arguments to create many VaultPreferences.
+     * @example
+     * // Create many VaultPreferences
+     * const vaultPreferences = await prisma.vaultPreferences.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends VaultPreferencesCreateManyArgs>(args?: SelectSubset<T, VaultPreferencesCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many VaultPreferences and returns the data saved in the database.
+     * @param {VaultPreferencesCreateManyAndReturnArgs} args - Arguments to create many VaultPreferences.
+     * @example
+     * // Create many VaultPreferences
+     * const vaultPreferences = await prisma.vaultPreferences.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many VaultPreferences and only return the `id`
+     * const vaultPreferencesWithIdOnly = await prisma.vaultPreferences.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends VaultPreferencesCreateManyAndReturnArgs>(args?: SelectSubset<T, VaultPreferencesCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$VaultPreferencesPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a VaultPreferences.
+     * @param {VaultPreferencesDeleteArgs} args - Arguments to delete one VaultPreferences.
+     * @example
+     * // Delete one VaultPreferences
+     * const VaultPreferences = await prisma.vaultPreferences.delete({
+     *   where: {
+     *     // ... filter to delete one VaultPreferences
+     *   }
+     * })
+     * 
+     */
+    delete<T extends VaultPreferencesDeleteArgs>(args: SelectSubset<T, VaultPreferencesDeleteArgs<ExtArgs>>): Prisma__VaultPreferencesClient<$Result.GetResult<Prisma.$VaultPreferencesPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one VaultPreferences.
+     * @param {VaultPreferencesUpdateArgs} args - Arguments to update one VaultPreferences.
+     * @example
+     * // Update one VaultPreferences
+     * const vaultPreferences = await prisma.vaultPreferences.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends VaultPreferencesUpdateArgs>(args: SelectSubset<T, VaultPreferencesUpdateArgs<ExtArgs>>): Prisma__VaultPreferencesClient<$Result.GetResult<Prisma.$VaultPreferencesPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more VaultPreferences.
+     * @param {VaultPreferencesDeleteManyArgs} args - Arguments to filter VaultPreferences to delete.
+     * @example
+     * // Delete a few VaultPreferences
+     * const { count } = await prisma.vaultPreferences.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends VaultPreferencesDeleteManyArgs>(args?: SelectSubset<T, VaultPreferencesDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more VaultPreferences.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultPreferencesUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many VaultPreferences
+     * const vaultPreferences = await prisma.vaultPreferences.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends VaultPreferencesUpdateManyArgs>(args: SelectSubset<T, VaultPreferencesUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more VaultPreferences and returns the data updated in the database.
+     * @param {VaultPreferencesUpdateManyAndReturnArgs} args - Arguments to update many VaultPreferences.
+     * @example
+     * // Update many VaultPreferences
+     * const vaultPreferences = await prisma.vaultPreferences.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more VaultPreferences and only return the `id`
+     * const vaultPreferencesWithIdOnly = await prisma.vaultPreferences.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends VaultPreferencesUpdateManyAndReturnArgs>(args: SelectSubset<T, VaultPreferencesUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$VaultPreferencesPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one VaultPreferences.
+     * @param {VaultPreferencesUpsertArgs} args - Arguments to update or create a VaultPreferences.
+     * @example
+     * // Update or create a VaultPreferences
+     * const vaultPreferences = await prisma.vaultPreferences.upsert({
+     *   create: {
+     *     // ... data to create a VaultPreferences
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the VaultPreferences we want to update
+     *   }
+     * })
+     */
+    upsert<T extends VaultPreferencesUpsertArgs>(args: SelectSubset<T, VaultPreferencesUpsertArgs<ExtArgs>>): Prisma__VaultPreferencesClient<$Result.GetResult<Prisma.$VaultPreferencesPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of VaultPreferences.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultPreferencesCountArgs} args - Arguments to filter VaultPreferences to count.
+     * @example
+     * // Count the number of VaultPreferences
+     * const count = await prisma.vaultPreferences.count({
+     *   where: {
+     *     // ... the filter for the VaultPreferences we want to count
+     *   }
+     * })
+    **/
+    count<T extends VaultPreferencesCountArgs>(
+      args?: Subset<T, VaultPreferencesCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], VaultPreferencesCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a VaultPreferences.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultPreferencesAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends VaultPreferencesAggregateArgs>(args: Subset<T, VaultPreferencesAggregateArgs>): Prisma.PrismaPromise<GetVaultPreferencesAggregateType<T>>
+
+    /**
+     * Group by VaultPreferences.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultPreferencesGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends VaultPreferencesGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: VaultPreferencesGroupByArgs['orderBy'] }
+        : { orderBy?: VaultPreferencesGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, VaultPreferencesGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetVaultPreferencesGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the VaultPreferences model
+   */
+  readonly fields: VaultPreferencesFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for VaultPreferences.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__VaultPreferencesClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the VaultPreferences model
+   */
+  interface VaultPreferencesFieldRefs {
+    readonly id: FieldRef<"VaultPreferences", 'String'>
+    readonly userId: FieldRef<"VaultPreferences", 'String'>
+    readonly yieldRoutingStrategy: FieldRef<"VaultPreferences", 'String'>
+    readonly riskAcknowledgedAt: FieldRef<"VaultPreferences", 'DateTime'>
+    readonly createdAt: FieldRef<"VaultPreferences", 'DateTime'>
+    readonly updatedAt: FieldRef<"VaultPreferences", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * VaultPreferences findUnique
+   */
+  export type VaultPreferencesFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultPreferences
+     */
+    select?: VaultPreferencesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultPreferences
+     */
+    omit?: VaultPreferencesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultPreferencesInclude<ExtArgs> | null
+    /**
+     * Filter, which VaultPreferences to fetch.
+     */
+    where: VaultPreferencesWhereUniqueInput
+  }
+
+  /**
+   * VaultPreferences findUniqueOrThrow
+   */
+  export type VaultPreferencesFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultPreferences
+     */
+    select?: VaultPreferencesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultPreferences
+     */
+    omit?: VaultPreferencesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultPreferencesInclude<ExtArgs> | null
+    /**
+     * Filter, which VaultPreferences to fetch.
+     */
+    where: VaultPreferencesWhereUniqueInput
+  }
+
+  /**
+   * VaultPreferences findFirst
+   */
+  export type VaultPreferencesFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultPreferences
+     */
+    select?: VaultPreferencesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultPreferences
+     */
+    omit?: VaultPreferencesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultPreferencesInclude<ExtArgs> | null
+    /**
+     * Filter, which VaultPreferences to fetch.
+     */
+    where?: VaultPreferencesWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of VaultPreferences to fetch.
+     */
+    orderBy?: VaultPreferencesOrderByWithRelationInput | VaultPreferencesOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for VaultPreferences.
+     */
+    cursor?: VaultPreferencesWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` VaultPreferences from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` VaultPreferences.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of VaultPreferences.
+     */
+    distinct?: VaultPreferencesScalarFieldEnum | VaultPreferencesScalarFieldEnum[]
+  }
+
+  /**
+   * VaultPreferences findFirstOrThrow
+   */
+  export type VaultPreferencesFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultPreferences
+     */
+    select?: VaultPreferencesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultPreferences
+     */
+    omit?: VaultPreferencesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultPreferencesInclude<ExtArgs> | null
+    /**
+     * Filter, which VaultPreferences to fetch.
+     */
+    where?: VaultPreferencesWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of VaultPreferences to fetch.
+     */
+    orderBy?: VaultPreferencesOrderByWithRelationInput | VaultPreferencesOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for VaultPreferences.
+     */
+    cursor?: VaultPreferencesWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` VaultPreferences from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` VaultPreferences.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of VaultPreferences.
+     */
+    distinct?: VaultPreferencesScalarFieldEnum | VaultPreferencesScalarFieldEnum[]
+  }
+
+  /**
+   * VaultPreferences findMany
+   */
+  export type VaultPreferencesFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultPreferences
+     */
+    select?: VaultPreferencesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultPreferences
+     */
+    omit?: VaultPreferencesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultPreferencesInclude<ExtArgs> | null
+    /**
+     * Filter, which VaultPreferences to fetch.
+     */
+    where?: VaultPreferencesWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of VaultPreferences to fetch.
+     */
+    orderBy?: VaultPreferencesOrderByWithRelationInput | VaultPreferencesOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing VaultPreferences.
+     */
+    cursor?: VaultPreferencesWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` VaultPreferences from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` VaultPreferences.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of VaultPreferences.
+     */
+    distinct?: VaultPreferencesScalarFieldEnum | VaultPreferencesScalarFieldEnum[]
+  }
+
+  /**
+   * VaultPreferences create
+   */
+  export type VaultPreferencesCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultPreferences
+     */
+    select?: VaultPreferencesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultPreferences
+     */
+    omit?: VaultPreferencesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultPreferencesInclude<ExtArgs> | null
+    /**
+     * The data needed to create a VaultPreferences.
+     */
+    data: XOR<VaultPreferencesCreateInput, VaultPreferencesUncheckedCreateInput>
+  }
+
+  /**
+   * VaultPreferences createMany
+   */
+  export type VaultPreferencesCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many VaultPreferences.
+     */
+    data: VaultPreferencesCreateManyInput | VaultPreferencesCreateManyInput[]
+  }
+
+  /**
+   * VaultPreferences createManyAndReturn
+   */
+  export type VaultPreferencesCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultPreferences
+     */
+    select?: VaultPreferencesSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultPreferences
+     */
+    omit?: VaultPreferencesOmit<ExtArgs> | null
+    /**
+     * The data used to create many VaultPreferences.
+     */
+    data: VaultPreferencesCreateManyInput | VaultPreferencesCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultPreferencesIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * VaultPreferences update
+   */
+  export type VaultPreferencesUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultPreferences
+     */
+    select?: VaultPreferencesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultPreferences
+     */
+    omit?: VaultPreferencesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultPreferencesInclude<ExtArgs> | null
+    /**
+     * The data needed to update a VaultPreferences.
+     */
+    data: XOR<VaultPreferencesUpdateInput, VaultPreferencesUncheckedUpdateInput>
+    /**
+     * Choose, which VaultPreferences to update.
+     */
+    where: VaultPreferencesWhereUniqueInput
+  }
+
+  /**
+   * VaultPreferences updateMany
+   */
+  export type VaultPreferencesUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update VaultPreferences.
+     */
+    data: XOR<VaultPreferencesUpdateManyMutationInput, VaultPreferencesUncheckedUpdateManyInput>
+    /**
+     * Filter which VaultPreferences to update
+     */
+    where?: VaultPreferencesWhereInput
+    /**
+     * Limit how many VaultPreferences to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * VaultPreferences updateManyAndReturn
+   */
+  export type VaultPreferencesUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultPreferences
+     */
+    select?: VaultPreferencesSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultPreferences
+     */
+    omit?: VaultPreferencesOmit<ExtArgs> | null
+    /**
+     * The data used to update VaultPreferences.
+     */
+    data: XOR<VaultPreferencesUpdateManyMutationInput, VaultPreferencesUncheckedUpdateManyInput>
+    /**
+     * Filter which VaultPreferences to update
+     */
+    where?: VaultPreferencesWhereInput
+    /**
+     * Limit how many VaultPreferences to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultPreferencesIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * VaultPreferences upsert
+   */
+  export type VaultPreferencesUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultPreferences
+     */
+    select?: VaultPreferencesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultPreferences
+     */
+    omit?: VaultPreferencesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultPreferencesInclude<ExtArgs> | null
+    /**
+     * The filter to search for the VaultPreferences to update in case it exists.
+     */
+    where: VaultPreferencesWhereUniqueInput
+    /**
+     * In case the VaultPreferences found by the `where` argument doesn't exist, create a new VaultPreferences with this data.
+     */
+    create: XOR<VaultPreferencesCreateInput, VaultPreferencesUncheckedCreateInput>
+    /**
+     * In case the VaultPreferences was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<VaultPreferencesUpdateInput, VaultPreferencesUncheckedUpdateInput>
+  }
+
+  /**
+   * VaultPreferences delete
+   */
+  export type VaultPreferencesDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultPreferences
+     */
+    select?: VaultPreferencesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultPreferences
+     */
+    omit?: VaultPreferencesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultPreferencesInclude<ExtArgs> | null
+    /**
+     * Filter which VaultPreferences to delete.
+     */
+    where: VaultPreferencesWhereUniqueInput
+  }
+
+  /**
+   * VaultPreferences deleteMany
+   */
+  export type VaultPreferencesDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which VaultPreferences to delete
+     */
+    where?: VaultPreferencesWhereInput
+    /**
+     * Limit how many VaultPreferences to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * VaultPreferences without action
+   */
+  export type VaultPreferencesDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultPreferences
+     */
+    select?: VaultPreferencesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultPreferences
+     */
+    omit?: VaultPreferencesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultPreferencesInclude<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -29354,6 +39070,7 @@ export namespace Prisma {
     institution: 'institution',
     mask: 'mask',
     routingEnabled: 'routingEnabled',
+    source: 'source',
     isArchived: 'isArchived',
     sortOrder: 'sortOrder',
     createdAt: 'createdAt',
@@ -29367,6 +39084,7 @@ export namespace Prisma {
     id: 'id',
     userId: 'userId',
     name: 'name',
+    source: 'source',
     targetBalance: 'targetBalance',
     currentBalance: 'currentBalance',
     planet: 'planet',
@@ -29431,6 +39149,9 @@ export namespace Prisma {
     paidAt: 'paidAt',
     source: 'source',
     isArchived: 'isArchived',
+    envelopeId: 'envelopeId',
+    accountId: 'accountId',
+    sortOrder: 'sortOrder',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -29451,6 +39172,7 @@ export namespace Prisma {
     isPrimary: 'isPrimary',
     kind: 'kind',
     goalType: 'goalType',
+    source: 'source',
     sortOrder: 'sortOrder',
     isArchived: 'isArchived',
     createdAt: 'createdAt',
@@ -29466,6 +39188,7 @@ export namespace Prisma {
     strategyId: 'strategyId',
     isArmed: 'isArmed',
     name: 'name',
+    source: 'source',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -29479,6 +39202,7 @@ export namespace Prisma {
     envelopeId: 'envelopeId',
     pct: 'pct',
     fixedCents: 'fixedCents',
+    source: 'source',
     sortOrder: 'sortOrder',
     createdAt: 'createdAt'
   };
@@ -29663,6 +39387,127 @@ export namespace Prisma {
   export type OnboardingMessageScalarFieldEnum = (typeof OnboardingMessageScalarFieldEnum)[keyof typeof OnboardingMessageScalarFieldEnum]
 
 
+  export const VaultAccountScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    chainId: 'chainId',
+    smartAccountAddress: 'smartAccountAddress',
+    baseAsset: 'baseAsset',
+    status: 'status',
+    availableBalance: 'availableBalance',
+    settlementReserve: 'settlementReserve',
+    deployedToYield: 'deployedToYield',
+    accruedYield: 'accruedYield',
+    simulatedApy: 'simulatedApy',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type VaultAccountScalarFieldEnum = (typeof VaultAccountScalarFieldEnum)[keyof typeof VaultAccountScalarFieldEnum]
+
+
+  export const VaultEnvelopeScalarFieldEnum: {
+    id: 'id',
+    vaultId: 'vaultId',
+    compassEnvelopeId: 'compassEnvelopeId',
+    name: 'name',
+    category: 'category',
+    principalAllocated: 'principalAllocated',
+    accruedYield: 'accruedYield',
+    reservedForBills: 'reservedForBills',
+    availableToReallocate: 'availableToReallocate',
+    isPolicyLocked: 'isPolicyLocked',
+    nextObligationDate: 'nextObligationDate',
+    status: 'status',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type VaultEnvelopeScalarFieldEnum = (typeof VaultEnvelopeScalarFieldEnum)[keyof typeof VaultEnvelopeScalarFieldEnum]
+
+
+  export const ScheduledBillScalarFieldEnum: {
+    id: 'id',
+    vaultId: 'vaultId',
+    envelopeId: 'envelopeId',
+    billerName: 'billerName',
+    billerId: 'billerId',
+    maskedAccountNumber: 'maskedAccountNumber',
+    amount: 'amount',
+    maxAuthorizedAmount: 'maxAuthorizedAmount',
+    currency: 'currency',
+    frequency: 'frequency',
+    dueDate: 'dueDate',
+    executionWindowStart: 'executionWindowStart',
+    executionWindowEnd: 'executionWindowEnd',
+    status: 'status',
+    providerPreference: 'providerPreference',
+    lastAttemptAt: 'lastAttemptAt',
+    settlementReference: 'settlementReference',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type ScheduledBillScalarFieldEnum = (typeof ScheduledBillScalarFieldEnum)[keyof typeof ScheduledBillScalarFieldEnum]
+
+
+  export const YieldEventScalarFieldEnum: {
+    id: 'id',
+    vaultId: 'vaultId',
+    envelopeId: 'envelopeId',
+    asset: 'asset',
+    amount: 'amount',
+    annualizedRate: 'annualizedRate',
+    source: 'source',
+    action: 'action',
+    occurredAt: 'occurredAt'
+  };
+
+  export type YieldEventScalarFieldEnum = (typeof YieldEventScalarFieldEnum)[keyof typeof YieldEventScalarFieldEnum]
+
+
+  export const PaymentAttemptScalarFieldEnum: {
+    id: 'id',
+    billId: 'billId',
+    providerName: 'providerName',
+    idempotencyKey: 'idempotencyKey',
+    requestAmount: 'requestAmount',
+    result: 'result',
+    transactionId: 'transactionId',
+    warningMessage: 'warningMessage',
+    errorMessage: 'errorMessage',
+    retryable: 'retryable',
+    attemptedAt: 'attemptedAt',
+    completedAt: 'completedAt'
+  };
+
+  export type PaymentAttemptScalarFieldEnum = (typeof PaymentAttemptScalarFieldEnum)[keyof typeof PaymentAttemptScalarFieldEnum]
+
+
+  export const ProviderEventScalarFieldEnum: {
+    id: 'id',
+    attemptId: 'attemptId',
+    providerName: 'providerName',
+    eventType: 'eventType',
+    payload: 'payload',
+    occurredAt: 'occurredAt'
+  };
+
+  export type ProviderEventScalarFieldEnum = (typeof ProviderEventScalarFieldEnum)[keyof typeof ProviderEventScalarFieldEnum]
+
+
+  export const VaultPreferencesScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    yieldRoutingStrategy: 'yieldRoutingStrategy',
+    riskAcknowledgedAt: 'riskAcknowledgedAt',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type VaultPreferencesScalarFieldEnum = (typeof VaultPreferencesScalarFieldEnum)[keyof typeof VaultPreferencesScalarFieldEnum]
+
+
   export const SortOrder: {
     asc: 'asc',
     desc: 'desc'
@@ -29757,8 +39602,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleListRelationFilter
     goals?: GoalListRelationFilter
     allocationPlans?: AllocationPlanListRelationFilter
+    bills?: BillListRelationFilter
     auditLog?: AuditLogListRelationFilter
     identity?: XOR<FinancialIdentityNullableScalarRelationFilter, FinancialIdentityWhereInput> | null
+    vaultAccount?: XOR<VaultAccountNullableScalarRelationFilter, VaultAccountWhereInput> | null
+    vaultPreferences?: XOR<VaultPreferencesNullableScalarRelationFilter, VaultPreferencesWhereInput> | null
   }
 
   export type UserOrderByWithRelationInput = {
@@ -29779,8 +39627,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleOrderByRelationAggregateInput
     goals?: GoalOrderByRelationAggregateInput
     allocationPlans?: AllocationPlanOrderByRelationAggregateInput
+    bills?: BillOrderByRelationAggregateInput
     auditLog?: AuditLogOrderByRelationAggregateInput
     identity?: FinancialIdentityOrderByWithRelationInput
+    vaultAccount?: VaultAccountOrderByWithRelationInput
+    vaultPreferences?: VaultPreferencesOrderByWithRelationInput
   }
 
   export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -29804,8 +39655,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleListRelationFilter
     goals?: GoalListRelationFilter
     allocationPlans?: AllocationPlanListRelationFilter
+    bills?: BillListRelationFilter
     auditLog?: AuditLogListRelationFilter
     identity?: XOR<FinancialIdentityNullableScalarRelationFilter, FinancialIdentityWhereInput> | null
+    vaultAccount?: XOR<VaultAccountNullableScalarRelationFilter, VaultAccountWhereInput> | null
+    vaultPreferences?: XOR<VaultPreferencesNullableScalarRelationFilter, VaultPreferencesWhereInput> | null
   }, "id" | "email">
 
   export type UserOrderByWithAggregationInput = {
@@ -29924,6 +39778,7 @@ export namespace Prisma {
     institution?: StringNullableFilter<"Account"> | string | null
     mask?: StringNullableFilter<"Account"> | string | null
     routingEnabled?: BoolFilter<"Account"> | boolean
+    source?: StringFilter<"Account"> | string
     isArchived?: BoolFilter<"Account"> | boolean
     sortOrder?: IntFilter<"Account"> | number
     createdAt?: DateTimeFilter<"Account"> | Date | string
@@ -29942,6 +39797,7 @@ export namespace Prisma {
     institution?: SortOrderInput | SortOrder
     mask?: SortOrderInput | SortOrder
     routingEnabled?: SortOrder
+    source?: SortOrder
     isArchived?: SortOrder
     sortOrder?: SortOrder
     createdAt?: SortOrder
@@ -29963,6 +39819,7 @@ export namespace Prisma {
     institution?: StringNullableFilter<"Account"> | string | null
     mask?: StringNullableFilter<"Account"> | string | null
     routingEnabled?: BoolFilter<"Account"> | boolean
+    source?: StringFilter<"Account"> | string
     isArchived?: BoolFilter<"Account"> | boolean
     sortOrder?: IntFilter<"Account"> | number
     createdAt?: DateTimeFilter<"Account"> | Date | string
@@ -29981,6 +39838,7 @@ export namespace Prisma {
     institution?: SortOrderInput | SortOrder
     mask?: SortOrderInput | SortOrder
     routingEnabled?: SortOrder
+    source?: SortOrder
     isArchived?: SortOrder
     sortOrder?: SortOrder
     createdAt?: SortOrder
@@ -30004,6 +39862,7 @@ export namespace Prisma {
     institution?: StringNullableWithAggregatesFilter<"Account"> | string | null
     mask?: StringNullableWithAggregatesFilter<"Account"> | string | null
     routingEnabled?: BoolWithAggregatesFilter<"Account"> | boolean
+    source?: StringWithAggregatesFilter<"Account"> | string
     isArchived?: BoolWithAggregatesFilter<"Account"> | boolean
     sortOrder?: IntWithAggregatesFilter<"Account"> | number
     createdAt?: DateTimeWithAggregatesFilter<"Account"> | Date | string
@@ -30017,6 +39876,7 @@ export namespace Prisma {
     id?: StringFilter<"Envelope"> | string
     userId?: StringFilter<"Envelope"> | string
     name?: StringFilter<"Envelope"> | string
+    source?: StringFilter<"Envelope"> | string
     targetBalance?: IntFilter<"Envelope"> | number
     currentBalance?: IntFilter<"Envelope"> | number
     planet?: StringNullableFilter<"Envelope"> | string | null
@@ -30031,12 +39891,14 @@ export namespace Prisma {
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
     transactions?: TransactionListRelationFilter
     allocationRules?: AllocationRuleListRelationFilter
+    vaultEnvelope?: XOR<VaultEnvelopeNullableScalarRelationFilter, VaultEnvelopeWhereInput> | null
   }
 
   export type EnvelopeOrderByWithRelationInput = {
     id?: SortOrder
     userId?: SortOrder
     name?: SortOrder
+    source?: SortOrder
     targetBalance?: SortOrder
     currentBalance?: SortOrder
     planet?: SortOrderInput | SortOrder
@@ -30051,6 +39913,7 @@ export namespace Prisma {
     user?: UserOrderByWithRelationInput
     transactions?: TransactionOrderByRelationAggregateInput
     allocationRules?: AllocationRuleOrderByRelationAggregateInput
+    vaultEnvelope?: VaultEnvelopeOrderByWithRelationInput
   }
 
   export type EnvelopeWhereUniqueInput = Prisma.AtLeast<{
@@ -30060,6 +39923,7 @@ export namespace Prisma {
     NOT?: EnvelopeWhereInput | EnvelopeWhereInput[]
     userId?: StringFilter<"Envelope"> | string
     name?: StringFilter<"Envelope"> | string
+    source?: StringFilter<"Envelope"> | string
     targetBalance?: IntFilter<"Envelope"> | number
     currentBalance?: IntFilter<"Envelope"> | number
     planet?: StringNullableFilter<"Envelope"> | string | null
@@ -30074,12 +39938,14 @@ export namespace Prisma {
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
     transactions?: TransactionListRelationFilter
     allocationRules?: AllocationRuleListRelationFilter
+    vaultEnvelope?: XOR<VaultEnvelopeNullableScalarRelationFilter, VaultEnvelopeWhereInput> | null
   }, "id">
 
   export type EnvelopeOrderByWithAggregationInput = {
     id?: SortOrder
     userId?: SortOrder
     name?: SortOrder
+    source?: SortOrder
     targetBalance?: SortOrder
     currentBalance?: SortOrder
     planet?: SortOrderInput | SortOrder
@@ -30105,6 +39971,7 @@ export namespace Prisma {
     id?: StringWithAggregatesFilter<"Envelope"> | string
     userId?: StringWithAggregatesFilter<"Envelope"> | string
     name?: StringWithAggregatesFilter<"Envelope"> | string
+    source?: StringWithAggregatesFilter<"Envelope"> | string
     targetBalance?: IntWithAggregatesFilter<"Envelope"> | number
     currentBalance?: IntWithAggregatesFilter<"Envelope"> | number
     planet?: StringNullableWithAggregatesFilter<"Envelope"> | string | null
@@ -30330,8 +40197,12 @@ export namespace Prisma {
     paidAt?: DateTimeNullableFilter<"Bill"> | Date | string | null
     source?: StringFilter<"Bill"> | string
     isArchived?: BoolFilter<"Bill"> | boolean
+    envelopeId?: StringNullableFilter<"Bill"> | string | null
+    accountId?: StringNullableFilter<"Bill"> | string | null
+    sortOrder?: IntFilter<"Bill"> | number
     createdAt?: DateTimeFilter<"Bill"> | Date | string
     updatedAt?: DateTimeFilter<"Bill"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
   }
 
   export type BillOrderByWithRelationInput = {
@@ -30345,8 +40216,12 @@ export namespace Prisma {
     paidAt?: SortOrderInput | SortOrder
     source?: SortOrder
     isArchived?: SortOrder
+    envelopeId?: SortOrderInput | SortOrder
+    accountId?: SortOrderInput | SortOrder
+    sortOrder?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    user?: UserOrderByWithRelationInput
   }
 
   export type BillWhereUniqueInput = Prisma.AtLeast<{
@@ -30363,8 +40238,12 @@ export namespace Prisma {
     paidAt?: DateTimeNullableFilter<"Bill"> | Date | string | null
     source?: StringFilter<"Bill"> | string
     isArchived?: BoolFilter<"Bill"> | boolean
+    envelopeId?: StringNullableFilter<"Bill"> | string | null
+    accountId?: StringNullableFilter<"Bill"> | string | null
+    sortOrder?: IntFilter<"Bill"> | number
     createdAt?: DateTimeFilter<"Bill"> | Date | string
     updatedAt?: DateTimeFilter<"Bill"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
   }, "id">
 
   export type BillOrderByWithAggregationInput = {
@@ -30378,6 +40257,9 @@ export namespace Prisma {
     paidAt?: SortOrderInput | SortOrder
     source?: SortOrder
     isArchived?: SortOrder
+    envelopeId?: SortOrderInput | SortOrder
+    accountId?: SortOrderInput | SortOrder
+    sortOrder?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: BillCountOrderByAggregateInput
@@ -30401,6 +40283,9 @@ export namespace Prisma {
     paidAt?: DateTimeNullableWithAggregatesFilter<"Bill"> | Date | string | null
     source?: StringWithAggregatesFilter<"Bill"> | string
     isArchived?: BoolWithAggregatesFilter<"Bill"> | boolean
+    envelopeId?: StringNullableWithAggregatesFilter<"Bill"> | string | null
+    accountId?: StringNullableWithAggregatesFilter<"Bill"> | string | null
+    sortOrder?: IntWithAggregatesFilter<"Bill"> | number
     createdAt?: DateTimeWithAggregatesFilter<"Bill"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Bill"> | Date | string
   }
@@ -30421,6 +40306,7 @@ export namespace Prisma {
     isPrimary?: BoolFilter<"Goal"> | boolean
     kind?: EnumGoalKindFilter<"Goal"> | $Enums.GoalKind
     goalType?: EnumGoalTypeNullableFilter<"Goal"> | $Enums.GoalType | null
+    source?: StringFilter<"Goal"> | string
     sortOrder?: IntFilter<"Goal"> | number
     isArchived?: BoolFilter<"Goal"> | boolean
     createdAt?: DateTimeFilter<"Goal"> | Date | string
@@ -30441,6 +40327,7 @@ export namespace Prisma {
     isPrimary?: SortOrder
     kind?: SortOrder
     goalType?: SortOrderInput | SortOrder
+    source?: SortOrder
     sortOrder?: SortOrder
     isArchived?: SortOrder
     createdAt?: SortOrder
@@ -30464,6 +40351,7 @@ export namespace Prisma {
     isPrimary?: BoolFilter<"Goal"> | boolean
     kind?: EnumGoalKindFilter<"Goal"> | $Enums.GoalKind
     goalType?: EnumGoalTypeNullableFilter<"Goal"> | $Enums.GoalType | null
+    source?: StringFilter<"Goal"> | string
     sortOrder?: IntFilter<"Goal"> | number
     isArchived?: BoolFilter<"Goal"> | boolean
     createdAt?: DateTimeFilter<"Goal"> | Date | string
@@ -30484,6 +40372,7 @@ export namespace Prisma {
     isPrimary?: SortOrder
     kind?: SortOrder
     goalType?: SortOrderInput | SortOrder
+    source?: SortOrder
     sortOrder?: SortOrder
     isArchived?: SortOrder
     createdAt?: SortOrder
@@ -30511,6 +40400,7 @@ export namespace Prisma {
     isPrimary?: BoolWithAggregatesFilter<"Goal"> | boolean
     kind?: EnumGoalKindWithAggregatesFilter<"Goal"> | $Enums.GoalKind
     goalType?: EnumGoalTypeNullableWithAggregatesFilter<"Goal"> | $Enums.GoalType | null
+    source?: StringWithAggregatesFilter<"Goal"> | string
     sortOrder?: IntWithAggregatesFilter<"Goal"> | number
     isArchived?: BoolWithAggregatesFilter<"Goal"> | boolean
     createdAt?: DateTimeWithAggregatesFilter<"Goal"> | Date | string
@@ -30526,6 +40416,7 @@ export namespace Prisma {
     strategyId?: StringFilter<"AllocationPlan"> | string
     isArmed?: BoolFilter<"AllocationPlan"> | boolean
     name?: StringNullableFilter<"AllocationPlan"> | string | null
+    source?: StringFilter<"AllocationPlan"> | string
     createdAt?: DateTimeFilter<"AllocationPlan"> | Date | string
     updatedAt?: DateTimeFilter<"AllocationPlan"> | Date | string
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
@@ -30538,6 +40429,7 @@ export namespace Prisma {
     strategyId?: SortOrder
     isArmed?: SortOrder
     name?: SortOrderInput | SortOrder
+    source?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     user?: UserOrderByWithRelationInput
@@ -30553,6 +40445,7 @@ export namespace Prisma {
     strategyId?: StringFilter<"AllocationPlan"> | string
     isArmed?: BoolFilter<"AllocationPlan"> | boolean
     name?: StringNullableFilter<"AllocationPlan"> | string | null
+    source?: StringFilter<"AllocationPlan"> | string
     createdAt?: DateTimeFilter<"AllocationPlan"> | Date | string
     updatedAt?: DateTimeFilter<"AllocationPlan"> | Date | string
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
@@ -30565,6 +40458,7 @@ export namespace Prisma {
     strategyId?: SortOrder
     isArmed?: SortOrder
     name?: SortOrderInput | SortOrder
+    source?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: AllocationPlanCountOrderByAggregateInput
@@ -30581,6 +40475,7 @@ export namespace Prisma {
     strategyId?: StringWithAggregatesFilter<"AllocationPlan"> | string
     isArmed?: BoolWithAggregatesFilter<"AllocationPlan"> | boolean
     name?: StringNullableWithAggregatesFilter<"AllocationPlan"> | string | null
+    source?: StringWithAggregatesFilter<"AllocationPlan"> | string
     createdAt?: DateTimeWithAggregatesFilter<"AllocationPlan"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"AllocationPlan"> | Date | string
   }
@@ -30594,6 +40489,7 @@ export namespace Prisma {
     envelopeId?: StringFilter<"AllocationRule"> | string
     pct?: IntFilter<"AllocationRule"> | number
     fixedCents?: IntNullableFilter<"AllocationRule"> | number | null
+    source?: StringFilter<"AllocationRule"> | string
     sortOrder?: IntFilter<"AllocationRule"> | number
     createdAt?: DateTimeFilter<"AllocationRule"> | Date | string
     plan?: XOR<AllocationPlanScalarRelationFilter, AllocationPlanWhereInput>
@@ -30606,6 +40502,7 @@ export namespace Prisma {
     envelopeId?: SortOrder
     pct?: SortOrder
     fixedCents?: SortOrderInput | SortOrder
+    source?: SortOrder
     sortOrder?: SortOrder
     createdAt?: SortOrder
     plan?: AllocationPlanOrderByWithRelationInput
@@ -30621,6 +40518,7 @@ export namespace Prisma {
     envelopeId?: StringFilter<"AllocationRule"> | string
     pct?: IntFilter<"AllocationRule"> | number
     fixedCents?: IntNullableFilter<"AllocationRule"> | number | null
+    source?: StringFilter<"AllocationRule"> | string
     sortOrder?: IntFilter<"AllocationRule"> | number
     createdAt?: DateTimeFilter<"AllocationRule"> | Date | string
     plan?: XOR<AllocationPlanScalarRelationFilter, AllocationPlanWhereInput>
@@ -30633,6 +40531,7 @@ export namespace Prisma {
     envelopeId?: SortOrder
     pct?: SortOrder
     fixedCents?: SortOrderInput | SortOrder
+    source?: SortOrder
     sortOrder?: SortOrder
     createdAt?: SortOrder
     _count?: AllocationRuleCountOrderByAggregateInput
@@ -30651,6 +40550,7 @@ export namespace Prisma {
     envelopeId?: StringWithAggregatesFilter<"AllocationRule"> | string
     pct?: IntWithAggregatesFilter<"AllocationRule"> | number
     fixedCents?: IntNullableWithAggregatesFilter<"AllocationRule"> | number | null
+    source?: StringWithAggregatesFilter<"AllocationRule"> | string
     sortOrder?: IntWithAggregatesFilter<"AllocationRule"> | number
     createdAt?: DateTimeWithAggregatesFilter<"AllocationRule"> | Date | string
   }
@@ -31578,6 +41478,653 @@ export namespace Prisma {
     createdAt?: DateTimeWithAggregatesFilter<"OnboardingMessage"> | Date | string
   }
 
+  export type VaultAccountWhereInput = {
+    AND?: VaultAccountWhereInput | VaultAccountWhereInput[]
+    OR?: VaultAccountWhereInput[]
+    NOT?: VaultAccountWhereInput | VaultAccountWhereInput[]
+    id?: StringFilter<"VaultAccount"> | string
+    userId?: StringFilter<"VaultAccount"> | string
+    chainId?: IntFilter<"VaultAccount"> | number
+    smartAccountAddress?: StringFilter<"VaultAccount"> | string
+    baseAsset?: StringFilter<"VaultAccount"> | string
+    status?: StringFilter<"VaultAccount"> | string
+    availableBalance?: IntFilter<"VaultAccount"> | number
+    settlementReserve?: IntFilter<"VaultAccount"> | number
+    deployedToYield?: IntFilter<"VaultAccount"> | number
+    accruedYield?: IntFilter<"VaultAccount"> | number
+    simulatedApy?: FloatFilter<"VaultAccount"> | number
+    createdAt?: DateTimeFilter<"VaultAccount"> | Date | string
+    updatedAt?: DateTimeFilter<"VaultAccount"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    envelopes?: VaultEnvelopeListRelationFilter
+    bills?: ScheduledBillListRelationFilter
+    yieldEvents?: YieldEventListRelationFilter
+  }
+
+  export type VaultAccountOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    chainId?: SortOrder
+    smartAccountAddress?: SortOrder
+    baseAsset?: SortOrder
+    status?: SortOrder
+    availableBalance?: SortOrder
+    settlementReserve?: SortOrder
+    deployedToYield?: SortOrder
+    accruedYield?: SortOrder
+    simulatedApy?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    user?: UserOrderByWithRelationInput
+    envelopes?: VaultEnvelopeOrderByRelationAggregateInput
+    bills?: ScheduledBillOrderByRelationAggregateInput
+    yieldEvents?: YieldEventOrderByRelationAggregateInput
+  }
+
+  export type VaultAccountWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    userId?: string
+    AND?: VaultAccountWhereInput | VaultAccountWhereInput[]
+    OR?: VaultAccountWhereInput[]
+    NOT?: VaultAccountWhereInput | VaultAccountWhereInput[]
+    chainId?: IntFilter<"VaultAccount"> | number
+    smartAccountAddress?: StringFilter<"VaultAccount"> | string
+    baseAsset?: StringFilter<"VaultAccount"> | string
+    status?: StringFilter<"VaultAccount"> | string
+    availableBalance?: IntFilter<"VaultAccount"> | number
+    settlementReserve?: IntFilter<"VaultAccount"> | number
+    deployedToYield?: IntFilter<"VaultAccount"> | number
+    accruedYield?: IntFilter<"VaultAccount"> | number
+    simulatedApy?: FloatFilter<"VaultAccount"> | number
+    createdAt?: DateTimeFilter<"VaultAccount"> | Date | string
+    updatedAt?: DateTimeFilter<"VaultAccount"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    envelopes?: VaultEnvelopeListRelationFilter
+    bills?: ScheduledBillListRelationFilter
+    yieldEvents?: YieldEventListRelationFilter
+  }, "id" | "userId">
+
+  export type VaultAccountOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    chainId?: SortOrder
+    smartAccountAddress?: SortOrder
+    baseAsset?: SortOrder
+    status?: SortOrder
+    availableBalance?: SortOrder
+    settlementReserve?: SortOrder
+    deployedToYield?: SortOrder
+    accruedYield?: SortOrder
+    simulatedApy?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: VaultAccountCountOrderByAggregateInput
+    _avg?: VaultAccountAvgOrderByAggregateInput
+    _max?: VaultAccountMaxOrderByAggregateInput
+    _min?: VaultAccountMinOrderByAggregateInput
+    _sum?: VaultAccountSumOrderByAggregateInput
+  }
+
+  export type VaultAccountScalarWhereWithAggregatesInput = {
+    AND?: VaultAccountScalarWhereWithAggregatesInput | VaultAccountScalarWhereWithAggregatesInput[]
+    OR?: VaultAccountScalarWhereWithAggregatesInput[]
+    NOT?: VaultAccountScalarWhereWithAggregatesInput | VaultAccountScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"VaultAccount"> | string
+    userId?: StringWithAggregatesFilter<"VaultAccount"> | string
+    chainId?: IntWithAggregatesFilter<"VaultAccount"> | number
+    smartAccountAddress?: StringWithAggregatesFilter<"VaultAccount"> | string
+    baseAsset?: StringWithAggregatesFilter<"VaultAccount"> | string
+    status?: StringWithAggregatesFilter<"VaultAccount"> | string
+    availableBalance?: IntWithAggregatesFilter<"VaultAccount"> | number
+    settlementReserve?: IntWithAggregatesFilter<"VaultAccount"> | number
+    deployedToYield?: IntWithAggregatesFilter<"VaultAccount"> | number
+    accruedYield?: IntWithAggregatesFilter<"VaultAccount"> | number
+    simulatedApy?: FloatWithAggregatesFilter<"VaultAccount"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"VaultAccount"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"VaultAccount"> | Date | string
+  }
+
+  export type VaultEnvelopeWhereInput = {
+    AND?: VaultEnvelopeWhereInput | VaultEnvelopeWhereInput[]
+    OR?: VaultEnvelopeWhereInput[]
+    NOT?: VaultEnvelopeWhereInput | VaultEnvelopeWhereInput[]
+    id?: StringFilter<"VaultEnvelope"> | string
+    vaultId?: StringFilter<"VaultEnvelope"> | string
+    compassEnvelopeId?: StringFilter<"VaultEnvelope"> | string
+    name?: StringFilter<"VaultEnvelope"> | string
+    category?: StringFilter<"VaultEnvelope"> | string
+    principalAllocated?: IntFilter<"VaultEnvelope"> | number
+    accruedYield?: IntFilter<"VaultEnvelope"> | number
+    reservedForBills?: IntFilter<"VaultEnvelope"> | number
+    availableToReallocate?: IntFilter<"VaultEnvelope"> | number
+    isPolicyLocked?: BoolFilter<"VaultEnvelope"> | boolean
+    nextObligationDate?: DateTimeNullableFilter<"VaultEnvelope"> | Date | string | null
+    status?: StringFilter<"VaultEnvelope"> | string
+    createdAt?: DateTimeFilter<"VaultEnvelope"> | Date | string
+    updatedAt?: DateTimeFilter<"VaultEnvelope"> | Date | string
+    vault?: XOR<VaultAccountScalarRelationFilter, VaultAccountWhereInput>
+    compassEnvelope?: XOR<EnvelopeScalarRelationFilter, EnvelopeWhereInput>
+    bills?: ScheduledBillListRelationFilter
+    yieldEvents?: YieldEventListRelationFilter
+  }
+
+  export type VaultEnvelopeOrderByWithRelationInput = {
+    id?: SortOrder
+    vaultId?: SortOrder
+    compassEnvelopeId?: SortOrder
+    name?: SortOrder
+    category?: SortOrder
+    principalAllocated?: SortOrder
+    accruedYield?: SortOrder
+    reservedForBills?: SortOrder
+    availableToReallocate?: SortOrder
+    isPolicyLocked?: SortOrder
+    nextObligationDate?: SortOrderInput | SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    vault?: VaultAccountOrderByWithRelationInput
+    compassEnvelope?: EnvelopeOrderByWithRelationInput
+    bills?: ScheduledBillOrderByRelationAggregateInput
+    yieldEvents?: YieldEventOrderByRelationAggregateInput
+  }
+
+  export type VaultEnvelopeWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    compassEnvelopeId?: string
+    AND?: VaultEnvelopeWhereInput | VaultEnvelopeWhereInput[]
+    OR?: VaultEnvelopeWhereInput[]
+    NOT?: VaultEnvelopeWhereInput | VaultEnvelopeWhereInput[]
+    vaultId?: StringFilter<"VaultEnvelope"> | string
+    name?: StringFilter<"VaultEnvelope"> | string
+    category?: StringFilter<"VaultEnvelope"> | string
+    principalAllocated?: IntFilter<"VaultEnvelope"> | number
+    accruedYield?: IntFilter<"VaultEnvelope"> | number
+    reservedForBills?: IntFilter<"VaultEnvelope"> | number
+    availableToReallocate?: IntFilter<"VaultEnvelope"> | number
+    isPolicyLocked?: BoolFilter<"VaultEnvelope"> | boolean
+    nextObligationDate?: DateTimeNullableFilter<"VaultEnvelope"> | Date | string | null
+    status?: StringFilter<"VaultEnvelope"> | string
+    createdAt?: DateTimeFilter<"VaultEnvelope"> | Date | string
+    updatedAt?: DateTimeFilter<"VaultEnvelope"> | Date | string
+    vault?: XOR<VaultAccountScalarRelationFilter, VaultAccountWhereInput>
+    compassEnvelope?: XOR<EnvelopeScalarRelationFilter, EnvelopeWhereInput>
+    bills?: ScheduledBillListRelationFilter
+    yieldEvents?: YieldEventListRelationFilter
+  }, "id" | "compassEnvelopeId">
+
+  export type VaultEnvelopeOrderByWithAggregationInput = {
+    id?: SortOrder
+    vaultId?: SortOrder
+    compassEnvelopeId?: SortOrder
+    name?: SortOrder
+    category?: SortOrder
+    principalAllocated?: SortOrder
+    accruedYield?: SortOrder
+    reservedForBills?: SortOrder
+    availableToReallocate?: SortOrder
+    isPolicyLocked?: SortOrder
+    nextObligationDate?: SortOrderInput | SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: VaultEnvelopeCountOrderByAggregateInput
+    _avg?: VaultEnvelopeAvgOrderByAggregateInput
+    _max?: VaultEnvelopeMaxOrderByAggregateInput
+    _min?: VaultEnvelopeMinOrderByAggregateInput
+    _sum?: VaultEnvelopeSumOrderByAggregateInput
+  }
+
+  export type VaultEnvelopeScalarWhereWithAggregatesInput = {
+    AND?: VaultEnvelopeScalarWhereWithAggregatesInput | VaultEnvelopeScalarWhereWithAggregatesInput[]
+    OR?: VaultEnvelopeScalarWhereWithAggregatesInput[]
+    NOT?: VaultEnvelopeScalarWhereWithAggregatesInput | VaultEnvelopeScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"VaultEnvelope"> | string
+    vaultId?: StringWithAggregatesFilter<"VaultEnvelope"> | string
+    compassEnvelopeId?: StringWithAggregatesFilter<"VaultEnvelope"> | string
+    name?: StringWithAggregatesFilter<"VaultEnvelope"> | string
+    category?: StringWithAggregatesFilter<"VaultEnvelope"> | string
+    principalAllocated?: IntWithAggregatesFilter<"VaultEnvelope"> | number
+    accruedYield?: IntWithAggregatesFilter<"VaultEnvelope"> | number
+    reservedForBills?: IntWithAggregatesFilter<"VaultEnvelope"> | number
+    availableToReallocate?: IntWithAggregatesFilter<"VaultEnvelope"> | number
+    isPolicyLocked?: BoolWithAggregatesFilter<"VaultEnvelope"> | boolean
+    nextObligationDate?: DateTimeNullableWithAggregatesFilter<"VaultEnvelope"> | Date | string | null
+    status?: StringWithAggregatesFilter<"VaultEnvelope"> | string
+    createdAt?: DateTimeWithAggregatesFilter<"VaultEnvelope"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"VaultEnvelope"> | Date | string
+  }
+
+  export type ScheduledBillWhereInput = {
+    AND?: ScheduledBillWhereInput | ScheduledBillWhereInput[]
+    OR?: ScheduledBillWhereInput[]
+    NOT?: ScheduledBillWhereInput | ScheduledBillWhereInput[]
+    id?: StringFilter<"ScheduledBill"> | string
+    vaultId?: StringFilter<"ScheduledBill"> | string
+    envelopeId?: StringFilter<"ScheduledBill"> | string
+    billerName?: StringFilter<"ScheduledBill"> | string
+    billerId?: StringFilter<"ScheduledBill"> | string
+    maskedAccountNumber?: StringFilter<"ScheduledBill"> | string
+    amount?: IntFilter<"ScheduledBill"> | number
+    maxAuthorizedAmount?: IntFilter<"ScheduledBill"> | number
+    currency?: StringFilter<"ScheduledBill"> | string
+    frequency?: StringFilter<"ScheduledBill"> | string
+    dueDate?: DateTimeFilter<"ScheduledBill"> | Date | string
+    executionWindowStart?: DateTimeFilter<"ScheduledBill"> | Date | string
+    executionWindowEnd?: DateTimeFilter<"ScheduledBill"> | Date | string
+    status?: StringFilter<"ScheduledBill"> | string
+    providerPreference?: StringNullableFilter<"ScheduledBill"> | string | null
+    lastAttemptAt?: DateTimeNullableFilter<"ScheduledBill"> | Date | string | null
+    settlementReference?: StringNullableFilter<"ScheduledBill"> | string | null
+    createdAt?: DateTimeFilter<"ScheduledBill"> | Date | string
+    updatedAt?: DateTimeFilter<"ScheduledBill"> | Date | string
+    vault?: XOR<VaultAccountScalarRelationFilter, VaultAccountWhereInput>
+    envelope?: XOR<VaultEnvelopeScalarRelationFilter, VaultEnvelopeWhereInput>
+    paymentAttempts?: PaymentAttemptListRelationFilter
+  }
+
+  export type ScheduledBillOrderByWithRelationInput = {
+    id?: SortOrder
+    vaultId?: SortOrder
+    envelopeId?: SortOrder
+    billerName?: SortOrder
+    billerId?: SortOrder
+    maskedAccountNumber?: SortOrder
+    amount?: SortOrder
+    maxAuthorizedAmount?: SortOrder
+    currency?: SortOrder
+    frequency?: SortOrder
+    dueDate?: SortOrder
+    executionWindowStart?: SortOrder
+    executionWindowEnd?: SortOrder
+    status?: SortOrder
+    providerPreference?: SortOrderInput | SortOrder
+    lastAttemptAt?: SortOrderInput | SortOrder
+    settlementReference?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    vault?: VaultAccountOrderByWithRelationInput
+    envelope?: VaultEnvelopeOrderByWithRelationInput
+    paymentAttempts?: PaymentAttemptOrderByRelationAggregateInput
+  }
+
+  export type ScheduledBillWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    vaultId_billerId?: ScheduledBillVaultIdBillerIdCompoundUniqueInput
+    AND?: ScheduledBillWhereInput | ScheduledBillWhereInput[]
+    OR?: ScheduledBillWhereInput[]
+    NOT?: ScheduledBillWhereInput | ScheduledBillWhereInput[]
+    vaultId?: StringFilter<"ScheduledBill"> | string
+    envelopeId?: StringFilter<"ScheduledBill"> | string
+    billerName?: StringFilter<"ScheduledBill"> | string
+    billerId?: StringFilter<"ScheduledBill"> | string
+    maskedAccountNumber?: StringFilter<"ScheduledBill"> | string
+    amount?: IntFilter<"ScheduledBill"> | number
+    maxAuthorizedAmount?: IntFilter<"ScheduledBill"> | number
+    currency?: StringFilter<"ScheduledBill"> | string
+    frequency?: StringFilter<"ScheduledBill"> | string
+    dueDate?: DateTimeFilter<"ScheduledBill"> | Date | string
+    executionWindowStart?: DateTimeFilter<"ScheduledBill"> | Date | string
+    executionWindowEnd?: DateTimeFilter<"ScheduledBill"> | Date | string
+    status?: StringFilter<"ScheduledBill"> | string
+    providerPreference?: StringNullableFilter<"ScheduledBill"> | string | null
+    lastAttemptAt?: DateTimeNullableFilter<"ScheduledBill"> | Date | string | null
+    settlementReference?: StringNullableFilter<"ScheduledBill"> | string | null
+    createdAt?: DateTimeFilter<"ScheduledBill"> | Date | string
+    updatedAt?: DateTimeFilter<"ScheduledBill"> | Date | string
+    vault?: XOR<VaultAccountScalarRelationFilter, VaultAccountWhereInput>
+    envelope?: XOR<VaultEnvelopeScalarRelationFilter, VaultEnvelopeWhereInput>
+    paymentAttempts?: PaymentAttemptListRelationFilter
+  }, "id" | "vaultId_billerId">
+
+  export type ScheduledBillOrderByWithAggregationInput = {
+    id?: SortOrder
+    vaultId?: SortOrder
+    envelopeId?: SortOrder
+    billerName?: SortOrder
+    billerId?: SortOrder
+    maskedAccountNumber?: SortOrder
+    amount?: SortOrder
+    maxAuthorizedAmount?: SortOrder
+    currency?: SortOrder
+    frequency?: SortOrder
+    dueDate?: SortOrder
+    executionWindowStart?: SortOrder
+    executionWindowEnd?: SortOrder
+    status?: SortOrder
+    providerPreference?: SortOrderInput | SortOrder
+    lastAttemptAt?: SortOrderInput | SortOrder
+    settlementReference?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: ScheduledBillCountOrderByAggregateInput
+    _avg?: ScheduledBillAvgOrderByAggregateInput
+    _max?: ScheduledBillMaxOrderByAggregateInput
+    _min?: ScheduledBillMinOrderByAggregateInput
+    _sum?: ScheduledBillSumOrderByAggregateInput
+  }
+
+  export type ScheduledBillScalarWhereWithAggregatesInput = {
+    AND?: ScheduledBillScalarWhereWithAggregatesInput | ScheduledBillScalarWhereWithAggregatesInput[]
+    OR?: ScheduledBillScalarWhereWithAggregatesInput[]
+    NOT?: ScheduledBillScalarWhereWithAggregatesInput | ScheduledBillScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"ScheduledBill"> | string
+    vaultId?: StringWithAggregatesFilter<"ScheduledBill"> | string
+    envelopeId?: StringWithAggregatesFilter<"ScheduledBill"> | string
+    billerName?: StringWithAggregatesFilter<"ScheduledBill"> | string
+    billerId?: StringWithAggregatesFilter<"ScheduledBill"> | string
+    maskedAccountNumber?: StringWithAggregatesFilter<"ScheduledBill"> | string
+    amount?: IntWithAggregatesFilter<"ScheduledBill"> | number
+    maxAuthorizedAmount?: IntWithAggregatesFilter<"ScheduledBill"> | number
+    currency?: StringWithAggregatesFilter<"ScheduledBill"> | string
+    frequency?: StringWithAggregatesFilter<"ScheduledBill"> | string
+    dueDate?: DateTimeWithAggregatesFilter<"ScheduledBill"> | Date | string
+    executionWindowStart?: DateTimeWithAggregatesFilter<"ScheduledBill"> | Date | string
+    executionWindowEnd?: DateTimeWithAggregatesFilter<"ScheduledBill"> | Date | string
+    status?: StringWithAggregatesFilter<"ScheduledBill"> | string
+    providerPreference?: StringNullableWithAggregatesFilter<"ScheduledBill"> | string | null
+    lastAttemptAt?: DateTimeNullableWithAggregatesFilter<"ScheduledBill"> | Date | string | null
+    settlementReference?: StringNullableWithAggregatesFilter<"ScheduledBill"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"ScheduledBill"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"ScheduledBill"> | Date | string
+  }
+
+  export type YieldEventWhereInput = {
+    AND?: YieldEventWhereInput | YieldEventWhereInput[]
+    OR?: YieldEventWhereInput[]
+    NOT?: YieldEventWhereInput | YieldEventWhereInput[]
+    id?: StringFilter<"YieldEvent"> | string
+    vaultId?: StringFilter<"YieldEvent"> | string
+    envelopeId?: StringNullableFilter<"YieldEvent"> | string | null
+    asset?: StringFilter<"YieldEvent"> | string
+    amount?: IntFilter<"YieldEvent"> | number
+    annualizedRate?: FloatNullableFilter<"YieldEvent"> | number | null
+    source?: StringFilter<"YieldEvent"> | string
+    action?: StringFilter<"YieldEvent"> | string
+    occurredAt?: DateTimeFilter<"YieldEvent"> | Date | string
+    vault?: XOR<VaultAccountScalarRelationFilter, VaultAccountWhereInput>
+    envelope?: XOR<VaultEnvelopeNullableScalarRelationFilter, VaultEnvelopeWhereInput> | null
+  }
+
+  export type YieldEventOrderByWithRelationInput = {
+    id?: SortOrder
+    vaultId?: SortOrder
+    envelopeId?: SortOrderInput | SortOrder
+    asset?: SortOrder
+    amount?: SortOrder
+    annualizedRate?: SortOrderInput | SortOrder
+    source?: SortOrder
+    action?: SortOrder
+    occurredAt?: SortOrder
+    vault?: VaultAccountOrderByWithRelationInput
+    envelope?: VaultEnvelopeOrderByWithRelationInput
+  }
+
+  export type YieldEventWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: YieldEventWhereInput | YieldEventWhereInput[]
+    OR?: YieldEventWhereInput[]
+    NOT?: YieldEventWhereInput | YieldEventWhereInput[]
+    vaultId?: StringFilter<"YieldEvent"> | string
+    envelopeId?: StringNullableFilter<"YieldEvent"> | string | null
+    asset?: StringFilter<"YieldEvent"> | string
+    amount?: IntFilter<"YieldEvent"> | number
+    annualizedRate?: FloatNullableFilter<"YieldEvent"> | number | null
+    source?: StringFilter<"YieldEvent"> | string
+    action?: StringFilter<"YieldEvent"> | string
+    occurredAt?: DateTimeFilter<"YieldEvent"> | Date | string
+    vault?: XOR<VaultAccountScalarRelationFilter, VaultAccountWhereInput>
+    envelope?: XOR<VaultEnvelopeNullableScalarRelationFilter, VaultEnvelopeWhereInput> | null
+  }, "id">
+
+  export type YieldEventOrderByWithAggregationInput = {
+    id?: SortOrder
+    vaultId?: SortOrder
+    envelopeId?: SortOrderInput | SortOrder
+    asset?: SortOrder
+    amount?: SortOrder
+    annualizedRate?: SortOrderInput | SortOrder
+    source?: SortOrder
+    action?: SortOrder
+    occurredAt?: SortOrder
+    _count?: YieldEventCountOrderByAggregateInput
+    _avg?: YieldEventAvgOrderByAggregateInput
+    _max?: YieldEventMaxOrderByAggregateInput
+    _min?: YieldEventMinOrderByAggregateInput
+    _sum?: YieldEventSumOrderByAggregateInput
+  }
+
+  export type YieldEventScalarWhereWithAggregatesInput = {
+    AND?: YieldEventScalarWhereWithAggregatesInput | YieldEventScalarWhereWithAggregatesInput[]
+    OR?: YieldEventScalarWhereWithAggregatesInput[]
+    NOT?: YieldEventScalarWhereWithAggregatesInput | YieldEventScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"YieldEvent"> | string
+    vaultId?: StringWithAggregatesFilter<"YieldEvent"> | string
+    envelopeId?: StringNullableWithAggregatesFilter<"YieldEvent"> | string | null
+    asset?: StringWithAggregatesFilter<"YieldEvent"> | string
+    amount?: IntWithAggregatesFilter<"YieldEvent"> | number
+    annualizedRate?: FloatNullableWithAggregatesFilter<"YieldEvent"> | number | null
+    source?: StringWithAggregatesFilter<"YieldEvent"> | string
+    action?: StringWithAggregatesFilter<"YieldEvent"> | string
+    occurredAt?: DateTimeWithAggregatesFilter<"YieldEvent"> | Date | string
+  }
+
+  export type PaymentAttemptWhereInput = {
+    AND?: PaymentAttemptWhereInput | PaymentAttemptWhereInput[]
+    OR?: PaymentAttemptWhereInput[]
+    NOT?: PaymentAttemptWhereInput | PaymentAttemptWhereInput[]
+    id?: StringFilter<"PaymentAttempt"> | string
+    billId?: StringFilter<"PaymentAttempt"> | string
+    providerName?: StringFilter<"PaymentAttempt"> | string
+    idempotencyKey?: StringFilter<"PaymentAttempt"> | string
+    requestAmount?: IntFilter<"PaymentAttempt"> | number
+    result?: StringFilter<"PaymentAttempt"> | string
+    transactionId?: StringNullableFilter<"PaymentAttempt"> | string | null
+    warningMessage?: StringNullableFilter<"PaymentAttempt"> | string | null
+    errorMessage?: StringNullableFilter<"PaymentAttempt"> | string | null
+    retryable?: BoolFilter<"PaymentAttempt"> | boolean
+    attemptedAt?: DateTimeFilter<"PaymentAttempt"> | Date | string
+    completedAt?: DateTimeNullableFilter<"PaymentAttempt"> | Date | string | null
+    bill?: XOR<ScheduledBillScalarRelationFilter, ScheduledBillWhereInput>
+    providerEvents?: ProviderEventListRelationFilter
+  }
+
+  export type PaymentAttemptOrderByWithRelationInput = {
+    id?: SortOrder
+    billId?: SortOrder
+    providerName?: SortOrder
+    idempotencyKey?: SortOrder
+    requestAmount?: SortOrder
+    result?: SortOrder
+    transactionId?: SortOrderInput | SortOrder
+    warningMessage?: SortOrderInput | SortOrder
+    errorMessage?: SortOrderInput | SortOrder
+    retryable?: SortOrder
+    attemptedAt?: SortOrder
+    completedAt?: SortOrderInput | SortOrder
+    bill?: ScheduledBillOrderByWithRelationInput
+    providerEvents?: ProviderEventOrderByRelationAggregateInput
+  }
+
+  export type PaymentAttemptWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    providerName_idempotencyKey?: PaymentAttemptProviderNameIdempotencyKeyCompoundUniqueInput
+    AND?: PaymentAttemptWhereInput | PaymentAttemptWhereInput[]
+    OR?: PaymentAttemptWhereInput[]
+    NOT?: PaymentAttemptWhereInput | PaymentAttemptWhereInput[]
+    billId?: StringFilter<"PaymentAttempt"> | string
+    providerName?: StringFilter<"PaymentAttempt"> | string
+    idempotencyKey?: StringFilter<"PaymentAttempt"> | string
+    requestAmount?: IntFilter<"PaymentAttempt"> | number
+    result?: StringFilter<"PaymentAttempt"> | string
+    transactionId?: StringNullableFilter<"PaymentAttempt"> | string | null
+    warningMessage?: StringNullableFilter<"PaymentAttempt"> | string | null
+    errorMessage?: StringNullableFilter<"PaymentAttempt"> | string | null
+    retryable?: BoolFilter<"PaymentAttempt"> | boolean
+    attemptedAt?: DateTimeFilter<"PaymentAttempt"> | Date | string
+    completedAt?: DateTimeNullableFilter<"PaymentAttempt"> | Date | string | null
+    bill?: XOR<ScheduledBillScalarRelationFilter, ScheduledBillWhereInput>
+    providerEvents?: ProviderEventListRelationFilter
+  }, "id" | "providerName_idempotencyKey">
+
+  export type PaymentAttemptOrderByWithAggregationInput = {
+    id?: SortOrder
+    billId?: SortOrder
+    providerName?: SortOrder
+    idempotencyKey?: SortOrder
+    requestAmount?: SortOrder
+    result?: SortOrder
+    transactionId?: SortOrderInput | SortOrder
+    warningMessage?: SortOrderInput | SortOrder
+    errorMessage?: SortOrderInput | SortOrder
+    retryable?: SortOrder
+    attemptedAt?: SortOrder
+    completedAt?: SortOrderInput | SortOrder
+    _count?: PaymentAttemptCountOrderByAggregateInput
+    _avg?: PaymentAttemptAvgOrderByAggregateInput
+    _max?: PaymentAttemptMaxOrderByAggregateInput
+    _min?: PaymentAttemptMinOrderByAggregateInput
+    _sum?: PaymentAttemptSumOrderByAggregateInput
+  }
+
+  export type PaymentAttemptScalarWhereWithAggregatesInput = {
+    AND?: PaymentAttemptScalarWhereWithAggregatesInput | PaymentAttemptScalarWhereWithAggregatesInput[]
+    OR?: PaymentAttemptScalarWhereWithAggregatesInput[]
+    NOT?: PaymentAttemptScalarWhereWithAggregatesInput | PaymentAttemptScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"PaymentAttempt"> | string
+    billId?: StringWithAggregatesFilter<"PaymentAttempt"> | string
+    providerName?: StringWithAggregatesFilter<"PaymentAttempt"> | string
+    idempotencyKey?: StringWithAggregatesFilter<"PaymentAttempt"> | string
+    requestAmount?: IntWithAggregatesFilter<"PaymentAttempt"> | number
+    result?: StringWithAggregatesFilter<"PaymentAttempt"> | string
+    transactionId?: StringNullableWithAggregatesFilter<"PaymentAttempt"> | string | null
+    warningMessage?: StringNullableWithAggregatesFilter<"PaymentAttempt"> | string | null
+    errorMessage?: StringNullableWithAggregatesFilter<"PaymentAttempt"> | string | null
+    retryable?: BoolWithAggregatesFilter<"PaymentAttempt"> | boolean
+    attemptedAt?: DateTimeWithAggregatesFilter<"PaymentAttempt"> | Date | string
+    completedAt?: DateTimeNullableWithAggregatesFilter<"PaymentAttempt"> | Date | string | null
+  }
+
+  export type ProviderEventWhereInput = {
+    AND?: ProviderEventWhereInput | ProviderEventWhereInput[]
+    OR?: ProviderEventWhereInput[]
+    NOT?: ProviderEventWhereInput | ProviderEventWhereInput[]
+    id?: StringFilter<"ProviderEvent"> | string
+    attemptId?: StringFilter<"ProviderEvent"> | string
+    providerName?: StringFilter<"ProviderEvent"> | string
+    eventType?: StringFilter<"ProviderEvent"> | string
+    payload?: StringFilter<"ProviderEvent"> | string
+    occurredAt?: DateTimeFilter<"ProviderEvent"> | Date | string
+    attempt?: XOR<PaymentAttemptScalarRelationFilter, PaymentAttemptWhereInput>
+  }
+
+  export type ProviderEventOrderByWithRelationInput = {
+    id?: SortOrder
+    attemptId?: SortOrder
+    providerName?: SortOrder
+    eventType?: SortOrder
+    payload?: SortOrder
+    occurredAt?: SortOrder
+    attempt?: PaymentAttemptOrderByWithRelationInput
+  }
+
+  export type ProviderEventWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: ProviderEventWhereInput | ProviderEventWhereInput[]
+    OR?: ProviderEventWhereInput[]
+    NOT?: ProviderEventWhereInput | ProviderEventWhereInput[]
+    attemptId?: StringFilter<"ProviderEvent"> | string
+    providerName?: StringFilter<"ProviderEvent"> | string
+    eventType?: StringFilter<"ProviderEvent"> | string
+    payload?: StringFilter<"ProviderEvent"> | string
+    occurredAt?: DateTimeFilter<"ProviderEvent"> | Date | string
+    attempt?: XOR<PaymentAttemptScalarRelationFilter, PaymentAttemptWhereInput>
+  }, "id">
+
+  export type ProviderEventOrderByWithAggregationInput = {
+    id?: SortOrder
+    attemptId?: SortOrder
+    providerName?: SortOrder
+    eventType?: SortOrder
+    payload?: SortOrder
+    occurredAt?: SortOrder
+    _count?: ProviderEventCountOrderByAggregateInput
+    _max?: ProviderEventMaxOrderByAggregateInput
+    _min?: ProviderEventMinOrderByAggregateInput
+  }
+
+  export type ProviderEventScalarWhereWithAggregatesInput = {
+    AND?: ProviderEventScalarWhereWithAggregatesInput | ProviderEventScalarWhereWithAggregatesInput[]
+    OR?: ProviderEventScalarWhereWithAggregatesInput[]
+    NOT?: ProviderEventScalarWhereWithAggregatesInput | ProviderEventScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"ProviderEvent"> | string
+    attemptId?: StringWithAggregatesFilter<"ProviderEvent"> | string
+    providerName?: StringWithAggregatesFilter<"ProviderEvent"> | string
+    eventType?: StringWithAggregatesFilter<"ProviderEvent"> | string
+    payload?: StringWithAggregatesFilter<"ProviderEvent"> | string
+    occurredAt?: DateTimeWithAggregatesFilter<"ProviderEvent"> | Date | string
+  }
+
+  export type VaultPreferencesWhereInput = {
+    AND?: VaultPreferencesWhereInput | VaultPreferencesWhereInput[]
+    OR?: VaultPreferencesWhereInput[]
+    NOT?: VaultPreferencesWhereInput | VaultPreferencesWhereInput[]
+    id?: StringFilter<"VaultPreferences"> | string
+    userId?: StringFilter<"VaultPreferences"> | string
+    yieldRoutingStrategy?: StringFilter<"VaultPreferences"> | string
+    riskAcknowledgedAt?: DateTimeNullableFilter<"VaultPreferences"> | Date | string | null
+    createdAt?: DateTimeFilter<"VaultPreferences"> | Date | string
+    updatedAt?: DateTimeFilter<"VaultPreferences"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }
+
+  export type VaultPreferencesOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    yieldRoutingStrategy?: SortOrder
+    riskAcknowledgedAt?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    user?: UserOrderByWithRelationInput
+  }
+
+  export type VaultPreferencesWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    userId?: string
+    AND?: VaultPreferencesWhereInput | VaultPreferencesWhereInput[]
+    OR?: VaultPreferencesWhereInput[]
+    NOT?: VaultPreferencesWhereInput | VaultPreferencesWhereInput[]
+    yieldRoutingStrategy?: StringFilter<"VaultPreferences"> | string
+    riskAcknowledgedAt?: DateTimeNullableFilter<"VaultPreferences"> | Date | string | null
+    createdAt?: DateTimeFilter<"VaultPreferences"> | Date | string
+    updatedAt?: DateTimeFilter<"VaultPreferences"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }, "id" | "userId">
+
+  export type VaultPreferencesOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    yieldRoutingStrategy?: SortOrder
+    riskAcknowledgedAt?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: VaultPreferencesCountOrderByAggregateInput
+    _max?: VaultPreferencesMaxOrderByAggregateInput
+    _min?: VaultPreferencesMinOrderByAggregateInput
+  }
+
+  export type VaultPreferencesScalarWhereWithAggregatesInput = {
+    AND?: VaultPreferencesScalarWhereWithAggregatesInput | VaultPreferencesScalarWhereWithAggregatesInput[]
+    OR?: VaultPreferencesScalarWhereWithAggregatesInput[]
+    NOT?: VaultPreferencesScalarWhereWithAggregatesInput | VaultPreferencesScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"VaultPreferences"> | string
+    userId?: StringWithAggregatesFilter<"VaultPreferences"> | string
+    yieldRoutingStrategy?: StringWithAggregatesFilter<"VaultPreferences"> | string
+    riskAcknowledgedAt?: DateTimeNullableWithAggregatesFilter<"VaultPreferences"> | Date | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"VaultPreferences"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"VaultPreferences"> | Date | string
+  }
+
   export type UserCreateInput = {
     id?: string
     name: string
@@ -31596,8 +42143,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateInput = {
@@ -31618,8 +42168,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserUpdateInput = {
@@ -31640,8 +42193,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateInput = {
@@ -31662,8 +42218,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type UserCreateManyInput = {
@@ -31789,6 +42348,7 @@ export namespace Prisma {
     institution?: string | null
     mask?: string | null
     routingEnabled?: boolean
+    source?: string
     isArchived?: boolean
     sortOrder?: number
     createdAt?: Date | string
@@ -31807,6 +42367,7 @@ export namespace Prisma {
     institution?: string | null
     mask?: string | null
     routingEnabled?: boolean
+    source?: string
     isArchived?: boolean
     sortOrder?: number
     createdAt?: Date | string
@@ -31823,6 +42384,7 @@ export namespace Prisma {
     institution?: NullableStringFieldUpdateOperationsInput | string | null
     mask?: NullableStringFieldUpdateOperationsInput | string | null
     routingEnabled?: BoolFieldUpdateOperationsInput | boolean
+    source?: StringFieldUpdateOperationsInput | string
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -31841,6 +42403,7 @@ export namespace Prisma {
     institution?: NullableStringFieldUpdateOperationsInput | string | null
     mask?: NullableStringFieldUpdateOperationsInput | string | null
     routingEnabled?: BoolFieldUpdateOperationsInput | boolean
+    source?: StringFieldUpdateOperationsInput | string
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -31858,6 +42421,7 @@ export namespace Prisma {
     institution?: string | null
     mask?: string | null
     routingEnabled?: boolean
+    source?: string
     isArchived?: boolean
     sortOrder?: number
     createdAt?: Date | string
@@ -31872,6 +42436,7 @@ export namespace Prisma {
     institution?: NullableStringFieldUpdateOperationsInput | string | null
     mask?: NullableStringFieldUpdateOperationsInput | string | null
     routingEnabled?: BoolFieldUpdateOperationsInput | boolean
+    source?: StringFieldUpdateOperationsInput | string
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -31887,6 +42452,7 @@ export namespace Prisma {
     institution?: NullableStringFieldUpdateOperationsInput | string | null
     mask?: NullableStringFieldUpdateOperationsInput | string | null
     routingEnabled?: BoolFieldUpdateOperationsInput | boolean
+    source?: StringFieldUpdateOperationsInput | string
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -31896,6 +42462,7 @@ export namespace Prisma {
   export type EnvelopeCreateInput = {
     id?: string
     name: string
+    source?: string
     targetBalance?: number
     currentBalance?: number
     planet?: string | null
@@ -31910,12 +42477,14 @@ export namespace Prisma {
     user: UserCreateNestedOneWithoutEnvelopesInput
     transactions?: TransactionCreateNestedManyWithoutEnvelopeInput
     allocationRules?: AllocationRuleCreateNestedManyWithoutEnvelopeInput
+    vaultEnvelope?: VaultEnvelopeCreateNestedOneWithoutCompassEnvelopeInput
   }
 
   export type EnvelopeUncheckedCreateInput = {
     id?: string
     userId: string
     name: string
+    source?: string
     targetBalance?: number
     currentBalance?: number
     planet?: string | null
@@ -31929,11 +42498,13 @@ export namespace Prisma {
     updatedAt?: Date | string
     transactions?: TransactionUncheckedCreateNestedManyWithoutEnvelopeInput
     allocationRules?: AllocationRuleUncheckedCreateNestedManyWithoutEnvelopeInput
+    vaultEnvelope?: VaultEnvelopeUncheckedCreateNestedOneWithoutCompassEnvelopeInput
   }
 
   export type EnvelopeUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
     targetBalance?: IntFieldUpdateOperationsInput | number
     currentBalance?: IntFieldUpdateOperationsInput | number
     planet?: NullableStringFieldUpdateOperationsInput | string | null
@@ -31948,12 +42519,14 @@ export namespace Prisma {
     user?: UserUpdateOneRequiredWithoutEnvelopesNestedInput
     transactions?: TransactionUpdateManyWithoutEnvelopeNestedInput
     allocationRules?: AllocationRuleUpdateManyWithoutEnvelopeNestedInput
+    vaultEnvelope?: VaultEnvelopeUpdateOneWithoutCompassEnvelopeNestedInput
   }
 
   export type EnvelopeUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
     targetBalance?: IntFieldUpdateOperationsInput | number
     currentBalance?: IntFieldUpdateOperationsInput | number
     planet?: NullableStringFieldUpdateOperationsInput | string | null
@@ -31967,12 +42540,14 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     transactions?: TransactionUncheckedUpdateManyWithoutEnvelopeNestedInput
     allocationRules?: AllocationRuleUncheckedUpdateManyWithoutEnvelopeNestedInput
+    vaultEnvelope?: VaultEnvelopeUncheckedUpdateOneWithoutCompassEnvelopeNestedInput
   }
 
   export type EnvelopeCreateManyInput = {
     id?: string
     userId: string
     name: string
+    source?: string
     targetBalance?: number
     currentBalance?: number
     planet?: string | null
@@ -31989,6 +42564,7 @@ export namespace Prisma {
   export type EnvelopeUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
     targetBalance?: IntFieldUpdateOperationsInput | number
     currentBalance?: IntFieldUpdateOperationsInput | number
     planet?: NullableStringFieldUpdateOperationsInput | string | null
@@ -32006,6 +42582,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
     targetBalance?: IntFieldUpdateOperationsInput | number
     currentBalance?: IntFieldUpdateOperationsInput | number
     planet?: NullableStringFieldUpdateOperationsInput | string | null
@@ -32233,7 +42810,6 @@ export namespace Prisma {
 
   export type BillCreateInput = {
     id?: string
-    userId: string
     name: string
     amountCents: number
     cadence: string
@@ -32242,8 +42818,12 @@ export namespace Prisma {
     paidAt?: Date | string | null
     source?: string
     isArchived?: boolean
+    envelopeId?: string | null
+    accountId?: string | null
+    sortOrder?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutBillsInput
   }
 
   export type BillUncheckedCreateInput = {
@@ -32257,13 +42837,15 @@ export namespace Prisma {
     paidAt?: Date | string | null
     source?: string
     isArchived?: boolean
+    envelopeId?: string | null
+    accountId?: string | null
+    sortOrder?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
 
   export type BillUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     amountCents?: IntFieldUpdateOperationsInput | number
     cadence?: StringFieldUpdateOperationsInput | string
@@ -32272,8 +42854,12 @@ export namespace Prisma {
     paidAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: StringFieldUpdateOperationsInput | string
     isArchived?: BoolFieldUpdateOperationsInput | boolean
+    envelopeId?: NullableStringFieldUpdateOperationsInput | string | null
+    accountId?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutBillsNestedInput
   }
 
   export type BillUncheckedUpdateInput = {
@@ -32287,6 +42873,9 @@ export namespace Prisma {
     paidAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: StringFieldUpdateOperationsInput | string
     isArchived?: BoolFieldUpdateOperationsInput | boolean
+    envelopeId?: NullableStringFieldUpdateOperationsInput | string | null
+    accountId?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -32302,13 +42891,15 @@ export namespace Prisma {
     paidAt?: Date | string | null
     source?: string
     isArchived?: boolean
+    envelopeId?: string | null
+    accountId?: string | null
+    sortOrder?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
 
   export type BillUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     amountCents?: IntFieldUpdateOperationsInput | number
     cadence?: StringFieldUpdateOperationsInput | string
@@ -32317,6 +42908,9 @@ export namespace Prisma {
     paidAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: StringFieldUpdateOperationsInput | string
     isArchived?: BoolFieldUpdateOperationsInput | boolean
+    envelopeId?: NullableStringFieldUpdateOperationsInput | string | null
+    accountId?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -32332,6 +42926,9 @@ export namespace Prisma {
     paidAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: StringFieldUpdateOperationsInput | string
     isArchived?: BoolFieldUpdateOperationsInput | boolean
+    envelopeId?: NullableStringFieldUpdateOperationsInput | string | null
+    accountId?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -32348,6 +42945,7 @@ export namespace Prisma {
     isPrimary?: boolean
     kind?: $Enums.GoalKind
     goalType?: $Enums.GoalType | null
+    source?: string
     sortOrder?: number
     isArchived?: boolean
     createdAt?: Date | string
@@ -32368,6 +42966,7 @@ export namespace Prisma {
     isPrimary?: boolean
     kind?: $Enums.GoalKind
     goalType?: $Enums.GoalType | null
+    source?: string
     sortOrder?: number
     isArchived?: boolean
     createdAt?: Date | string
@@ -32386,6 +42985,7 @@ export namespace Prisma {
     isPrimary?: BoolFieldUpdateOperationsInput | boolean
     kind?: EnumGoalKindFieldUpdateOperationsInput | $Enums.GoalKind
     goalType?: NullableEnumGoalTypeFieldUpdateOperationsInput | $Enums.GoalType | null
+    source?: StringFieldUpdateOperationsInput | string
     sortOrder?: IntFieldUpdateOperationsInput | number
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -32406,6 +43006,7 @@ export namespace Prisma {
     isPrimary?: BoolFieldUpdateOperationsInput | boolean
     kind?: EnumGoalKindFieldUpdateOperationsInput | $Enums.GoalKind
     goalType?: NullableEnumGoalTypeFieldUpdateOperationsInput | $Enums.GoalType | null
+    source?: StringFieldUpdateOperationsInput | string
     sortOrder?: IntFieldUpdateOperationsInput | number
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -32425,6 +43026,7 @@ export namespace Prisma {
     isPrimary?: boolean
     kind?: $Enums.GoalKind
     goalType?: $Enums.GoalType | null
+    source?: string
     sortOrder?: number
     isArchived?: boolean
     createdAt?: Date | string
@@ -32443,6 +43045,7 @@ export namespace Prisma {
     isPrimary?: BoolFieldUpdateOperationsInput | boolean
     kind?: EnumGoalKindFieldUpdateOperationsInput | $Enums.GoalKind
     goalType?: NullableEnumGoalTypeFieldUpdateOperationsInput | $Enums.GoalType | null
+    source?: StringFieldUpdateOperationsInput | string
     sortOrder?: IntFieldUpdateOperationsInput | number
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -32462,6 +43065,7 @@ export namespace Prisma {
     isPrimary?: BoolFieldUpdateOperationsInput | boolean
     kind?: EnumGoalKindFieldUpdateOperationsInput | $Enums.GoalKind
     goalType?: NullableEnumGoalTypeFieldUpdateOperationsInput | $Enums.GoalType | null
+    source?: StringFieldUpdateOperationsInput | string
     sortOrder?: IntFieldUpdateOperationsInput | number
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -32473,6 +43077,7 @@ export namespace Prisma {
     strategyId?: string
     isArmed?: boolean
     name?: string | null
+    source?: string
     createdAt?: Date | string
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutAllocationPlansInput
@@ -32485,6 +43090,7 @@ export namespace Prisma {
     strategyId?: string
     isArmed?: boolean
     name?: string | null
+    source?: string
     createdAt?: Date | string
     updatedAt?: Date | string
     rules?: AllocationRuleUncheckedCreateNestedManyWithoutPlanInput
@@ -32495,6 +43101,7 @@ export namespace Prisma {
     strategyId?: StringFieldUpdateOperationsInput | string
     isArmed?: BoolFieldUpdateOperationsInput | boolean
     name?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutAllocationPlansNestedInput
@@ -32507,6 +43114,7 @@ export namespace Prisma {
     strategyId?: StringFieldUpdateOperationsInput | string
     isArmed?: BoolFieldUpdateOperationsInput | boolean
     name?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     rules?: AllocationRuleUncheckedUpdateManyWithoutPlanNestedInput
@@ -32518,6 +43126,7 @@ export namespace Prisma {
     strategyId?: string
     isArmed?: boolean
     name?: string | null
+    source?: string
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -32527,6 +43136,7 @@ export namespace Prisma {
     strategyId?: StringFieldUpdateOperationsInput | string
     isArmed?: BoolFieldUpdateOperationsInput | boolean
     name?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -32537,14 +43147,16 @@ export namespace Prisma {
     strategyId?: StringFieldUpdateOperationsInput | string
     isArmed?: BoolFieldUpdateOperationsInput | boolean
     name?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type AllocationRuleCreateInput = {
     id?: string
-    pct: number
+    pct?: number
     fixedCents?: number | null
+    source?: string
     sortOrder?: number
     createdAt?: Date | string
     plan: AllocationPlanCreateNestedOneWithoutRulesInput
@@ -32555,8 +43167,9 @@ export namespace Prisma {
     id?: string
     planId: string
     envelopeId: string
-    pct: number
+    pct?: number
     fixedCents?: number | null
+    source?: string
     sortOrder?: number
     createdAt?: Date | string
   }
@@ -32565,6 +43178,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     pct?: IntFieldUpdateOperationsInput | number
     fixedCents?: NullableIntFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     plan?: AllocationPlanUpdateOneRequiredWithoutRulesNestedInput
@@ -32577,6 +43191,7 @@ export namespace Prisma {
     envelopeId?: StringFieldUpdateOperationsInput | string
     pct?: IntFieldUpdateOperationsInput | number
     fixedCents?: NullableIntFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -32585,8 +43200,9 @@ export namespace Prisma {
     id?: string
     planId: string
     envelopeId: string
-    pct: number
+    pct?: number
     fixedCents?: number | null
+    source?: string
     sortOrder?: number
     createdAt?: Date | string
   }
@@ -32595,6 +43211,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     pct?: IntFieldUpdateOperationsInput | number
     fixedCents?: NullableIntFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -32605,6 +43222,7 @@ export namespace Prisma {
     envelopeId?: StringFieldUpdateOperationsInput | string
     pct?: IntFieldUpdateOperationsInput | number
     fixedCents?: NullableIntFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -33618,6 +44236,724 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type VaultAccountCreateInput = {
+    id?: string
+    chainId?: number
+    smartAccountAddress: string
+    baseAsset?: string
+    status?: string
+    availableBalance?: number
+    settlementReserve?: number
+    deployedToYield?: number
+    accruedYield?: number
+    simulatedApy?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutVaultAccountInput
+    envelopes?: VaultEnvelopeCreateNestedManyWithoutVaultInput
+    bills?: ScheduledBillCreateNestedManyWithoutVaultInput
+    yieldEvents?: YieldEventCreateNestedManyWithoutVaultInput
+  }
+
+  export type VaultAccountUncheckedCreateInput = {
+    id?: string
+    userId: string
+    chainId?: number
+    smartAccountAddress: string
+    baseAsset?: string
+    status?: string
+    availableBalance?: number
+    settlementReserve?: number
+    deployedToYield?: number
+    accruedYield?: number
+    simulatedApy?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    envelopes?: VaultEnvelopeUncheckedCreateNestedManyWithoutVaultInput
+    bills?: ScheduledBillUncheckedCreateNestedManyWithoutVaultInput
+    yieldEvents?: YieldEventUncheckedCreateNestedManyWithoutVaultInput
+  }
+
+  export type VaultAccountUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    chainId?: IntFieldUpdateOperationsInput | number
+    smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    baseAsset?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    availableBalance?: IntFieldUpdateOperationsInput | number
+    settlementReserve?: IntFieldUpdateOperationsInput | number
+    deployedToYield?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    simulatedApy?: FloatFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutVaultAccountNestedInput
+    envelopes?: VaultEnvelopeUpdateManyWithoutVaultNestedInput
+    bills?: ScheduledBillUpdateManyWithoutVaultNestedInput
+    yieldEvents?: YieldEventUpdateManyWithoutVaultNestedInput
+  }
+
+  export type VaultAccountUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    chainId?: IntFieldUpdateOperationsInput | number
+    smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    baseAsset?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    availableBalance?: IntFieldUpdateOperationsInput | number
+    settlementReserve?: IntFieldUpdateOperationsInput | number
+    deployedToYield?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    simulatedApy?: FloatFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    envelopes?: VaultEnvelopeUncheckedUpdateManyWithoutVaultNestedInput
+    bills?: ScheduledBillUncheckedUpdateManyWithoutVaultNestedInput
+    yieldEvents?: YieldEventUncheckedUpdateManyWithoutVaultNestedInput
+  }
+
+  export type VaultAccountCreateManyInput = {
+    id?: string
+    userId: string
+    chainId?: number
+    smartAccountAddress: string
+    baseAsset?: string
+    status?: string
+    availableBalance?: number
+    settlementReserve?: number
+    deployedToYield?: number
+    accruedYield?: number
+    simulatedApy?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type VaultAccountUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    chainId?: IntFieldUpdateOperationsInput | number
+    smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    baseAsset?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    availableBalance?: IntFieldUpdateOperationsInput | number
+    settlementReserve?: IntFieldUpdateOperationsInput | number
+    deployedToYield?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    simulatedApy?: FloatFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type VaultAccountUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    chainId?: IntFieldUpdateOperationsInput | number
+    smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    baseAsset?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    availableBalance?: IntFieldUpdateOperationsInput | number
+    settlementReserve?: IntFieldUpdateOperationsInput | number
+    deployedToYield?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    simulatedApy?: FloatFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type VaultEnvelopeCreateInput = {
+    id?: string
+    name: string
+    category: string
+    principalAllocated?: number
+    accruedYield?: number
+    reservedForBills?: number
+    availableToReallocate?: number
+    isPolicyLocked?: boolean
+    nextObligationDate?: Date | string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    vault: VaultAccountCreateNestedOneWithoutEnvelopesInput
+    compassEnvelope: EnvelopeCreateNestedOneWithoutVaultEnvelopeInput
+    bills?: ScheduledBillCreateNestedManyWithoutEnvelopeInput
+    yieldEvents?: YieldEventCreateNestedManyWithoutEnvelopeInput
+  }
+
+  export type VaultEnvelopeUncheckedCreateInput = {
+    id?: string
+    vaultId: string
+    compassEnvelopeId: string
+    name: string
+    category: string
+    principalAllocated?: number
+    accruedYield?: number
+    reservedForBills?: number
+    availableToReallocate?: number
+    isPolicyLocked?: boolean
+    nextObligationDate?: Date | string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    bills?: ScheduledBillUncheckedCreateNestedManyWithoutEnvelopeInput
+    yieldEvents?: YieldEventUncheckedCreateNestedManyWithoutEnvelopeInput
+  }
+
+  export type VaultEnvelopeUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    principalAllocated?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    reservedForBills?: IntFieldUpdateOperationsInput | number
+    availableToReallocate?: IntFieldUpdateOperationsInput | number
+    isPolicyLocked?: BoolFieldUpdateOperationsInput | boolean
+    nextObligationDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    vault?: VaultAccountUpdateOneRequiredWithoutEnvelopesNestedInput
+    compassEnvelope?: EnvelopeUpdateOneRequiredWithoutVaultEnvelopeNestedInput
+    bills?: ScheduledBillUpdateManyWithoutEnvelopeNestedInput
+    yieldEvents?: YieldEventUpdateManyWithoutEnvelopeNestedInput
+  }
+
+  export type VaultEnvelopeUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    vaultId?: StringFieldUpdateOperationsInput | string
+    compassEnvelopeId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    principalAllocated?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    reservedForBills?: IntFieldUpdateOperationsInput | number
+    availableToReallocate?: IntFieldUpdateOperationsInput | number
+    isPolicyLocked?: BoolFieldUpdateOperationsInput | boolean
+    nextObligationDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    bills?: ScheduledBillUncheckedUpdateManyWithoutEnvelopeNestedInput
+    yieldEvents?: YieldEventUncheckedUpdateManyWithoutEnvelopeNestedInput
+  }
+
+  export type VaultEnvelopeCreateManyInput = {
+    id?: string
+    vaultId: string
+    compassEnvelopeId: string
+    name: string
+    category: string
+    principalAllocated?: number
+    accruedYield?: number
+    reservedForBills?: number
+    availableToReallocate?: number
+    isPolicyLocked?: boolean
+    nextObligationDate?: Date | string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type VaultEnvelopeUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    principalAllocated?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    reservedForBills?: IntFieldUpdateOperationsInput | number
+    availableToReallocate?: IntFieldUpdateOperationsInput | number
+    isPolicyLocked?: BoolFieldUpdateOperationsInput | boolean
+    nextObligationDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type VaultEnvelopeUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    vaultId?: StringFieldUpdateOperationsInput | string
+    compassEnvelopeId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    principalAllocated?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    reservedForBills?: IntFieldUpdateOperationsInput | number
+    availableToReallocate?: IntFieldUpdateOperationsInput | number
+    isPolicyLocked?: BoolFieldUpdateOperationsInput | boolean
+    nextObligationDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ScheduledBillCreateInput = {
+    id?: string
+    billerName: string
+    billerId: string
+    maskedAccountNumber: string
+    amount: number
+    maxAuthorizedAmount: number
+    currency?: string
+    frequency: string
+    dueDate: Date | string
+    executionWindowStart: Date | string
+    executionWindowEnd: Date | string
+    status?: string
+    providerPreference?: string | null
+    lastAttemptAt?: Date | string | null
+    settlementReference?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    vault: VaultAccountCreateNestedOneWithoutBillsInput
+    envelope: VaultEnvelopeCreateNestedOneWithoutBillsInput
+    paymentAttempts?: PaymentAttemptCreateNestedManyWithoutBillInput
+  }
+
+  export type ScheduledBillUncheckedCreateInput = {
+    id?: string
+    vaultId: string
+    envelopeId: string
+    billerName: string
+    billerId: string
+    maskedAccountNumber: string
+    amount: number
+    maxAuthorizedAmount: number
+    currency?: string
+    frequency: string
+    dueDate: Date | string
+    executionWindowStart: Date | string
+    executionWindowEnd: Date | string
+    status?: string
+    providerPreference?: string | null
+    lastAttemptAt?: Date | string | null
+    settlementReference?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    paymentAttempts?: PaymentAttemptUncheckedCreateNestedManyWithoutBillInput
+  }
+
+  export type ScheduledBillUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    billerName?: StringFieldUpdateOperationsInput | string
+    billerId?: StringFieldUpdateOperationsInput | string
+    maskedAccountNumber?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    maxAuthorizedAmount?: IntFieldUpdateOperationsInput | number
+    currency?: StringFieldUpdateOperationsInput | string
+    frequency?: StringFieldUpdateOperationsInput | string
+    dueDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: StringFieldUpdateOperationsInput | string
+    providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
+    lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    vault?: VaultAccountUpdateOneRequiredWithoutBillsNestedInput
+    envelope?: VaultEnvelopeUpdateOneRequiredWithoutBillsNestedInput
+    paymentAttempts?: PaymentAttemptUpdateManyWithoutBillNestedInput
+  }
+
+  export type ScheduledBillUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    vaultId?: StringFieldUpdateOperationsInput | string
+    envelopeId?: StringFieldUpdateOperationsInput | string
+    billerName?: StringFieldUpdateOperationsInput | string
+    billerId?: StringFieldUpdateOperationsInput | string
+    maskedAccountNumber?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    maxAuthorizedAmount?: IntFieldUpdateOperationsInput | number
+    currency?: StringFieldUpdateOperationsInput | string
+    frequency?: StringFieldUpdateOperationsInput | string
+    dueDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: StringFieldUpdateOperationsInput | string
+    providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
+    lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    paymentAttempts?: PaymentAttemptUncheckedUpdateManyWithoutBillNestedInput
+  }
+
+  export type ScheduledBillCreateManyInput = {
+    id?: string
+    vaultId: string
+    envelopeId: string
+    billerName: string
+    billerId: string
+    maskedAccountNumber: string
+    amount: number
+    maxAuthorizedAmount: number
+    currency?: string
+    frequency: string
+    dueDate: Date | string
+    executionWindowStart: Date | string
+    executionWindowEnd: Date | string
+    status?: string
+    providerPreference?: string | null
+    lastAttemptAt?: Date | string | null
+    settlementReference?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ScheduledBillUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    billerName?: StringFieldUpdateOperationsInput | string
+    billerId?: StringFieldUpdateOperationsInput | string
+    maskedAccountNumber?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    maxAuthorizedAmount?: IntFieldUpdateOperationsInput | number
+    currency?: StringFieldUpdateOperationsInput | string
+    frequency?: StringFieldUpdateOperationsInput | string
+    dueDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: StringFieldUpdateOperationsInput | string
+    providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
+    lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ScheduledBillUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    vaultId?: StringFieldUpdateOperationsInput | string
+    envelopeId?: StringFieldUpdateOperationsInput | string
+    billerName?: StringFieldUpdateOperationsInput | string
+    billerId?: StringFieldUpdateOperationsInput | string
+    maskedAccountNumber?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    maxAuthorizedAmount?: IntFieldUpdateOperationsInput | number
+    currency?: StringFieldUpdateOperationsInput | string
+    frequency?: StringFieldUpdateOperationsInput | string
+    dueDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: StringFieldUpdateOperationsInput | string
+    providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
+    lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type YieldEventCreateInput = {
+    id?: string
+    asset: string
+    amount: number
+    annualizedRate?: number | null
+    source: string
+    action: string
+    occurredAt?: Date | string
+    vault: VaultAccountCreateNestedOneWithoutYieldEventsInput
+    envelope?: VaultEnvelopeCreateNestedOneWithoutYieldEventsInput
+  }
+
+  export type YieldEventUncheckedCreateInput = {
+    id?: string
+    vaultId: string
+    envelopeId?: string | null
+    asset: string
+    amount: number
+    annualizedRate?: number | null
+    source: string
+    action: string
+    occurredAt?: Date | string
+  }
+
+  export type YieldEventUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    asset?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    annualizedRate?: NullableFloatFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
+    action?: StringFieldUpdateOperationsInput | string
+    occurredAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    vault?: VaultAccountUpdateOneRequiredWithoutYieldEventsNestedInput
+    envelope?: VaultEnvelopeUpdateOneWithoutYieldEventsNestedInput
+  }
+
+  export type YieldEventUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    vaultId?: StringFieldUpdateOperationsInput | string
+    envelopeId?: NullableStringFieldUpdateOperationsInput | string | null
+    asset?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    annualizedRate?: NullableFloatFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
+    action?: StringFieldUpdateOperationsInput | string
+    occurredAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type YieldEventCreateManyInput = {
+    id?: string
+    vaultId: string
+    envelopeId?: string | null
+    asset: string
+    amount: number
+    annualizedRate?: number | null
+    source: string
+    action: string
+    occurredAt?: Date | string
+  }
+
+  export type YieldEventUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    asset?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    annualizedRate?: NullableFloatFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
+    action?: StringFieldUpdateOperationsInput | string
+    occurredAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type YieldEventUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    vaultId?: StringFieldUpdateOperationsInput | string
+    envelopeId?: NullableStringFieldUpdateOperationsInput | string | null
+    asset?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    annualizedRate?: NullableFloatFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
+    action?: StringFieldUpdateOperationsInput | string
+    occurredAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PaymentAttemptCreateInput = {
+    id?: string
+    providerName: string
+    idempotencyKey: string
+    requestAmount: number
+    result: string
+    transactionId?: string | null
+    warningMessage?: string | null
+    errorMessage?: string | null
+    retryable?: boolean
+    attemptedAt?: Date | string
+    completedAt?: Date | string | null
+    bill: ScheduledBillCreateNestedOneWithoutPaymentAttemptsInput
+    providerEvents?: ProviderEventCreateNestedManyWithoutAttemptInput
+  }
+
+  export type PaymentAttemptUncheckedCreateInput = {
+    id?: string
+    billId: string
+    providerName: string
+    idempotencyKey: string
+    requestAmount: number
+    result: string
+    transactionId?: string | null
+    warningMessage?: string | null
+    errorMessage?: string | null
+    retryable?: boolean
+    attemptedAt?: Date | string
+    completedAt?: Date | string | null
+    providerEvents?: ProviderEventUncheckedCreateNestedManyWithoutAttemptInput
+  }
+
+  export type PaymentAttemptUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    providerName?: StringFieldUpdateOperationsInput | string
+    idempotencyKey?: StringFieldUpdateOperationsInput | string
+    requestAmount?: IntFieldUpdateOperationsInput | number
+    result?: StringFieldUpdateOperationsInput | string
+    transactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    warningMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    retryable?: BoolFieldUpdateOperationsInput | boolean
+    attemptedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    bill?: ScheduledBillUpdateOneRequiredWithoutPaymentAttemptsNestedInput
+    providerEvents?: ProviderEventUpdateManyWithoutAttemptNestedInput
+  }
+
+  export type PaymentAttemptUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    billId?: StringFieldUpdateOperationsInput | string
+    providerName?: StringFieldUpdateOperationsInput | string
+    idempotencyKey?: StringFieldUpdateOperationsInput | string
+    requestAmount?: IntFieldUpdateOperationsInput | number
+    result?: StringFieldUpdateOperationsInput | string
+    transactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    warningMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    retryable?: BoolFieldUpdateOperationsInput | boolean
+    attemptedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    providerEvents?: ProviderEventUncheckedUpdateManyWithoutAttemptNestedInput
+  }
+
+  export type PaymentAttemptCreateManyInput = {
+    id?: string
+    billId: string
+    providerName: string
+    idempotencyKey: string
+    requestAmount: number
+    result: string
+    transactionId?: string | null
+    warningMessage?: string | null
+    errorMessage?: string | null
+    retryable?: boolean
+    attemptedAt?: Date | string
+    completedAt?: Date | string | null
+  }
+
+  export type PaymentAttemptUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    providerName?: StringFieldUpdateOperationsInput | string
+    idempotencyKey?: StringFieldUpdateOperationsInput | string
+    requestAmount?: IntFieldUpdateOperationsInput | number
+    result?: StringFieldUpdateOperationsInput | string
+    transactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    warningMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    retryable?: BoolFieldUpdateOperationsInput | boolean
+    attemptedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type PaymentAttemptUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    billId?: StringFieldUpdateOperationsInput | string
+    providerName?: StringFieldUpdateOperationsInput | string
+    idempotencyKey?: StringFieldUpdateOperationsInput | string
+    requestAmount?: IntFieldUpdateOperationsInput | number
+    result?: StringFieldUpdateOperationsInput | string
+    transactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    warningMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    retryable?: BoolFieldUpdateOperationsInput | boolean
+    attemptedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type ProviderEventCreateInput = {
+    id?: string
+    providerName: string
+    eventType: string
+    payload?: string
+    occurredAt?: Date | string
+    attempt: PaymentAttemptCreateNestedOneWithoutProviderEventsInput
+  }
+
+  export type ProviderEventUncheckedCreateInput = {
+    id?: string
+    attemptId: string
+    providerName: string
+    eventType: string
+    payload?: string
+    occurredAt?: Date | string
+  }
+
+  export type ProviderEventUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    providerName?: StringFieldUpdateOperationsInput | string
+    eventType?: StringFieldUpdateOperationsInput | string
+    payload?: StringFieldUpdateOperationsInput | string
+    occurredAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    attempt?: PaymentAttemptUpdateOneRequiredWithoutProviderEventsNestedInput
+  }
+
+  export type ProviderEventUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    attemptId?: StringFieldUpdateOperationsInput | string
+    providerName?: StringFieldUpdateOperationsInput | string
+    eventType?: StringFieldUpdateOperationsInput | string
+    payload?: StringFieldUpdateOperationsInput | string
+    occurredAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ProviderEventCreateManyInput = {
+    id?: string
+    attemptId: string
+    providerName: string
+    eventType: string
+    payload?: string
+    occurredAt?: Date | string
+  }
+
+  export type ProviderEventUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    providerName?: StringFieldUpdateOperationsInput | string
+    eventType?: StringFieldUpdateOperationsInput | string
+    payload?: StringFieldUpdateOperationsInput | string
+    occurredAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ProviderEventUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    attemptId?: StringFieldUpdateOperationsInput | string
+    providerName?: StringFieldUpdateOperationsInput | string
+    eventType?: StringFieldUpdateOperationsInput | string
+    payload?: StringFieldUpdateOperationsInput | string
+    occurredAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type VaultPreferencesCreateInput = {
+    id?: string
+    yieldRoutingStrategy?: string
+    riskAcknowledgedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutVaultPreferencesInput
+  }
+
+  export type VaultPreferencesUncheckedCreateInput = {
+    id?: string
+    userId: string
+    yieldRoutingStrategy?: string
+    riskAcknowledgedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type VaultPreferencesUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    yieldRoutingStrategy?: StringFieldUpdateOperationsInput | string
+    riskAcknowledgedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutVaultPreferencesNestedInput
+  }
+
+  export type VaultPreferencesUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    yieldRoutingStrategy?: StringFieldUpdateOperationsInput | string
+    riskAcknowledgedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type VaultPreferencesCreateManyInput = {
+    id?: string
+    userId: string
+    yieldRoutingStrategy?: string
+    riskAcknowledgedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type VaultPreferencesUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    yieldRoutingStrategy?: StringFieldUpdateOperationsInput | string
+    riskAcknowledgedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type VaultPreferencesUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    yieldRoutingStrategy?: StringFieldUpdateOperationsInput | string
+    riskAcknowledgedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type StringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[]
@@ -33710,6 +45046,12 @@ export namespace Prisma {
     none?: AllocationPlanWhereInput
   }
 
+  export type BillListRelationFilter = {
+    every?: BillWhereInput
+    some?: BillWhereInput
+    none?: BillWhereInput
+  }
+
   export type AuditLogListRelationFilter = {
     every?: AuditLogWhereInput
     some?: AuditLogWhereInput
@@ -33719,6 +45061,16 @@ export namespace Prisma {
   export type FinancialIdentityNullableScalarRelationFilter = {
     is?: FinancialIdentityWhereInput | null
     isNot?: FinancialIdentityWhereInput | null
+  }
+
+  export type VaultAccountNullableScalarRelationFilter = {
+    is?: VaultAccountWhereInput | null
+    isNot?: VaultAccountWhereInput | null
+  }
+
+  export type VaultPreferencesNullableScalarRelationFilter = {
+    is?: VaultPreferencesWhereInput | null
+    isNot?: VaultPreferencesWhereInput | null
   }
 
   export type SortOrderInput = {
@@ -33751,6 +45103,10 @@ export namespace Prisma {
   }
 
   export type AllocationPlanOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type BillOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -33923,6 +45279,7 @@ export namespace Prisma {
     institution?: SortOrder
     mask?: SortOrder
     routingEnabled?: SortOrder
+    source?: SortOrder
     isArchived?: SortOrder
     sortOrder?: SortOrder
     createdAt?: SortOrder
@@ -33943,6 +45300,7 @@ export namespace Prisma {
     institution?: SortOrder
     mask?: SortOrder
     routingEnabled?: SortOrder
+    source?: SortOrder
     isArchived?: SortOrder
     sortOrder?: SortOrder
     createdAt?: SortOrder
@@ -33958,6 +45316,7 @@ export namespace Prisma {
     institution?: SortOrder
     mask?: SortOrder
     routingEnabled?: SortOrder
+    source?: SortOrder
     isArchived?: SortOrder
     sortOrder?: SortOrder
     createdAt?: SortOrder
@@ -33983,6 +45342,11 @@ export namespace Prisma {
     none?: AllocationRuleWhereInput
   }
 
+  export type VaultEnvelopeNullableScalarRelationFilter = {
+    is?: VaultEnvelopeWhereInput | null
+    isNot?: VaultEnvelopeWhereInput | null
+  }
+
   export type AllocationRuleOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
@@ -33991,6 +45355,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     name?: SortOrder
+    source?: SortOrder
     targetBalance?: SortOrder
     currentBalance?: SortOrder
     planet?: SortOrder
@@ -34014,6 +45379,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     name?: SortOrder
+    source?: SortOrder
     targetBalance?: SortOrder
     currentBalance?: SortOrder
     planet?: SortOrder
@@ -34031,6 +45397,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     name?: SortOrder
+    source?: SortOrder
     targetBalance?: SortOrder
     currentBalance?: SortOrder
     planet?: SortOrder
@@ -34202,6 +45569,9 @@ export namespace Prisma {
     paidAt?: SortOrder
     source?: SortOrder
     isArchived?: SortOrder
+    envelopeId?: SortOrder
+    accountId?: SortOrder
+    sortOrder?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -34209,6 +45579,7 @@ export namespace Prisma {
   export type BillAvgOrderByAggregateInput = {
     amountCents?: SortOrder
     dueDay?: SortOrder
+    sortOrder?: SortOrder
   }
 
   export type BillMaxOrderByAggregateInput = {
@@ -34222,6 +45593,9 @@ export namespace Prisma {
     paidAt?: SortOrder
     source?: SortOrder
     isArchived?: SortOrder
+    envelopeId?: SortOrder
+    accountId?: SortOrder
+    sortOrder?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -34237,6 +45611,9 @@ export namespace Prisma {
     paidAt?: SortOrder
     source?: SortOrder
     isArchived?: SortOrder
+    envelopeId?: SortOrder
+    accountId?: SortOrder
+    sortOrder?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -34244,6 +45621,7 @@ export namespace Prisma {
   export type BillSumOrderByAggregateInput = {
     amountCents?: SortOrder
     dueDay?: SortOrder
+    sortOrder?: SortOrder
   }
 
   export type IntNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -34303,6 +45681,7 @@ export namespace Prisma {
     isPrimary?: SortOrder
     kind?: SortOrder
     goalType?: SortOrder
+    source?: SortOrder
     sortOrder?: SortOrder
     isArchived?: SortOrder
     createdAt?: SortOrder
@@ -34328,6 +45707,7 @@ export namespace Prisma {
     isPrimary?: SortOrder
     kind?: SortOrder
     goalType?: SortOrder
+    source?: SortOrder
     sortOrder?: SortOrder
     isArchived?: SortOrder
     createdAt?: SortOrder
@@ -34347,6 +45727,7 @@ export namespace Prisma {
     isPrimary?: SortOrder
     kind?: SortOrder
     goalType?: SortOrder
+    source?: SortOrder
     sortOrder?: SortOrder
     isArchived?: SortOrder
     createdAt?: SortOrder
@@ -34385,6 +45766,7 @@ export namespace Prisma {
     strategyId?: SortOrder
     isArmed?: SortOrder
     name?: SortOrder
+    source?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -34395,6 +45777,7 @@ export namespace Prisma {
     strategyId?: SortOrder
     isArmed?: SortOrder
     name?: SortOrder
+    source?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -34405,6 +45788,7 @@ export namespace Prisma {
     strategyId?: SortOrder
     isArmed?: SortOrder
     name?: SortOrder
+    source?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -34425,6 +45809,7 @@ export namespace Prisma {
     envelopeId?: SortOrder
     pct?: SortOrder
     fixedCents?: SortOrder
+    source?: SortOrder
     sortOrder?: SortOrder
     createdAt?: SortOrder
   }
@@ -34441,6 +45826,7 @@ export namespace Prisma {
     envelopeId?: SortOrder
     pct?: SortOrder
     fixedCents?: SortOrder
+    source?: SortOrder
     sortOrder?: SortOrder
     createdAt?: SortOrder
   }
@@ -34451,6 +45837,7 @@ export namespace Prisma {
     envelopeId?: SortOrder
     pct?: SortOrder
     fixedCents?: SortOrder
+    source?: SortOrder
     sortOrder?: SortOrder
     createdAt?: SortOrder
   }
@@ -35096,6 +46483,473 @@ export namespace Prisma {
     seq?: SortOrder
   }
 
+  export type VaultEnvelopeListRelationFilter = {
+    every?: VaultEnvelopeWhereInput
+    some?: VaultEnvelopeWhereInput
+    none?: VaultEnvelopeWhereInput
+  }
+
+  export type ScheduledBillListRelationFilter = {
+    every?: ScheduledBillWhereInput
+    some?: ScheduledBillWhereInput
+    none?: ScheduledBillWhereInput
+  }
+
+  export type YieldEventListRelationFilter = {
+    every?: YieldEventWhereInput
+    some?: YieldEventWhereInput
+    none?: YieldEventWhereInput
+  }
+
+  export type VaultEnvelopeOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type ScheduledBillOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type YieldEventOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type VaultAccountCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    chainId?: SortOrder
+    smartAccountAddress?: SortOrder
+    baseAsset?: SortOrder
+    status?: SortOrder
+    availableBalance?: SortOrder
+    settlementReserve?: SortOrder
+    deployedToYield?: SortOrder
+    accruedYield?: SortOrder
+    simulatedApy?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type VaultAccountAvgOrderByAggregateInput = {
+    chainId?: SortOrder
+    availableBalance?: SortOrder
+    settlementReserve?: SortOrder
+    deployedToYield?: SortOrder
+    accruedYield?: SortOrder
+    simulatedApy?: SortOrder
+  }
+
+  export type VaultAccountMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    chainId?: SortOrder
+    smartAccountAddress?: SortOrder
+    baseAsset?: SortOrder
+    status?: SortOrder
+    availableBalance?: SortOrder
+    settlementReserve?: SortOrder
+    deployedToYield?: SortOrder
+    accruedYield?: SortOrder
+    simulatedApy?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type VaultAccountMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    chainId?: SortOrder
+    smartAccountAddress?: SortOrder
+    baseAsset?: SortOrder
+    status?: SortOrder
+    availableBalance?: SortOrder
+    settlementReserve?: SortOrder
+    deployedToYield?: SortOrder
+    accruedYield?: SortOrder
+    simulatedApy?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type VaultAccountSumOrderByAggregateInput = {
+    chainId?: SortOrder
+    availableBalance?: SortOrder
+    settlementReserve?: SortOrder
+    deployedToYield?: SortOrder
+    accruedYield?: SortOrder
+    simulatedApy?: SortOrder
+  }
+
+  export type VaultAccountScalarRelationFilter = {
+    is?: VaultAccountWhereInput
+    isNot?: VaultAccountWhereInput
+  }
+
+  export type VaultEnvelopeCountOrderByAggregateInput = {
+    id?: SortOrder
+    vaultId?: SortOrder
+    compassEnvelopeId?: SortOrder
+    name?: SortOrder
+    category?: SortOrder
+    principalAllocated?: SortOrder
+    accruedYield?: SortOrder
+    reservedForBills?: SortOrder
+    availableToReallocate?: SortOrder
+    isPolicyLocked?: SortOrder
+    nextObligationDate?: SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type VaultEnvelopeAvgOrderByAggregateInput = {
+    principalAllocated?: SortOrder
+    accruedYield?: SortOrder
+    reservedForBills?: SortOrder
+    availableToReallocate?: SortOrder
+  }
+
+  export type VaultEnvelopeMaxOrderByAggregateInput = {
+    id?: SortOrder
+    vaultId?: SortOrder
+    compassEnvelopeId?: SortOrder
+    name?: SortOrder
+    category?: SortOrder
+    principalAllocated?: SortOrder
+    accruedYield?: SortOrder
+    reservedForBills?: SortOrder
+    availableToReallocate?: SortOrder
+    isPolicyLocked?: SortOrder
+    nextObligationDate?: SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type VaultEnvelopeMinOrderByAggregateInput = {
+    id?: SortOrder
+    vaultId?: SortOrder
+    compassEnvelopeId?: SortOrder
+    name?: SortOrder
+    category?: SortOrder
+    principalAllocated?: SortOrder
+    accruedYield?: SortOrder
+    reservedForBills?: SortOrder
+    availableToReallocate?: SortOrder
+    isPolicyLocked?: SortOrder
+    nextObligationDate?: SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type VaultEnvelopeSumOrderByAggregateInput = {
+    principalAllocated?: SortOrder
+    accruedYield?: SortOrder
+    reservedForBills?: SortOrder
+    availableToReallocate?: SortOrder
+  }
+
+  export type VaultEnvelopeScalarRelationFilter = {
+    is?: VaultEnvelopeWhereInput
+    isNot?: VaultEnvelopeWhereInput
+  }
+
+  export type PaymentAttemptListRelationFilter = {
+    every?: PaymentAttemptWhereInput
+    some?: PaymentAttemptWhereInput
+    none?: PaymentAttemptWhereInput
+  }
+
+  export type PaymentAttemptOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type ScheduledBillVaultIdBillerIdCompoundUniqueInput = {
+    vaultId: string
+    billerId: string
+  }
+
+  export type ScheduledBillCountOrderByAggregateInput = {
+    id?: SortOrder
+    vaultId?: SortOrder
+    envelopeId?: SortOrder
+    billerName?: SortOrder
+    billerId?: SortOrder
+    maskedAccountNumber?: SortOrder
+    amount?: SortOrder
+    maxAuthorizedAmount?: SortOrder
+    currency?: SortOrder
+    frequency?: SortOrder
+    dueDate?: SortOrder
+    executionWindowStart?: SortOrder
+    executionWindowEnd?: SortOrder
+    status?: SortOrder
+    providerPreference?: SortOrder
+    lastAttemptAt?: SortOrder
+    settlementReference?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ScheduledBillAvgOrderByAggregateInput = {
+    amount?: SortOrder
+    maxAuthorizedAmount?: SortOrder
+  }
+
+  export type ScheduledBillMaxOrderByAggregateInput = {
+    id?: SortOrder
+    vaultId?: SortOrder
+    envelopeId?: SortOrder
+    billerName?: SortOrder
+    billerId?: SortOrder
+    maskedAccountNumber?: SortOrder
+    amount?: SortOrder
+    maxAuthorizedAmount?: SortOrder
+    currency?: SortOrder
+    frequency?: SortOrder
+    dueDate?: SortOrder
+    executionWindowStart?: SortOrder
+    executionWindowEnd?: SortOrder
+    status?: SortOrder
+    providerPreference?: SortOrder
+    lastAttemptAt?: SortOrder
+    settlementReference?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ScheduledBillMinOrderByAggregateInput = {
+    id?: SortOrder
+    vaultId?: SortOrder
+    envelopeId?: SortOrder
+    billerName?: SortOrder
+    billerId?: SortOrder
+    maskedAccountNumber?: SortOrder
+    amount?: SortOrder
+    maxAuthorizedAmount?: SortOrder
+    currency?: SortOrder
+    frequency?: SortOrder
+    dueDate?: SortOrder
+    executionWindowStart?: SortOrder
+    executionWindowEnd?: SortOrder
+    status?: SortOrder
+    providerPreference?: SortOrder
+    lastAttemptAt?: SortOrder
+    settlementReference?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ScheduledBillSumOrderByAggregateInput = {
+    amount?: SortOrder
+    maxAuthorizedAmount?: SortOrder
+  }
+
+  export type FloatNullableFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel> | null
+    in?: number[] | null
+    notIn?: number[] | null
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatNullableFilter<$PrismaModel> | number | null
+  }
+
+  export type YieldEventCountOrderByAggregateInput = {
+    id?: SortOrder
+    vaultId?: SortOrder
+    envelopeId?: SortOrder
+    asset?: SortOrder
+    amount?: SortOrder
+    annualizedRate?: SortOrder
+    source?: SortOrder
+    action?: SortOrder
+    occurredAt?: SortOrder
+  }
+
+  export type YieldEventAvgOrderByAggregateInput = {
+    amount?: SortOrder
+    annualizedRate?: SortOrder
+  }
+
+  export type YieldEventMaxOrderByAggregateInput = {
+    id?: SortOrder
+    vaultId?: SortOrder
+    envelopeId?: SortOrder
+    asset?: SortOrder
+    amount?: SortOrder
+    annualizedRate?: SortOrder
+    source?: SortOrder
+    action?: SortOrder
+    occurredAt?: SortOrder
+  }
+
+  export type YieldEventMinOrderByAggregateInput = {
+    id?: SortOrder
+    vaultId?: SortOrder
+    envelopeId?: SortOrder
+    asset?: SortOrder
+    amount?: SortOrder
+    annualizedRate?: SortOrder
+    source?: SortOrder
+    action?: SortOrder
+    occurredAt?: SortOrder
+  }
+
+  export type YieldEventSumOrderByAggregateInput = {
+    amount?: SortOrder
+    annualizedRate?: SortOrder
+  }
+
+  export type FloatNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel> | null
+    in?: number[] | null
+    notIn?: number[] | null
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatNullableWithAggregatesFilter<$PrismaModel> | number | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _avg?: NestedFloatNullableFilter<$PrismaModel>
+    _sum?: NestedFloatNullableFilter<$PrismaModel>
+    _min?: NestedFloatNullableFilter<$PrismaModel>
+    _max?: NestedFloatNullableFilter<$PrismaModel>
+  }
+
+  export type ScheduledBillScalarRelationFilter = {
+    is?: ScheduledBillWhereInput
+    isNot?: ScheduledBillWhereInput
+  }
+
+  export type ProviderEventListRelationFilter = {
+    every?: ProviderEventWhereInput
+    some?: ProviderEventWhereInput
+    none?: ProviderEventWhereInput
+  }
+
+  export type ProviderEventOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type PaymentAttemptProviderNameIdempotencyKeyCompoundUniqueInput = {
+    providerName: string
+    idempotencyKey: string
+  }
+
+  export type PaymentAttemptCountOrderByAggregateInput = {
+    id?: SortOrder
+    billId?: SortOrder
+    providerName?: SortOrder
+    idempotencyKey?: SortOrder
+    requestAmount?: SortOrder
+    result?: SortOrder
+    transactionId?: SortOrder
+    warningMessage?: SortOrder
+    errorMessage?: SortOrder
+    retryable?: SortOrder
+    attemptedAt?: SortOrder
+    completedAt?: SortOrder
+  }
+
+  export type PaymentAttemptAvgOrderByAggregateInput = {
+    requestAmount?: SortOrder
+  }
+
+  export type PaymentAttemptMaxOrderByAggregateInput = {
+    id?: SortOrder
+    billId?: SortOrder
+    providerName?: SortOrder
+    idempotencyKey?: SortOrder
+    requestAmount?: SortOrder
+    result?: SortOrder
+    transactionId?: SortOrder
+    warningMessage?: SortOrder
+    errorMessage?: SortOrder
+    retryable?: SortOrder
+    attemptedAt?: SortOrder
+    completedAt?: SortOrder
+  }
+
+  export type PaymentAttemptMinOrderByAggregateInput = {
+    id?: SortOrder
+    billId?: SortOrder
+    providerName?: SortOrder
+    idempotencyKey?: SortOrder
+    requestAmount?: SortOrder
+    result?: SortOrder
+    transactionId?: SortOrder
+    warningMessage?: SortOrder
+    errorMessage?: SortOrder
+    retryable?: SortOrder
+    attemptedAt?: SortOrder
+    completedAt?: SortOrder
+  }
+
+  export type PaymentAttemptSumOrderByAggregateInput = {
+    requestAmount?: SortOrder
+  }
+
+  export type PaymentAttemptScalarRelationFilter = {
+    is?: PaymentAttemptWhereInput
+    isNot?: PaymentAttemptWhereInput
+  }
+
+  export type ProviderEventCountOrderByAggregateInput = {
+    id?: SortOrder
+    attemptId?: SortOrder
+    providerName?: SortOrder
+    eventType?: SortOrder
+    payload?: SortOrder
+    occurredAt?: SortOrder
+  }
+
+  export type ProviderEventMaxOrderByAggregateInput = {
+    id?: SortOrder
+    attemptId?: SortOrder
+    providerName?: SortOrder
+    eventType?: SortOrder
+    payload?: SortOrder
+    occurredAt?: SortOrder
+  }
+
+  export type ProviderEventMinOrderByAggregateInput = {
+    id?: SortOrder
+    attemptId?: SortOrder
+    providerName?: SortOrder
+    eventType?: SortOrder
+    payload?: SortOrder
+    occurredAt?: SortOrder
+  }
+
+  export type VaultPreferencesCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    yieldRoutingStrategy?: SortOrder
+    riskAcknowledgedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type VaultPreferencesMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    yieldRoutingStrategy?: SortOrder
+    riskAcknowledgedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type VaultPreferencesMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    yieldRoutingStrategy?: SortOrder
+    riskAcknowledgedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
   export type SessionCreateNestedManyWithoutUserInput = {
     create?: XOR<SessionCreateWithoutUserInput, SessionUncheckedCreateWithoutUserInput> | SessionCreateWithoutUserInput[] | SessionUncheckedCreateWithoutUserInput[]
     connectOrCreate?: SessionCreateOrConnectWithoutUserInput | SessionCreateOrConnectWithoutUserInput[]
@@ -35145,6 +46999,13 @@ export namespace Prisma {
     connect?: AllocationPlanWhereUniqueInput | AllocationPlanWhereUniqueInput[]
   }
 
+  export type BillCreateNestedManyWithoutUserInput = {
+    create?: XOR<BillCreateWithoutUserInput, BillUncheckedCreateWithoutUserInput> | BillCreateWithoutUserInput[] | BillUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: BillCreateOrConnectWithoutUserInput | BillCreateOrConnectWithoutUserInput[]
+    createMany?: BillCreateManyUserInputEnvelope
+    connect?: BillWhereUniqueInput | BillWhereUniqueInput[]
+  }
+
   export type AuditLogCreateNestedManyWithoutUserInput = {
     create?: XOR<AuditLogCreateWithoutUserInput, AuditLogUncheckedCreateWithoutUserInput> | AuditLogCreateWithoutUserInput[] | AuditLogUncheckedCreateWithoutUserInput[]
     connectOrCreate?: AuditLogCreateOrConnectWithoutUserInput | AuditLogCreateOrConnectWithoutUserInput[]
@@ -35156,6 +47017,18 @@ export namespace Prisma {
     create?: XOR<FinancialIdentityCreateWithoutUserInput, FinancialIdentityUncheckedCreateWithoutUserInput>
     connectOrCreate?: FinancialIdentityCreateOrConnectWithoutUserInput
     connect?: FinancialIdentityWhereUniqueInput
+  }
+
+  export type VaultAccountCreateNestedOneWithoutUserInput = {
+    create?: XOR<VaultAccountCreateWithoutUserInput, VaultAccountUncheckedCreateWithoutUserInput>
+    connectOrCreate?: VaultAccountCreateOrConnectWithoutUserInput
+    connect?: VaultAccountWhereUniqueInput
+  }
+
+  export type VaultPreferencesCreateNestedOneWithoutUserInput = {
+    create?: XOR<VaultPreferencesCreateWithoutUserInput, VaultPreferencesUncheckedCreateWithoutUserInput>
+    connectOrCreate?: VaultPreferencesCreateOrConnectWithoutUserInput
+    connect?: VaultPreferencesWhereUniqueInput
   }
 
   export type SessionUncheckedCreateNestedManyWithoutUserInput = {
@@ -35207,6 +47080,13 @@ export namespace Prisma {
     connect?: AllocationPlanWhereUniqueInput | AllocationPlanWhereUniqueInput[]
   }
 
+  export type BillUncheckedCreateNestedManyWithoutUserInput = {
+    create?: XOR<BillCreateWithoutUserInput, BillUncheckedCreateWithoutUserInput> | BillCreateWithoutUserInput[] | BillUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: BillCreateOrConnectWithoutUserInput | BillCreateOrConnectWithoutUserInput[]
+    createMany?: BillCreateManyUserInputEnvelope
+    connect?: BillWhereUniqueInput | BillWhereUniqueInput[]
+  }
+
   export type AuditLogUncheckedCreateNestedManyWithoutUserInput = {
     create?: XOR<AuditLogCreateWithoutUserInput, AuditLogUncheckedCreateWithoutUserInput> | AuditLogCreateWithoutUserInput[] | AuditLogUncheckedCreateWithoutUserInput[]
     connectOrCreate?: AuditLogCreateOrConnectWithoutUserInput | AuditLogCreateOrConnectWithoutUserInput[]
@@ -35218,6 +47098,18 @@ export namespace Prisma {
     create?: XOR<FinancialIdentityCreateWithoutUserInput, FinancialIdentityUncheckedCreateWithoutUserInput>
     connectOrCreate?: FinancialIdentityCreateOrConnectWithoutUserInput
     connect?: FinancialIdentityWhereUniqueInput
+  }
+
+  export type VaultAccountUncheckedCreateNestedOneWithoutUserInput = {
+    create?: XOR<VaultAccountCreateWithoutUserInput, VaultAccountUncheckedCreateWithoutUserInput>
+    connectOrCreate?: VaultAccountCreateOrConnectWithoutUserInput
+    connect?: VaultAccountWhereUniqueInput
+  }
+
+  export type VaultPreferencesUncheckedCreateNestedOneWithoutUserInput = {
+    create?: XOR<VaultPreferencesCreateWithoutUserInput, VaultPreferencesUncheckedCreateWithoutUserInput>
+    connectOrCreate?: VaultPreferencesCreateOrConnectWithoutUserInput
+    connect?: VaultPreferencesWhereUniqueInput
   }
 
   export type StringFieldUpdateOperationsInput = {
@@ -35338,6 +47230,20 @@ export namespace Prisma {
     deleteMany?: AllocationPlanScalarWhereInput | AllocationPlanScalarWhereInput[]
   }
 
+  export type BillUpdateManyWithoutUserNestedInput = {
+    create?: XOR<BillCreateWithoutUserInput, BillUncheckedCreateWithoutUserInput> | BillCreateWithoutUserInput[] | BillUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: BillCreateOrConnectWithoutUserInput | BillCreateOrConnectWithoutUserInput[]
+    upsert?: BillUpsertWithWhereUniqueWithoutUserInput | BillUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: BillCreateManyUserInputEnvelope
+    set?: BillWhereUniqueInput | BillWhereUniqueInput[]
+    disconnect?: BillWhereUniqueInput | BillWhereUniqueInput[]
+    delete?: BillWhereUniqueInput | BillWhereUniqueInput[]
+    connect?: BillWhereUniqueInput | BillWhereUniqueInput[]
+    update?: BillUpdateWithWhereUniqueWithoutUserInput | BillUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: BillUpdateManyWithWhereWithoutUserInput | BillUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: BillScalarWhereInput | BillScalarWhereInput[]
+  }
+
   export type AuditLogUpdateManyWithoutUserNestedInput = {
     create?: XOR<AuditLogCreateWithoutUserInput, AuditLogUncheckedCreateWithoutUserInput> | AuditLogCreateWithoutUserInput[] | AuditLogUncheckedCreateWithoutUserInput[]
     connectOrCreate?: AuditLogCreateOrConnectWithoutUserInput | AuditLogCreateOrConnectWithoutUserInput[]
@@ -35360,6 +47266,26 @@ export namespace Prisma {
     delete?: FinancialIdentityWhereInput | boolean
     connect?: FinancialIdentityWhereUniqueInput
     update?: XOR<XOR<FinancialIdentityUpdateToOneWithWhereWithoutUserInput, FinancialIdentityUpdateWithoutUserInput>, FinancialIdentityUncheckedUpdateWithoutUserInput>
+  }
+
+  export type VaultAccountUpdateOneWithoutUserNestedInput = {
+    create?: XOR<VaultAccountCreateWithoutUserInput, VaultAccountUncheckedCreateWithoutUserInput>
+    connectOrCreate?: VaultAccountCreateOrConnectWithoutUserInput
+    upsert?: VaultAccountUpsertWithoutUserInput
+    disconnect?: VaultAccountWhereInput | boolean
+    delete?: VaultAccountWhereInput | boolean
+    connect?: VaultAccountWhereUniqueInput
+    update?: XOR<XOR<VaultAccountUpdateToOneWithWhereWithoutUserInput, VaultAccountUpdateWithoutUserInput>, VaultAccountUncheckedUpdateWithoutUserInput>
+  }
+
+  export type VaultPreferencesUpdateOneWithoutUserNestedInput = {
+    create?: XOR<VaultPreferencesCreateWithoutUserInput, VaultPreferencesUncheckedCreateWithoutUserInput>
+    connectOrCreate?: VaultPreferencesCreateOrConnectWithoutUserInput
+    upsert?: VaultPreferencesUpsertWithoutUserInput
+    disconnect?: VaultPreferencesWhereInput | boolean
+    delete?: VaultPreferencesWhereInput | boolean
+    connect?: VaultPreferencesWhereUniqueInput
+    update?: XOR<XOR<VaultPreferencesUpdateToOneWithWhereWithoutUserInput, VaultPreferencesUpdateWithoutUserInput>, VaultPreferencesUncheckedUpdateWithoutUserInput>
   }
 
   export type SessionUncheckedUpdateManyWithoutUserNestedInput = {
@@ -35460,6 +47386,20 @@ export namespace Prisma {
     deleteMany?: AllocationPlanScalarWhereInput | AllocationPlanScalarWhereInput[]
   }
 
+  export type BillUncheckedUpdateManyWithoutUserNestedInput = {
+    create?: XOR<BillCreateWithoutUserInput, BillUncheckedCreateWithoutUserInput> | BillCreateWithoutUserInput[] | BillUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: BillCreateOrConnectWithoutUserInput | BillCreateOrConnectWithoutUserInput[]
+    upsert?: BillUpsertWithWhereUniqueWithoutUserInput | BillUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: BillCreateManyUserInputEnvelope
+    set?: BillWhereUniqueInput | BillWhereUniqueInput[]
+    disconnect?: BillWhereUniqueInput | BillWhereUniqueInput[]
+    delete?: BillWhereUniqueInput | BillWhereUniqueInput[]
+    connect?: BillWhereUniqueInput | BillWhereUniqueInput[]
+    update?: BillUpdateWithWhereUniqueWithoutUserInput | BillUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: BillUpdateManyWithWhereWithoutUserInput | BillUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: BillScalarWhereInput | BillScalarWhereInput[]
+  }
+
   export type AuditLogUncheckedUpdateManyWithoutUserNestedInput = {
     create?: XOR<AuditLogCreateWithoutUserInput, AuditLogUncheckedCreateWithoutUserInput> | AuditLogCreateWithoutUserInput[] | AuditLogUncheckedCreateWithoutUserInput[]
     connectOrCreate?: AuditLogCreateOrConnectWithoutUserInput | AuditLogCreateOrConnectWithoutUserInput[]
@@ -35482,6 +47422,26 @@ export namespace Prisma {
     delete?: FinancialIdentityWhereInput | boolean
     connect?: FinancialIdentityWhereUniqueInput
     update?: XOR<XOR<FinancialIdentityUpdateToOneWithWhereWithoutUserInput, FinancialIdentityUpdateWithoutUserInput>, FinancialIdentityUncheckedUpdateWithoutUserInput>
+  }
+
+  export type VaultAccountUncheckedUpdateOneWithoutUserNestedInput = {
+    create?: XOR<VaultAccountCreateWithoutUserInput, VaultAccountUncheckedCreateWithoutUserInput>
+    connectOrCreate?: VaultAccountCreateOrConnectWithoutUserInput
+    upsert?: VaultAccountUpsertWithoutUserInput
+    disconnect?: VaultAccountWhereInput | boolean
+    delete?: VaultAccountWhereInput | boolean
+    connect?: VaultAccountWhereUniqueInput
+    update?: XOR<XOR<VaultAccountUpdateToOneWithWhereWithoutUserInput, VaultAccountUpdateWithoutUserInput>, VaultAccountUncheckedUpdateWithoutUserInput>
+  }
+
+  export type VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput = {
+    create?: XOR<VaultPreferencesCreateWithoutUserInput, VaultPreferencesUncheckedCreateWithoutUserInput>
+    connectOrCreate?: VaultPreferencesCreateOrConnectWithoutUserInput
+    upsert?: VaultPreferencesUpsertWithoutUserInput
+    disconnect?: VaultPreferencesWhereInput | boolean
+    delete?: VaultPreferencesWhereInput | boolean
+    connect?: VaultPreferencesWhereUniqueInput
+    update?: XOR<XOR<VaultPreferencesUpdateToOneWithWhereWithoutUserInput, VaultPreferencesUpdateWithoutUserInput>, VaultPreferencesUncheckedUpdateWithoutUserInput>
   }
 
   export type UserCreateNestedOneWithoutSessionsInput = {
@@ -35620,6 +47580,12 @@ export namespace Prisma {
     connect?: AllocationRuleWhereUniqueInput | AllocationRuleWhereUniqueInput[]
   }
 
+  export type VaultEnvelopeCreateNestedOneWithoutCompassEnvelopeInput = {
+    create?: XOR<VaultEnvelopeCreateWithoutCompassEnvelopeInput, VaultEnvelopeUncheckedCreateWithoutCompassEnvelopeInput>
+    connectOrCreate?: VaultEnvelopeCreateOrConnectWithoutCompassEnvelopeInput
+    connect?: VaultEnvelopeWhereUniqueInput
+  }
+
   export type TransactionUncheckedCreateNestedManyWithoutEnvelopeInput = {
     create?: XOR<TransactionCreateWithoutEnvelopeInput, TransactionUncheckedCreateWithoutEnvelopeInput> | TransactionCreateWithoutEnvelopeInput[] | TransactionUncheckedCreateWithoutEnvelopeInput[]
     connectOrCreate?: TransactionCreateOrConnectWithoutEnvelopeInput | TransactionCreateOrConnectWithoutEnvelopeInput[]
@@ -35632,6 +47598,12 @@ export namespace Prisma {
     connectOrCreate?: AllocationRuleCreateOrConnectWithoutEnvelopeInput | AllocationRuleCreateOrConnectWithoutEnvelopeInput[]
     createMany?: AllocationRuleCreateManyEnvelopeInputEnvelope
     connect?: AllocationRuleWhereUniqueInput | AllocationRuleWhereUniqueInput[]
+  }
+
+  export type VaultEnvelopeUncheckedCreateNestedOneWithoutCompassEnvelopeInput = {
+    create?: XOR<VaultEnvelopeCreateWithoutCompassEnvelopeInput, VaultEnvelopeUncheckedCreateWithoutCompassEnvelopeInput>
+    connectOrCreate?: VaultEnvelopeCreateOrConnectWithoutCompassEnvelopeInput
+    connect?: VaultEnvelopeWhereUniqueInput
   }
 
   export type UserUpdateOneRequiredWithoutEnvelopesNestedInput = {
@@ -35670,6 +47642,16 @@ export namespace Prisma {
     deleteMany?: AllocationRuleScalarWhereInput | AllocationRuleScalarWhereInput[]
   }
 
+  export type VaultEnvelopeUpdateOneWithoutCompassEnvelopeNestedInput = {
+    create?: XOR<VaultEnvelopeCreateWithoutCompassEnvelopeInput, VaultEnvelopeUncheckedCreateWithoutCompassEnvelopeInput>
+    connectOrCreate?: VaultEnvelopeCreateOrConnectWithoutCompassEnvelopeInput
+    upsert?: VaultEnvelopeUpsertWithoutCompassEnvelopeInput
+    disconnect?: VaultEnvelopeWhereInput | boolean
+    delete?: VaultEnvelopeWhereInput | boolean
+    connect?: VaultEnvelopeWhereUniqueInput
+    update?: XOR<XOR<VaultEnvelopeUpdateToOneWithWhereWithoutCompassEnvelopeInput, VaultEnvelopeUpdateWithoutCompassEnvelopeInput>, VaultEnvelopeUncheckedUpdateWithoutCompassEnvelopeInput>
+  }
+
   export type TransactionUncheckedUpdateManyWithoutEnvelopeNestedInput = {
     create?: XOR<TransactionCreateWithoutEnvelopeInput, TransactionUncheckedCreateWithoutEnvelopeInput> | TransactionCreateWithoutEnvelopeInput[] | TransactionUncheckedCreateWithoutEnvelopeInput[]
     connectOrCreate?: TransactionCreateOrConnectWithoutEnvelopeInput | TransactionCreateOrConnectWithoutEnvelopeInput[]
@@ -35696,6 +47678,16 @@ export namespace Prisma {
     update?: AllocationRuleUpdateWithWhereUniqueWithoutEnvelopeInput | AllocationRuleUpdateWithWhereUniqueWithoutEnvelopeInput[]
     updateMany?: AllocationRuleUpdateManyWithWhereWithoutEnvelopeInput | AllocationRuleUpdateManyWithWhereWithoutEnvelopeInput[]
     deleteMany?: AllocationRuleScalarWhereInput | AllocationRuleScalarWhereInput[]
+  }
+
+  export type VaultEnvelopeUncheckedUpdateOneWithoutCompassEnvelopeNestedInput = {
+    create?: XOR<VaultEnvelopeCreateWithoutCompassEnvelopeInput, VaultEnvelopeUncheckedCreateWithoutCompassEnvelopeInput>
+    connectOrCreate?: VaultEnvelopeCreateOrConnectWithoutCompassEnvelopeInput
+    upsert?: VaultEnvelopeUpsertWithoutCompassEnvelopeInput
+    disconnect?: VaultEnvelopeWhereInput | boolean
+    delete?: VaultEnvelopeWhereInput | boolean
+    connect?: VaultEnvelopeWhereUniqueInput
+    update?: XOR<XOR<VaultEnvelopeUpdateToOneWithWhereWithoutCompassEnvelopeInput, VaultEnvelopeUpdateWithoutCompassEnvelopeInput>, VaultEnvelopeUncheckedUpdateWithoutCompassEnvelopeInput>
   }
 
   export type UserCreateNestedOneWithoutTransactionsInput = {
@@ -35770,6 +47762,12 @@ export namespace Prisma {
     update?: XOR<XOR<AccountUpdateToOneWithWhereWithoutPaySchedulesInput, AccountUpdateWithoutPaySchedulesInput>, AccountUncheckedUpdateWithoutPaySchedulesInput>
   }
 
+  export type UserCreateNestedOneWithoutBillsInput = {
+    create?: XOR<UserCreateWithoutBillsInput, UserUncheckedCreateWithoutBillsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutBillsInput
+    connect?: UserWhereUniqueInput
+  }
+
   export type NullableIntFieldUpdateOperationsInput = {
     set?: number | null
     increment?: number
@@ -35780,6 +47778,14 @@ export namespace Prisma {
 
   export type NullableDateTimeFieldUpdateOperationsInput = {
     set?: Date | string | null
+  }
+
+  export type UserUpdateOneRequiredWithoutBillsNestedInput = {
+    create?: XOR<UserCreateWithoutBillsInput, UserUncheckedCreateWithoutBillsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutBillsInput
+    upsert?: UserUpsertWithoutBillsInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutBillsInput, UserUpdateWithoutBillsInput>, UserUncheckedUpdateWithoutBillsInput>
   }
 
   export type UserCreateNestedOneWithoutGoalsInput = {
@@ -36372,6 +48378,450 @@ export namespace Prisma {
     update?: XOR<XOR<FinancialIdentityUpdateToOneWithWhereWithoutMessagesInput, FinancialIdentityUpdateWithoutMessagesInput>, FinancialIdentityUncheckedUpdateWithoutMessagesInput>
   }
 
+  export type UserCreateNestedOneWithoutVaultAccountInput = {
+    create?: XOR<UserCreateWithoutVaultAccountInput, UserUncheckedCreateWithoutVaultAccountInput>
+    connectOrCreate?: UserCreateOrConnectWithoutVaultAccountInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type VaultEnvelopeCreateNestedManyWithoutVaultInput = {
+    create?: XOR<VaultEnvelopeCreateWithoutVaultInput, VaultEnvelopeUncheckedCreateWithoutVaultInput> | VaultEnvelopeCreateWithoutVaultInput[] | VaultEnvelopeUncheckedCreateWithoutVaultInput[]
+    connectOrCreate?: VaultEnvelopeCreateOrConnectWithoutVaultInput | VaultEnvelopeCreateOrConnectWithoutVaultInput[]
+    createMany?: VaultEnvelopeCreateManyVaultInputEnvelope
+    connect?: VaultEnvelopeWhereUniqueInput | VaultEnvelopeWhereUniqueInput[]
+  }
+
+  export type ScheduledBillCreateNestedManyWithoutVaultInput = {
+    create?: XOR<ScheduledBillCreateWithoutVaultInput, ScheduledBillUncheckedCreateWithoutVaultInput> | ScheduledBillCreateWithoutVaultInput[] | ScheduledBillUncheckedCreateWithoutVaultInput[]
+    connectOrCreate?: ScheduledBillCreateOrConnectWithoutVaultInput | ScheduledBillCreateOrConnectWithoutVaultInput[]
+    createMany?: ScheduledBillCreateManyVaultInputEnvelope
+    connect?: ScheduledBillWhereUniqueInput | ScheduledBillWhereUniqueInput[]
+  }
+
+  export type YieldEventCreateNestedManyWithoutVaultInput = {
+    create?: XOR<YieldEventCreateWithoutVaultInput, YieldEventUncheckedCreateWithoutVaultInput> | YieldEventCreateWithoutVaultInput[] | YieldEventUncheckedCreateWithoutVaultInput[]
+    connectOrCreate?: YieldEventCreateOrConnectWithoutVaultInput | YieldEventCreateOrConnectWithoutVaultInput[]
+    createMany?: YieldEventCreateManyVaultInputEnvelope
+    connect?: YieldEventWhereUniqueInput | YieldEventWhereUniqueInput[]
+  }
+
+  export type VaultEnvelopeUncheckedCreateNestedManyWithoutVaultInput = {
+    create?: XOR<VaultEnvelopeCreateWithoutVaultInput, VaultEnvelopeUncheckedCreateWithoutVaultInput> | VaultEnvelopeCreateWithoutVaultInput[] | VaultEnvelopeUncheckedCreateWithoutVaultInput[]
+    connectOrCreate?: VaultEnvelopeCreateOrConnectWithoutVaultInput | VaultEnvelopeCreateOrConnectWithoutVaultInput[]
+    createMany?: VaultEnvelopeCreateManyVaultInputEnvelope
+    connect?: VaultEnvelopeWhereUniqueInput | VaultEnvelopeWhereUniqueInput[]
+  }
+
+  export type ScheduledBillUncheckedCreateNestedManyWithoutVaultInput = {
+    create?: XOR<ScheduledBillCreateWithoutVaultInput, ScheduledBillUncheckedCreateWithoutVaultInput> | ScheduledBillCreateWithoutVaultInput[] | ScheduledBillUncheckedCreateWithoutVaultInput[]
+    connectOrCreate?: ScheduledBillCreateOrConnectWithoutVaultInput | ScheduledBillCreateOrConnectWithoutVaultInput[]
+    createMany?: ScheduledBillCreateManyVaultInputEnvelope
+    connect?: ScheduledBillWhereUniqueInput | ScheduledBillWhereUniqueInput[]
+  }
+
+  export type YieldEventUncheckedCreateNestedManyWithoutVaultInput = {
+    create?: XOR<YieldEventCreateWithoutVaultInput, YieldEventUncheckedCreateWithoutVaultInput> | YieldEventCreateWithoutVaultInput[] | YieldEventUncheckedCreateWithoutVaultInput[]
+    connectOrCreate?: YieldEventCreateOrConnectWithoutVaultInput | YieldEventCreateOrConnectWithoutVaultInput[]
+    createMany?: YieldEventCreateManyVaultInputEnvelope
+    connect?: YieldEventWhereUniqueInput | YieldEventWhereUniqueInput[]
+  }
+
+  export type UserUpdateOneRequiredWithoutVaultAccountNestedInput = {
+    create?: XOR<UserCreateWithoutVaultAccountInput, UserUncheckedCreateWithoutVaultAccountInput>
+    connectOrCreate?: UserCreateOrConnectWithoutVaultAccountInput
+    upsert?: UserUpsertWithoutVaultAccountInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutVaultAccountInput, UserUpdateWithoutVaultAccountInput>, UserUncheckedUpdateWithoutVaultAccountInput>
+  }
+
+  export type VaultEnvelopeUpdateManyWithoutVaultNestedInput = {
+    create?: XOR<VaultEnvelopeCreateWithoutVaultInput, VaultEnvelopeUncheckedCreateWithoutVaultInput> | VaultEnvelopeCreateWithoutVaultInput[] | VaultEnvelopeUncheckedCreateWithoutVaultInput[]
+    connectOrCreate?: VaultEnvelopeCreateOrConnectWithoutVaultInput | VaultEnvelopeCreateOrConnectWithoutVaultInput[]
+    upsert?: VaultEnvelopeUpsertWithWhereUniqueWithoutVaultInput | VaultEnvelopeUpsertWithWhereUniqueWithoutVaultInput[]
+    createMany?: VaultEnvelopeCreateManyVaultInputEnvelope
+    set?: VaultEnvelopeWhereUniqueInput | VaultEnvelopeWhereUniqueInput[]
+    disconnect?: VaultEnvelopeWhereUniqueInput | VaultEnvelopeWhereUniqueInput[]
+    delete?: VaultEnvelopeWhereUniqueInput | VaultEnvelopeWhereUniqueInput[]
+    connect?: VaultEnvelopeWhereUniqueInput | VaultEnvelopeWhereUniqueInput[]
+    update?: VaultEnvelopeUpdateWithWhereUniqueWithoutVaultInput | VaultEnvelopeUpdateWithWhereUniqueWithoutVaultInput[]
+    updateMany?: VaultEnvelopeUpdateManyWithWhereWithoutVaultInput | VaultEnvelopeUpdateManyWithWhereWithoutVaultInput[]
+    deleteMany?: VaultEnvelopeScalarWhereInput | VaultEnvelopeScalarWhereInput[]
+  }
+
+  export type ScheduledBillUpdateManyWithoutVaultNestedInput = {
+    create?: XOR<ScheduledBillCreateWithoutVaultInput, ScheduledBillUncheckedCreateWithoutVaultInput> | ScheduledBillCreateWithoutVaultInput[] | ScheduledBillUncheckedCreateWithoutVaultInput[]
+    connectOrCreate?: ScheduledBillCreateOrConnectWithoutVaultInput | ScheduledBillCreateOrConnectWithoutVaultInput[]
+    upsert?: ScheduledBillUpsertWithWhereUniqueWithoutVaultInput | ScheduledBillUpsertWithWhereUniqueWithoutVaultInput[]
+    createMany?: ScheduledBillCreateManyVaultInputEnvelope
+    set?: ScheduledBillWhereUniqueInput | ScheduledBillWhereUniqueInput[]
+    disconnect?: ScheduledBillWhereUniqueInput | ScheduledBillWhereUniqueInput[]
+    delete?: ScheduledBillWhereUniqueInput | ScheduledBillWhereUniqueInput[]
+    connect?: ScheduledBillWhereUniqueInput | ScheduledBillWhereUniqueInput[]
+    update?: ScheduledBillUpdateWithWhereUniqueWithoutVaultInput | ScheduledBillUpdateWithWhereUniqueWithoutVaultInput[]
+    updateMany?: ScheduledBillUpdateManyWithWhereWithoutVaultInput | ScheduledBillUpdateManyWithWhereWithoutVaultInput[]
+    deleteMany?: ScheduledBillScalarWhereInput | ScheduledBillScalarWhereInput[]
+  }
+
+  export type YieldEventUpdateManyWithoutVaultNestedInput = {
+    create?: XOR<YieldEventCreateWithoutVaultInput, YieldEventUncheckedCreateWithoutVaultInput> | YieldEventCreateWithoutVaultInput[] | YieldEventUncheckedCreateWithoutVaultInput[]
+    connectOrCreate?: YieldEventCreateOrConnectWithoutVaultInput | YieldEventCreateOrConnectWithoutVaultInput[]
+    upsert?: YieldEventUpsertWithWhereUniqueWithoutVaultInput | YieldEventUpsertWithWhereUniqueWithoutVaultInput[]
+    createMany?: YieldEventCreateManyVaultInputEnvelope
+    set?: YieldEventWhereUniqueInput | YieldEventWhereUniqueInput[]
+    disconnect?: YieldEventWhereUniqueInput | YieldEventWhereUniqueInput[]
+    delete?: YieldEventWhereUniqueInput | YieldEventWhereUniqueInput[]
+    connect?: YieldEventWhereUniqueInput | YieldEventWhereUniqueInput[]
+    update?: YieldEventUpdateWithWhereUniqueWithoutVaultInput | YieldEventUpdateWithWhereUniqueWithoutVaultInput[]
+    updateMany?: YieldEventUpdateManyWithWhereWithoutVaultInput | YieldEventUpdateManyWithWhereWithoutVaultInput[]
+    deleteMany?: YieldEventScalarWhereInput | YieldEventScalarWhereInput[]
+  }
+
+  export type VaultEnvelopeUncheckedUpdateManyWithoutVaultNestedInput = {
+    create?: XOR<VaultEnvelopeCreateWithoutVaultInput, VaultEnvelopeUncheckedCreateWithoutVaultInput> | VaultEnvelopeCreateWithoutVaultInput[] | VaultEnvelopeUncheckedCreateWithoutVaultInput[]
+    connectOrCreate?: VaultEnvelopeCreateOrConnectWithoutVaultInput | VaultEnvelopeCreateOrConnectWithoutVaultInput[]
+    upsert?: VaultEnvelopeUpsertWithWhereUniqueWithoutVaultInput | VaultEnvelopeUpsertWithWhereUniqueWithoutVaultInput[]
+    createMany?: VaultEnvelopeCreateManyVaultInputEnvelope
+    set?: VaultEnvelopeWhereUniqueInput | VaultEnvelopeWhereUniqueInput[]
+    disconnect?: VaultEnvelopeWhereUniqueInput | VaultEnvelopeWhereUniqueInput[]
+    delete?: VaultEnvelopeWhereUniqueInput | VaultEnvelopeWhereUniqueInput[]
+    connect?: VaultEnvelopeWhereUniqueInput | VaultEnvelopeWhereUniqueInput[]
+    update?: VaultEnvelopeUpdateWithWhereUniqueWithoutVaultInput | VaultEnvelopeUpdateWithWhereUniqueWithoutVaultInput[]
+    updateMany?: VaultEnvelopeUpdateManyWithWhereWithoutVaultInput | VaultEnvelopeUpdateManyWithWhereWithoutVaultInput[]
+    deleteMany?: VaultEnvelopeScalarWhereInput | VaultEnvelopeScalarWhereInput[]
+  }
+
+  export type ScheduledBillUncheckedUpdateManyWithoutVaultNestedInput = {
+    create?: XOR<ScheduledBillCreateWithoutVaultInput, ScheduledBillUncheckedCreateWithoutVaultInput> | ScheduledBillCreateWithoutVaultInput[] | ScheduledBillUncheckedCreateWithoutVaultInput[]
+    connectOrCreate?: ScheduledBillCreateOrConnectWithoutVaultInput | ScheduledBillCreateOrConnectWithoutVaultInput[]
+    upsert?: ScheduledBillUpsertWithWhereUniqueWithoutVaultInput | ScheduledBillUpsertWithWhereUniqueWithoutVaultInput[]
+    createMany?: ScheduledBillCreateManyVaultInputEnvelope
+    set?: ScheduledBillWhereUniqueInput | ScheduledBillWhereUniqueInput[]
+    disconnect?: ScheduledBillWhereUniqueInput | ScheduledBillWhereUniqueInput[]
+    delete?: ScheduledBillWhereUniqueInput | ScheduledBillWhereUniqueInput[]
+    connect?: ScheduledBillWhereUniqueInput | ScheduledBillWhereUniqueInput[]
+    update?: ScheduledBillUpdateWithWhereUniqueWithoutVaultInput | ScheduledBillUpdateWithWhereUniqueWithoutVaultInput[]
+    updateMany?: ScheduledBillUpdateManyWithWhereWithoutVaultInput | ScheduledBillUpdateManyWithWhereWithoutVaultInput[]
+    deleteMany?: ScheduledBillScalarWhereInput | ScheduledBillScalarWhereInput[]
+  }
+
+  export type YieldEventUncheckedUpdateManyWithoutVaultNestedInput = {
+    create?: XOR<YieldEventCreateWithoutVaultInput, YieldEventUncheckedCreateWithoutVaultInput> | YieldEventCreateWithoutVaultInput[] | YieldEventUncheckedCreateWithoutVaultInput[]
+    connectOrCreate?: YieldEventCreateOrConnectWithoutVaultInput | YieldEventCreateOrConnectWithoutVaultInput[]
+    upsert?: YieldEventUpsertWithWhereUniqueWithoutVaultInput | YieldEventUpsertWithWhereUniqueWithoutVaultInput[]
+    createMany?: YieldEventCreateManyVaultInputEnvelope
+    set?: YieldEventWhereUniqueInput | YieldEventWhereUniqueInput[]
+    disconnect?: YieldEventWhereUniqueInput | YieldEventWhereUniqueInput[]
+    delete?: YieldEventWhereUniqueInput | YieldEventWhereUniqueInput[]
+    connect?: YieldEventWhereUniqueInput | YieldEventWhereUniqueInput[]
+    update?: YieldEventUpdateWithWhereUniqueWithoutVaultInput | YieldEventUpdateWithWhereUniqueWithoutVaultInput[]
+    updateMany?: YieldEventUpdateManyWithWhereWithoutVaultInput | YieldEventUpdateManyWithWhereWithoutVaultInput[]
+    deleteMany?: YieldEventScalarWhereInput | YieldEventScalarWhereInput[]
+  }
+
+  export type VaultAccountCreateNestedOneWithoutEnvelopesInput = {
+    create?: XOR<VaultAccountCreateWithoutEnvelopesInput, VaultAccountUncheckedCreateWithoutEnvelopesInput>
+    connectOrCreate?: VaultAccountCreateOrConnectWithoutEnvelopesInput
+    connect?: VaultAccountWhereUniqueInput
+  }
+
+  export type EnvelopeCreateNestedOneWithoutVaultEnvelopeInput = {
+    create?: XOR<EnvelopeCreateWithoutVaultEnvelopeInput, EnvelopeUncheckedCreateWithoutVaultEnvelopeInput>
+    connectOrCreate?: EnvelopeCreateOrConnectWithoutVaultEnvelopeInput
+    connect?: EnvelopeWhereUniqueInput
+  }
+
+  export type ScheduledBillCreateNestedManyWithoutEnvelopeInput = {
+    create?: XOR<ScheduledBillCreateWithoutEnvelopeInput, ScheduledBillUncheckedCreateWithoutEnvelopeInput> | ScheduledBillCreateWithoutEnvelopeInput[] | ScheduledBillUncheckedCreateWithoutEnvelopeInput[]
+    connectOrCreate?: ScheduledBillCreateOrConnectWithoutEnvelopeInput | ScheduledBillCreateOrConnectWithoutEnvelopeInput[]
+    createMany?: ScheduledBillCreateManyEnvelopeInputEnvelope
+    connect?: ScheduledBillWhereUniqueInput | ScheduledBillWhereUniqueInput[]
+  }
+
+  export type YieldEventCreateNestedManyWithoutEnvelopeInput = {
+    create?: XOR<YieldEventCreateWithoutEnvelopeInput, YieldEventUncheckedCreateWithoutEnvelopeInput> | YieldEventCreateWithoutEnvelopeInput[] | YieldEventUncheckedCreateWithoutEnvelopeInput[]
+    connectOrCreate?: YieldEventCreateOrConnectWithoutEnvelopeInput | YieldEventCreateOrConnectWithoutEnvelopeInput[]
+    createMany?: YieldEventCreateManyEnvelopeInputEnvelope
+    connect?: YieldEventWhereUniqueInput | YieldEventWhereUniqueInput[]
+  }
+
+  export type ScheduledBillUncheckedCreateNestedManyWithoutEnvelopeInput = {
+    create?: XOR<ScheduledBillCreateWithoutEnvelopeInput, ScheduledBillUncheckedCreateWithoutEnvelopeInput> | ScheduledBillCreateWithoutEnvelopeInput[] | ScheduledBillUncheckedCreateWithoutEnvelopeInput[]
+    connectOrCreate?: ScheduledBillCreateOrConnectWithoutEnvelopeInput | ScheduledBillCreateOrConnectWithoutEnvelopeInput[]
+    createMany?: ScheduledBillCreateManyEnvelopeInputEnvelope
+    connect?: ScheduledBillWhereUniqueInput | ScheduledBillWhereUniqueInput[]
+  }
+
+  export type YieldEventUncheckedCreateNestedManyWithoutEnvelopeInput = {
+    create?: XOR<YieldEventCreateWithoutEnvelopeInput, YieldEventUncheckedCreateWithoutEnvelopeInput> | YieldEventCreateWithoutEnvelopeInput[] | YieldEventUncheckedCreateWithoutEnvelopeInput[]
+    connectOrCreate?: YieldEventCreateOrConnectWithoutEnvelopeInput | YieldEventCreateOrConnectWithoutEnvelopeInput[]
+    createMany?: YieldEventCreateManyEnvelopeInputEnvelope
+    connect?: YieldEventWhereUniqueInput | YieldEventWhereUniqueInput[]
+  }
+
+  export type VaultAccountUpdateOneRequiredWithoutEnvelopesNestedInput = {
+    create?: XOR<VaultAccountCreateWithoutEnvelopesInput, VaultAccountUncheckedCreateWithoutEnvelopesInput>
+    connectOrCreate?: VaultAccountCreateOrConnectWithoutEnvelopesInput
+    upsert?: VaultAccountUpsertWithoutEnvelopesInput
+    connect?: VaultAccountWhereUniqueInput
+    update?: XOR<XOR<VaultAccountUpdateToOneWithWhereWithoutEnvelopesInput, VaultAccountUpdateWithoutEnvelopesInput>, VaultAccountUncheckedUpdateWithoutEnvelopesInput>
+  }
+
+  export type EnvelopeUpdateOneRequiredWithoutVaultEnvelopeNestedInput = {
+    create?: XOR<EnvelopeCreateWithoutVaultEnvelopeInput, EnvelopeUncheckedCreateWithoutVaultEnvelopeInput>
+    connectOrCreate?: EnvelopeCreateOrConnectWithoutVaultEnvelopeInput
+    upsert?: EnvelopeUpsertWithoutVaultEnvelopeInput
+    connect?: EnvelopeWhereUniqueInput
+    update?: XOR<XOR<EnvelopeUpdateToOneWithWhereWithoutVaultEnvelopeInput, EnvelopeUpdateWithoutVaultEnvelopeInput>, EnvelopeUncheckedUpdateWithoutVaultEnvelopeInput>
+  }
+
+  export type ScheduledBillUpdateManyWithoutEnvelopeNestedInput = {
+    create?: XOR<ScheduledBillCreateWithoutEnvelopeInput, ScheduledBillUncheckedCreateWithoutEnvelopeInput> | ScheduledBillCreateWithoutEnvelopeInput[] | ScheduledBillUncheckedCreateWithoutEnvelopeInput[]
+    connectOrCreate?: ScheduledBillCreateOrConnectWithoutEnvelopeInput | ScheduledBillCreateOrConnectWithoutEnvelopeInput[]
+    upsert?: ScheduledBillUpsertWithWhereUniqueWithoutEnvelopeInput | ScheduledBillUpsertWithWhereUniqueWithoutEnvelopeInput[]
+    createMany?: ScheduledBillCreateManyEnvelopeInputEnvelope
+    set?: ScheduledBillWhereUniqueInput | ScheduledBillWhereUniqueInput[]
+    disconnect?: ScheduledBillWhereUniqueInput | ScheduledBillWhereUniqueInput[]
+    delete?: ScheduledBillWhereUniqueInput | ScheduledBillWhereUniqueInput[]
+    connect?: ScheduledBillWhereUniqueInput | ScheduledBillWhereUniqueInput[]
+    update?: ScheduledBillUpdateWithWhereUniqueWithoutEnvelopeInput | ScheduledBillUpdateWithWhereUniqueWithoutEnvelopeInput[]
+    updateMany?: ScheduledBillUpdateManyWithWhereWithoutEnvelopeInput | ScheduledBillUpdateManyWithWhereWithoutEnvelopeInput[]
+    deleteMany?: ScheduledBillScalarWhereInput | ScheduledBillScalarWhereInput[]
+  }
+
+  export type YieldEventUpdateManyWithoutEnvelopeNestedInput = {
+    create?: XOR<YieldEventCreateWithoutEnvelopeInput, YieldEventUncheckedCreateWithoutEnvelopeInput> | YieldEventCreateWithoutEnvelopeInput[] | YieldEventUncheckedCreateWithoutEnvelopeInput[]
+    connectOrCreate?: YieldEventCreateOrConnectWithoutEnvelopeInput | YieldEventCreateOrConnectWithoutEnvelopeInput[]
+    upsert?: YieldEventUpsertWithWhereUniqueWithoutEnvelopeInput | YieldEventUpsertWithWhereUniqueWithoutEnvelopeInput[]
+    createMany?: YieldEventCreateManyEnvelopeInputEnvelope
+    set?: YieldEventWhereUniqueInput | YieldEventWhereUniqueInput[]
+    disconnect?: YieldEventWhereUniqueInput | YieldEventWhereUniqueInput[]
+    delete?: YieldEventWhereUniqueInput | YieldEventWhereUniqueInput[]
+    connect?: YieldEventWhereUniqueInput | YieldEventWhereUniqueInput[]
+    update?: YieldEventUpdateWithWhereUniqueWithoutEnvelopeInput | YieldEventUpdateWithWhereUniqueWithoutEnvelopeInput[]
+    updateMany?: YieldEventUpdateManyWithWhereWithoutEnvelopeInput | YieldEventUpdateManyWithWhereWithoutEnvelopeInput[]
+    deleteMany?: YieldEventScalarWhereInput | YieldEventScalarWhereInput[]
+  }
+
+  export type ScheduledBillUncheckedUpdateManyWithoutEnvelopeNestedInput = {
+    create?: XOR<ScheduledBillCreateWithoutEnvelopeInput, ScheduledBillUncheckedCreateWithoutEnvelopeInput> | ScheduledBillCreateWithoutEnvelopeInput[] | ScheduledBillUncheckedCreateWithoutEnvelopeInput[]
+    connectOrCreate?: ScheduledBillCreateOrConnectWithoutEnvelopeInput | ScheduledBillCreateOrConnectWithoutEnvelopeInput[]
+    upsert?: ScheduledBillUpsertWithWhereUniqueWithoutEnvelopeInput | ScheduledBillUpsertWithWhereUniqueWithoutEnvelopeInput[]
+    createMany?: ScheduledBillCreateManyEnvelopeInputEnvelope
+    set?: ScheduledBillWhereUniqueInput | ScheduledBillWhereUniqueInput[]
+    disconnect?: ScheduledBillWhereUniqueInput | ScheduledBillWhereUniqueInput[]
+    delete?: ScheduledBillWhereUniqueInput | ScheduledBillWhereUniqueInput[]
+    connect?: ScheduledBillWhereUniqueInput | ScheduledBillWhereUniqueInput[]
+    update?: ScheduledBillUpdateWithWhereUniqueWithoutEnvelopeInput | ScheduledBillUpdateWithWhereUniqueWithoutEnvelopeInput[]
+    updateMany?: ScheduledBillUpdateManyWithWhereWithoutEnvelopeInput | ScheduledBillUpdateManyWithWhereWithoutEnvelopeInput[]
+    deleteMany?: ScheduledBillScalarWhereInput | ScheduledBillScalarWhereInput[]
+  }
+
+  export type YieldEventUncheckedUpdateManyWithoutEnvelopeNestedInput = {
+    create?: XOR<YieldEventCreateWithoutEnvelopeInput, YieldEventUncheckedCreateWithoutEnvelopeInput> | YieldEventCreateWithoutEnvelopeInput[] | YieldEventUncheckedCreateWithoutEnvelopeInput[]
+    connectOrCreate?: YieldEventCreateOrConnectWithoutEnvelopeInput | YieldEventCreateOrConnectWithoutEnvelopeInput[]
+    upsert?: YieldEventUpsertWithWhereUniqueWithoutEnvelopeInput | YieldEventUpsertWithWhereUniqueWithoutEnvelopeInput[]
+    createMany?: YieldEventCreateManyEnvelopeInputEnvelope
+    set?: YieldEventWhereUniqueInput | YieldEventWhereUniqueInput[]
+    disconnect?: YieldEventWhereUniqueInput | YieldEventWhereUniqueInput[]
+    delete?: YieldEventWhereUniqueInput | YieldEventWhereUniqueInput[]
+    connect?: YieldEventWhereUniqueInput | YieldEventWhereUniqueInput[]
+    update?: YieldEventUpdateWithWhereUniqueWithoutEnvelopeInput | YieldEventUpdateWithWhereUniqueWithoutEnvelopeInput[]
+    updateMany?: YieldEventUpdateManyWithWhereWithoutEnvelopeInput | YieldEventUpdateManyWithWhereWithoutEnvelopeInput[]
+    deleteMany?: YieldEventScalarWhereInput | YieldEventScalarWhereInput[]
+  }
+
+  export type VaultAccountCreateNestedOneWithoutBillsInput = {
+    create?: XOR<VaultAccountCreateWithoutBillsInput, VaultAccountUncheckedCreateWithoutBillsInput>
+    connectOrCreate?: VaultAccountCreateOrConnectWithoutBillsInput
+    connect?: VaultAccountWhereUniqueInput
+  }
+
+  export type VaultEnvelopeCreateNestedOneWithoutBillsInput = {
+    create?: XOR<VaultEnvelopeCreateWithoutBillsInput, VaultEnvelopeUncheckedCreateWithoutBillsInput>
+    connectOrCreate?: VaultEnvelopeCreateOrConnectWithoutBillsInput
+    connect?: VaultEnvelopeWhereUniqueInput
+  }
+
+  export type PaymentAttemptCreateNestedManyWithoutBillInput = {
+    create?: XOR<PaymentAttemptCreateWithoutBillInput, PaymentAttemptUncheckedCreateWithoutBillInput> | PaymentAttemptCreateWithoutBillInput[] | PaymentAttemptUncheckedCreateWithoutBillInput[]
+    connectOrCreate?: PaymentAttemptCreateOrConnectWithoutBillInput | PaymentAttemptCreateOrConnectWithoutBillInput[]
+    createMany?: PaymentAttemptCreateManyBillInputEnvelope
+    connect?: PaymentAttemptWhereUniqueInput | PaymentAttemptWhereUniqueInput[]
+  }
+
+  export type PaymentAttemptUncheckedCreateNestedManyWithoutBillInput = {
+    create?: XOR<PaymentAttemptCreateWithoutBillInput, PaymentAttemptUncheckedCreateWithoutBillInput> | PaymentAttemptCreateWithoutBillInput[] | PaymentAttemptUncheckedCreateWithoutBillInput[]
+    connectOrCreate?: PaymentAttemptCreateOrConnectWithoutBillInput | PaymentAttemptCreateOrConnectWithoutBillInput[]
+    createMany?: PaymentAttemptCreateManyBillInputEnvelope
+    connect?: PaymentAttemptWhereUniqueInput | PaymentAttemptWhereUniqueInput[]
+  }
+
+  export type VaultAccountUpdateOneRequiredWithoutBillsNestedInput = {
+    create?: XOR<VaultAccountCreateWithoutBillsInput, VaultAccountUncheckedCreateWithoutBillsInput>
+    connectOrCreate?: VaultAccountCreateOrConnectWithoutBillsInput
+    upsert?: VaultAccountUpsertWithoutBillsInput
+    connect?: VaultAccountWhereUniqueInput
+    update?: XOR<XOR<VaultAccountUpdateToOneWithWhereWithoutBillsInput, VaultAccountUpdateWithoutBillsInput>, VaultAccountUncheckedUpdateWithoutBillsInput>
+  }
+
+  export type VaultEnvelopeUpdateOneRequiredWithoutBillsNestedInput = {
+    create?: XOR<VaultEnvelopeCreateWithoutBillsInput, VaultEnvelopeUncheckedCreateWithoutBillsInput>
+    connectOrCreate?: VaultEnvelopeCreateOrConnectWithoutBillsInput
+    upsert?: VaultEnvelopeUpsertWithoutBillsInput
+    connect?: VaultEnvelopeWhereUniqueInput
+    update?: XOR<XOR<VaultEnvelopeUpdateToOneWithWhereWithoutBillsInput, VaultEnvelopeUpdateWithoutBillsInput>, VaultEnvelopeUncheckedUpdateWithoutBillsInput>
+  }
+
+  export type PaymentAttemptUpdateManyWithoutBillNestedInput = {
+    create?: XOR<PaymentAttemptCreateWithoutBillInput, PaymentAttemptUncheckedCreateWithoutBillInput> | PaymentAttemptCreateWithoutBillInput[] | PaymentAttemptUncheckedCreateWithoutBillInput[]
+    connectOrCreate?: PaymentAttemptCreateOrConnectWithoutBillInput | PaymentAttemptCreateOrConnectWithoutBillInput[]
+    upsert?: PaymentAttemptUpsertWithWhereUniqueWithoutBillInput | PaymentAttemptUpsertWithWhereUniqueWithoutBillInput[]
+    createMany?: PaymentAttemptCreateManyBillInputEnvelope
+    set?: PaymentAttemptWhereUniqueInput | PaymentAttemptWhereUniqueInput[]
+    disconnect?: PaymentAttemptWhereUniqueInput | PaymentAttemptWhereUniqueInput[]
+    delete?: PaymentAttemptWhereUniqueInput | PaymentAttemptWhereUniqueInput[]
+    connect?: PaymentAttemptWhereUniqueInput | PaymentAttemptWhereUniqueInput[]
+    update?: PaymentAttemptUpdateWithWhereUniqueWithoutBillInput | PaymentAttemptUpdateWithWhereUniqueWithoutBillInput[]
+    updateMany?: PaymentAttemptUpdateManyWithWhereWithoutBillInput | PaymentAttemptUpdateManyWithWhereWithoutBillInput[]
+    deleteMany?: PaymentAttemptScalarWhereInput | PaymentAttemptScalarWhereInput[]
+  }
+
+  export type PaymentAttemptUncheckedUpdateManyWithoutBillNestedInput = {
+    create?: XOR<PaymentAttemptCreateWithoutBillInput, PaymentAttemptUncheckedCreateWithoutBillInput> | PaymentAttemptCreateWithoutBillInput[] | PaymentAttemptUncheckedCreateWithoutBillInput[]
+    connectOrCreate?: PaymentAttemptCreateOrConnectWithoutBillInput | PaymentAttemptCreateOrConnectWithoutBillInput[]
+    upsert?: PaymentAttemptUpsertWithWhereUniqueWithoutBillInput | PaymentAttemptUpsertWithWhereUniqueWithoutBillInput[]
+    createMany?: PaymentAttemptCreateManyBillInputEnvelope
+    set?: PaymentAttemptWhereUniqueInput | PaymentAttemptWhereUniqueInput[]
+    disconnect?: PaymentAttemptWhereUniqueInput | PaymentAttemptWhereUniqueInput[]
+    delete?: PaymentAttemptWhereUniqueInput | PaymentAttemptWhereUniqueInput[]
+    connect?: PaymentAttemptWhereUniqueInput | PaymentAttemptWhereUniqueInput[]
+    update?: PaymentAttemptUpdateWithWhereUniqueWithoutBillInput | PaymentAttemptUpdateWithWhereUniqueWithoutBillInput[]
+    updateMany?: PaymentAttemptUpdateManyWithWhereWithoutBillInput | PaymentAttemptUpdateManyWithWhereWithoutBillInput[]
+    deleteMany?: PaymentAttemptScalarWhereInput | PaymentAttemptScalarWhereInput[]
+  }
+
+  export type VaultAccountCreateNestedOneWithoutYieldEventsInput = {
+    create?: XOR<VaultAccountCreateWithoutYieldEventsInput, VaultAccountUncheckedCreateWithoutYieldEventsInput>
+    connectOrCreate?: VaultAccountCreateOrConnectWithoutYieldEventsInput
+    connect?: VaultAccountWhereUniqueInput
+  }
+
+  export type VaultEnvelopeCreateNestedOneWithoutYieldEventsInput = {
+    create?: XOR<VaultEnvelopeCreateWithoutYieldEventsInput, VaultEnvelopeUncheckedCreateWithoutYieldEventsInput>
+    connectOrCreate?: VaultEnvelopeCreateOrConnectWithoutYieldEventsInput
+    connect?: VaultEnvelopeWhereUniqueInput
+  }
+
+  export type NullableFloatFieldUpdateOperationsInput = {
+    set?: number | null
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
+  }
+
+  export type VaultAccountUpdateOneRequiredWithoutYieldEventsNestedInput = {
+    create?: XOR<VaultAccountCreateWithoutYieldEventsInput, VaultAccountUncheckedCreateWithoutYieldEventsInput>
+    connectOrCreate?: VaultAccountCreateOrConnectWithoutYieldEventsInput
+    upsert?: VaultAccountUpsertWithoutYieldEventsInput
+    connect?: VaultAccountWhereUniqueInput
+    update?: XOR<XOR<VaultAccountUpdateToOneWithWhereWithoutYieldEventsInput, VaultAccountUpdateWithoutYieldEventsInput>, VaultAccountUncheckedUpdateWithoutYieldEventsInput>
+  }
+
+  export type VaultEnvelopeUpdateOneWithoutYieldEventsNestedInput = {
+    create?: XOR<VaultEnvelopeCreateWithoutYieldEventsInput, VaultEnvelopeUncheckedCreateWithoutYieldEventsInput>
+    connectOrCreate?: VaultEnvelopeCreateOrConnectWithoutYieldEventsInput
+    upsert?: VaultEnvelopeUpsertWithoutYieldEventsInput
+    disconnect?: VaultEnvelopeWhereInput | boolean
+    delete?: VaultEnvelopeWhereInput | boolean
+    connect?: VaultEnvelopeWhereUniqueInput
+    update?: XOR<XOR<VaultEnvelopeUpdateToOneWithWhereWithoutYieldEventsInput, VaultEnvelopeUpdateWithoutYieldEventsInput>, VaultEnvelopeUncheckedUpdateWithoutYieldEventsInput>
+  }
+
+  export type ScheduledBillCreateNestedOneWithoutPaymentAttemptsInput = {
+    create?: XOR<ScheduledBillCreateWithoutPaymentAttemptsInput, ScheduledBillUncheckedCreateWithoutPaymentAttemptsInput>
+    connectOrCreate?: ScheduledBillCreateOrConnectWithoutPaymentAttemptsInput
+    connect?: ScheduledBillWhereUniqueInput
+  }
+
+  export type ProviderEventCreateNestedManyWithoutAttemptInput = {
+    create?: XOR<ProviderEventCreateWithoutAttemptInput, ProviderEventUncheckedCreateWithoutAttemptInput> | ProviderEventCreateWithoutAttemptInput[] | ProviderEventUncheckedCreateWithoutAttemptInput[]
+    connectOrCreate?: ProviderEventCreateOrConnectWithoutAttemptInput | ProviderEventCreateOrConnectWithoutAttemptInput[]
+    createMany?: ProviderEventCreateManyAttemptInputEnvelope
+    connect?: ProviderEventWhereUniqueInput | ProviderEventWhereUniqueInput[]
+  }
+
+  export type ProviderEventUncheckedCreateNestedManyWithoutAttemptInput = {
+    create?: XOR<ProviderEventCreateWithoutAttemptInput, ProviderEventUncheckedCreateWithoutAttemptInput> | ProviderEventCreateWithoutAttemptInput[] | ProviderEventUncheckedCreateWithoutAttemptInput[]
+    connectOrCreate?: ProviderEventCreateOrConnectWithoutAttemptInput | ProviderEventCreateOrConnectWithoutAttemptInput[]
+    createMany?: ProviderEventCreateManyAttemptInputEnvelope
+    connect?: ProviderEventWhereUniqueInput | ProviderEventWhereUniqueInput[]
+  }
+
+  export type ScheduledBillUpdateOneRequiredWithoutPaymentAttemptsNestedInput = {
+    create?: XOR<ScheduledBillCreateWithoutPaymentAttemptsInput, ScheduledBillUncheckedCreateWithoutPaymentAttemptsInput>
+    connectOrCreate?: ScheduledBillCreateOrConnectWithoutPaymentAttemptsInput
+    upsert?: ScheduledBillUpsertWithoutPaymentAttemptsInput
+    connect?: ScheduledBillWhereUniqueInput
+    update?: XOR<XOR<ScheduledBillUpdateToOneWithWhereWithoutPaymentAttemptsInput, ScheduledBillUpdateWithoutPaymentAttemptsInput>, ScheduledBillUncheckedUpdateWithoutPaymentAttemptsInput>
+  }
+
+  export type ProviderEventUpdateManyWithoutAttemptNestedInput = {
+    create?: XOR<ProviderEventCreateWithoutAttemptInput, ProviderEventUncheckedCreateWithoutAttemptInput> | ProviderEventCreateWithoutAttemptInput[] | ProviderEventUncheckedCreateWithoutAttemptInput[]
+    connectOrCreate?: ProviderEventCreateOrConnectWithoutAttemptInput | ProviderEventCreateOrConnectWithoutAttemptInput[]
+    upsert?: ProviderEventUpsertWithWhereUniqueWithoutAttemptInput | ProviderEventUpsertWithWhereUniqueWithoutAttemptInput[]
+    createMany?: ProviderEventCreateManyAttemptInputEnvelope
+    set?: ProviderEventWhereUniqueInput | ProviderEventWhereUniqueInput[]
+    disconnect?: ProviderEventWhereUniqueInput | ProviderEventWhereUniqueInput[]
+    delete?: ProviderEventWhereUniqueInput | ProviderEventWhereUniqueInput[]
+    connect?: ProviderEventWhereUniqueInput | ProviderEventWhereUniqueInput[]
+    update?: ProviderEventUpdateWithWhereUniqueWithoutAttemptInput | ProviderEventUpdateWithWhereUniqueWithoutAttemptInput[]
+    updateMany?: ProviderEventUpdateManyWithWhereWithoutAttemptInput | ProviderEventUpdateManyWithWhereWithoutAttemptInput[]
+    deleteMany?: ProviderEventScalarWhereInput | ProviderEventScalarWhereInput[]
+  }
+
+  export type ProviderEventUncheckedUpdateManyWithoutAttemptNestedInput = {
+    create?: XOR<ProviderEventCreateWithoutAttemptInput, ProviderEventUncheckedCreateWithoutAttemptInput> | ProviderEventCreateWithoutAttemptInput[] | ProviderEventUncheckedCreateWithoutAttemptInput[]
+    connectOrCreate?: ProviderEventCreateOrConnectWithoutAttemptInput | ProviderEventCreateOrConnectWithoutAttemptInput[]
+    upsert?: ProviderEventUpsertWithWhereUniqueWithoutAttemptInput | ProviderEventUpsertWithWhereUniqueWithoutAttemptInput[]
+    createMany?: ProviderEventCreateManyAttemptInputEnvelope
+    set?: ProviderEventWhereUniqueInput | ProviderEventWhereUniqueInput[]
+    disconnect?: ProviderEventWhereUniqueInput | ProviderEventWhereUniqueInput[]
+    delete?: ProviderEventWhereUniqueInput | ProviderEventWhereUniqueInput[]
+    connect?: ProviderEventWhereUniqueInput | ProviderEventWhereUniqueInput[]
+    update?: ProviderEventUpdateWithWhereUniqueWithoutAttemptInput | ProviderEventUpdateWithWhereUniqueWithoutAttemptInput[]
+    updateMany?: ProviderEventUpdateManyWithWhereWithoutAttemptInput | ProviderEventUpdateManyWithWhereWithoutAttemptInput[]
+    deleteMany?: ProviderEventScalarWhereInput | ProviderEventScalarWhereInput[]
+  }
+
+  export type PaymentAttemptCreateNestedOneWithoutProviderEventsInput = {
+    create?: XOR<PaymentAttemptCreateWithoutProviderEventsInput, PaymentAttemptUncheckedCreateWithoutProviderEventsInput>
+    connectOrCreate?: PaymentAttemptCreateOrConnectWithoutProviderEventsInput
+    connect?: PaymentAttemptWhereUniqueInput
+  }
+
+  export type PaymentAttemptUpdateOneRequiredWithoutProviderEventsNestedInput = {
+    create?: XOR<PaymentAttemptCreateWithoutProviderEventsInput, PaymentAttemptUncheckedCreateWithoutProviderEventsInput>
+    connectOrCreate?: PaymentAttemptCreateOrConnectWithoutProviderEventsInput
+    upsert?: PaymentAttemptUpsertWithoutProviderEventsInput
+    connect?: PaymentAttemptWhereUniqueInput
+    update?: XOR<XOR<PaymentAttemptUpdateToOneWithWhereWithoutProviderEventsInput, PaymentAttemptUpdateWithoutProviderEventsInput>, PaymentAttemptUncheckedUpdateWithoutProviderEventsInput>
+  }
+
+  export type UserCreateNestedOneWithoutVaultPreferencesInput = {
+    create?: XOR<UserCreateWithoutVaultPreferencesInput, UserUncheckedCreateWithoutVaultPreferencesInput>
+    connectOrCreate?: UserCreateOrConnectWithoutVaultPreferencesInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type UserUpdateOneRequiredWithoutVaultPreferencesNestedInput = {
+    create?: XOR<UserCreateWithoutVaultPreferencesInput, UserUncheckedCreateWithoutVaultPreferencesInput>
+    connectOrCreate?: UserCreateOrConnectWithoutVaultPreferencesInput
+    upsert?: UserUpsertWithoutVaultPreferencesInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutVaultPreferencesInput, UserUpdateWithoutVaultPreferencesInput>, UserUncheckedUpdateWithoutVaultPreferencesInput>
+  }
+
   export type NestedStringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[]
@@ -36623,6 +49073,22 @@ export namespace Prisma {
     _max?: NestedFloatFilter<$PrismaModel>
   }
 
+  export type NestedFloatNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel> | null
+    in?: number[] | null
+    notIn?: number[] | null
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatNullableWithAggregatesFilter<$PrismaModel> | number | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _avg?: NestedFloatNullableFilter<$PrismaModel>
+    _sum?: NestedFloatNullableFilter<$PrismaModel>
+    _min?: NestedFloatNullableFilter<$PrismaModel>
+    _max?: NestedFloatNullableFilter<$PrismaModel>
+  }
+
   export type SessionCreateWithoutUserInput = {
     id?: string
     tokenHash: string
@@ -36660,6 +49126,7 @@ export namespace Prisma {
     institution?: string | null
     mask?: string | null
     routingEnabled?: boolean
+    source?: string
     isArchived?: boolean
     sortOrder?: number
     createdAt?: Date | string
@@ -36676,6 +49143,7 @@ export namespace Prisma {
     institution?: string | null
     mask?: string | null
     routingEnabled?: boolean
+    source?: string
     isArchived?: boolean
     sortOrder?: number
     createdAt?: Date | string
@@ -36696,6 +49164,7 @@ export namespace Prisma {
   export type EnvelopeCreateWithoutUserInput = {
     id?: string
     name: string
+    source?: string
     targetBalance?: number
     currentBalance?: number
     planet?: string | null
@@ -36709,11 +49178,13 @@ export namespace Prisma {
     updatedAt?: Date | string
     transactions?: TransactionCreateNestedManyWithoutEnvelopeInput
     allocationRules?: AllocationRuleCreateNestedManyWithoutEnvelopeInput
+    vaultEnvelope?: VaultEnvelopeCreateNestedOneWithoutCompassEnvelopeInput
   }
 
   export type EnvelopeUncheckedCreateWithoutUserInput = {
     id?: string
     name: string
+    source?: string
     targetBalance?: number
     currentBalance?: number
     planet?: string | null
@@ -36727,6 +49198,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     transactions?: TransactionUncheckedCreateNestedManyWithoutEnvelopeInput
     allocationRules?: AllocationRuleUncheckedCreateNestedManyWithoutEnvelopeInput
+    vaultEnvelope?: VaultEnvelopeUncheckedCreateNestedOneWithoutCompassEnvelopeInput
   }
 
   export type EnvelopeCreateOrConnectWithoutUserInput = {
@@ -36826,6 +49298,7 @@ export namespace Prisma {
     isPrimary?: boolean
     kind?: $Enums.GoalKind
     goalType?: $Enums.GoalType | null
+    source?: string
     sortOrder?: number
     isArchived?: boolean
     createdAt?: Date | string
@@ -36844,6 +49317,7 @@ export namespace Prisma {
     isPrimary?: boolean
     kind?: $Enums.GoalKind
     goalType?: $Enums.GoalType | null
+    source?: string
     sortOrder?: number
     isArchived?: boolean
     createdAt?: Date | string
@@ -36864,6 +49338,7 @@ export namespace Prisma {
     strategyId?: string
     isArmed?: boolean
     name?: string | null
+    source?: string
     createdAt?: Date | string
     updatedAt?: Date | string
     rules?: AllocationRuleCreateNestedManyWithoutPlanInput
@@ -36874,6 +49349,7 @@ export namespace Prisma {
     strategyId?: string
     isArmed?: boolean
     name?: string | null
+    source?: string
     createdAt?: Date | string
     updatedAt?: Date | string
     rules?: AllocationRuleUncheckedCreateNestedManyWithoutPlanInput
@@ -36886,6 +49362,49 @@ export namespace Prisma {
 
   export type AllocationPlanCreateManyUserInputEnvelope = {
     data: AllocationPlanCreateManyUserInput | AllocationPlanCreateManyUserInput[]
+  }
+
+  export type BillCreateWithoutUserInput = {
+    id?: string
+    name: string
+    amountCents: number
+    cadence: string
+    dueDay?: number | null
+    autopay?: boolean
+    paidAt?: Date | string | null
+    source?: string
+    isArchived?: boolean
+    envelopeId?: string | null
+    accountId?: string | null
+    sortOrder?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type BillUncheckedCreateWithoutUserInput = {
+    id?: string
+    name: string
+    amountCents: number
+    cadence: string
+    dueDay?: number | null
+    autopay?: boolean
+    paidAt?: Date | string | null
+    source?: string
+    isArchived?: boolean
+    envelopeId?: string | null
+    accountId?: string | null
+    sortOrder?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type BillCreateOrConnectWithoutUserInput = {
+    where: BillWhereUniqueInput
+    create: XOR<BillCreateWithoutUserInput, BillUncheckedCreateWithoutUserInput>
+  }
+
+  export type BillCreateManyUserInputEnvelope = {
+    data: BillCreateManyUserInput | BillCreateManyUserInput[]
   }
 
   export type AuditLogCreateWithoutUserInput = {
@@ -36984,6 +49503,68 @@ export namespace Prisma {
     create: XOR<FinancialIdentityCreateWithoutUserInput, FinancialIdentityUncheckedCreateWithoutUserInput>
   }
 
+  export type VaultAccountCreateWithoutUserInput = {
+    id?: string
+    chainId?: number
+    smartAccountAddress: string
+    baseAsset?: string
+    status?: string
+    availableBalance?: number
+    settlementReserve?: number
+    deployedToYield?: number
+    accruedYield?: number
+    simulatedApy?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    envelopes?: VaultEnvelopeCreateNestedManyWithoutVaultInput
+    bills?: ScheduledBillCreateNestedManyWithoutVaultInput
+    yieldEvents?: YieldEventCreateNestedManyWithoutVaultInput
+  }
+
+  export type VaultAccountUncheckedCreateWithoutUserInput = {
+    id?: string
+    chainId?: number
+    smartAccountAddress: string
+    baseAsset?: string
+    status?: string
+    availableBalance?: number
+    settlementReserve?: number
+    deployedToYield?: number
+    accruedYield?: number
+    simulatedApy?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    envelopes?: VaultEnvelopeUncheckedCreateNestedManyWithoutVaultInput
+    bills?: ScheduledBillUncheckedCreateNestedManyWithoutVaultInput
+    yieldEvents?: YieldEventUncheckedCreateNestedManyWithoutVaultInput
+  }
+
+  export type VaultAccountCreateOrConnectWithoutUserInput = {
+    where: VaultAccountWhereUniqueInput
+    create: XOR<VaultAccountCreateWithoutUserInput, VaultAccountUncheckedCreateWithoutUserInput>
+  }
+
+  export type VaultPreferencesCreateWithoutUserInput = {
+    id?: string
+    yieldRoutingStrategy?: string
+    riskAcknowledgedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type VaultPreferencesUncheckedCreateWithoutUserInput = {
+    id?: string
+    yieldRoutingStrategy?: string
+    riskAcknowledgedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type VaultPreferencesCreateOrConnectWithoutUserInput = {
+    where: VaultPreferencesWhereUniqueInput
+    create: XOR<VaultPreferencesCreateWithoutUserInput, VaultPreferencesUncheckedCreateWithoutUserInput>
+  }
+
   export type SessionUpsertWithWhereUniqueWithoutUserInput = {
     where: SessionWhereUniqueInput
     update: XOR<SessionUpdateWithoutUserInput, SessionUncheckedUpdateWithoutUserInput>
@@ -37042,6 +49623,7 @@ export namespace Prisma {
     institution?: StringNullableFilter<"Account"> | string | null
     mask?: StringNullableFilter<"Account"> | string | null
     routingEnabled?: BoolFilter<"Account"> | boolean
+    source?: StringFilter<"Account"> | string
     isArchived?: BoolFilter<"Account"> | boolean
     sortOrder?: IntFilter<"Account"> | number
     createdAt?: DateTimeFilter<"Account"> | Date | string
@@ -37071,6 +49653,7 @@ export namespace Prisma {
     id?: StringFilter<"Envelope"> | string
     userId?: StringFilter<"Envelope"> | string
     name?: StringFilter<"Envelope"> | string
+    source?: StringFilter<"Envelope"> | string
     targetBalance?: IntFilter<"Envelope"> | number
     currentBalance?: IntFilter<"Envelope"> | number
     planet?: StringNullableFilter<"Envelope"> | string | null
@@ -37185,6 +49768,7 @@ export namespace Prisma {
     isPrimary?: BoolFilter<"Goal"> | boolean
     kind?: EnumGoalKindFilter<"Goal"> | $Enums.GoalKind
     goalType?: EnumGoalTypeNullableFilter<"Goal"> | $Enums.GoalType | null
+    source?: StringFilter<"Goal"> | string
     sortOrder?: IntFilter<"Goal"> | number
     isArchived?: BoolFilter<"Goal"> | boolean
     createdAt?: DateTimeFilter<"Goal"> | Date | string
@@ -37216,8 +49800,46 @@ export namespace Prisma {
     strategyId?: StringFilter<"AllocationPlan"> | string
     isArmed?: BoolFilter<"AllocationPlan"> | boolean
     name?: StringNullableFilter<"AllocationPlan"> | string | null
+    source?: StringFilter<"AllocationPlan"> | string
     createdAt?: DateTimeFilter<"AllocationPlan"> | Date | string
     updatedAt?: DateTimeFilter<"AllocationPlan"> | Date | string
+  }
+
+  export type BillUpsertWithWhereUniqueWithoutUserInput = {
+    where: BillWhereUniqueInput
+    update: XOR<BillUpdateWithoutUserInput, BillUncheckedUpdateWithoutUserInput>
+    create: XOR<BillCreateWithoutUserInput, BillUncheckedCreateWithoutUserInput>
+  }
+
+  export type BillUpdateWithWhereUniqueWithoutUserInput = {
+    where: BillWhereUniqueInput
+    data: XOR<BillUpdateWithoutUserInput, BillUncheckedUpdateWithoutUserInput>
+  }
+
+  export type BillUpdateManyWithWhereWithoutUserInput = {
+    where: BillScalarWhereInput
+    data: XOR<BillUpdateManyMutationInput, BillUncheckedUpdateManyWithoutUserInput>
+  }
+
+  export type BillScalarWhereInput = {
+    AND?: BillScalarWhereInput | BillScalarWhereInput[]
+    OR?: BillScalarWhereInput[]
+    NOT?: BillScalarWhereInput | BillScalarWhereInput[]
+    id?: StringFilter<"Bill"> | string
+    userId?: StringFilter<"Bill"> | string
+    name?: StringFilter<"Bill"> | string
+    amountCents?: IntFilter<"Bill"> | number
+    cadence?: StringFilter<"Bill"> | string
+    dueDay?: IntNullableFilter<"Bill"> | number | null
+    autopay?: BoolFilter<"Bill"> | boolean
+    paidAt?: DateTimeNullableFilter<"Bill"> | Date | string | null
+    source?: StringFilter<"Bill"> | string
+    isArchived?: BoolFilter<"Bill"> | boolean
+    envelopeId?: StringNullableFilter<"Bill"> | string | null
+    accountId?: StringNullableFilter<"Bill"> | string | null
+    sortOrder?: IntFilter<"Bill"> | number
+    createdAt?: DateTimeFilter<"Bill"> | Date | string
+    updatedAt?: DateTimeFilter<"Bill"> | Date | string
   }
 
   export type AuditLogUpsertWithWhereUniqueWithoutUserInput = {
@@ -37325,6 +49947,80 @@ export namespace Prisma {
     messages?: OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput
   }
 
+  export type VaultAccountUpsertWithoutUserInput = {
+    update: XOR<VaultAccountUpdateWithoutUserInput, VaultAccountUncheckedUpdateWithoutUserInput>
+    create: XOR<VaultAccountCreateWithoutUserInput, VaultAccountUncheckedCreateWithoutUserInput>
+    where?: VaultAccountWhereInput
+  }
+
+  export type VaultAccountUpdateToOneWithWhereWithoutUserInput = {
+    where?: VaultAccountWhereInput
+    data: XOR<VaultAccountUpdateWithoutUserInput, VaultAccountUncheckedUpdateWithoutUserInput>
+  }
+
+  export type VaultAccountUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    chainId?: IntFieldUpdateOperationsInput | number
+    smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    baseAsset?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    availableBalance?: IntFieldUpdateOperationsInput | number
+    settlementReserve?: IntFieldUpdateOperationsInput | number
+    deployedToYield?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    simulatedApy?: FloatFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    envelopes?: VaultEnvelopeUpdateManyWithoutVaultNestedInput
+    bills?: ScheduledBillUpdateManyWithoutVaultNestedInput
+    yieldEvents?: YieldEventUpdateManyWithoutVaultNestedInput
+  }
+
+  export type VaultAccountUncheckedUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    chainId?: IntFieldUpdateOperationsInput | number
+    smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    baseAsset?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    availableBalance?: IntFieldUpdateOperationsInput | number
+    settlementReserve?: IntFieldUpdateOperationsInput | number
+    deployedToYield?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    simulatedApy?: FloatFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    envelopes?: VaultEnvelopeUncheckedUpdateManyWithoutVaultNestedInput
+    bills?: ScheduledBillUncheckedUpdateManyWithoutVaultNestedInput
+    yieldEvents?: YieldEventUncheckedUpdateManyWithoutVaultNestedInput
+  }
+
+  export type VaultPreferencesUpsertWithoutUserInput = {
+    update: XOR<VaultPreferencesUpdateWithoutUserInput, VaultPreferencesUncheckedUpdateWithoutUserInput>
+    create: XOR<VaultPreferencesCreateWithoutUserInput, VaultPreferencesUncheckedCreateWithoutUserInput>
+    where?: VaultPreferencesWhereInput
+  }
+
+  export type VaultPreferencesUpdateToOneWithWhereWithoutUserInput = {
+    where?: VaultPreferencesWhereInput
+    data: XOR<VaultPreferencesUpdateWithoutUserInput, VaultPreferencesUncheckedUpdateWithoutUserInput>
+  }
+
+  export type VaultPreferencesUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    yieldRoutingStrategy?: StringFieldUpdateOperationsInput | string
+    riskAcknowledgedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type VaultPreferencesUncheckedUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    yieldRoutingStrategy?: StringFieldUpdateOperationsInput | string
+    riskAcknowledgedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type UserCreateWithoutSessionsInput = {
     id?: string
     name: string
@@ -37342,8 +50038,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutSessionsInput = {
@@ -37363,8 +50062,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutSessionsInput = {
@@ -37400,8 +50102,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutSessionsInput = {
@@ -37421,8 +50126,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type UserCreateWithoutAccountsInput = {
@@ -37442,8 +50150,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutAccountsInput = {
@@ -37463,8 +50174,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutAccountsInput = {
@@ -37576,8 +50290,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutAccountsInput = {
@@ -37597,8 +50314,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type TransactionUpsertWithWhereUniqueWithoutAccountInput = {
@@ -37650,8 +50370,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutEnvelopesInput = {
@@ -37671,8 +50394,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutEnvelopesInput = {
@@ -37727,8 +50453,9 @@ export namespace Prisma {
 
   export type AllocationRuleCreateWithoutEnvelopeInput = {
     id?: string
-    pct: number
+    pct?: number
     fixedCents?: number | null
+    source?: string
     sortOrder?: number
     createdAt?: Date | string
     plan: AllocationPlanCreateNestedOneWithoutRulesInput
@@ -37737,8 +50464,9 @@ export namespace Prisma {
   export type AllocationRuleUncheckedCreateWithoutEnvelopeInput = {
     id?: string
     planId: string
-    pct: number
+    pct?: number
     fixedCents?: number | null
+    source?: string
     sortOrder?: number
     createdAt?: Date | string
   }
@@ -37750,6 +50478,47 @@ export namespace Prisma {
 
   export type AllocationRuleCreateManyEnvelopeInputEnvelope = {
     data: AllocationRuleCreateManyEnvelopeInput | AllocationRuleCreateManyEnvelopeInput[]
+  }
+
+  export type VaultEnvelopeCreateWithoutCompassEnvelopeInput = {
+    id?: string
+    name: string
+    category: string
+    principalAllocated?: number
+    accruedYield?: number
+    reservedForBills?: number
+    availableToReallocate?: number
+    isPolicyLocked?: boolean
+    nextObligationDate?: Date | string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    vault: VaultAccountCreateNestedOneWithoutEnvelopesInput
+    bills?: ScheduledBillCreateNestedManyWithoutEnvelopeInput
+    yieldEvents?: YieldEventCreateNestedManyWithoutEnvelopeInput
+  }
+
+  export type VaultEnvelopeUncheckedCreateWithoutCompassEnvelopeInput = {
+    id?: string
+    vaultId: string
+    name: string
+    category: string
+    principalAllocated?: number
+    accruedYield?: number
+    reservedForBills?: number
+    availableToReallocate?: number
+    isPolicyLocked?: boolean
+    nextObligationDate?: Date | string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    bills?: ScheduledBillUncheckedCreateNestedManyWithoutEnvelopeInput
+    yieldEvents?: YieldEventUncheckedCreateNestedManyWithoutEnvelopeInput
+  }
+
+  export type VaultEnvelopeCreateOrConnectWithoutCompassEnvelopeInput = {
+    where: VaultEnvelopeWhereUniqueInput
+    create: XOR<VaultEnvelopeCreateWithoutCompassEnvelopeInput, VaultEnvelopeUncheckedCreateWithoutCompassEnvelopeInput>
   }
 
   export type UserUpsertWithoutEnvelopesInput = {
@@ -37780,8 +50549,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutEnvelopesInput = {
@@ -37801,8 +50573,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type TransactionUpsertWithWhereUniqueWithoutEnvelopeInput = {
@@ -37846,8 +50621,56 @@ export namespace Prisma {
     envelopeId?: StringFilter<"AllocationRule"> | string
     pct?: IntFilter<"AllocationRule"> | number
     fixedCents?: IntNullableFilter<"AllocationRule"> | number | null
+    source?: StringFilter<"AllocationRule"> | string
     sortOrder?: IntFilter<"AllocationRule"> | number
     createdAt?: DateTimeFilter<"AllocationRule"> | Date | string
+  }
+
+  export type VaultEnvelopeUpsertWithoutCompassEnvelopeInput = {
+    update: XOR<VaultEnvelopeUpdateWithoutCompassEnvelopeInput, VaultEnvelopeUncheckedUpdateWithoutCompassEnvelopeInput>
+    create: XOR<VaultEnvelopeCreateWithoutCompassEnvelopeInput, VaultEnvelopeUncheckedCreateWithoutCompassEnvelopeInput>
+    where?: VaultEnvelopeWhereInput
+  }
+
+  export type VaultEnvelopeUpdateToOneWithWhereWithoutCompassEnvelopeInput = {
+    where?: VaultEnvelopeWhereInput
+    data: XOR<VaultEnvelopeUpdateWithoutCompassEnvelopeInput, VaultEnvelopeUncheckedUpdateWithoutCompassEnvelopeInput>
+  }
+
+  export type VaultEnvelopeUpdateWithoutCompassEnvelopeInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    principalAllocated?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    reservedForBills?: IntFieldUpdateOperationsInput | number
+    availableToReallocate?: IntFieldUpdateOperationsInput | number
+    isPolicyLocked?: BoolFieldUpdateOperationsInput | boolean
+    nextObligationDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    vault?: VaultAccountUpdateOneRequiredWithoutEnvelopesNestedInput
+    bills?: ScheduledBillUpdateManyWithoutEnvelopeNestedInput
+    yieldEvents?: YieldEventUpdateManyWithoutEnvelopeNestedInput
+  }
+
+  export type VaultEnvelopeUncheckedUpdateWithoutCompassEnvelopeInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    vaultId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    principalAllocated?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    reservedForBills?: IntFieldUpdateOperationsInput | number
+    availableToReallocate?: IntFieldUpdateOperationsInput | number
+    isPolicyLocked?: BoolFieldUpdateOperationsInput | boolean
+    nextObligationDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    bills?: ScheduledBillUncheckedUpdateManyWithoutEnvelopeNestedInput
+    yieldEvents?: YieldEventUncheckedUpdateManyWithoutEnvelopeNestedInput
   }
 
   export type UserCreateWithoutTransactionsInput = {
@@ -37867,8 +50690,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutTransactionsInput = {
@@ -37888,8 +50714,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutTransactionsInput = {
@@ -37905,6 +50734,7 @@ export namespace Prisma {
     institution?: string | null
     mask?: string | null
     routingEnabled?: boolean
+    source?: string
     isArchived?: boolean
     sortOrder?: number
     createdAt?: Date | string
@@ -37922,6 +50752,7 @@ export namespace Prisma {
     institution?: string | null
     mask?: string | null
     routingEnabled?: boolean
+    source?: string
     isArchived?: boolean
     sortOrder?: number
     createdAt?: Date | string
@@ -37937,6 +50768,7 @@ export namespace Prisma {
   export type EnvelopeCreateWithoutTransactionsInput = {
     id?: string
     name: string
+    source?: string
     targetBalance?: number
     currentBalance?: number
     planet?: string | null
@@ -37950,12 +50782,14 @@ export namespace Prisma {
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutEnvelopesInput
     allocationRules?: AllocationRuleCreateNestedManyWithoutEnvelopeInput
+    vaultEnvelope?: VaultEnvelopeCreateNestedOneWithoutCompassEnvelopeInput
   }
 
   export type EnvelopeUncheckedCreateWithoutTransactionsInput = {
     id?: string
     userId: string
     name: string
+    source?: string
     targetBalance?: number
     currentBalance?: number
     planet?: string | null
@@ -37968,6 +50802,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     allocationRules?: AllocationRuleUncheckedCreateNestedManyWithoutEnvelopeInput
+    vaultEnvelope?: VaultEnvelopeUncheckedCreateNestedOneWithoutCompassEnvelopeInput
   }
 
   export type EnvelopeCreateOrConnectWithoutTransactionsInput = {
@@ -38003,8 +50838,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutTransactionsInput = {
@@ -38024,8 +50862,11 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type AccountUpsertWithoutTransactionsInput = {
@@ -38047,6 +50888,7 @@ export namespace Prisma {
     institution?: NullableStringFieldUpdateOperationsInput | string | null
     mask?: NullableStringFieldUpdateOperationsInput | string | null
     routingEnabled?: BoolFieldUpdateOperationsInput | boolean
+    source?: StringFieldUpdateOperationsInput | string
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -38064,6 +50906,7 @@ export namespace Prisma {
     institution?: NullableStringFieldUpdateOperationsInput | string | null
     mask?: NullableStringFieldUpdateOperationsInput | string | null
     routingEnabled?: BoolFieldUpdateOperationsInput | boolean
+    source?: StringFieldUpdateOperationsInput | string
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -38085,6 +50928,7 @@ export namespace Prisma {
   export type EnvelopeUpdateWithoutTransactionsInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
     targetBalance?: IntFieldUpdateOperationsInput | number
     currentBalance?: IntFieldUpdateOperationsInput | number
     planet?: NullableStringFieldUpdateOperationsInput | string | null
@@ -38098,12 +50942,14 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutEnvelopesNestedInput
     allocationRules?: AllocationRuleUpdateManyWithoutEnvelopeNestedInput
+    vaultEnvelope?: VaultEnvelopeUpdateOneWithoutCompassEnvelopeNestedInput
   }
 
   export type EnvelopeUncheckedUpdateWithoutTransactionsInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
     targetBalance?: IntFieldUpdateOperationsInput | number
     currentBalance?: IntFieldUpdateOperationsInput | number
     planet?: NullableStringFieldUpdateOperationsInput | string | null
@@ -38116,6 +50962,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     allocationRules?: AllocationRuleUncheckedUpdateManyWithoutEnvelopeNestedInput
+    vaultEnvelope?: VaultEnvelopeUncheckedUpdateOneWithoutCompassEnvelopeNestedInput
   }
 
   export type UserCreateWithoutPaySchedulesInput = {
@@ -38135,8 +50982,11 @@ export namespace Prisma {
     transactions?: TransactionCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutPaySchedulesInput = {
@@ -38156,8 +51006,11 @@ export namespace Prisma {
     transactions?: TransactionUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutPaySchedulesInput = {
@@ -38173,6 +51026,7 @@ export namespace Prisma {
     institution?: string | null
     mask?: string | null
     routingEnabled?: boolean
+    source?: string
     isArchived?: boolean
     sortOrder?: number
     createdAt?: Date | string
@@ -38190,6 +51044,7 @@ export namespace Prisma {
     institution?: string | null
     mask?: string | null
     routingEnabled?: boolean
+    source?: string
     isArchived?: boolean
     sortOrder?: number
     createdAt?: Date | string
@@ -38230,8 +51085,11 @@ export namespace Prisma {
     transactions?: TransactionUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutPaySchedulesInput = {
@@ -38251,8 +51109,11 @@ export namespace Prisma {
     transactions?: TransactionUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type AccountUpsertWithoutPaySchedulesInput = {
@@ -38274,6 +51135,7 @@ export namespace Prisma {
     institution?: NullableStringFieldUpdateOperationsInput | string | null
     mask?: NullableStringFieldUpdateOperationsInput | string | null
     routingEnabled?: BoolFieldUpdateOperationsInput | boolean
+    source?: StringFieldUpdateOperationsInput | string
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -38291,11 +51153,124 @@ export namespace Prisma {
     institution?: NullableStringFieldUpdateOperationsInput | string | null
     mask?: NullableStringFieldUpdateOperationsInput | string | null
     routingEnabled?: BoolFieldUpdateOperationsInput | boolean
+    source?: StringFieldUpdateOperationsInput | string
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     transactions?: TransactionUncheckedUpdateManyWithoutAccountNestedInput
+  }
+
+  export type UserCreateWithoutBillsInput = {
+    id?: string
+    name: string
+    email: string
+    passwordHash: string
+    aiTier?: number
+    routingLevel?: number
+    defaultViewId?: string | null
+    settings?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    sessions?: SessionCreateNestedManyWithoutUserInput
+    accounts?: AccountCreateNestedManyWithoutUserInput
+    envelopes?: EnvelopeCreateNestedManyWithoutUserInput
+    transactions?: TransactionCreateNestedManyWithoutUserInput
+    paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
+    goals?: GoalCreateNestedManyWithoutUserInput
+    allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutBillsInput = {
+    id?: string
+    name: string
+    email: string
+    passwordHash: string
+    aiTier?: number
+    routingLevel?: number
+    defaultViewId?: string | null
+    settings?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
+    accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
+    envelopes?: EnvelopeUncheckedCreateNestedManyWithoutUserInput
+    transactions?: TransactionUncheckedCreateNestedManyWithoutUserInput
+    paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
+    goals?: GoalUncheckedCreateNestedManyWithoutUserInput
+    allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutBillsInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutBillsInput, UserUncheckedCreateWithoutBillsInput>
+  }
+
+  export type UserUpsertWithoutBillsInput = {
+    update: XOR<UserUpdateWithoutBillsInput, UserUncheckedUpdateWithoutBillsInput>
+    create: XOR<UserCreateWithoutBillsInput, UserUncheckedCreateWithoutBillsInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutBillsInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutBillsInput, UserUncheckedUpdateWithoutBillsInput>
+  }
+
+  export type UserUpdateWithoutBillsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    aiTier?: IntFieldUpdateOperationsInput | number
+    routingLevel?: IntFieldUpdateOperationsInput | number
+    defaultViewId?: NullableStringFieldUpdateOperationsInput | string | null
+    settings?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    sessions?: SessionUpdateManyWithoutUserNestedInput
+    accounts?: AccountUpdateManyWithoutUserNestedInput
+    envelopes?: EnvelopeUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUpdateManyWithoutUserNestedInput
+    paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
+    goals?: GoalUpdateManyWithoutUserNestedInput
+    allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutBillsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    aiTier?: IntFieldUpdateOperationsInput | number
+    routingLevel?: IntFieldUpdateOperationsInput | number
+    defaultViewId?: NullableStringFieldUpdateOperationsInput | string | null
+    settings?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
+    accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
+    envelopes?: EnvelopeUncheckedUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUncheckedUpdateManyWithoutUserNestedInput
+    paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
+    goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
+    allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type UserCreateWithoutGoalsInput = {
@@ -38315,8 +51290,11 @@ export namespace Prisma {
     transactions?: TransactionCreateNestedManyWithoutUserInput
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutGoalsInput = {
@@ -38336,8 +51314,11 @@ export namespace Prisma {
     transactions?: TransactionUncheckedCreateNestedManyWithoutUserInput
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutGoalsInput = {
@@ -38373,8 +51354,11 @@ export namespace Prisma {
     transactions?: TransactionUpdateManyWithoutUserNestedInput
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutGoalsInput = {
@@ -38394,8 +51378,11 @@ export namespace Prisma {
     transactions?: TransactionUncheckedUpdateManyWithoutUserNestedInput
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type UserCreateWithoutAllocationPlansInput = {
@@ -38415,8 +51402,11 @@ export namespace Prisma {
     transactions?: TransactionCreateNestedManyWithoutUserInput
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
+    bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutAllocationPlansInput = {
@@ -38436,8 +51426,11 @@ export namespace Prisma {
     transactions?: TransactionUncheckedCreateNestedManyWithoutUserInput
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
+    bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutAllocationPlansInput = {
@@ -38447,8 +51440,9 @@ export namespace Prisma {
 
   export type AllocationRuleCreateWithoutPlanInput = {
     id?: string
-    pct: number
+    pct?: number
     fixedCents?: number | null
+    source?: string
     sortOrder?: number
     createdAt?: Date | string
     envelope: EnvelopeCreateNestedOneWithoutAllocationRulesInput
@@ -38457,8 +51451,9 @@ export namespace Prisma {
   export type AllocationRuleUncheckedCreateWithoutPlanInput = {
     id?: string
     envelopeId: string
-    pct: number
+    pct?: number
     fixedCents?: number | null
+    source?: string
     sortOrder?: number
     createdAt?: Date | string
   }
@@ -38500,8 +51495,11 @@ export namespace Prisma {
     transactions?: TransactionUpdateManyWithoutUserNestedInput
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
+    bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutAllocationPlansInput = {
@@ -38521,8 +51519,11 @@ export namespace Prisma {
     transactions?: TransactionUncheckedUpdateManyWithoutUserNestedInput
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
+    bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type AllocationRuleUpsertWithWhereUniqueWithoutPlanInput = {
@@ -38546,6 +51547,7 @@ export namespace Prisma {
     strategyId?: string
     isArmed?: boolean
     name?: string | null
+    source?: string
     createdAt?: Date | string
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutAllocationPlansInput
@@ -38557,6 +51559,7 @@ export namespace Prisma {
     strategyId?: string
     isArmed?: boolean
     name?: string | null
+    source?: string
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -38569,6 +51572,7 @@ export namespace Prisma {
   export type EnvelopeCreateWithoutAllocationRulesInput = {
     id?: string
     name: string
+    source?: string
     targetBalance?: number
     currentBalance?: number
     planet?: string | null
@@ -38582,12 +51586,14 @@ export namespace Prisma {
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutEnvelopesInput
     transactions?: TransactionCreateNestedManyWithoutEnvelopeInput
+    vaultEnvelope?: VaultEnvelopeCreateNestedOneWithoutCompassEnvelopeInput
   }
 
   export type EnvelopeUncheckedCreateWithoutAllocationRulesInput = {
     id?: string
     userId: string
     name: string
+    source?: string
     targetBalance?: number
     currentBalance?: number
     planet?: string | null
@@ -38600,6 +51606,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     transactions?: TransactionUncheckedCreateNestedManyWithoutEnvelopeInput
+    vaultEnvelope?: VaultEnvelopeUncheckedCreateNestedOneWithoutCompassEnvelopeInput
   }
 
   export type EnvelopeCreateOrConnectWithoutAllocationRulesInput = {
@@ -38623,6 +51630,7 @@ export namespace Prisma {
     strategyId?: StringFieldUpdateOperationsInput | string
     isArmed?: BoolFieldUpdateOperationsInput | boolean
     name?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutAllocationPlansNestedInput
@@ -38634,6 +51642,7 @@ export namespace Prisma {
     strategyId?: StringFieldUpdateOperationsInput | string
     isArmed?: BoolFieldUpdateOperationsInput | boolean
     name?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -38652,6 +51661,7 @@ export namespace Prisma {
   export type EnvelopeUpdateWithoutAllocationRulesInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
     targetBalance?: IntFieldUpdateOperationsInput | number
     currentBalance?: IntFieldUpdateOperationsInput | number
     planet?: NullableStringFieldUpdateOperationsInput | string | null
@@ -38665,12 +51675,14 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutEnvelopesNestedInput
     transactions?: TransactionUpdateManyWithoutEnvelopeNestedInput
+    vaultEnvelope?: VaultEnvelopeUpdateOneWithoutCompassEnvelopeNestedInput
   }
 
   export type EnvelopeUncheckedUpdateWithoutAllocationRulesInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
     targetBalance?: IntFieldUpdateOperationsInput | number
     currentBalance?: IntFieldUpdateOperationsInput | number
     planet?: NullableStringFieldUpdateOperationsInput | string | null
@@ -38683,6 +51695,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     transactions?: TransactionUncheckedUpdateManyWithoutEnvelopeNestedInput
+    vaultEnvelope?: VaultEnvelopeUncheckedUpdateOneWithoutCompassEnvelopeNestedInput
   }
 
   export type UserCreateWithoutAuditLogInput = {
@@ -38703,7 +51716,10 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    bills?: BillCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutAuditLogInput = {
@@ -38724,7 +51740,10 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    bills?: BillUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutAuditLogInput = {
@@ -38761,7 +51780,10 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    bills?: BillUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutAuditLogInput = {
@@ -38782,7 +51804,10 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type UserCreateWithoutIdentityInput = {
@@ -38803,7 +51828,10 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutIdentityInput = {
@@ -38824,7 +51852,10 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutIdentityInput = {
@@ -39099,7 +52130,10 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutIdentityInput = {
@@ -39120,7 +52154,10 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type IdentityIncomeUpsertWithWhereUniqueWithoutIdentityInput = {
@@ -40550,6 +53587,1425 @@ export namespace Prisma {
     household?: IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityNestedInput
   }
 
+  export type UserCreateWithoutVaultAccountInput = {
+    id?: string
+    name: string
+    email: string
+    passwordHash: string
+    aiTier?: number
+    routingLevel?: number
+    defaultViewId?: string | null
+    settings?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    sessions?: SessionCreateNestedManyWithoutUserInput
+    accounts?: AccountCreateNestedManyWithoutUserInput
+    envelopes?: EnvelopeCreateNestedManyWithoutUserInput
+    transactions?: TransactionCreateNestedManyWithoutUserInput
+    paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
+    goals?: GoalCreateNestedManyWithoutUserInput
+    allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    bills?: BillCreateNestedManyWithoutUserInput
+    auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutVaultAccountInput = {
+    id?: string
+    name: string
+    email: string
+    passwordHash: string
+    aiTier?: number
+    routingLevel?: number
+    defaultViewId?: string | null
+    settings?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
+    accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
+    envelopes?: EnvelopeUncheckedCreateNestedManyWithoutUserInput
+    transactions?: TransactionUncheckedCreateNestedManyWithoutUserInput
+    paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
+    goals?: GoalUncheckedCreateNestedManyWithoutUserInput
+    allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutVaultAccountInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutVaultAccountInput, UserUncheckedCreateWithoutVaultAccountInput>
+  }
+
+  export type VaultEnvelopeCreateWithoutVaultInput = {
+    id?: string
+    name: string
+    category: string
+    principalAllocated?: number
+    accruedYield?: number
+    reservedForBills?: number
+    availableToReallocate?: number
+    isPolicyLocked?: boolean
+    nextObligationDate?: Date | string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    compassEnvelope: EnvelopeCreateNestedOneWithoutVaultEnvelopeInput
+    bills?: ScheduledBillCreateNestedManyWithoutEnvelopeInput
+    yieldEvents?: YieldEventCreateNestedManyWithoutEnvelopeInput
+  }
+
+  export type VaultEnvelopeUncheckedCreateWithoutVaultInput = {
+    id?: string
+    compassEnvelopeId: string
+    name: string
+    category: string
+    principalAllocated?: number
+    accruedYield?: number
+    reservedForBills?: number
+    availableToReallocate?: number
+    isPolicyLocked?: boolean
+    nextObligationDate?: Date | string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    bills?: ScheduledBillUncheckedCreateNestedManyWithoutEnvelopeInput
+    yieldEvents?: YieldEventUncheckedCreateNestedManyWithoutEnvelopeInput
+  }
+
+  export type VaultEnvelopeCreateOrConnectWithoutVaultInput = {
+    where: VaultEnvelopeWhereUniqueInput
+    create: XOR<VaultEnvelopeCreateWithoutVaultInput, VaultEnvelopeUncheckedCreateWithoutVaultInput>
+  }
+
+  export type VaultEnvelopeCreateManyVaultInputEnvelope = {
+    data: VaultEnvelopeCreateManyVaultInput | VaultEnvelopeCreateManyVaultInput[]
+  }
+
+  export type ScheduledBillCreateWithoutVaultInput = {
+    id?: string
+    billerName: string
+    billerId: string
+    maskedAccountNumber: string
+    amount: number
+    maxAuthorizedAmount: number
+    currency?: string
+    frequency: string
+    dueDate: Date | string
+    executionWindowStart: Date | string
+    executionWindowEnd: Date | string
+    status?: string
+    providerPreference?: string | null
+    lastAttemptAt?: Date | string | null
+    settlementReference?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    envelope: VaultEnvelopeCreateNestedOneWithoutBillsInput
+    paymentAttempts?: PaymentAttemptCreateNestedManyWithoutBillInput
+  }
+
+  export type ScheduledBillUncheckedCreateWithoutVaultInput = {
+    id?: string
+    envelopeId: string
+    billerName: string
+    billerId: string
+    maskedAccountNumber: string
+    amount: number
+    maxAuthorizedAmount: number
+    currency?: string
+    frequency: string
+    dueDate: Date | string
+    executionWindowStart: Date | string
+    executionWindowEnd: Date | string
+    status?: string
+    providerPreference?: string | null
+    lastAttemptAt?: Date | string | null
+    settlementReference?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    paymentAttempts?: PaymentAttemptUncheckedCreateNestedManyWithoutBillInput
+  }
+
+  export type ScheduledBillCreateOrConnectWithoutVaultInput = {
+    where: ScheduledBillWhereUniqueInput
+    create: XOR<ScheduledBillCreateWithoutVaultInput, ScheduledBillUncheckedCreateWithoutVaultInput>
+  }
+
+  export type ScheduledBillCreateManyVaultInputEnvelope = {
+    data: ScheduledBillCreateManyVaultInput | ScheduledBillCreateManyVaultInput[]
+  }
+
+  export type YieldEventCreateWithoutVaultInput = {
+    id?: string
+    asset: string
+    amount: number
+    annualizedRate?: number | null
+    source: string
+    action: string
+    occurredAt?: Date | string
+    envelope?: VaultEnvelopeCreateNestedOneWithoutYieldEventsInput
+  }
+
+  export type YieldEventUncheckedCreateWithoutVaultInput = {
+    id?: string
+    envelopeId?: string | null
+    asset: string
+    amount: number
+    annualizedRate?: number | null
+    source: string
+    action: string
+    occurredAt?: Date | string
+  }
+
+  export type YieldEventCreateOrConnectWithoutVaultInput = {
+    where: YieldEventWhereUniqueInput
+    create: XOR<YieldEventCreateWithoutVaultInput, YieldEventUncheckedCreateWithoutVaultInput>
+  }
+
+  export type YieldEventCreateManyVaultInputEnvelope = {
+    data: YieldEventCreateManyVaultInput | YieldEventCreateManyVaultInput[]
+  }
+
+  export type UserUpsertWithoutVaultAccountInput = {
+    update: XOR<UserUpdateWithoutVaultAccountInput, UserUncheckedUpdateWithoutVaultAccountInput>
+    create: XOR<UserCreateWithoutVaultAccountInput, UserUncheckedCreateWithoutVaultAccountInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutVaultAccountInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutVaultAccountInput, UserUncheckedUpdateWithoutVaultAccountInput>
+  }
+
+  export type UserUpdateWithoutVaultAccountInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    aiTier?: IntFieldUpdateOperationsInput | number
+    routingLevel?: IntFieldUpdateOperationsInput | number
+    defaultViewId?: NullableStringFieldUpdateOperationsInput | string | null
+    settings?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    sessions?: SessionUpdateManyWithoutUserNestedInput
+    accounts?: AccountUpdateManyWithoutUserNestedInput
+    envelopes?: EnvelopeUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUpdateManyWithoutUserNestedInput
+    paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
+    goals?: GoalUpdateManyWithoutUserNestedInput
+    allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    bills?: BillUpdateManyWithoutUserNestedInput
+    auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutVaultAccountInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    aiTier?: IntFieldUpdateOperationsInput | number
+    routingLevel?: IntFieldUpdateOperationsInput | number
+    defaultViewId?: NullableStringFieldUpdateOperationsInput | string | null
+    settings?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
+    accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
+    envelopes?: EnvelopeUncheckedUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUncheckedUpdateManyWithoutUserNestedInput
+    paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
+    goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
+    allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
+  }
+
+  export type VaultEnvelopeUpsertWithWhereUniqueWithoutVaultInput = {
+    where: VaultEnvelopeWhereUniqueInput
+    update: XOR<VaultEnvelopeUpdateWithoutVaultInput, VaultEnvelopeUncheckedUpdateWithoutVaultInput>
+    create: XOR<VaultEnvelopeCreateWithoutVaultInput, VaultEnvelopeUncheckedCreateWithoutVaultInput>
+  }
+
+  export type VaultEnvelopeUpdateWithWhereUniqueWithoutVaultInput = {
+    where: VaultEnvelopeWhereUniqueInput
+    data: XOR<VaultEnvelopeUpdateWithoutVaultInput, VaultEnvelopeUncheckedUpdateWithoutVaultInput>
+  }
+
+  export type VaultEnvelopeUpdateManyWithWhereWithoutVaultInput = {
+    where: VaultEnvelopeScalarWhereInput
+    data: XOR<VaultEnvelopeUpdateManyMutationInput, VaultEnvelopeUncheckedUpdateManyWithoutVaultInput>
+  }
+
+  export type VaultEnvelopeScalarWhereInput = {
+    AND?: VaultEnvelopeScalarWhereInput | VaultEnvelopeScalarWhereInput[]
+    OR?: VaultEnvelopeScalarWhereInput[]
+    NOT?: VaultEnvelopeScalarWhereInput | VaultEnvelopeScalarWhereInput[]
+    id?: StringFilter<"VaultEnvelope"> | string
+    vaultId?: StringFilter<"VaultEnvelope"> | string
+    compassEnvelopeId?: StringFilter<"VaultEnvelope"> | string
+    name?: StringFilter<"VaultEnvelope"> | string
+    category?: StringFilter<"VaultEnvelope"> | string
+    principalAllocated?: IntFilter<"VaultEnvelope"> | number
+    accruedYield?: IntFilter<"VaultEnvelope"> | number
+    reservedForBills?: IntFilter<"VaultEnvelope"> | number
+    availableToReallocate?: IntFilter<"VaultEnvelope"> | number
+    isPolicyLocked?: BoolFilter<"VaultEnvelope"> | boolean
+    nextObligationDate?: DateTimeNullableFilter<"VaultEnvelope"> | Date | string | null
+    status?: StringFilter<"VaultEnvelope"> | string
+    createdAt?: DateTimeFilter<"VaultEnvelope"> | Date | string
+    updatedAt?: DateTimeFilter<"VaultEnvelope"> | Date | string
+  }
+
+  export type ScheduledBillUpsertWithWhereUniqueWithoutVaultInput = {
+    where: ScheduledBillWhereUniqueInput
+    update: XOR<ScheduledBillUpdateWithoutVaultInput, ScheduledBillUncheckedUpdateWithoutVaultInput>
+    create: XOR<ScheduledBillCreateWithoutVaultInput, ScheduledBillUncheckedCreateWithoutVaultInput>
+  }
+
+  export type ScheduledBillUpdateWithWhereUniqueWithoutVaultInput = {
+    where: ScheduledBillWhereUniqueInput
+    data: XOR<ScheduledBillUpdateWithoutVaultInput, ScheduledBillUncheckedUpdateWithoutVaultInput>
+  }
+
+  export type ScheduledBillUpdateManyWithWhereWithoutVaultInput = {
+    where: ScheduledBillScalarWhereInput
+    data: XOR<ScheduledBillUpdateManyMutationInput, ScheduledBillUncheckedUpdateManyWithoutVaultInput>
+  }
+
+  export type ScheduledBillScalarWhereInput = {
+    AND?: ScheduledBillScalarWhereInput | ScheduledBillScalarWhereInput[]
+    OR?: ScheduledBillScalarWhereInput[]
+    NOT?: ScheduledBillScalarWhereInput | ScheduledBillScalarWhereInput[]
+    id?: StringFilter<"ScheduledBill"> | string
+    vaultId?: StringFilter<"ScheduledBill"> | string
+    envelopeId?: StringFilter<"ScheduledBill"> | string
+    billerName?: StringFilter<"ScheduledBill"> | string
+    billerId?: StringFilter<"ScheduledBill"> | string
+    maskedAccountNumber?: StringFilter<"ScheduledBill"> | string
+    amount?: IntFilter<"ScheduledBill"> | number
+    maxAuthorizedAmount?: IntFilter<"ScheduledBill"> | number
+    currency?: StringFilter<"ScheduledBill"> | string
+    frequency?: StringFilter<"ScheduledBill"> | string
+    dueDate?: DateTimeFilter<"ScheduledBill"> | Date | string
+    executionWindowStart?: DateTimeFilter<"ScheduledBill"> | Date | string
+    executionWindowEnd?: DateTimeFilter<"ScheduledBill"> | Date | string
+    status?: StringFilter<"ScheduledBill"> | string
+    providerPreference?: StringNullableFilter<"ScheduledBill"> | string | null
+    lastAttemptAt?: DateTimeNullableFilter<"ScheduledBill"> | Date | string | null
+    settlementReference?: StringNullableFilter<"ScheduledBill"> | string | null
+    createdAt?: DateTimeFilter<"ScheduledBill"> | Date | string
+    updatedAt?: DateTimeFilter<"ScheduledBill"> | Date | string
+  }
+
+  export type YieldEventUpsertWithWhereUniqueWithoutVaultInput = {
+    where: YieldEventWhereUniqueInput
+    update: XOR<YieldEventUpdateWithoutVaultInput, YieldEventUncheckedUpdateWithoutVaultInput>
+    create: XOR<YieldEventCreateWithoutVaultInput, YieldEventUncheckedCreateWithoutVaultInput>
+  }
+
+  export type YieldEventUpdateWithWhereUniqueWithoutVaultInput = {
+    where: YieldEventWhereUniqueInput
+    data: XOR<YieldEventUpdateWithoutVaultInput, YieldEventUncheckedUpdateWithoutVaultInput>
+  }
+
+  export type YieldEventUpdateManyWithWhereWithoutVaultInput = {
+    where: YieldEventScalarWhereInput
+    data: XOR<YieldEventUpdateManyMutationInput, YieldEventUncheckedUpdateManyWithoutVaultInput>
+  }
+
+  export type YieldEventScalarWhereInput = {
+    AND?: YieldEventScalarWhereInput | YieldEventScalarWhereInput[]
+    OR?: YieldEventScalarWhereInput[]
+    NOT?: YieldEventScalarWhereInput | YieldEventScalarWhereInput[]
+    id?: StringFilter<"YieldEvent"> | string
+    vaultId?: StringFilter<"YieldEvent"> | string
+    envelopeId?: StringNullableFilter<"YieldEvent"> | string | null
+    asset?: StringFilter<"YieldEvent"> | string
+    amount?: IntFilter<"YieldEvent"> | number
+    annualizedRate?: FloatNullableFilter<"YieldEvent"> | number | null
+    source?: StringFilter<"YieldEvent"> | string
+    action?: StringFilter<"YieldEvent"> | string
+    occurredAt?: DateTimeFilter<"YieldEvent"> | Date | string
+  }
+
+  export type VaultAccountCreateWithoutEnvelopesInput = {
+    id?: string
+    chainId?: number
+    smartAccountAddress: string
+    baseAsset?: string
+    status?: string
+    availableBalance?: number
+    settlementReserve?: number
+    deployedToYield?: number
+    accruedYield?: number
+    simulatedApy?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutVaultAccountInput
+    bills?: ScheduledBillCreateNestedManyWithoutVaultInput
+    yieldEvents?: YieldEventCreateNestedManyWithoutVaultInput
+  }
+
+  export type VaultAccountUncheckedCreateWithoutEnvelopesInput = {
+    id?: string
+    userId: string
+    chainId?: number
+    smartAccountAddress: string
+    baseAsset?: string
+    status?: string
+    availableBalance?: number
+    settlementReserve?: number
+    deployedToYield?: number
+    accruedYield?: number
+    simulatedApy?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    bills?: ScheduledBillUncheckedCreateNestedManyWithoutVaultInput
+    yieldEvents?: YieldEventUncheckedCreateNestedManyWithoutVaultInput
+  }
+
+  export type VaultAccountCreateOrConnectWithoutEnvelopesInput = {
+    where: VaultAccountWhereUniqueInput
+    create: XOR<VaultAccountCreateWithoutEnvelopesInput, VaultAccountUncheckedCreateWithoutEnvelopesInput>
+  }
+
+  export type EnvelopeCreateWithoutVaultEnvelopeInput = {
+    id?: string
+    name: string
+    source?: string
+    targetBalance?: number
+    currentBalance?: number
+    planet?: string | null
+    color?: string | null
+    icon?: string | null
+    destinationAccountId?: string | null
+    enforceHardCap?: boolean
+    sortOrder?: number
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutEnvelopesInput
+    transactions?: TransactionCreateNestedManyWithoutEnvelopeInput
+    allocationRules?: AllocationRuleCreateNestedManyWithoutEnvelopeInput
+  }
+
+  export type EnvelopeUncheckedCreateWithoutVaultEnvelopeInput = {
+    id?: string
+    userId: string
+    name: string
+    source?: string
+    targetBalance?: number
+    currentBalance?: number
+    planet?: string | null
+    color?: string | null
+    icon?: string | null
+    destinationAccountId?: string | null
+    enforceHardCap?: boolean
+    sortOrder?: number
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    transactions?: TransactionUncheckedCreateNestedManyWithoutEnvelopeInput
+    allocationRules?: AllocationRuleUncheckedCreateNestedManyWithoutEnvelopeInput
+  }
+
+  export type EnvelopeCreateOrConnectWithoutVaultEnvelopeInput = {
+    where: EnvelopeWhereUniqueInput
+    create: XOR<EnvelopeCreateWithoutVaultEnvelopeInput, EnvelopeUncheckedCreateWithoutVaultEnvelopeInput>
+  }
+
+  export type ScheduledBillCreateWithoutEnvelopeInput = {
+    id?: string
+    billerName: string
+    billerId: string
+    maskedAccountNumber: string
+    amount: number
+    maxAuthorizedAmount: number
+    currency?: string
+    frequency: string
+    dueDate: Date | string
+    executionWindowStart: Date | string
+    executionWindowEnd: Date | string
+    status?: string
+    providerPreference?: string | null
+    lastAttemptAt?: Date | string | null
+    settlementReference?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    vault: VaultAccountCreateNestedOneWithoutBillsInput
+    paymentAttempts?: PaymentAttemptCreateNestedManyWithoutBillInput
+  }
+
+  export type ScheduledBillUncheckedCreateWithoutEnvelopeInput = {
+    id?: string
+    vaultId: string
+    billerName: string
+    billerId: string
+    maskedAccountNumber: string
+    amount: number
+    maxAuthorizedAmount: number
+    currency?: string
+    frequency: string
+    dueDate: Date | string
+    executionWindowStart: Date | string
+    executionWindowEnd: Date | string
+    status?: string
+    providerPreference?: string | null
+    lastAttemptAt?: Date | string | null
+    settlementReference?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    paymentAttempts?: PaymentAttemptUncheckedCreateNestedManyWithoutBillInput
+  }
+
+  export type ScheduledBillCreateOrConnectWithoutEnvelopeInput = {
+    where: ScheduledBillWhereUniqueInput
+    create: XOR<ScheduledBillCreateWithoutEnvelopeInput, ScheduledBillUncheckedCreateWithoutEnvelopeInput>
+  }
+
+  export type ScheduledBillCreateManyEnvelopeInputEnvelope = {
+    data: ScheduledBillCreateManyEnvelopeInput | ScheduledBillCreateManyEnvelopeInput[]
+  }
+
+  export type YieldEventCreateWithoutEnvelopeInput = {
+    id?: string
+    asset: string
+    amount: number
+    annualizedRate?: number | null
+    source: string
+    action: string
+    occurredAt?: Date | string
+    vault: VaultAccountCreateNestedOneWithoutYieldEventsInput
+  }
+
+  export type YieldEventUncheckedCreateWithoutEnvelopeInput = {
+    id?: string
+    vaultId: string
+    asset: string
+    amount: number
+    annualizedRate?: number | null
+    source: string
+    action: string
+    occurredAt?: Date | string
+  }
+
+  export type YieldEventCreateOrConnectWithoutEnvelopeInput = {
+    where: YieldEventWhereUniqueInput
+    create: XOR<YieldEventCreateWithoutEnvelopeInput, YieldEventUncheckedCreateWithoutEnvelopeInput>
+  }
+
+  export type YieldEventCreateManyEnvelopeInputEnvelope = {
+    data: YieldEventCreateManyEnvelopeInput | YieldEventCreateManyEnvelopeInput[]
+  }
+
+  export type VaultAccountUpsertWithoutEnvelopesInput = {
+    update: XOR<VaultAccountUpdateWithoutEnvelopesInput, VaultAccountUncheckedUpdateWithoutEnvelopesInput>
+    create: XOR<VaultAccountCreateWithoutEnvelopesInput, VaultAccountUncheckedCreateWithoutEnvelopesInput>
+    where?: VaultAccountWhereInput
+  }
+
+  export type VaultAccountUpdateToOneWithWhereWithoutEnvelopesInput = {
+    where?: VaultAccountWhereInput
+    data: XOR<VaultAccountUpdateWithoutEnvelopesInput, VaultAccountUncheckedUpdateWithoutEnvelopesInput>
+  }
+
+  export type VaultAccountUpdateWithoutEnvelopesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    chainId?: IntFieldUpdateOperationsInput | number
+    smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    baseAsset?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    availableBalance?: IntFieldUpdateOperationsInput | number
+    settlementReserve?: IntFieldUpdateOperationsInput | number
+    deployedToYield?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    simulatedApy?: FloatFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutVaultAccountNestedInput
+    bills?: ScheduledBillUpdateManyWithoutVaultNestedInput
+    yieldEvents?: YieldEventUpdateManyWithoutVaultNestedInput
+  }
+
+  export type VaultAccountUncheckedUpdateWithoutEnvelopesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    chainId?: IntFieldUpdateOperationsInput | number
+    smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    baseAsset?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    availableBalance?: IntFieldUpdateOperationsInput | number
+    settlementReserve?: IntFieldUpdateOperationsInput | number
+    deployedToYield?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    simulatedApy?: FloatFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    bills?: ScheduledBillUncheckedUpdateManyWithoutVaultNestedInput
+    yieldEvents?: YieldEventUncheckedUpdateManyWithoutVaultNestedInput
+  }
+
+  export type EnvelopeUpsertWithoutVaultEnvelopeInput = {
+    update: XOR<EnvelopeUpdateWithoutVaultEnvelopeInput, EnvelopeUncheckedUpdateWithoutVaultEnvelopeInput>
+    create: XOR<EnvelopeCreateWithoutVaultEnvelopeInput, EnvelopeUncheckedCreateWithoutVaultEnvelopeInput>
+    where?: EnvelopeWhereInput
+  }
+
+  export type EnvelopeUpdateToOneWithWhereWithoutVaultEnvelopeInput = {
+    where?: EnvelopeWhereInput
+    data: XOR<EnvelopeUpdateWithoutVaultEnvelopeInput, EnvelopeUncheckedUpdateWithoutVaultEnvelopeInput>
+  }
+
+  export type EnvelopeUpdateWithoutVaultEnvelopeInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
+    targetBalance?: IntFieldUpdateOperationsInput | number
+    currentBalance?: IntFieldUpdateOperationsInput | number
+    planet?: NullableStringFieldUpdateOperationsInput | string | null
+    color?: NullableStringFieldUpdateOperationsInput | string | null
+    icon?: NullableStringFieldUpdateOperationsInput | string | null
+    destinationAccountId?: NullableStringFieldUpdateOperationsInput | string | null
+    enforceHardCap?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutEnvelopesNestedInput
+    transactions?: TransactionUpdateManyWithoutEnvelopeNestedInput
+    allocationRules?: AllocationRuleUpdateManyWithoutEnvelopeNestedInput
+  }
+
+  export type EnvelopeUncheckedUpdateWithoutVaultEnvelopeInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
+    targetBalance?: IntFieldUpdateOperationsInput | number
+    currentBalance?: IntFieldUpdateOperationsInput | number
+    planet?: NullableStringFieldUpdateOperationsInput | string | null
+    color?: NullableStringFieldUpdateOperationsInput | string | null
+    icon?: NullableStringFieldUpdateOperationsInput | string | null
+    destinationAccountId?: NullableStringFieldUpdateOperationsInput | string | null
+    enforceHardCap?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    transactions?: TransactionUncheckedUpdateManyWithoutEnvelopeNestedInput
+    allocationRules?: AllocationRuleUncheckedUpdateManyWithoutEnvelopeNestedInput
+  }
+
+  export type ScheduledBillUpsertWithWhereUniqueWithoutEnvelopeInput = {
+    where: ScheduledBillWhereUniqueInput
+    update: XOR<ScheduledBillUpdateWithoutEnvelopeInput, ScheduledBillUncheckedUpdateWithoutEnvelopeInput>
+    create: XOR<ScheduledBillCreateWithoutEnvelopeInput, ScheduledBillUncheckedCreateWithoutEnvelopeInput>
+  }
+
+  export type ScheduledBillUpdateWithWhereUniqueWithoutEnvelopeInput = {
+    where: ScheduledBillWhereUniqueInput
+    data: XOR<ScheduledBillUpdateWithoutEnvelopeInput, ScheduledBillUncheckedUpdateWithoutEnvelopeInput>
+  }
+
+  export type ScheduledBillUpdateManyWithWhereWithoutEnvelopeInput = {
+    where: ScheduledBillScalarWhereInput
+    data: XOR<ScheduledBillUpdateManyMutationInput, ScheduledBillUncheckedUpdateManyWithoutEnvelopeInput>
+  }
+
+  export type YieldEventUpsertWithWhereUniqueWithoutEnvelopeInput = {
+    where: YieldEventWhereUniqueInput
+    update: XOR<YieldEventUpdateWithoutEnvelopeInput, YieldEventUncheckedUpdateWithoutEnvelopeInput>
+    create: XOR<YieldEventCreateWithoutEnvelopeInput, YieldEventUncheckedCreateWithoutEnvelopeInput>
+  }
+
+  export type YieldEventUpdateWithWhereUniqueWithoutEnvelopeInput = {
+    where: YieldEventWhereUniqueInput
+    data: XOR<YieldEventUpdateWithoutEnvelopeInput, YieldEventUncheckedUpdateWithoutEnvelopeInput>
+  }
+
+  export type YieldEventUpdateManyWithWhereWithoutEnvelopeInput = {
+    where: YieldEventScalarWhereInput
+    data: XOR<YieldEventUpdateManyMutationInput, YieldEventUncheckedUpdateManyWithoutEnvelopeInput>
+  }
+
+  export type VaultAccountCreateWithoutBillsInput = {
+    id?: string
+    chainId?: number
+    smartAccountAddress: string
+    baseAsset?: string
+    status?: string
+    availableBalance?: number
+    settlementReserve?: number
+    deployedToYield?: number
+    accruedYield?: number
+    simulatedApy?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutVaultAccountInput
+    envelopes?: VaultEnvelopeCreateNestedManyWithoutVaultInput
+    yieldEvents?: YieldEventCreateNestedManyWithoutVaultInput
+  }
+
+  export type VaultAccountUncheckedCreateWithoutBillsInput = {
+    id?: string
+    userId: string
+    chainId?: number
+    smartAccountAddress: string
+    baseAsset?: string
+    status?: string
+    availableBalance?: number
+    settlementReserve?: number
+    deployedToYield?: number
+    accruedYield?: number
+    simulatedApy?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    envelopes?: VaultEnvelopeUncheckedCreateNestedManyWithoutVaultInput
+    yieldEvents?: YieldEventUncheckedCreateNestedManyWithoutVaultInput
+  }
+
+  export type VaultAccountCreateOrConnectWithoutBillsInput = {
+    where: VaultAccountWhereUniqueInput
+    create: XOR<VaultAccountCreateWithoutBillsInput, VaultAccountUncheckedCreateWithoutBillsInput>
+  }
+
+  export type VaultEnvelopeCreateWithoutBillsInput = {
+    id?: string
+    name: string
+    category: string
+    principalAllocated?: number
+    accruedYield?: number
+    reservedForBills?: number
+    availableToReallocate?: number
+    isPolicyLocked?: boolean
+    nextObligationDate?: Date | string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    vault: VaultAccountCreateNestedOneWithoutEnvelopesInput
+    compassEnvelope: EnvelopeCreateNestedOneWithoutVaultEnvelopeInput
+    yieldEvents?: YieldEventCreateNestedManyWithoutEnvelopeInput
+  }
+
+  export type VaultEnvelopeUncheckedCreateWithoutBillsInput = {
+    id?: string
+    vaultId: string
+    compassEnvelopeId: string
+    name: string
+    category: string
+    principalAllocated?: number
+    accruedYield?: number
+    reservedForBills?: number
+    availableToReallocate?: number
+    isPolicyLocked?: boolean
+    nextObligationDate?: Date | string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    yieldEvents?: YieldEventUncheckedCreateNestedManyWithoutEnvelopeInput
+  }
+
+  export type VaultEnvelopeCreateOrConnectWithoutBillsInput = {
+    where: VaultEnvelopeWhereUniqueInput
+    create: XOR<VaultEnvelopeCreateWithoutBillsInput, VaultEnvelopeUncheckedCreateWithoutBillsInput>
+  }
+
+  export type PaymentAttemptCreateWithoutBillInput = {
+    id?: string
+    providerName: string
+    idempotencyKey: string
+    requestAmount: number
+    result: string
+    transactionId?: string | null
+    warningMessage?: string | null
+    errorMessage?: string | null
+    retryable?: boolean
+    attemptedAt?: Date | string
+    completedAt?: Date | string | null
+    providerEvents?: ProviderEventCreateNestedManyWithoutAttemptInput
+  }
+
+  export type PaymentAttemptUncheckedCreateWithoutBillInput = {
+    id?: string
+    providerName: string
+    idempotencyKey: string
+    requestAmount: number
+    result: string
+    transactionId?: string | null
+    warningMessage?: string | null
+    errorMessage?: string | null
+    retryable?: boolean
+    attemptedAt?: Date | string
+    completedAt?: Date | string | null
+    providerEvents?: ProviderEventUncheckedCreateNestedManyWithoutAttemptInput
+  }
+
+  export type PaymentAttemptCreateOrConnectWithoutBillInput = {
+    where: PaymentAttemptWhereUniqueInput
+    create: XOR<PaymentAttemptCreateWithoutBillInput, PaymentAttemptUncheckedCreateWithoutBillInput>
+  }
+
+  export type PaymentAttemptCreateManyBillInputEnvelope = {
+    data: PaymentAttemptCreateManyBillInput | PaymentAttemptCreateManyBillInput[]
+  }
+
+  export type VaultAccountUpsertWithoutBillsInput = {
+    update: XOR<VaultAccountUpdateWithoutBillsInput, VaultAccountUncheckedUpdateWithoutBillsInput>
+    create: XOR<VaultAccountCreateWithoutBillsInput, VaultAccountUncheckedCreateWithoutBillsInput>
+    where?: VaultAccountWhereInput
+  }
+
+  export type VaultAccountUpdateToOneWithWhereWithoutBillsInput = {
+    where?: VaultAccountWhereInput
+    data: XOR<VaultAccountUpdateWithoutBillsInput, VaultAccountUncheckedUpdateWithoutBillsInput>
+  }
+
+  export type VaultAccountUpdateWithoutBillsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    chainId?: IntFieldUpdateOperationsInput | number
+    smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    baseAsset?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    availableBalance?: IntFieldUpdateOperationsInput | number
+    settlementReserve?: IntFieldUpdateOperationsInput | number
+    deployedToYield?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    simulatedApy?: FloatFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutVaultAccountNestedInput
+    envelopes?: VaultEnvelopeUpdateManyWithoutVaultNestedInput
+    yieldEvents?: YieldEventUpdateManyWithoutVaultNestedInput
+  }
+
+  export type VaultAccountUncheckedUpdateWithoutBillsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    chainId?: IntFieldUpdateOperationsInput | number
+    smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    baseAsset?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    availableBalance?: IntFieldUpdateOperationsInput | number
+    settlementReserve?: IntFieldUpdateOperationsInput | number
+    deployedToYield?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    simulatedApy?: FloatFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    envelopes?: VaultEnvelopeUncheckedUpdateManyWithoutVaultNestedInput
+    yieldEvents?: YieldEventUncheckedUpdateManyWithoutVaultNestedInput
+  }
+
+  export type VaultEnvelopeUpsertWithoutBillsInput = {
+    update: XOR<VaultEnvelopeUpdateWithoutBillsInput, VaultEnvelopeUncheckedUpdateWithoutBillsInput>
+    create: XOR<VaultEnvelopeCreateWithoutBillsInput, VaultEnvelopeUncheckedCreateWithoutBillsInput>
+    where?: VaultEnvelopeWhereInput
+  }
+
+  export type VaultEnvelopeUpdateToOneWithWhereWithoutBillsInput = {
+    where?: VaultEnvelopeWhereInput
+    data: XOR<VaultEnvelopeUpdateWithoutBillsInput, VaultEnvelopeUncheckedUpdateWithoutBillsInput>
+  }
+
+  export type VaultEnvelopeUpdateWithoutBillsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    principalAllocated?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    reservedForBills?: IntFieldUpdateOperationsInput | number
+    availableToReallocate?: IntFieldUpdateOperationsInput | number
+    isPolicyLocked?: BoolFieldUpdateOperationsInput | boolean
+    nextObligationDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    vault?: VaultAccountUpdateOneRequiredWithoutEnvelopesNestedInput
+    compassEnvelope?: EnvelopeUpdateOneRequiredWithoutVaultEnvelopeNestedInput
+    yieldEvents?: YieldEventUpdateManyWithoutEnvelopeNestedInput
+  }
+
+  export type VaultEnvelopeUncheckedUpdateWithoutBillsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    vaultId?: StringFieldUpdateOperationsInput | string
+    compassEnvelopeId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    principalAllocated?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    reservedForBills?: IntFieldUpdateOperationsInput | number
+    availableToReallocate?: IntFieldUpdateOperationsInput | number
+    isPolicyLocked?: BoolFieldUpdateOperationsInput | boolean
+    nextObligationDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    yieldEvents?: YieldEventUncheckedUpdateManyWithoutEnvelopeNestedInput
+  }
+
+  export type PaymentAttemptUpsertWithWhereUniqueWithoutBillInput = {
+    where: PaymentAttemptWhereUniqueInput
+    update: XOR<PaymentAttemptUpdateWithoutBillInput, PaymentAttemptUncheckedUpdateWithoutBillInput>
+    create: XOR<PaymentAttemptCreateWithoutBillInput, PaymentAttemptUncheckedCreateWithoutBillInput>
+  }
+
+  export type PaymentAttemptUpdateWithWhereUniqueWithoutBillInput = {
+    where: PaymentAttemptWhereUniqueInput
+    data: XOR<PaymentAttemptUpdateWithoutBillInput, PaymentAttemptUncheckedUpdateWithoutBillInput>
+  }
+
+  export type PaymentAttemptUpdateManyWithWhereWithoutBillInput = {
+    where: PaymentAttemptScalarWhereInput
+    data: XOR<PaymentAttemptUpdateManyMutationInput, PaymentAttemptUncheckedUpdateManyWithoutBillInput>
+  }
+
+  export type PaymentAttemptScalarWhereInput = {
+    AND?: PaymentAttemptScalarWhereInput | PaymentAttemptScalarWhereInput[]
+    OR?: PaymentAttemptScalarWhereInput[]
+    NOT?: PaymentAttemptScalarWhereInput | PaymentAttemptScalarWhereInput[]
+    id?: StringFilter<"PaymentAttempt"> | string
+    billId?: StringFilter<"PaymentAttempt"> | string
+    providerName?: StringFilter<"PaymentAttempt"> | string
+    idempotencyKey?: StringFilter<"PaymentAttempt"> | string
+    requestAmount?: IntFilter<"PaymentAttempt"> | number
+    result?: StringFilter<"PaymentAttempt"> | string
+    transactionId?: StringNullableFilter<"PaymentAttempt"> | string | null
+    warningMessage?: StringNullableFilter<"PaymentAttempt"> | string | null
+    errorMessage?: StringNullableFilter<"PaymentAttempt"> | string | null
+    retryable?: BoolFilter<"PaymentAttempt"> | boolean
+    attemptedAt?: DateTimeFilter<"PaymentAttempt"> | Date | string
+    completedAt?: DateTimeNullableFilter<"PaymentAttempt"> | Date | string | null
+  }
+
+  export type VaultAccountCreateWithoutYieldEventsInput = {
+    id?: string
+    chainId?: number
+    smartAccountAddress: string
+    baseAsset?: string
+    status?: string
+    availableBalance?: number
+    settlementReserve?: number
+    deployedToYield?: number
+    accruedYield?: number
+    simulatedApy?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutVaultAccountInput
+    envelopes?: VaultEnvelopeCreateNestedManyWithoutVaultInput
+    bills?: ScheduledBillCreateNestedManyWithoutVaultInput
+  }
+
+  export type VaultAccountUncheckedCreateWithoutYieldEventsInput = {
+    id?: string
+    userId: string
+    chainId?: number
+    smartAccountAddress: string
+    baseAsset?: string
+    status?: string
+    availableBalance?: number
+    settlementReserve?: number
+    deployedToYield?: number
+    accruedYield?: number
+    simulatedApy?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    envelopes?: VaultEnvelopeUncheckedCreateNestedManyWithoutVaultInput
+    bills?: ScheduledBillUncheckedCreateNestedManyWithoutVaultInput
+  }
+
+  export type VaultAccountCreateOrConnectWithoutYieldEventsInput = {
+    where: VaultAccountWhereUniqueInput
+    create: XOR<VaultAccountCreateWithoutYieldEventsInput, VaultAccountUncheckedCreateWithoutYieldEventsInput>
+  }
+
+  export type VaultEnvelopeCreateWithoutYieldEventsInput = {
+    id?: string
+    name: string
+    category: string
+    principalAllocated?: number
+    accruedYield?: number
+    reservedForBills?: number
+    availableToReallocate?: number
+    isPolicyLocked?: boolean
+    nextObligationDate?: Date | string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    vault: VaultAccountCreateNestedOneWithoutEnvelopesInput
+    compassEnvelope: EnvelopeCreateNestedOneWithoutVaultEnvelopeInput
+    bills?: ScheduledBillCreateNestedManyWithoutEnvelopeInput
+  }
+
+  export type VaultEnvelopeUncheckedCreateWithoutYieldEventsInput = {
+    id?: string
+    vaultId: string
+    compassEnvelopeId: string
+    name: string
+    category: string
+    principalAllocated?: number
+    accruedYield?: number
+    reservedForBills?: number
+    availableToReallocate?: number
+    isPolicyLocked?: boolean
+    nextObligationDate?: Date | string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    bills?: ScheduledBillUncheckedCreateNestedManyWithoutEnvelopeInput
+  }
+
+  export type VaultEnvelopeCreateOrConnectWithoutYieldEventsInput = {
+    where: VaultEnvelopeWhereUniqueInput
+    create: XOR<VaultEnvelopeCreateWithoutYieldEventsInput, VaultEnvelopeUncheckedCreateWithoutYieldEventsInput>
+  }
+
+  export type VaultAccountUpsertWithoutYieldEventsInput = {
+    update: XOR<VaultAccountUpdateWithoutYieldEventsInput, VaultAccountUncheckedUpdateWithoutYieldEventsInput>
+    create: XOR<VaultAccountCreateWithoutYieldEventsInput, VaultAccountUncheckedCreateWithoutYieldEventsInput>
+    where?: VaultAccountWhereInput
+  }
+
+  export type VaultAccountUpdateToOneWithWhereWithoutYieldEventsInput = {
+    where?: VaultAccountWhereInput
+    data: XOR<VaultAccountUpdateWithoutYieldEventsInput, VaultAccountUncheckedUpdateWithoutYieldEventsInput>
+  }
+
+  export type VaultAccountUpdateWithoutYieldEventsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    chainId?: IntFieldUpdateOperationsInput | number
+    smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    baseAsset?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    availableBalance?: IntFieldUpdateOperationsInput | number
+    settlementReserve?: IntFieldUpdateOperationsInput | number
+    deployedToYield?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    simulatedApy?: FloatFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutVaultAccountNestedInput
+    envelopes?: VaultEnvelopeUpdateManyWithoutVaultNestedInput
+    bills?: ScheduledBillUpdateManyWithoutVaultNestedInput
+  }
+
+  export type VaultAccountUncheckedUpdateWithoutYieldEventsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    chainId?: IntFieldUpdateOperationsInput | number
+    smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    baseAsset?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    availableBalance?: IntFieldUpdateOperationsInput | number
+    settlementReserve?: IntFieldUpdateOperationsInput | number
+    deployedToYield?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    simulatedApy?: FloatFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    envelopes?: VaultEnvelopeUncheckedUpdateManyWithoutVaultNestedInput
+    bills?: ScheduledBillUncheckedUpdateManyWithoutVaultNestedInput
+  }
+
+  export type VaultEnvelopeUpsertWithoutYieldEventsInput = {
+    update: XOR<VaultEnvelopeUpdateWithoutYieldEventsInput, VaultEnvelopeUncheckedUpdateWithoutYieldEventsInput>
+    create: XOR<VaultEnvelopeCreateWithoutYieldEventsInput, VaultEnvelopeUncheckedCreateWithoutYieldEventsInput>
+    where?: VaultEnvelopeWhereInput
+  }
+
+  export type VaultEnvelopeUpdateToOneWithWhereWithoutYieldEventsInput = {
+    where?: VaultEnvelopeWhereInput
+    data: XOR<VaultEnvelopeUpdateWithoutYieldEventsInput, VaultEnvelopeUncheckedUpdateWithoutYieldEventsInput>
+  }
+
+  export type VaultEnvelopeUpdateWithoutYieldEventsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    principalAllocated?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    reservedForBills?: IntFieldUpdateOperationsInput | number
+    availableToReallocate?: IntFieldUpdateOperationsInput | number
+    isPolicyLocked?: BoolFieldUpdateOperationsInput | boolean
+    nextObligationDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    vault?: VaultAccountUpdateOneRequiredWithoutEnvelopesNestedInput
+    compassEnvelope?: EnvelopeUpdateOneRequiredWithoutVaultEnvelopeNestedInput
+    bills?: ScheduledBillUpdateManyWithoutEnvelopeNestedInput
+  }
+
+  export type VaultEnvelopeUncheckedUpdateWithoutYieldEventsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    vaultId?: StringFieldUpdateOperationsInput | string
+    compassEnvelopeId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    principalAllocated?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    reservedForBills?: IntFieldUpdateOperationsInput | number
+    availableToReallocate?: IntFieldUpdateOperationsInput | number
+    isPolicyLocked?: BoolFieldUpdateOperationsInput | boolean
+    nextObligationDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    bills?: ScheduledBillUncheckedUpdateManyWithoutEnvelopeNestedInput
+  }
+
+  export type ScheduledBillCreateWithoutPaymentAttemptsInput = {
+    id?: string
+    billerName: string
+    billerId: string
+    maskedAccountNumber: string
+    amount: number
+    maxAuthorizedAmount: number
+    currency?: string
+    frequency: string
+    dueDate: Date | string
+    executionWindowStart: Date | string
+    executionWindowEnd: Date | string
+    status?: string
+    providerPreference?: string | null
+    lastAttemptAt?: Date | string | null
+    settlementReference?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    vault: VaultAccountCreateNestedOneWithoutBillsInput
+    envelope: VaultEnvelopeCreateNestedOneWithoutBillsInput
+  }
+
+  export type ScheduledBillUncheckedCreateWithoutPaymentAttemptsInput = {
+    id?: string
+    vaultId: string
+    envelopeId: string
+    billerName: string
+    billerId: string
+    maskedAccountNumber: string
+    amount: number
+    maxAuthorizedAmount: number
+    currency?: string
+    frequency: string
+    dueDate: Date | string
+    executionWindowStart: Date | string
+    executionWindowEnd: Date | string
+    status?: string
+    providerPreference?: string | null
+    lastAttemptAt?: Date | string | null
+    settlementReference?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ScheduledBillCreateOrConnectWithoutPaymentAttemptsInput = {
+    where: ScheduledBillWhereUniqueInput
+    create: XOR<ScheduledBillCreateWithoutPaymentAttemptsInput, ScheduledBillUncheckedCreateWithoutPaymentAttemptsInput>
+  }
+
+  export type ProviderEventCreateWithoutAttemptInput = {
+    id?: string
+    providerName: string
+    eventType: string
+    payload?: string
+    occurredAt?: Date | string
+  }
+
+  export type ProviderEventUncheckedCreateWithoutAttemptInput = {
+    id?: string
+    providerName: string
+    eventType: string
+    payload?: string
+    occurredAt?: Date | string
+  }
+
+  export type ProviderEventCreateOrConnectWithoutAttemptInput = {
+    where: ProviderEventWhereUniqueInput
+    create: XOR<ProviderEventCreateWithoutAttemptInput, ProviderEventUncheckedCreateWithoutAttemptInput>
+  }
+
+  export type ProviderEventCreateManyAttemptInputEnvelope = {
+    data: ProviderEventCreateManyAttemptInput | ProviderEventCreateManyAttemptInput[]
+  }
+
+  export type ScheduledBillUpsertWithoutPaymentAttemptsInput = {
+    update: XOR<ScheduledBillUpdateWithoutPaymentAttemptsInput, ScheduledBillUncheckedUpdateWithoutPaymentAttemptsInput>
+    create: XOR<ScheduledBillCreateWithoutPaymentAttemptsInput, ScheduledBillUncheckedCreateWithoutPaymentAttemptsInput>
+    where?: ScheduledBillWhereInput
+  }
+
+  export type ScheduledBillUpdateToOneWithWhereWithoutPaymentAttemptsInput = {
+    where?: ScheduledBillWhereInput
+    data: XOR<ScheduledBillUpdateWithoutPaymentAttemptsInput, ScheduledBillUncheckedUpdateWithoutPaymentAttemptsInput>
+  }
+
+  export type ScheduledBillUpdateWithoutPaymentAttemptsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    billerName?: StringFieldUpdateOperationsInput | string
+    billerId?: StringFieldUpdateOperationsInput | string
+    maskedAccountNumber?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    maxAuthorizedAmount?: IntFieldUpdateOperationsInput | number
+    currency?: StringFieldUpdateOperationsInput | string
+    frequency?: StringFieldUpdateOperationsInput | string
+    dueDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: StringFieldUpdateOperationsInput | string
+    providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
+    lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    vault?: VaultAccountUpdateOneRequiredWithoutBillsNestedInput
+    envelope?: VaultEnvelopeUpdateOneRequiredWithoutBillsNestedInput
+  }
+
+  export type ScheduledBillUncheckedUpdateWithoutPaymentAttemptsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    vaultId?: StringFieldUpdateOperationsInput | string
+    envelopeId?: StringFieldUpdateOperationsInput | string
+    billerName?: StringFieldUpdateOperationsInput | string
+    billerId?: StringFieldUpdateOperationsInput | string
+    maskedAccountNumber?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    maxAuthorizedAmount?: IntFieldUpdateOperationsInput | number
+    currency?: StringFieldUpdateOperationsInput | string
+    frequency?: StringFieldUpdateOperationsInput | string
+    dueDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: StringFieldUpdateOperationsInput | string
+    providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
+    lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ProviderEventUpsertWithWhereUniqueWithoutAttemptInput = {
+    where: ProviderEventWhereUniqueInput
+    update: XOR<ProviderEventUpdateWithoutAttemptInput, ProviderEventUncheckedUpdateWithoutAttemptInput>
+    create: XOR<ProviderEventCreateWithoutAttemptInput, ProviderEventUncheckedCreateWithoutAttemptInput>
+  }
+
+  export type ProviderEventUpdateWithWhereUniqueWithoutAttemptInput = {
+    where: ProviderEventWhereUniqueInput
+    data: XOR<ProviderEventUpdateWithoutAttemptInput, ProviderEventUncheckedUpdateWithoutAttemptInput>
+  }
+
+  export type ProviderEventUpdateManyWithWhereWithoutAttemptInput = {
+    where: ProviderEventScalarWhereInput
+    data: XOR<ProviderEventUpdateManyMutationInput, ProviderEventUncheckedUpdateManyWithoutAttemptInput>
+  }
+
+  export type ProviderEventScalarWhereInput = {
+    AND?: ProviderEventScalarWhereInput | ProviderEventScalarWhereInput[]
+    OR?: ProviderEventScalarWhereInput[]
+    NOT?: ProviderEventScalarWhereInput | ProviderEventScalarWhereInput[]
+    id?: StringFilter<"ProviderEvent"> | string
+    attemptId?: StringFilter<"ProviderEvent"> | string
+    providerName?: StringFilter<"ProviderEvent"> | string
+    eventType?: StringFilter<"ProviderEvent"> | string
+    payload?: StringFilter<"ProviderEvent"> | string
+    occurredAt?: DateTimeFilter<"ProviderEvent"> | Date | string
+  }
+
+  export type PaymentAttemptCreateWithoutProviderEventsInput = {
+    id?: string
+    providerName: string
+    idempotencyKey: string
+    requestAmount: number
+    result: string
+    transactionId?: string | null
+    warningMessage?: string | null
+    errorMessage?: string | null
+    retryable?: boolean
+    attemptedAt?: Date | string
+    completedAt?: Date | string | null
+    bill: ScheduledBillCreateNestedOneWithoutPaymentAttemptsInput
+  }
+
+  export type PaymentAttemptUncheckedCreateWithoutProviderEventsInput = {
+    id?: string
+    billId: string
+    providerName: string
+    idempotencyKey: string
+    requestAmount: number
+    result: string
+    transactionId?: string | null
+    warningMessage?: string | null
+    errorMessage?: string | null
+    retryable?: boolean
+    attemptedAt?: Date | string
+    completedAt?: Date | string | null
+  }
+
+  export type PaymentAttemptCreateOrConnectWithoutProviderEventsInput = {
+    where: PaymentAttemptWhereUniqueInput
+    create: XOR<PaymentAttemptCreateWithoutProviderEventsInput, PaymentAttemptUncheckedCreateWithoutProviderEventsInput>
+  }
+
+  export type PaymentAttemptUpsertWithoutProviderEventsInput = {
+    update: XOR<PaymentAttemptUpdateWithoutProviderEventsInput, PaymentAttemptUncheckedUpdateWithoutProviderEventsInput>
+    create: XOR<PaymentAttemptCreateWithoutProviderEventsInput, PaymentAttemptUncheckedCreateWithoutProviderEventsInput>
+    where?: PaymentAttemptWhereInput
+  }
+
+  export type PaymentAttemptUpdateToOneWithWhereWithoutProviderEventsInput = {
+    where?: PaymentAttemptWhereInput
+    data: XOR<PaymentAttemptUpdateWithoutProviderEventsInput, PaymentAttemptUncheckedUpdateWithoutProviderEventsInput>
+  }
+
+  export type PaymentAttemptUpdateWithoutProviderEventsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    providerName?: StringFieldUpdateOperationsInput | string
+    idempotencyKey?: StringFieldUpdateOperationsInput | string
+    requestAmount?: IntFieldUpdateOperationsInput | number
+    result?: StringFieldUpdateOperationsInput | string
+    transactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    warningMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    retryable?: BoolFieldUpdateOperationsInput | boolean
+    attemptedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    bill?: ScheduledBillUpdateOneRequiredWithoutPaymentAttemptsNestedInput
+  }
+
+  export type PaymentAttemptUncheckedUpdateWithoutProviderEventsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    billId?: StringFieldUpdateOperationsInput | string
+    providerName?: StringFieldUpdateOperationsInput | string
+    idempotencyKey?: StringFieldUpdateOperationsInput | string
+    requestAmount?: IntFieldUpdateOperationsInput | number
+    result?: StringFieldUpdateOperationsInput | string
+    transactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    warningMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    retryable?: BoolFieldUpdateOperationsInput | boolean
+    attemptedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type UserCreateWithoutVaultPreferencesInput = {
+    id?: string
+    name: string
+    email: string
+    passwordHash: string
+    aiTier?: number
+    routingLevel?: number
+    defaultViewId?: string | null
+    settings?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    sessions?: SessionCreateNestedManyWithoutUserInput
+    accounts?: AccountCreateNestedManyWithoutUserInput
+    envelopes?: EnvelopeCreateNestedManyWithoutUserInput
+    transactions?: TransactionCreateNestedManyWithoutUserInput
+    paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
+    goals?: GoalCreateNestedManyWithoutUserInput
+    allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    bills?: BillCreateNestedManyWithoutUserInput
+    auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutVaultPreferencesInput = {
+    id?: string
+    name: string
+    email: string
+    passwordHash: string
+    aiTier?: number
+    routingLevel?: number
+    defaultViewId?: string | null
+    settings?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
+    accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
+    envelopes?: EnvelopeUncheckedCreateNestedManyWithoutUserInput
+    transactions?: TransactionUncheckedCreateNestedManyWithoutUserInput
+    paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
+    goals?: GoalUncheckedCreateNestedManyWithoutUserInput
+    allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutVaultPreferencesInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutVaultPreferencesInput, UserUncheckedCreateWithoutVaultPreferencesInput>
+  }
+
+  export type UserUpsertWithoutVaultPreferencesInput = {
+    update: XOR<UserUpdateWithoutVaultPreferencesInput, UserUncheckedUpdateWithoutVaultPreferencesInput>
+    create: XOR<UserCreateWithoutVaultPreferencesInput, UserUncheckedCreateWithoutVaultPreferencesInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutVaultPreferencesInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutVaultPreferencesInput, UserUncheckedUpdateWithoutVaultPreferencesInput>
+  }
+
+  export type UserUpdateWithoutVaultPreferencesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    aiTier?: IntFieldUpdateOperationsInput | number
+    routingLevel?: IntFieldUpdateOperationsInput | number
+    defaultViewId?: NullableStringFieldUpdateOperationsInput | string | null
+    settings?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    sessions?: SessionUpdateManyWithoutUserNestedInput
+    accounts?: AccountUpdateManyWithoutUserNestedInput
+    envelopes?: EnvelopeUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUpdateManyWithoutUserNestedInput
+    paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
+    goals?: GoalUpdateManyWithoutUserNestedInput
+    allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    bills?: BillUpdateManyWithoutUserNestedInput
+    auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutVaultPreferencesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    aiTier?: IntFieldUpdateOperationsInput | number
+    routingLevel?: IntFieldUpdateOperationsInput | number
+    defaultViewId?: NullableStringFieldUpdateOperationsInput | string | null
+    settings?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
+    accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
+    envelopes?: EnvelopeUncheckedUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUncheckedUpdateManyWithoutUserNestedInput
+    paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
+    goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
+    allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
+  }
+
   export type SessionCreateManyUserInput = {
     id?: string
     tokenHash: string
@@ -40568,6 +55024,7 @@ export namespace Prisma {
     institution?: string | null
     mask?: string | null
     routingEnabled?: boolean
+    source?: string
     isArchived?: boolean
     sortOrder?: number
     createdAt?: Date | string
@@ -40577,6 +55034,7 @@ export namespace Prisma {
   export type EnvelopeCreateManyUserInput = {
     id?: string
     name: string
+    source?: string
     targetBalance?: number
     currentBalance?: number
     planet?: string | null
@@ -40631,6 +55089,7 @@ export namespace Prisma {
     isPrimary?: boolean
     kind?: $Enums.GoalKind
     goalType?: $Enums.GoalType | null
+    source?: string
     sortOrder?: number
     isArchived?: boolean
     createdAt?: Date | string
@@ -40642,6 +55101,24 @@ export namespace Prisma {
     strategyId?: string
     isArmed?: boolean
     name?: string | null
+    source?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type BillCreateManyUserInput = {
+    id?: string
+    name: string
+    amountCents: number
+    cadence: string
+    dueDay?: number | null
+    autopay?: boolean
+    paidAt?: Date | string | null
+    source?: string
+    isArchived?: boolean
+    envelopeId?: string | null
+    accountId?: string | null
+    sortOrder?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -40692,6 +55169,7 @@ export namespace Prisma {
     institution?: NullableStringFieldUpdateOperationsInput | string | null
     mask?: NullableStringFieldUpdateOperationsInput | string | null
     routingEnabled?: BoolFieldUpdateOperationsInput | boolean
+    source?: StringFieldUpdateOperationsInput | string
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -40708,6 +55186,7 @@ export namespace Prisma {
     institution?: NullableStringFieldUpdateOperationsInput | string | null
     mask?: NullableStringFieldUpdateOperationsInput | string | null
     routingEnabled?: BoolFieldUpdateOperationsInput | boolean
+    source?: StringFieldUpdateOperationsInput | string
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -40724,6 +55203,7 @@ export namespace Prisma {
     institution?: NullableStringFieldUpdateOperationsInput | string | null
     mask?: NullableStringFieldUpdateOperationsInput | string | null
     routingEnabled?: BoolFieldUpdateOperationsInput | boolean
+    source?: StringFieldUpdateOperationsInput | string
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -40733,6 +55213,7 @@ export namespace Prisma {
   export type EnvelopeUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
     targetBalance?: IntFieldUpdateOperationsInput | number
     currentBalance?: IntFieldUpdateOperationsInput | number
     planet?: NullableStringFieldUpdateOperationsInput | string | null
@@ -40746,11 +55227,13 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     transactions?: TransactionUpdateManyWithoutEnvelopeNestedInput
     allocationRules?: AllocationRuleUpdateManyWithoutEnvelopeNestedInput
+    vaultEnvelope?: VaultEnvelopeUpdateOneWithoutCompassEnvelopeNestedInput
   }
 
   export type EnvelopeUncheckedUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
     targetBalance?: IntFieldUpdateOperationsInput | number
     currentBalance?: IntFieldUpdateOperationsInput | number
     planet?: NullableStringFieldUpdateOperationsInput | string | null
@@ -40764,11 +55247,13 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     transactions?: TransactionUncheckedUpdateManyWithoutEnvelopeNestedInput
     allocationRules?: AllocationRuleUncheckedUpdateManyWithoutEnvelopeNestedInput
+    vaultEnvelope?: VaultEnvelopeUncheckedUpdateOneWithoutCompassEnvelopeNestedInput
   }
 
   export type EnvelopeUncheckedUpdateManyWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
     targetBalance?: IntFieldUpdateOperationsInput | number
     currentBalance?: IntFieldUpdateOperationsInput | number
     planet?: NullableStringFieldUpdateOperationsInput | string | null
@@ -40881,6 +55366,7 @@ export namespace Prisma {
     isPrimary?: BoolFieldUpdateOperationsInput | boolean
     kind?: EnumGoalKindFieldUpdateOperationsInput | $Enums.GoalKind
     goalType?: NullableEnumGoalTypeFieldUpdateOperationsInput | $Enums.GoalType | null
+    source?: StringFieldUpdateOperationsInput | string
     sortOrder?: IntFieldUpdateOperationsInput | number
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -40899,6 +55385,7 @@ export namespace Prisma {
     isPrimary?: BoolFieldUpdateOperationsInput | boolean
     kind?: EnumGoalKindFieldUpdateOperationsInput | $Enums.GoalKind
     goalType?: NullableEnumGoalTypeFieldUpdateOperationsInput | $Enums.GoalType | null
+    source?: StringFieldUpdateOperationsInput | string
     sortOrder?: IntFieldUpdateOperationsInput | number
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -40917,6 +55404,7 @@ export namespace Prisma {
     isPrimary?: BoolFieldUpdateOperationsInput | boolean
     kind?: EnumGoalKindFieldUpdateOperationsInput | $Enums.GoalKind
     goalType?: NullableEnumGoalTypeFieldUpdateOperationsInput | $Enums.GoalType | null
+    source?: StringFieldUpdateOperationsInput | string
     sortOrder?: IntFieldUpdateOperationsInput | number
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -40928,6 +55416,7 @@ export namespace Prisma {
     strategyId?: StringFieldUpdateOperationsInput | string
     isArmed?: BoolFieldUpdateOperationsInput | boolean
     name?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     rules?: AllocationRuleUpdateManyWithoutPlanNestedInput
@@ -40938,6 +55427,7 @@ export namespace Prisma {
     strategyId?: StringFieldUpdateOperationsInput | string
     isArmed?: BoolFieldUpdateOperationsInput | boolean
     name?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     rules?: AllocationRuleUncheckedUpdateManyWithoutPlanNestedInput
@@ -40948,6 +55438,58 @@ export namespace Prisma {
     strategyId?: StringFieldUpdateOperationsInput | string
     isArmed?: BoolFieldUpdateOperationsInput | boolean
     name?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type BillUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    amountCents?: IntFieldUpdateOperationsInput | number
+    cadence?: StringFieldUpdateOperationsInput | string
+    dueDay?: NullableIntFieldUpdateOperationsInput | number | null
+    autopay?: BoolFieldUpdateOperationsInput | boolean
+    paidAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    source?: StringFieldUpdateOperationsInput | string
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    envelopeId?: NullableStringFieldUpdateOperationsInput | string | null
+    accountId?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type BillUncheckedUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    amountCents?: IntFieldUpdateOperationsInput | number
+    cadence?: StringFieldUpdateOperationsInput | string
+    dueDay?: NullableIntFieldUpdateOperationsInput | number | null
+    autopay?: BoolFieldUpdateOperationsInput | boolean
+    paidAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    source?: StringFieldUpdateOperationsInput | string
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    envelopeId?: NullableStringFieldUpdateOperationsInput | string | null
+    accountId?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type BillUncheckedUpdateManyWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    amountCents?: IntFieldUpdateOperationsInput | number
+    cadence?: StringFieldUpdateOperationsInput | string
+    dueDay?: NullableIntFieldUpdateOperationsInput | number | null
+    autopay?: BoolFieldUpdateOperationsInput | boolean
+    paidAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    source?: StringFieldUpdateOperationsInput | string
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    envelopeId?: NullableStringFieldUpdateOperationsInput | string | null
+    accountId?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -41113,8 +55655,9 @@ export namespace Prisma {
   export type AllocationRuleCreateManyEnvelopeInput = {
     id?: string
     planId: string
-    pct: number
+    pct?: number
     fixedCents?: number | null
+    source?: string
     sortOrder?: number
     createdAt?: Date | string
   }
@@ -41177,6 +55720,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     pct?: IntFieldUpdateOperationsInput | number
     fixedCents?: NullableIntFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     plan?: AllocationPlanUpdateOneRequiredWithoutRulesNestedInput
@@ -41187,6 +55731,7 @@ export namespace Prisma {
     planId?: StringFieldUpdateOperationsInput | string
     pct?: IntFieldUpdateOperationsInput | number
     fixedCents?: NullableIntFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -41196,6 +55741,7 @@ export namespace Prisma {
     planId?: StringFieldUpdateOperationsInput | string
     pct?: IntFieldUpdateOperationsInput | number
     fixedCents?: NullableIntFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -41203,8 +55749,9 @@ export namespace Prisma {
   export type AllocationRuleCreateManyPlanInput = {
     id?: string
     envelopeId: string
-    pct: number
+    pct?: number
     fixedCents?: number | null
+    source?: string
     sortOrder?: number
     createdAt?: Date | string
   }
@@ -41213,6 +55760,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     pct?: IntFieldUpdateOperationsInput | number
     fixedCents?: NullableIntFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     envelope?: EnvelopeUpdateOneRequiredWithoutAllocationRulesNestedInput
@@ -41223,6 +55771,7 @@ export namespace Prisma {
     envelopeId?: StringFieldUpdateOperationsInput | string
     pct?: IntFieldUpdateOperationsInput | number
     fixedCents?: NullableIntFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -41232,6 +55781,7 @@ export namespace Prisma {
     envelopeId?: StringFieldUpdateOperationsInput | string
     pct?: IntFieldUpdateOperationsInput | number
     fixedCents?: NullableIntFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -41566,6 +56116,424 @@ export namespace Prisma {
     toolCallsJson?: NullableStringFieldUpdateOperationsInput | string | null
     seq?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type VaultEnvelopeCreateManyVaultInput = {
+    id?: string
+    compassEnvelopeId: string
+    name: string
+    category: string
+    principalAllocated?: number
+    accruedYield?: number
+    reservedForBills?: number
+    availableToReallocate?: number
+    isPolicyLocked?: boolean
+    nextObligationDate?: Date | string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ScheduledBillCreateManyVaultInput = {
+    id?: string
+    envelopeId: string
+    billerName: string
+    billerId: string
+    maskedAccountNumber: string
+    amount: number
+    maxAuthorizedAmount: number
+    currency?: string
+    frequency: string
+    dueDate: Date | string
+    executionWindowStart: Date | string
+    executionWindowEnd: Date | string
+    status?: string
+    providerPreference?: string | null
+    lastAttemptAt?: Date | string | null
+    settlementReference?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type YieldEventCreateManyVaultInput = {
+    id?: string
+    envelopeId?: string | null
+    asset: string
+    amount: number
+    annualizedRate?: number | null
+    source: string
+    action: string
+    occurredAt?: Date | string
+  }
+
+  export type VaultEnvelopeUpdateWithoutVaultInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    principalAllocated?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    reservedForBills?: IntFieldUpdateOperationsInput | number
+    availableToReallocate?: IntFieldUpdateOperationsInput | number
+    isPolicyLocked?: BoolFieldUpdateOperationsInput | boolean
+    nextObligationDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    compassEnvelope?: EnvelopeUpdateOneRequiredWithoutVaultEnvelopeNestedInput
+    bills?: ScheduledBillUpdateManyWithoutEnvelopeNestedInput
+    yieldEvents?: YieldEventUpdateManyWithoutEnvelopeNestedInput
+  }
+
+  export type VaultEnvelopeUncheckedUpdateWithoutVaultInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    compassEnvelopeId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    principalAllocated?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    reservedForBills?: IntFieldUpdateOperationsInput | number
+    availableToReallocate?: IntFieldUpdateOperationsInput | number
+    isPolicyLocked?: BoolFieldUpdateOperationsInput | boolean
+    nextObligationDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    bills?: ScheduledBillUncheckedUpdateManyWithoutEnvelopeNestedInput
+    yieldEvents?: YieldEventUncheckedUpdateManyWithoutEnvelopeNestedInput
+  }
+
+  export type VaultEnvelopeUncheckedUpdateManyWithoutVaultInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    compassEnvelopeId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    principalAllocated?: IntFieldUpdateOperationsInput | number
+    accruedYield?: IntFieldUpdateOperationsInput | number
+    reservedForBills?: IntFieldUpdateOperationsInput | number
+    availableToReallocate?: IntFieldUpdateOperationsInput | number
+    isPolicyLocked?: BoolFieldUpdateOperationsInput | boolean
+    nextObligationDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ScheduledBillUpdateWithoutVaultInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    billerName?: StringFieldUpdateOperationsInput | string
+    billerId?: StringFieldUpdateOperationsInput | string
+    maskedAccountNumber?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    maxAuthorizedAmount?: IntFieldUpdateOperationsInput | number
+    currency?: StringFieldUpdateOperationsInput | string
+    frequency?: StringFieldUpdateOperationsInput | string
+    dueDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: StringFieldUpdateOperationsInput | string
+    providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
+    lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    envelope?: VaultEnvelopeUpdateOneRequiredWithoutBillsNestedInput
+    paymentAttempts?: PaymentAttemptUpdateManyWithoutBillNestedInput
+  }
+
+  export type ScheduledBillUncheckedUpdateWithoutVaultInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    envelopeId?: StringFieldUpdateOperationsInput | string
+    billerName?: StringFieldUpdateOperationsInput | string
+    billerId?: StringFieldUpdateOperationsInput | string
+    maskedAccountNumber?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    maxAuthorizedAmount?: IntFieldUpdateOperationsInput | number
+    currency?: StringFieldUpdateOperationsInput | string
+    frequency?: StringFieldUpdateOperationsInput | string
+    dueDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: StringFieldUpdateOperationsInput | string
+    providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
+    lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    paymentAttempts?: PaymentAttemptUncheckedUpdateManyWithoutBillNestedInput
+  }
+
+  export type ScheduledBillUncheckedUpdateManyWithoutVaultInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    envelopeId?: StringFieldUpdateOperationsInput | string
+    billerName?: StringFieldUpdateOperationsInput | string
+    billerId?: StringFieldUpdateOperationsInput | string
+    maskedAccountNumber?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    maxAuthorizedAmount?: IntFieldUpdateOperationsInput | number
+    currency?: StringFieldUpdateOperationsInput | string
+    frequency?: StringFieldUpdateOperationsInput | string
+    dueDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: StringFieldUpdateOperationsInput | string
+    providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
+    lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type YieldEventUpdateWithoutVaultInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    asset?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    annualizedRate?: NullableFloatFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
+    action?: StringFieldUpdateOperationsInput | string
+    occurredAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    envelope?: VaultEnvelopeUpdateOneWithoutYieldEventsNestedInput
+  }
+
+  export type YieldEventUncheckedUpdateWithoutVaultInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    envelopeId?: NullableStringFieldUpdateOperationsInput | string | null
+    asset?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    annualizedRate?: NullableFloatFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
+    action?: StringFieldUpdateOperationsInput | string
+    occurredAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type YieldEventUncheckedUpdateManyWithoutVaultInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    envelopeId?: NullableStringFieldUpdateOperationsInput | string | null
+    asset?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    annualizedRate?: NullableFloatFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
+    action?: StringFieldUpdateOperationsInput | string
+    occurredAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ScheduledBillCreateManyEnvelopeInput = {
+    id?: string
+    vaultId: string
+    billerName: string
+    billerId: string
+    maskedAccountNumber: string
+    amount: number
+    maxAuthorizedAmount: number
+    currency?: string
+    frequency: string
+    dueDate: Date | string
+    executionWindowStart: Date | string
+    executionWindowEnd: Date | string
+    status?: string
+    providerPreference?: string | null
+    lastAttemptAt?: Date | string | null
+    settlementReference?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type YieldEventCreateManyEnvelopeInput = {
+    id?: string
+    vaultId: string
+    asset: string
+    amount: number
+    annualizedRate?: number | null
+    source: string
+    action: string
+    occurredAt?: Date | string
+  }
+
+  export type ScheduledBillUpdateWithoutEnvelopeInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    billerName?: StringFieldUpdateOperationsInput | string
+    billerId?: StringFieldUpdateOperationsInput | string
+    maskedAccountNumber?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    maxAuthorizedAmount?: IntFieldUpdateOperationsInput | number
+    currency?: StringFieldUpdateOperationsInput | string
+    frequency?: StringFieldUpdateOperationsInput | string
+    dueDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: StringFieldUpdateOperationsInput | string
+    providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
+    lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    vault?: VaultAccountUpdateOneRequiredWithoutBillsNestedInput
+    paymentAttempts?: PaymentAttemptUpdateManyWithoutBillNestedInput
+  }
+
+  export type ScheduledBillUncheckedUpdateWithoutEnvelopeInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    vaultId?: StringFieldUpdateOperationsInput | string
+    billerName?: StringFieldUpdateOperationsInput | string
+    billerId?: StringFieldUpdateOperationsInput | string
+    maskedAccountNumber?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    maxAuthorizedAmount?: IntFieldUpdateOperationsInput | number
+    currency?: StringFieldUpdateOperationsInput | string
+    frequency?: StringFieldUpdateOperationsInput | string
+    dueDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: StringFieldUpdateOperationsInput | string
+    providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
+    lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    paymentAttempts?: PaymentAttemptUncheckedUpdateManyWithoutBillNestedInput
+  }
+
+  export type ScheduledBillUncheckedUpdateManyWithoutEnvelopeInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    vaultId?: StringFieldUpdateOperationsInput | string
+    billerName?: StringFieldUpdateOperationsInput | string
+    billerId?: StringFieldUpdateOperationsInput | string
+    maskedAccountNumber?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    maxAuthorizedAmount?: IntFieldUpdateOperationsInput | number
+    currency?: StringFieldUpdateOperationsInput | string
+    frequency?: StringFieldUpdateOperationsInput | string
+    dueDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    executionWindowEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: StringFieldUpdateOperationsInput | string
+    providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
+    lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type YieldEventUpdateWithoutEnvelopeInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    asset?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    annualizedRate?: NullableFloatFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
+    action?: StringFieldUpdateOperationsInput | string
+    occurredAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    vault?: VaultAccountUpdateOneRequiredWithoutYieldEventsNestedInput
+  }
+
+  export type YieldEventUncheckedUpdateWithoutEnvelopeInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    vaultId?: StringFieldUpdateOperationsInput | string
+    asset?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    annualizedRate?: NullableFloatFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
+    action?: StringFieldUpdateOperationsInput | string
+    occurredAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type YieldEventUncheckedUpdateManyWithoutEnvelopeInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    vaultId?: StringFieldUpdateOperationsInput | string
+    asset?: StringFieldUpdateOperationsInput | string
+    amount?: IntFieldUpdateOperationsInput | number
+    annualizedRate?: NullableFloatFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
+    action?: StringFieldUpdateOperationsInput | string
+    occurredAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PaymentAttemptCreateManyBillInput = {
+    id?: string
+    providerName: string
+    idempotencyKey: string
+    requestAmount: number
+    result: string
+    transactionId?: string | null
+    warningMessage?: string | null
+    errorMessage?: string | null
+    retryable?: boolean
+    attemptedAt?: Date | string
+    completedAt?: Date | string | null
+  }
+
+  export type PaymentAttemptUpdateWithoutBillInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    providerName?: StringFieldUpdateOperationsInput | string
+    idempotencyKey?: StringFieldUpdateOperationsInput | string
+    requestAmount?: IntFieldUpdateOperationsInput | number
+    result?: StringFieldUpdateOperationsInput | string
+    transactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    warningMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    retryable?: BoolFieldUpdateOperationsInput | boolean
+    attemptedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    providerEvents?: ProviderEventUpdateManyWithoutAttemptNestedInput
+  }
+
+  export type PaymentAttemptUncheckedUpdateWithoutBillInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    providerName?: StringFieldUpdateOperationsInput | string
+    idempotencyKey?: StringFieldUpdateOperationsInput | string
+    requestAmount?: IntFieldUpdateOperationsInput | number
+    result?: StringFieldUpdateOperationsInput | string
+    transactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    warningMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    retryable?: BoolFieldUpdateOperationsInput | boolean
+    attemptedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    providerEvents?: ProviderEventUncheckedUpdateManyWithoutAttemptNestedInput
+  }
+
+  export type PaymentAttemptUncheckedUpdateManyWithoutBillInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    providerName?: StringFieldUpdateOperationsInput | string
+    idempotencyKey?: StringFieldUpdateOperationsInput | string
+    requestAmount?: IntFieldUpdateOperationsInput | number
+    result?: StringFieldUpdateOperationsInput | string
+    transactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    warningMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    retryable?: BoolFieldUpdateOperationsInput | boolean
+    attemptedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type ProviderEventCreateManyAttemptInput = {
+    id?: string
+    providerName: string
+    eventType: string
+    payload?: string
+    occurredAt?: Date | string
+  }
+
+  export type ProviderEventUpdateWithoutAttemptInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    providerName?: StringFieldUpdateOperationsInput | string
+    eventType?: StringFieldUpdateOperationsInput | string
+    payload?: StringFieldUpdateOperationsInput | string
+    occurredAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ProviderEventUncheckedUpdateWithoutAttemptInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    providerName?: StringFieldUpdateOperationsInput | string
+    eventType?: StringFieldUpdateOperationsInput | string
+    payload?: StringFieldUpdateOperationsInput | string
+    occurredAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ProviderEventUncheckedUpdateManyWithoutAttemptInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    providerName?: StringFieldUpdateOperationsInput | string
+    eventType?: StringFieldUpdateOperationsInput | string
+    payload?: StringFieldUpdateOperationsInput | string
+    occurredAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
 

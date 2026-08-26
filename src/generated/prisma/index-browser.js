@@ -150,6 +150,7 @@ exports.Prisma.AccountScalarFieldEnum = {
   institution: 'institution',
   mask: 'mask',
   routingEnabled: 'routingEnabled',
+  source: 'source',
   isArchived: 'isArchived',
   sortOrder: 'sortOrder',
   createdAt: 'createdAt',
@@ -160,6 +161,7 @@ exports.Prisma.EnvelopeScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   name: 'name',
+  source: 'source',
   targetBalance: 'targetBalance',
   currentBalance: 'currentBalance',
   planet: 'planet',
@@ -215,6 +217,9 @@ exports.Prisma.BillScalarFieldEnum = {
   paidAt: 'paidAt',
   source: 'source',
   isArchived: 'isArchived',
+  envelopeId: 'envelopeId',
+  accountId: 'accountId',
+  sortOrder: 'sortOrder',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -232,6 +237,7 @@ exports.Prisma.GoalScalarFieldEnum = {
   isPrimary: 'isPrimary',
   kind: 'kind',
   goalType: 'goalType',
+  source: 'source',
   sortOrder: 'sortOrder',
   isArchived: 'isArchived',
   createdAt: 'createdAt',
@@ -244,6 +250,7 @@ exports.Prisma.AllocationPlanScalarFieldEnum = {
   strategyId: 'strategyId',
   isArmed: 'isArmed',
   name: 'name',
+  source: 'source',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -254,6 +261,7 @@ exports.Prisma.AllocationRuleScalarFieldEnum = {
   envelopeId: 'envelopeId',
   pct: 'pct',
   fixedCents: 'fixedCents',
+  source: 'source',
   sortOrder: 'sortOrder',
   createdAt: 'createdAt'
 };
@@ -399,6 +407,106 @@ exports.Prisma.OnboardingMessageScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.VaultAccountScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  chainId: 'chainId',
+  smartAccountAddress: 'smartAccountAddress',
+  baseAsset: 'baseAsset',
+  status: 'status',
+  availableBalance: 'availableBalance',
+  settlementReserve: 'settlementReserve',
+  deployedToYield: 'deployedToYield',
+  accruedYield: 'accruedYield',
+  simulatedApy: 'simulatedApy',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.VaultEnvelopeScalarFieldEnum = {
+  id: 'id',
+  vaultId: 'vaultId',
+  compassEnvelopeId: 'compassEnvelopeId',
+  name: 'name',
+  category: 'category',
+  principalAllocated: 'principalAllocated',
+  accruedYield: 'accruedYield',
+  reservedForBills: 'reservedForBills',
+  availableToReallocate: 'availableToReallocate',
+  isPolicyLocked: 'isPolicyLocked',
+  nextObligationDate: 'nextObligationDate',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.ScheduledBillScalarFieldEnum = {
+  id: 'id',
+  vaultId: 'vaultId',
+  envelopeId: 'envelopeId',
+  billerName: 'billerName',
+  billerId: 'billerId',
+  maskedAccountNumber: 'maskedAccountNumber',
+  amount: 'amount',
+  maxAuthorizedAmount: 'maxAuthorizedAmount',
+  currency: 'currency',
+  frequency: 'frequency',
+  dueDate: 'dueDate',
+  executionWindowStart: 'executionWindowStart',
+  executionWindowEnd: 'executionWindowEnd',
+  status: 'status',
+  providerPreference: 'providerPreference',
+  lastAttemptAt: 'lastAttemptAt',
+  settlementReference: 'settlementReference',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.YieldEventScalarFieldEnum = {
+  id: 'id',
+  vaultId: 'vaultId',
+  envelopeId: 'envelopeId',
+  asset: 'asset',
+  amount: 'amount',
+  annualizedRate: 'annualizedRate',
+  source: 'source',
+  action: 'action',
+  occurredAt: 'occurredAt'
+};
+
+exports.Prisma.PaymentAttemptScalarFieldEnum = {
+  id: 'id',
+  billId: 'billId',
+  providerName: 'providerName',
+  idempotencyKey: 'idempotencyKey',
+  requestAmount: 'requestAmount',
+  result: 'result',
+  transactionId: 'transactionId',
+  warningMessage: 'warningMessage',
+  errorMessage: 'errorMessage',
+  retryable: 'retryable',
+  attemptedAt: 'attemptedAt',
+  completedAt: 'completedAt'
+};
+
+exports.Prisma.ProviderEventScalarFieldEnum = {
+  id: 'id',
+  attemptId: 'attemptId',
+  providerName: 'providerName',
+  eventType: 'eventType',
+  payload: 'payload',
+  occurredAt: 'occurredAt'
+};
+
+exports.Prisma.VaultPreferencesScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  yieldRoutingStrategy: 'yieldRoutingStrategy',
+  riskAcknowledgedAt: 'riskAcknowledgedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -440,7 +548,14 @@ exports.Prisma.ModelName = {
   IdentityGoal: 'IdentityGoal',
   IdentityEvent: 'IdentityEvent',
   IdentityHouseholdMember: 'IdentityHouseholdMember',
-  OnboardingMessage: 'OnboardingMessage'
+  OnboardingMessage: 'OnboardingMessage',
+  VaultAccount: 'VaultAccount',
+  VaultEnvelope: 'VaultEnvelope',
+  ScheduledBill: 'ScheduledBill',
+  YieldEvent: 'YieldEvent',
+  PaymentAttempt: 'PaymentAttempt',
+  ProviderEvent: 'ProviderEvent',
+  VaultPreferences: 'VaultPreferences'
 };
 
 /**

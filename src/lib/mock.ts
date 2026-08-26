@@ -353,6 +353,90 @@ export function livePlan() {
 }
 
 // ---------------------------------------------------------------------------
+// Cluster 5.2.6 widget switch — DB-backed account reads.
+//
+// The /accounts page reads from the in-memory `ACCOUNT_SEED` (via
+// `liveAccount()`). After this cluster it reads from the Prisma
+// `Account` table.
+//
+// The seeder (`ensureUserAccountsSeeded` in `./seed-accounts.ts`)
+// runs lazily on the first call per user so a fresh user who hits
+// the /accounts page directly still gets the 1 canonical row
+// migrated.
+//
+// The schema distinguishes the canonical seed account
+// (`source = "seed"`) from the onboarding projection's accounts
+// (`name startsWith "[identity] "`). The page surfaces both
+// lists — the canonical one as the primary "your money lives
+// here" card, the projection rows as a separate "from the chat"
+// section. The new function returns both lists so the page can
+// render them.
+//
+// The legacy `liveAccount()` (in-memory) is kept for non-widget
+// code paths that still depend on it (e.g. the SNAPSHOT.netWorthCents
+// read derives from the in-memory account's balance). Those callers
+// are out of scope for this cluster — the snapshot is still
+// in-memory because the Transaction model isn't migrated.
+// ---------------------------------------------------------------------------
+
+/**
+ * Read the user's accounts from the Prisma `Account` table.
+ * Idempotently seeds the canonical ACCOUNT_SEED row on first call.
+ *
+ * Returns an object with two lists:
+ *   - `canonical`: the 1 seed account (or empty if not seeded —
+ *     shouldn't happen in practice because the seeder runs first)
+ *   - `projected`: the 0+ `[identity] ` accounts from the
+ *     onboarding projection (income, assets, debts that the user
+ *     shared with the chat)
+ *
+ * Both lists are returned in `sortOrder: asc` order. The page
+ * renders the canonical as the primary card and the projected
+ * as a secondary list.
+ */
+export async function liveAccountsFromDb(userId: string) {
+  const { ensureUserAccountsSeeded } = await import("./seed-accounts");
+  await ensureUserAccountsSeeded(userId);
+  const rows = await prisma.account.findMany({
+    where: { userId, isArchived: false },
+    orderBy: [{ source: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+  const canonical: Array<{
+    id: string;
+    name: string;
+    mask: string | null;
+    institution: string | null;
+    type: string;
+    balanceCents: number;
+    source: "seed" | "user" | "identity";
+  }> = [];
+  const projected: typeof canonical = [];
+  for (const r of rows) {
+    const entry = {
+      id: r.id,
+      name: r.name,
+      mask: r.mask,
+      institution: r.institution,
+      type: r.type,
+      balanceCents: r.currentBalance,
+      source: r.source as "seed" | "user" | "identity",
+    };
+    // The projection doesn't set `source` today — a follow-up
+    // backfill pass will mark those rows source="identity". For
+    // v1 we discriminate by the `[identity] ` name prefix, which
+    // wins over `source` (a projection row with source="seed"
+    // still belongs in the projected list, not canonical).
+    if (r.name.startsWith("[identity] ")) {
+      projected.push(entry);
+    } else if (entry.source === "seed") {
+      canonical.push(entry);
+    }
+    // Future "user" rows would land in a third list — not used in v1.
+  }
+  return { canonical, projected };
+}
+
+// ---------------------------------------------------------------------------
 // Cluster 5.2.6 widget switch — DB-backed allocation plan reads.
 //
 // The /allocation page, the dashboard "Plan My Next Check" widget, and

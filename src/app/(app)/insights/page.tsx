@@ -1,9 +1,10 @@
 import * as React from "react";
 import { PageHead } from "@/components/alchemy/PageHead";
-import { liveEnvelopes, liveGoals, liveSnapshot, liveTransactions, TODAY } from "@/lib/mock";
+import { liveEnvelopesFromDb, liveGoalsFromDb, liveSnapshot, liveTransactions, TODAY } from "@/lib/mock";
 import { formatMoney, formatMoneyCompact, formatMoneySigned } from "@/lib/money";
 import { NetTrajectoryCard } from "@/components/dashboard/cards/net-trajectory";
 import { PLANET_COLORS, type PlanetId } from "@/components/alchemy/VesselGlyph";
+import { requireUser } from "@/server/auth/user";
 
 export const dynamic = "force-dynamic";
 
@@ -25,10 +26,21 @@ export const dynamic = "force-dynamic";
  * Component Oracle Terminal treatment: Sora titles, JetBrains Mono
  * for amounts and labels, mono caps headers with // prefix, planet
  * accent colors. Same visual language as the dashboard.
+ *
+ * Cluster 5.2.6 widget switch: the envelope + goal reads now come
+ * from Prisma (liveEnvelopesFromDb + liveGoalsFromDb). The
+ * Transaction read + Snapshot are still in-memory — the
+ * Transaction table isn't migrated in this cluster (out of scope
+ * per the handoff), and the in-memory snapshot depends on it. A
+ * future cluster can flip the snapshot's account + transactions
+ * sources to Prisma and migrate this page's remaining reads.
  */
-export default function InsightsPage() {
-  const ENVELOPES = liveEnvelopes();
-  const GOALS = liveGoals();
+export default async function InsightsPage() {
+  const user = await requireUser();
+  const [ENVELOPES, GOALS] = await Promise.all([
+    liveEnvelopesFromDb(user.id),
+    liveGoalsFromDb(user.id),
+  ]);
   const SNAPSHOT = liveSnapshot();
   const TRANSACTIONS = liveTransactions();
   const total = ENVELOPES.reduce((s, e) => s + e.target, 0);

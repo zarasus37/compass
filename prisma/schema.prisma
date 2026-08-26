@@ -110,13 +110,15 @@ model Session {
 /// Where money lives. In v1 these are "connected" via the mock flow
 /// (Cluster 1 step 14). L2 routing (Plaid) is a future feature.
 ///
-/// Cluster 5.2.6 widget switch: the `name` field is used as a
-/// discriminator (e.g. the projection prefixes projected accounts
-/// with "[identity] "). The model already supports the "single
-/// canonical checking account" pattern (the seed user gets one row
-/// from ACCOUNT_SEED via the smoke signup) — no `source` field
-/// needed for v1 since v1 has at most one canonical account and
-/// the projection uses a name prefix to keep them distinguishable.
+/// Cluster 5.2.6 widget switch: added `source` so the production
+/// reads can filter the canonical ACCOUNT_SEED (source="seed")
+/// apart from any future user-entered accounts (source="user") and
+/// the projected accounts from the onboarding chat
+/// (source="identity" — the projection prefixes names with
+/// "[identity] " and inserts them without a `source` field set,
+/// but a future cluster can backfill source="identity" so the
+/// filter is symmetric with the other tables). For v1 the
+/// `source` field filters canonical vs everything-else.
 model Account {
   id            String   @id @default(cuid())
   userId        String
@@ -130,6 +132,13 @@ model Account {
   mask          String?
   /// When L2 lands: whether the app can move money on this account.
   routingEnabled Boolean  @default(false)
+  /// "seed" (the canonical ACCOUNT_SEED, migrated by
+  /// ensureUserAccountsSeeded), "user" (manually added via a
+  /// future /accounts form), or "identity" (projected from the
+  /// chat). The onboarding projection currently inserts without
+  /// setting source — a follow-up backfill pass will mark those
+  /// rows source="identity" so the filter is uniform.
+  source        String   @default("seed")
   isArchived    Boolean  @default(false)
   sortOrder     Int      @default(0)
   createdAt     DateTime @default(now())
@@ -140,6 +149,7 @@ model Account {
   paySchedules  PaySchedule[]
 
   @@index([userId])
+  @@index([userId, source])
 }
 
 /// A vessel. The 7 default envelopes are seeded with planetary affiliation
