@@ -84,6 +84,7 @@ const CHAPTERS = [
       { label: "Envelopes",    href: "/envelopes" },
       { label: "Allocation",   href: "/allocation" },
       { label: "Obligations",  href: "/obligations" },
+      { label: "Vault",        href: "/vault" },
       { label: "Debts",        href: "/debts" },
       { label: "Holdings",     href: "/holdings" },
     ],
