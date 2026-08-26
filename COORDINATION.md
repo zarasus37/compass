@@ -12,7 +12,7 @@
 - **Stage 2 (Creation)**: 🟢 Cluster 0 (scaffold + auth) — ✅ done. **Cluster 1 (Pay Period 1.0 — alchemical dashboard end-to-end with mock data) — ✅ done, commit `35ccc6e`. Cluster 1.5 (visible interactivity pass: auto-allocate engine + paycheck simulator + live store) — ✅ done. Cluster 1.7 (four data visualizations: Sankey, pacing line, Budget vs Actual, Goal Trajectory) — ✅ done, commit `cda8972`. Cluster 1.7 visual audit — ✅ done, commit `3da5716`. **Cluster 1.8 (Bill organizer + Plan My Next Check + calendar warnings) — ✅ done, commit `999ff37`. Cluster 1.9 (Debt payoff simulator + Saturn vessel + 3-up card + paid-off celebration) — ✅ done, commits `feb50e3` + `801525c` (math-bug fix) + `0ffb439` (per-debt sparkline).** Biweekly period locked as the canonical pay schedule (D17); period-close renamed to match (D18). **Chart-next-to-data principle applied across /goals, /envelopes, /recurring, /debts, /insights — commit `843375c`. Cluster 1.10 (drill-downs + new transaction / goal / envelope / bill / debt forms + edit forms) — ✅ done, commits `03f308f` + `006bca0` + `3dc679f` + `649d76e`. **Cluster 2.0 (customizable, scrollable, card-based dashboard with @dnd-kit drag-and-drop + localStorage persistence) — ✅ done, commit `e648ef5`. Cluster 2.0.1 (visual-first treatment: 7-day WeekSparkline, BurnSparkline, embedded GoalSparkline) — ✅ done, commit `af0b8d3`. Cluster 2.0.2 (full-month calendar with planetary headers + scheduled bills list) — ✅ done, commit `34f3928`. **Cluster 2.0.3 (Component Oracle Terminal re-skin of the dashboard) — ✅ done, commit `884fe70`.** **Cluster 2.1 (must-have viz + utility integration push: 3 new dashboard cards (Spend Ring, Net Trajectory, Pay Distribution) + Must-Have Tools index strip on dashboard + /settings hub + Plaid sandbox + AI categorize rules + Receipt scan + Habit quiz + Household stub + /subscriptions wired to live data) — ✅ done, single working session.** Next: tidy up — fine-tune placement, polish tooltips, add hover states where missing, decide which cards to default-on, integrate the tools into the sidebar nav as a 4th chapter if the Settings entry feels too hidden, then 2.x (form actions deep-dive, bill reminders, variable income, period close), then 3.x (real Plaid, AI tiers).
 - **Stage 3 (Test & bug-fix)**: pending Stage 2
 
-> Last update: 2026-08-26 (Cluster 5.3.2 ✅ DONE — Onboarding depth shipped as commit `24dcbc3`). Added the `saveSpendingHabits` tool (12th onboarding tool) for qualitative patterns ("I do a Costco run weekly" / "Starbucks 5x/week") + new `IdentitySpendingHabit` table + 4 investment-detail fields on `IdentityAsset` (employer match, vesting years, fund choices, expense ratio). CFP system prompt updated: "why this matters" inline per question (one-sentence "we use this for X" suffix on every question the agent asks) + extended Assets topic (ask about match/vesting on 401k, fund choices on IRA/brokerage) + extended Goals topic (ask one question about spending habits late in the conversation). New dev test endpoint at `/api/dev/onboarding/test-tool` dispatches a single tool call against the user's current state for smoke testing. Onboarding smoke: 108 checks (was 97). All 25 smokes green except pre-existing `smoke-auth.mjs` (not from this work). tsc clean. **Predecessor: Cluster 5.3.1 (commit `269d4ff`) — advisor v2 with 7 read-only tools + multi-round orchestrator + `LLM_PROVIDER_ADVISOR` env var routing. Pre-predecessor: Cluster 5.3 (commit `8eef08b`) — `/advisor` page, basic CFP-on-tap, no tools, single round. Cluster 5.2.6 (commit `e1e9066`) — DB-backed widget switch (6 widgets on Prisma).** Pre-existing tsc error in `src/app/(app)/vault/page.tsx:136` (Property 'acknowledged' missing) — not introduced by this work, owned by the vault cluster. dev server on 127.0.0.1:3000.
+> Last update: 2026-08-26 (Cluster Vault 3.5 ✅ DONE — Per-bill editor shipped as commit `7ea2a60`). The user can now add / edit / delete their own bills on /vault via a modal-driven editor (`[+] Add bill` button + per-row Edit/Delete). User-added bills carry `source: "user"` and survive a re-sync (the seed only writes `source: "seed"` rows). 3 new server actions (`createBillAction` / `updateBillAction` / `deleteBillAction`) with ownership guards + 3 new audit action types (`vault.bill_added` / `_updated` / `_deleted`). The bill-schedule block became a client island (`<BillScheduleClient>`) that owns the editor state. `SectionHeader` extracted from `vault/page.tsx` to `src/components/alchemy/SectionHeader.tsx` (was page-local in 2.0, called out as future cleanup). integration-vault 80/80 (was 63), smoke-vault 61/61 (was 53), tsc clean. **Predecessor: Cluster 5.3.2 (`24dcbc3`) — onboarding depth + `saveSpendingHabits` tool (12th) + 4 investment-detail fields. Pre-predecessor: Cluster 5.3.1 (`269d4ff`) — advisor v2 with 7 read-only tools. Cluster 5.3 (`8eef08b`) — `/advisor` page. Cluster 5.2.6 (`e1e9066`) — DB-backed widget switch (6 widgets). Cluster Vault 3.1 (`8618077`) — yield routing actually does something. Cluster Vault 3.0 (`c3a4c15`) — real yield adapter. Cluster Vault 2.5 (`a43b3d8`) — make it interactive. Cluster Vault 2.0 (`d9e3dc9`) — backend ledger. dev server on 127.0.0.1:3000.
 
 ---
 
@@ -1557,7 +1557,7 @@ Phase 2.0 was the simulation: a read-only `/vault` page, all the data in Prisma 
 - Implement the 4 strategies' effects: COMPOUND writes more YieldEvents, APPLY_TO_NEXT_BILL bumps a per-bill credit, MOVE_TO_AVAILABLE moves money into `availableBalance`, SPLIT_BY_ENVELOPE distributes by capital share
 - The picker becomes a real lever, not just a setting
 
-**Cluster Vault 3.5 — Per-bill editor**
+**Cluster Vault 3.5 — Per-bill editor** ✅ DONE (commit `7ea2a60`)
 - Add/edit/delete bills on /vault (the user is the source of truth, not the in-memory `liveBills()` mirror)
 - The "new bill" form on /obligations/new can wire to the vault's `ScheduledBill` table
 
@@ -1607,3 +1607,46 @@ The 5.2.6 widgets 4–6 (allocation, insights, accounts) work is in the working 
 4. Pick a cluster from the Vault 3.x list above.
 
 The COORDINATION.md is now ahead of git; the next session should commit it as the handoff baseline before starting work.
+
+---
+
+## HANDOFF — Vault 3.5 (next session)
+
+**From session `mvs_0231e88821e04a47b450a77f70e6e1d0` (2026-08-26, ~1.5h focused)**: shipped one commit for the vault.
+
+- `7ea2a60` **Cluster Vault 3.5** — Per-bill editor (Add / Edit / Delete). The user is now the source of truth for their own bills: `[+] Add bill` button at the bottom of the schedule, per-row `Edit` + `Delete` (with `window.confirm` before the destructive call), and a modal-driven form that takes dollars and converts to cents on submit. User-added bills carry `source: "user"` on `ScheduledBill` and survive a re-sync (the seed pass only writes `source: "seed"` rows). 80/80 integration + 61/61 smoke green. tsc clean.
+
+**What just shipped (Phase 3.5 surface, in detail)**
+- **`ScheduledBill.source` column** (String, default `"seed"`) on the Prisma schema. Migrated + client regenerated.
+- **3 new server actions** in `src/lib/vault/server.ts` + re-exports in `actions.ts`:
+  - `createBillAction(rawForm, envelopeId)` — validates the form, looks up the vault, verifies the envelope belongs to the user's vault, computes the schedule, and writes a `FUNDED` row with `source: "user"`.
+  - `updateBillAction(billId, rawForm)` — verifies the bill belongs to the user's vault before patching. Status changes go through `transitionBillServerAction`, not this path.
+  - `deleteBillAction(billId)` — verifies ownership, hard-deletes the row, audit log keeps the record.
+- **Form helpers** (server-side): `validateBillForm` (biller name, positive amount ≤ $1M, valid frequency, due day 1-31, optional provider), `computeBillSchedule` (rolls the due date forward if it's already past, opens window 3 days before, closes 1 day after — matches the seed constants), `slugifyBillerId` (`user-<name-slug>-<4char-random>` to avoid `(vaultId, billerId)` unique conflicts).
+- **3 new audit action types**: `vault.bill_added` / `vault.bill_updated` (with a per-field `{ from, to }` diff payload) / `vault.bill_deleted` (with the original biller + amount + frequency + source for traceability).
+- **3 new client components**:
+  - `src/components/vault/BillEditor.tsx` — the modal. One component handles both Add and Edit (state-driven). Form fields: biller name, amount (dollars input → cents), frequency, due day, envelope dropdown, provider (optional). Error surfacing inline. Escape closes, click-outside closes, no close while pending.
+  - `src/components/vault/BillRowActions.tsx` — per-row Edit + Delete buttons. Delete confirms via `window.confirm` before the call. Uses `useTransition` + `router.refresh()` on success.
+  - `src/components/vault/BillScheduleClient.tsx` — the new client island. Owns the modal state. Replaces the old server-rendered `BillSchedule` / `BillRow` / `StatusBadge` definitions in `page.tsx` (removed). Renders the `[+] Add bill` button at the bottom and a `[USER]` chip on user-source bills.
+- **`SectionHeader` extracted** to `src/components/alchemy/SectionHeader.tsx` (was page-local in `vault/page.tsx` since Phase 2.0; the COORDINATION handoff for 2.0 called this out as a future cleanup). One source of truth, reused by the new client island.
+- **`ScheduledBill.source` mapped through** in the page: each row carries `data-bill-source="seed|user"` for tests + a `[USER]` chip on user-source rows so they're visually distinct from the seed pass.
+- **Hard delete** for now (not soft-delete). Soft delete (`isArchived` flag) is Phase 4 work. The audit log keeps the deletion record so the row is reconstructable from the trail.
+
+**Where Compass is right now** (smoke summary)
+- integration-vault: **80/80** · smoke-vault: **61/61** · smoke-sidebar: 63/63 · smoke-reset-seed: 8/8 · smoke-deprecated: 42/42 · `tsc --noEmit` clean.
+- Untested in this session (unchanged from the prior baseline): smoke-auth (pre-existing fail, not from this work), smoke-alert-bay, smoke-bottom-dock, smoke-engine-toggle, smoke-glossary, smoke-goals, smoke-horizon-strip, smoke-onboarding-agent, smoke-period, smoke-rebalance, smoke-topbar, smoke-vessel-feed, smoke-visual-finish.
+- The 5.2.6 widgets 4–6 work is still in the working tree (uncommitted from the previous session). It's orthogonal to the vault work; the next session can either commit it or revert. No file in that work overlaps with the 3.5 changes.
+
+**Recommended next cluster (Vault 4.0)**
+- **Safe deployment (the big one)** — real Safe smart-account deployment, USDC testnet deposits via the adapter, real yield strategy on testnet, closed beta. The vault UI is now feature-complete for the simulation; this is the inflection from "looks like a real vault" to "is a real vault." The 3.5 CRUD layer is the last simulation-side piece.
+- **Optional follow-ups before Safe**:
+  - **Soft delete** — replace the 3.5 hard delete with an `isArchived` flag (UI + DB) so users can recover an accidentally deleted bill.
+  - **Bulk import** — CSV / "paste a list" to seed many bills at once (handy for the closed beta; the single-bill form is fine for one-off adds).
+  - **`/obligations/new` wiring** — route the existing on-period bills form at `/obligations/new` to `createBillFromPage` so a user adding a bill from the periods page lands it in the vault automatically.
+
+**How to pick up**
+1. `git log --oneline -8` to see the new commit (`7ea2a60`).
+2. Read this handoff + the older "Vault 2.5 + Vault 3.0 (next session)" handoff above.
+3. Sign in as `mom@compass.local` / `correct-horse-battery-staple`; visit `/vault` to see the new editor. Click `[+] Add bill` to open the modal. Add a bill — it shows up in the schedule with a `[USER]` chip. Click `Edit` on the new row — the modal re-opens with the current values. Click `Delete` — a confirm dialog fires before the destructive call. Re-sync the vault via the `SyncButton` (or hit the `/api/vault/sync` endpoint) and confirm the user bill survives.
+4. The dev server is on `127.0.0.1:3000` and the background `npx next dev` task may have been reaped (30-min cap) but the Next process itself is independent.
+5. The COORDINATION.md is committed; this handoff is the contract for Vault 4.0.
