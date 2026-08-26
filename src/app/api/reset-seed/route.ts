@@ -32,6 +32,7 @@ import { requireUser } from "@/server/auth/user";
 import { resetUserEnvelopesToSeed, resetStore } from "@/lib/store";
 import { ensureUserBillsSeeded } from "@/lib/seed-bills";
 import { ensureUserGoalsSeeded } from "@/lib/seed-goals";
+import { ensureUserAllocationSeeded } from "@/lib/seed-allocation";
 import { revalidatePath } from "next/cache";
 
 export async function POST() {
@@ -47,6 +48,11 @@ export async function POST() {
     // Goal table, and the canonical 4 GOALS_SEED rows need to be
     // migrated for the page to render the right data.
     await ensureUserGoalsSeeded(user.id);
+    // Same for AllocationPlan + AllocationRule — the /allocation
+    // page now reads the active plan from the Prisma tables, and
+    // the canonical ALLOCATION_PLAN_SEED (1 plan + 7 rules) needs
+    // to be migrated for the page to render the right data.
+    await ensureUserAllocationSeeded(user.id);
     // Also wipe + reseed the in-memory store. The single-user v1
     // model has no userId scoping here (the store is global), but
     // the action authenticates the user, so a stranger can't
@@ -57,7 +63,7 @@ export async function POST() {
     revalidatePath("/", "layout");
     return NextResponse.json({
       ok: true,
-      message: "Envelopes + bills + goals + live store reset to seed.",
+      message: "Envelopes + bills + goals + allocation + live store reset to seed.",
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error.";

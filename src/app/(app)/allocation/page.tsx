@@ -2,8 +2,9 @@ import * as React from "react";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { VesselGlyph, type PlanetId } from "@/components/alchemy/VesselGlyph";
 import { SankeyFlow, type SankeyLink, type SankeyNode } from "@/components/viz/SankeyFlow";
-import { liveEnvelopes, liveSnapshot } from "@/lib/mock";
+import { liveEnvelopesFromDb, livePlanFromDb, liveSnapshot } from "@/lib/mock";
 import { formatMoney, formatMoneyCompact } from "@/lib/money";
+import { requireUser } from "@/server/auth/user";
 
 export const dynamic = "force-dynamic";
 
@@ -14,13 +15,37 @@ export const dynamic = "force-dynamic";
  * for amounts, mono caps headers with // prefix. The active strategy
  * card highlighted with teal left rail + glow. Sankey (re-skinned
  * in 2.0.3b) sits below as the Automation Map.
+ *
+ * Cluster 5.2.6 widget switch: the page now reads from Prisma
+ * (`livePlanFromDb` + `liveEnvelopesFromDb`) instead of the
+ * in-memory `ALLOCATION_PLAN_SEED` / `ENVELOPES_SEED`. The per-
+ * envelope distribution percentages are now driven by the plan
+ * rules (e.g. Rent = 33%, Savings = 18%) instead of being derived
+ * from envelope target sizes — which means the page now reflects
+ * what the user actually configured, not the side effect of their
+ * target choices.
  */
-export default function AllocationPage() {
-  const ENVELOPES = liveEnvelopes();
+export default async function AllocationPage() {
+  const user = await requireUser();
+  const [ENVELOPES, PLAN] = await Promise.all([
+    liveEnvelopesFromDb(user.id),
+    livePlanFromDb(user.id),
+  ]);
   const SNAPSHOT = liveSnapshot();
-  const total = ENVELOPES.reduce((s, e) => s + e.target, 0);
-  const strategy = "envelope" as const;
-  const isArmed = true;
+  // Build a per-envelope rule lookup once. Envelopes without a
+  // matching rule (e.g. a user-added envelope, or a rule that was
+  // removed) get 0% — they simply don't receive an allocation.
+  const ruleByEnvelope = new Map(
+    PLAN.rules.map((r) => [r.envelopeId, r] as const),
+  );
+  // Sum of all `percent` rule values, used to scale the "remainder"
+  // bucket on the Sankey + for the header. The remainder rules
+  // themselves are 0 in the plan; the actual remainder = 100 - sum.
+  const totalPercentRules = PLAN.rules
+    .filter((r) => r.mode === "percent")
+    .reduce((s, r) => s + r.value, 0);
+  const strategy = PLAN.strategy;
+  const isArmed = PLAN.isArmed;
 
   return (
     <div>
@@ -189,7 +214,7 @@ export default function AllocationPage() {
         <SectionHeader
           title="The active distribution"
           em={`${ENVELOPES.length} vessels · ${formatMoneyCompact(SNAPSHOT.nextPaycheckCents)} per paycheck`}
-          meta="Drag to adjust. Sum to 100%."
+          meta={`Plan rules · ${totalPercentRules}% explicit + ${100 - totalPercentRules}% remainder`}
           accent="cyan"
         />
         <div
@@ -201,7 +226,14 @@ export default function AllocationPage() {
           }}
         >
           {ENVELOPES.map((e, i) => {
-            const pct = total > 0 ? Math.round((e.target / total) * 100) : 0;
+            // Each row's percentage + value is now driven by the plan
+            // rule for that envelope, not by envelope target sizes.
+            // "remainder" rules get 0% on the row (they're captured
+            // by the meta line above); envelopes with no rule get 0%.
+            const rule = ruleByEnvelope.get(e.id);
+            const pct = rule ? rule.value : 0;
+            const mode = rule?.mode ?? null;
+            const cents = Math.round((SNAPSHOT.nextPaycheckCents * pct) / 100);
             return (
               <div
                 key={e.id}
@@ -230,12 +262,12 @@ export default function AllocationPage() {
                     fontFamily: "var(--font-jetbrains), monospace",
                     fontSize: 14,
                     fontWeight: 600,
-                    color: "var(--ink)",
+                    color: pct > 0 ? "var(--ink)" : "var(--ink-4)",
                     textAlign: "center",
                     fontFeatureSettings: '"tnum" 1, "zero" 1',
                   }}
                 >
-                  {pct}%
+                  {pct > 0 ? `${pct}%` : mode === "remainder" ? "R" : "—"}
                 </div>
                 <div
                   style={{
@@ -251,7 +283,7 @@ export default function AllocationPage() {
                       inset: "0 auto 0 0",
                       width: `${pct}%`,
                       background: "var(--gold)",
-                      boxShadow: "0 0 8px var(--gold)",
+                      boxShadow: pct > 0 ? "0 0 8px var(--gold)" : "none",
                     }}
                   />
                 </div>
@@ -259,12 +291,12 @@ export default function AllocationPage() {
                   style={{
                     fontFamily: "var(--font-jetbrains), monospace",
                     fontSize: 13,
-                    color: "var(--ink-2)",
+                    color: pct > 0 ? "var(--ink-2)" : "var(--ink-4)",
                     textAlign: "right",
                     fontFeatureSettings: '"tnum" 1, "zero" 1',
                   }}
                 >
-                  {formatMoney((SNAPSHOT.nextPaycheckCents * pct) / 100)}
+                  {formatMoney(cents)}
                 </div>
               </div>
             );
@@ -285,7 +317,13 @@ export default function AllocationPage() {
             (e): SankeyNode => ({ id: e.id, label: e.name }),
           )}
           links={ENVELOPES.map((e): SankeyLink => {
-            const pct = total > 0 ? (e.target / total) * 100 : 0;
+            // Each link's cents value is now driven by the plan
+            // rule (percent × paycheck / 100), not by envelope
+            // target sizes. Remainder rules (0%) produce a 0-cent
+            // link — they still get a node on the right column for
+            // visual completeness.
+            const rule = ruleByEnvelope.get(e.id);
+            const pct = rule ? rule.value : 0;
             const cents = Math.round((SNAPSHOT.nextPaycheckCents * pct) / 100);
             return {
               source: e.id,

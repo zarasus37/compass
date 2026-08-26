@@ -351,3 +351,108 @@ export function liveDebts() {
 export function livePlan() {
   return readPlan();
 }
+
+// ---------------------------------------------------------------------------
+// Cluster 5.2.6 widget switch — DB-backed allocation plan reads.
+//
+// The /allocation page, the dashboard "Plan My Next Check" widget, and
+// the Sankey ("Automation Map") all read the active plan from the
+// in-memory `ALLOCATION_PLAN_SEED` (via `livePlan()`). After this
+// cluster they read from the Prisma `AllocationPlan` + `AllocationRule`
+// tables.
+//
+// The seeder (`ensureUserAllocationSeeded` in `./seed-allocation.ts`)
+// runs lazily on the first call per user so a fresh user who hits the
+// /allocation page directly still gets the canonical 1-plan + 7-rule
+// set migrated.
+//
+// The schema stores rules as `(pct, fixedCents?)` — there is no
+// `mode` column. The mapping between the in-memory `mode + value`
+// shape (consumed by the auto-allocate engine in `store.ts`) and the
+// schema is:
+//
+//   in-memory mode  | in-memory value | schema pct | schema fixedCents
+//   ----------------|-----------------|------------|------------------
+//   "percent"       | 0–100           | value      | null
+//   "fixed"         | cents (>=0)     | 0          | value
+//   "remainder"     | 0               | 0          | null
+//
+// The reverse mapping reconstructs the legacy shape so the page
+// (and the engine) keep working unchanged.
+//
+// The legacy `livePlan()` (in-memory) is kept for non-widget code
+// paths (the auto-allocate engine reads `s.plan.rules` directly).
+// ---------------------------------------------------------------------------
+
+/**
+ * Read the user's allocation plan from the Prisma `AllocationPlan`
+ * + `AllocationRule` tables. Idempotently seeds the canonical
+ * ALLOCATION_PLAN_SEED on first call.
+ *
+ * Returns the same `{ id, strategy, isArmed, rules: [{ id, envelopeId,
+ * mode, value, priority }] }` shape as `livePlan()` so the page
+ * can swap one import for the other.
+ *
+ * If the user has no plan (e.g. just signed up and the seeder
+ * hasn't run yet — shouldn't happen in practice because this
+ * function runs the seeder first), throws a recoverable error
+ * so the page can render a helpful empty state.
+ */
+export async function livePlanFromDb(userId: string) {
+  const { ensureUserAllocationSeeded } = await import("./seed-allocation");
+  await ensureUserAllocationSeeded(userId);
+  const plan = await prisma.allocationPlan.findFirst({
+    where: { userId, source: "seed", isArmed: true },
+    include: {
+      rules: { orderBy: { sortOrder: "asc" } },
+    },
+  });
+  // Fallback: any seed plan (armed or not) — supports future "paused
+  // plans" where isArmed is false but the plan still exists.
+  const fallback = plan
+    ? plan
+    : await prisma.allocationPlan.findFirst({
+        where: { userId, source: "seed" },
+        include: {
+          rules: { orderBy: { sortOrder: "asc" } },
+        },
+      });
+  if (!fallback) {
+    // The seeder just ran and found nothing — shouldn't happen, but
+    // surface a clear error so the page can render an empty state.
+    throw new Error(
+      "livePlanFromDb: no seed plan found for user after seeding. This is a bug.",
+    );
+  }
+  return {
+    id: fallback.id,
+    strategy: fallback.strategyId as
+      | "envelope"
+      | "zero-based"
+      | "fifty-thirty-twenty"
+      | "pay-yourself-first",
+    isArmed: fallback.isArmed,
+    rules: fallback.rules.map((r) => {
+      // Reverse mapping: schema (pct, fixedCents) → in-memory (mode, value).
+      let mode: "percent" | "fixed" | "remainder";
+      let value: number;
+      if (r.fixedCents !== null && r.fixedCents !== undefined) {
+        mode = "fixed";
+        value = r.fixedCents;
+      } else if (r.pct > 0) {
+        mode = "percent";
+        value = r.pct;
+      } else {
+        mode = "remainder";
+        value = 0;
+      }
+      return {
+        id: r.id,
+        envelopeId: r.envelopeId,
+        mode,
+        value,
+        priority: r.sortOrder,
+      };
+    }),
+  };
+}

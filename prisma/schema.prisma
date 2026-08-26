@@ -74,6 +74,10 @@ model User {
   /// Phase 2.0 — Vault (self-custodial bill-reserve). One vault per
   /// user in v1. Cascaded on user delete.
   vaultAccount    VaultAccount?
+  /// Phase 2.5 — Vault user preferences (yield routing strategy,
+  /// risk-disclosure acknowledgment). One row per user. Cascaded
+  /// on user delete.
+  vaultPreferences VaultPreferences?
 
   @@index([email])
 }
@@ -347,6 +351,11 @@ model Goal {
 
 /// A user's allocation plan (D11/D12). When armed, every paycheck
 /// transaction triggers the rules silently — no confirm modal (D12).
+///
+/// Cluster 5.2.6 widget switch: added `source` so the production
+/// reads can filter the canonical ALLOCATION_PLAN_SEED (source="seed")
+/// apart from any future user-edited plans (source="user") and
+/// projected plans from the onboarding chat (source="identity", future).
 model AllocationPlan {
   id            String   @id @default(cuid())
   userId        String
@@ -356,6 +365,10 @@ model AllocationPlan {
   isArmed       Boolean  @default(false)
   /// Optional human-readable name ("Mom's plan").
   name          String?
+  /// "seed" (the canonical ALLOCATION_PLAN_SEED, migrated by
+  /// ensureUserAllocationSeeded), "user" (edited via a future
+  /// /allocation edit form), or "identity" (projected from the chat).
+  source        String   @default("seed")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -363,25 +376,54 @@ model AllocationPlan {
   rules         AllocationRule[]
 
   @@index([userId])
+  @@index([userId, source])
 }
 
 /// One row per (plan, envelope) — the percentage of each paycheck that
 /// gets distributed into that envelope. Sums should be ≤ 100 (remainder
 /// goes to a default "buffer" or is held).
+///
+/// Cluster 5.2.6 widget switch: the rule's "mode" + "value" pair
+/// (percent / fixed / remainder) is stored as the two nullable
+/// columns `pct` (0–100) and `fixedCents` (integer cents) on the
+/// schema. The mapping in `livePlanFromDb` reconstructs the legacy
+/// `mode + value` shape from these two columns:
+///
+///   - `fixedCents !== null`           → mode="fixed",    value=fixedCents
+///   - else `pct > 0`                  → mode="percent",  value=pct
+///   - else                            → mode="remainder", value=0
+///
+/// The reverse mapping (in `ensureUserAllocationSeeded`) is:
+///   - mode="percent"   → pct=value, fixedCents=null
+///   - mode="fixed"     → pct=0,     fixedCents=value
+///   - mode="remainder" → pct=0,     fixedCents=null
+///
+/// Added `source` for symmetry with the plan (rules inherit their
+/// plan's source on a fresh seed). The Rule has no `userId` (it's
+/// reached through plan → user), so no `@@index([userId, source])`
+/// here — filtering by source is via the parent plan.
 model AllocationRule {
   id          String   @id @default(cuid())
   planId      String
   envelopeId  String
-  /// 0–100. Integer percent.
-  pct         Int
+  /// 0–100. Integer percent. Null/0 for "fixed" and "remainder" modes.
+  pct         Int      @default(0)
   /// Optional per-rule override: distribute a fixed amount in cents instead.
   /// If both are set, the engine uses fixedCents if set, else pct of paycheck.
   fixedCents  Int?
+  /// Inherited from the parent plan's source on a fresh seed. Default
+  /// "seed" matches the canonical ALLOCATION_PLAN_SEED.
+  source      String   @default("seed")
   sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
 
   plan        AllocationPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
-  envelope    Envelope       @relation(fields: [envelopeId], references: [id])
+  /// Cascade-delete when the envelope is deleted so /api/reset-seed
+  /// (which wipes + reseeds envelopes) doesn't hit a FK violation on
+  /// the rules that point at them. The rule's plan is also deleted
+  /// by the same reset (which cascades to the rule), so the rule
+  /// can't outlive either of its parents.
+  envelope    Envelope       @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
 
   @@index([planId])
   @@index([envelopeId])
@@ -887,4 +929,29 @@ model ProviderEvent {
 
   @@index([attemptId, occurredAt])
   @@index([providerName, occurredAt])
+}
+
+/// Phase 2.5 — Vault user preferences. One row per user.
+///
+/// Tracks the user's choices about yield routing (default: COMPOUND per
+/// spec) and whether the user has acknowledged the risk disclosure. The
+/// top-of-page risk modal is suppressed after `riskAcknowledgedAt` is
+/// set; re-acknowledgment is required when the user adds a new bill or
+/// changes yield-routing strategy in a future slice.
+model VaultPreferences {
+  id                    String    @id @default(cuid())
+  userId                String    @unique
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// One of YieldRoutingStrategy (TS union in src/lib/vault/types.ts):
+  /// COMPOUND | APPLY_TO_NEXT_BILL | MOVE_TO_AVAILABLE | SPLIT_BY_ENVELOPE.
+  /// String column rather than Prisma enum to match the rest of the
+  /// vault's string columns and to keep the migration surface additive.
+  yieldRoutingStrategy  String    @default("COMPOUND")
+  /// When the user acknowledged the risk disclosure. NULL = not yet;
+  /// the top-of-page risk modal renders only when this is null.
+  riskAcknowledgedAt    DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
 }
