@@ -992,3 +992,109 @@ These touch the auto-allocate engine + the AI provider layer. Schedule for after
 - **From session**: `mvs_195bdf454faf4c83ad4a59dbb183effb` (Cluster 3.1 vessel + 4.0 nav + 4.1 glossary + 4.2 goals filtering + 4.3 deprecated cleanup + 4.4 visual finish + 5.0 Part A LLM engine + 5.x Period page 7-feature push + PeriodDonut fix)
 - **From session**: `mvs_1bcddf951dde44e08752858a24aeda18` (Cluster 5.0 Part B + Cluster 5.1 + Cluster 5.2: Prisma persistence + L1 fallback + OnboardingGate + /onboarding page + ChatSurface + ProgressRail + ProviderBanner + reset endpoint + Identity Summary dashboard card + Use demo data button + /api/onboarding/seed-demo endpoint; total 15 smokes at 551/551)
 - **Handed to**: next session — start by reading this file + `00-DESIGN.md`. The recommended next cluster is **5.2.5 — Projection step + remaining surfaces**: project the FinancialIdentity into the production tables (Account, Envelope, Bill, AllocationPlan) when the chat completes, so the other dashboard widgets (period, envelopes, bills, allocation, insights) can read from Prisma too. After 5.2.5, the queue is: 5.3 ongoing advisor via Ollama (post-onboarding "ask me anything" surface, same `callAgent` interface, privacy-first). The chat is live (sign in as `mom@compass.local` / `correct-horse-battery-staple` and visit `/onboarding`). The Identity Summary card now appears on the dashboard with the chat's data. The "Use demo data" button on /onboarding gives instant-onboard (no chat) — click it and you're on the dashboard with seeded income, debt, and goal. The L1 rules fallback fires automatically when Mavis/Ollama errors — the `ProviderBanner` surfaces the warning. `.env.local.example` is committed; the actual `.env.local` is gitignored. The design system is **Sovereign Monad / vessel (v6)**, superseding Component Oracle Terminal. `tsc --noEmit` is clean; 15 smokes green at 551/551 (smoke-onboarding-agent 80, smoke-period 46, smoke-sidebar 60, smoke-topbar 102, smoke-bottom-dock 70, smoke-goals 36, smoke-deprecated 42, smoke-glossary 32, smoke-rebalance 5, smoke-reset-seed 8, smoke-engine-toggle 7, smoke-vessel-feed 7, smoke-horizon-strip 14, smoke-alert-bay 22, smoke-visual-finish 20); `smoke-auth.mjs` pre-existing failing — unrelated; dev server on 127.0.0.1:3000.
+
+---
+
+## Mavis → Compass Vault feature (start: 2026-08-25)
+
+The user attached `DeFi/Compass vault.docx` (extracted to `DeFi/Compass vault spec.md`) — a full implementation-ready spec for a **Compass Vault** feature: a self-custodial, programmable bill-reserve account with stablecoin yield, off-ramp payment gateway, and a 13-state bill payment state machine.
+
+This is a **brand-new feature**, not a refactor of existing Compass. It introduces a new domain (Safe smart accounts, yield strategies, off-ramp providers, bill automation) and a new route (`/vault`). The spec is opinionated about architecture: Safe for custody, two-tier yield allocation, multi-provider off-ramp gateway with manual-recovery fallback, discriminated result types for settlement, explicit risk disclosure UI.
+
+**The spec defines 4 build phases:**
+
+1. **Phase 1 — Compass Product Integration** (UI + mock data, no DeFi risk): add `/vault` route, mock vault data from existing envelopes, bill schedule table + lifecycle badges, yield attribution display, yield routing controls (local/demo), alert states
+2. **Phase 2 — Backend Ledger**: `vault_accounts`, `vault_envelopes`, `scheduled_bills`, `yield_events`, `payment_attempts`, `provider_events` tables; immutable audit ledger; idempotency keys; mocked off-ramp integration tests
+3. **Phase 3 — Testnet System**: Safe smart-account deployment, USDC testnet deposits, testnet yield adapter, scheduled keeper task, full state-transition tests
+4. **Phase 4 — Production Readiness**: legal/compliance, contract audit, closed beta, multi-provider adapters, mobile push
+
+**This is a multi-session feature.** Phase 1 alone is substantial (a full new page with state machine, yield attribution, bill scheduling). Phases 2-4 are each larger. Plan is to ship Phase 1 in focused slices and hand off at the natural breakpoint between phases.
+
+### Architecture decisions locked from the spec
+
+- **Vault lives inside Compass, not a separate product.** No AuraFinance branding. `/vault` is a normal authenticated route.
+- **Two-tier capital allocation** — liquidity buffer (USDC, 3-7 day bills) + yield reserve (sUSDS/USDS savings, longer-dated bills). The spec calls out Sky/Aave as the example providers but treats them as replaceable adapters.
+- **Off-ramp is a gateway, not a single provider.** `IOffRampAdapter` interface, `OffRampGateway` orchestrator, `FallbackManualPushAdapter` is a non-negotiable safety path. Spritz + Monto are the demo adapters. Never hardwire to one provider.
+- **Bill state machine has 13 states** — DRAFT / FUNDED / EARNING / PREPARING_SETTLEMENT / EXECUTING / SETTLED + 7 alternates (PAUSED, INSUFFICIENT_FUNDS, REQUIRES_REVIEW, MANUAL_ACTION_REQUIRED, FAILED_RETRYABLE, FAILED_FINAL, CANCELLED). A bill is never considered paid until provider settlement confirmation.
+- **Discriminated result types for off-ramp outcomes** — TS unions so the UI is forced to handle success / degraded success / failure correctly.
+- **Yield attribution is by capital share**, not vault-wide lump sum. Default policy: under $1 → auto-compound; $1+ → ledger, compound by default. User can opt into auto-routing (COMPOUND / APPLY_TO_NEXT_BILL / MOVE_TO_AVAILABLE / SPLIT_BY_ENVELOPE). Principal reserved for bills is never reduced by yield routing.
+- **Money in integer cents** (Compass house rule) — the spec's example types use `number` but the project standard is `int`. The Vault types will use the same pattern.
+- **Audit log is non-negotiable** for every L1+ action (funding, strategy, automation, provider, manual recovery, user override).
+- **Mandatory risk disclosure UI** before activation — "This is a self-custodial digital-asset vault, not a bank account."
+- **Design system fit**: existing Compass is on **Sovereign Monad / vessel (v6)**. The HTML prototype in the docx is dark glass + cyan/indigo gradients — that conflicts with the v6 system. Phase 1 should integrate with the existing token system, not introduce a new visual language. The prototype is reference for layout/data shape, not for visual style.
+
+### Where this slots in the 16-step build order
+
+This is **not** on the 16-step list (which tops out at "Allocation rules engine (L1 routing)" in step 9 and AI tiers). The Vault is a **separate, larger feature** that runs in parallel to the main roadmap. The recommended next main-roadmap cluster remains **5.2.5 (Projection step + remaining surfaces)**, but if we're working on the Vault we focus there until the slice is shippable.
+
+### Proposed first slice — Phase 1.0 (mock-data UI shell)
+
+If you greenlight this, the first shippable slice is:
+
+1. **Type definitions** — `src/lib/vault/types.ts` with the spec's `VaultAccount`, `VaultEnvelope`, `ScheduledBill`, `YieldEvent`, `BillStatus` enums, `OffRampResult` discriminated union, `IOffRampAdapter` interface. All integer-cents where the Compass standard applies. Mirror the spec faithfully.
+2. **Mock data layer** — `src/lib/vault/mock-data.ts` that derives a `VaultAccount` + 5–7 `VaultEnvelope`s + 4–6 `ScheduledBill`s from the existing Compass envelopes (via Prisma read of the live DB at page mount). This is what the spec calls "mock vault data from existing Compass envelopes" — the envelopes are real, the yield/automation is simulated.
+3. **State machine helpers** — `src/lib/vault/state-machine.ts` with `transitionBill(bill, event)` that enforces the legal DRAFT → FUNDED → EARNING → ... transitions and the alternate-state entry conditions. Pure function, no DB.
+4. **Yield attribution** — `calculateEnvelopeYield` per the spec (capital share, not lump sum).
+5. **`/vault` route** — server component, reads envelopes from Prisma, derives mock vault data, renders the page. Nav entry under LEDGER.
+6. **Page layout (v1, the minimum shippable surface)**:
+   - Top status strip (5 metrics: vault principal, bills covered, yield earned, next execution, liquid buffer)
+   - Bill schedule table with lifecycle badges
+   - Yield earned by envelope (per-envelope attribution)
+   - Alert state banner (CALM / WATCH / ACTION REQUIRED / PAUSED) — single state for v1, derived from the bill + envelope data
+7. **Risk disclosure modal** — mandatory on first visit, dismissable but re-prompted on any new bill or settings change
+8. **Smoke test** — `tests/smoke-vault.mjs` covering: page loads, table renders, alert banner shows correct state, yield attribution math is right, modal appears on first visit
+
+That's roughly 1 focused session of work, self-contained, demonstrable, and it gives you a real page to look at + react to before we touch the off-ramp gateway / yield adapters / Safe integration.
+
+### What's NOT in the first slice (and what the spec says about each)
+
+- **No Safe smart account** — Phase 1 uses the existing Compass account model. Safe integration is Phase 3.
+- **No real yield strategy** — the 3.52% APY is hardcoded as `simulatedApy` in the mock layer. Real Sky/Aave integration is Phase 3.
+- **No real off-ramp calls** — the gateway's `SpritzAdapter` and `MontoAdapter` will exist as type definitions + mock implementations that always succeed (or always return `MANUAL_ACTION_REQUIRED` to test the safety path). Real provider API integration is Phase 4.
+- **No Prisma tables for vault** — Phase 1 reads from the existing Envelope table. New tables (`vault_accounts`, etc.) are Phase 2.
+- **No automation / keeper** — bills are state-machine-demoable via a "simulate next execution" button. Real keeper is Phase 3.
+
+### Sign-off needed
+
+If you agree with Phase 1.0 as the first shippable slice, say "go" and I'll:
+- Post a dated sub-note here with the build order
+- Read the existing Envelope Prisma model so the mock data derives from the right source
+- Check the design tokens (Sovereign Monad / vessel v6) so the page uses the right tokens
+- Start at (1) types and work down the list
+
+If you want a smaller first slice (e.g. just types + state machine, no UI), or a different angle (e.g. start with the state machine tests in isolation), flag that and I'll re-scope.
+
+### Vault build — Phase 1.0 sub-note (2026-08-25, xKryptic sign-off)
+
+User signed off on the full Phase 1.0 scope: types + mock data + state machine + /vault route + nav entry + 5-metric status strip + bill schedule table + yield attribution + alert banner + risk modal + smoke test. Quality > speed. No further checkpoints until the smoke passes.
+
+#### Decisions during build (locked here per AGENTS.md)
+
+- **Read pattern follows existing (app) pages**: liveEnvelopes() + liveBills() from @/lib/mock (in-memory store, re-evaluated per server-component render). The Envelope Prisma model exists but no (app) page reads it yet — staying consistent with the current pattern, with the Prisma swap as a future Cluster 2 concern. Same comment for the Bill table.
+- **Route path**: /vault under (app)/ (not (auth)/). Authenticated, lands in the LEDGER chapter of the sidebar.
+- **Money: integer cents**, every value. ormatMoney(cents) for display. iem address validation deferred (no real addresses in Phase 1 — only placeholder string).
+- **APY is hardcoded as simulatedApy = 0.0352** in the mock layer, surfaced in UI as "variable estimated APY" with a tooltip that says the value is not guaranteed. Per spec, never promise 4-6% in copy.
+- **Yield routing default**: COMPOUND (matches spec default). For Phase 1.0 the controls are visible but local-state only (not wired to persistence). The audit log ships in Phase 2.
+- **Risk modal**: shown on every visit in Phase 1.0 (we don't yet have a "first visit" flag — that's Phase 2 when we add user preferences). The "I understand" button dismisses; the next visit shows it again. Acceptable for the demo.
+- **No iem install**. Phase 1 has no real address types in flight. The spec's Address type becomes string in Phase 1 with a comment noting Phase 3 swaps to iem's  x\ branded type.
+- **No 
+ext.config.ts change**. /vault is a new route — no redirect needed.
+
+#### 8-item build order (Phase 1.0)
+
+1. src/lib/vault/types.ts — VaultAccount, VaultEnvelope, ScheduledBill, YieldEvent, BillStatus, EnvelopeCategory, VaultEnvelopeStatus, VaultAccountStatus, OffRampResult discriminated union, IOffRampAdapter interface. All integer cents.
+2. src/lib/vault/yield.ts — calculateEnvelopeYield(envelopePrincipal, totalEligiblePrincipal, totalYieldAccrued) per spec (capital share, not lump sum).
+3. src/lib/vault/state-machine.ts — 	ransitionBill(bill, event) pure function with the legal transition table. Returns { ok: true, bill } or { ok: false, error } discriminated union.
+4. src/lib/vault/mock-data.ts — deriveMockVault() reads liveEnvelopes() + liveBills(), maps to vault domain, computes yield by capital share, computes alert state, returns { vault, envelopes, bills, yieldEvents, offRampAdapters }.
+5. src/lib/vault/adapters.ts — SpritzAdapter + MontoAdapter + FallbackManualPushAdapter as stub classes implementing IOffRampAdapter. The first two return success; the fallback always returns MANUAL_ACTION_REQUIRED to exercise the safety path. Phase 1 doesn't wire any of them into a gateway, but the types need to compile.
+6. src/app/(app)/vault/page.tsx — server component. PageHead + 5-cell status strip + bill schedule table (lifecycle badges) + yield attribution block + alert banner + risk modal. No client interactivity in v1.0.
+7. src/components/sidebar/AppSidebar.tsx — add /vault nav entry to the LEDGER chapter with a [BETA] badge (signals Phase 1 is preview-quality and explains why the entry is below the others).
+8. 	ests/smoke-vault.mjs — verifies: page returns 200, page contains the 5 metric labels, the bill schedule renders ≥1 row with a badge, the alert banner is present, the risk modal copy is rendered, yield attribution is mathematically consistent (sum of envelope yields equals vault accruedYield ± rounding).
+
+#### Verification gates before sign-off
+
+- pnpm tsc --noEmit — clean (zero new errors introduced).
+- 
+ode tests/smoke-vault.mjs — passes.
+- Dev server /vault route returns 200 in a manual fetch; ledger nav lights up the Vault entry.
+- COORDINATION.md final entry summarizes what shipped + what didn't.

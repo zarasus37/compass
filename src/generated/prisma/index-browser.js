@@ -204,6 +204,21 @@ exports.Prisma.PayScheduleScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.BillScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  amountCents: 'amountCents',
+  cadence: 'cadence',
+  dueDay: 'dueDay',
+  autopay: 'autopay',
+  paidAt: 'paidAt',
+  source: 'source',
+  isArchived: 'isArchived',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.GoalScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -410,6 +425,7 @@ exports.Prisma.ModelName = {
   Envelope: 'Envelope',
   Transaction: 'Transaction',
   PaySchedule: 'PaySchedule',
+  Bill: 'Bill',
   Goal: 'Goal',
   AllocationPlan: 'AllocationPlan',
   AllocationRule: 'AllocationRule',

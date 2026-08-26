@@ -26,6 +26,8 @@ import type {
   RiskProfile,
   AuditData,
 } from "@/lib/onboarding/state";
+import { cadenceMonthlyFactor } from "./cadence";
+import { getProjectionCounts } from "@/lib/onboarding/projection";
 
 export interface IdentitySuggestion {
   /** Terminal voice label, all caps, mono, fits the vessel design. */
@@ -62,6 +64,9 @@ export interface IdentitySummary {
   audit: AuditData | null;
   /** Growth-oriented suggestions derived from the data. */
   suggestions: IdentitySuggestion[];
+  /** Projection counts (Cluster 5.2.5) — how many production rows
+      were projected from the identity. Zero when not yet projected. */
+  projection: { accounts: number; bills: number; goals: number };
   /** Stable hint for where the user lands when they click "edit". */
   editHref: string;
   /** Cta label depending on state. */
@@ -157,6 +162,10 @@ export async function loadIdentitySummary(userId: string): Promise<IdentitySumma
       topGoals,
       topDebts,
     }),
+    // Cluster 5.2.5: read the projection counts from Prisma. Zero
+    // when the identity isn't completed yet (projection only runs
+    // after markOnboardingComplete, or via the seed-demo endpoint).
+    projection: completed ? await getProjectionCounts(userId) : { accounts: 0, bills: 0, goals: 0 },
     editHref: "/onboarding",
     ctaLabel,
     ctaHref,
@@ -164,27 +173,10 @@ export async function loadIdentitySummary(userId: string): Promise<IdentitySumma
 }
 
 /**
- * Cadence → monthly multiplier. "irregular" is treated as 0
- * (no predictable monthly amount) so it doesn't inflate the
- * displayed total. The user can refine in a future turn.
+ * Sum the income across cadences to a monthly total. The
+ * cadenceMonthlyFactor lives in `./cadence.ts` so the projection
+ * can reuse it without pulling this whole module.
  */
-function cadenceMonthlyFactor(cadence: string | null): number {
-  switch (cadence) {
-    case "weekly":
-      return 52 / 12;
-    case "biweekly":
-      return 26 / 12;
-    case "semi_monthly":
-      return 24 / 12;
-    case "monthly":
-      return 1;
-    case "irregular":
-      return 0;
-    default:
-      return 0;
-  }
-}
-
 function sumMonthlyIncome(income: IncomeSource[]): number {
   let total = 0;
   for (const i of income) {

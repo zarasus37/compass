@@ -112,5 +112,29 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  // Cluster 5.2.5: project the seeded identity into the production
+  // tables (Account / Bill / Goal). The demo button gives the
+  // user the same "wired" state as finishing the chat.
+  try {
+    const { projectIdentityToProduction } = await import("@/lib/onboarding/projection");
+    const { loadConversation } = await import("@/lib/onboarding/state");
+    const fullState = await loadConversation(user.id);
+    await projectIdentityToProduction(
+      {
+        income: fullState.income,
+        expenses: fullState.expenses,
+        debts: fullState.debts,
+        assets: fullState.assets,
+        goals: fullState.goals,
+      },
+      user.id,
+    );
+  } catch (err) {
+    console.warn(
+      "[seed-demo] projection failed:",
+      err instanceof Error ? err.message : String(err),
+    );
+  }
+
   return NextResponse.redirect(new URL("/", req.url), { status: 303 });
 }

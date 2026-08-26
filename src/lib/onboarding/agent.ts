@@ -202,6 +202,35 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
   };
   await saveConversation(updatedState, newMessages);
 
+  // Cluster 5.2.5: when the chat completes, project the identity
+  // into the production tables (Account / Bill / Goal) so the
+  // existing widgets can switch to production reads in a
+  // follow-up. The projection is wrapped in try/catch so a
+  // projection failure doesn't break the chat (the identity
+  // itself is already persisted at this point).
+  if (onboardingCompleted) {
+    try {
+      const { projectIdentityToProduction } = await import("./projection");
+      await projectIdentityToProduction(
+        {
+          income: updatedState.income,
+          expenses: updatedState.expenses,
+          debts: updatedState.debts,
+          assets: updatedState.assets,
+          goals: updatedState.goals,
+        },
+        input.userId,
+      );
+    } catch (err) {
+      // Log but don't throw — the chat succeeded; the projection
+      // is a downstream convenience.
+      console.warn(
+        `[onboarding] projection failed for user ${input.userId}:`,
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+  }
+
   return {
     agentMessage: finalResponse.content,
     toolCalls: allToolCalls,

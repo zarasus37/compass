@@ -247,6 +247,14 @@ function IdentityFullView({ data }: { data: IdentitySummary }) {
       {/* Suggestions (growth-oriented, click-throughs). */}
       {data.suggestions.length > 0 ? <SuggestionsColumn suggestions={data.suggestions} /> : null}
 
+      {/* Cluster 5.2.5: projection status footer. Shows how many
+          production rows (Account / Bill / Goal) the identity
+          was projected into. Visible only when the projection
+          actually ran (counts > 0). */}
+      {data.projection.accounts + data.projection.bills + data.projection.goals > 0 ? (
+        <ProjectionFooter projection={data.projection} />
+      ) : null}
+
       {/* CTA. */}
       <Link
         href={data.ctaHref}
@@ -268,6 +276,50 @@ function IdentityFullView({ data }: { data: IdentitySummary }) {
       >
         {data.ctaLabel} →
       </Link>
+    </div>
+  );
+}
+
+function ProjectionFooter({
+  projection,
+}: {
+  projection: { accounts: number; bills: number; goals: number };
+}) {
+  const total = projection.accounts + projection.bills + projection.goals;
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "8px 12px",
+        background: "var(--vessel-dark)",
+        border: "1px solid var(--vessel-border)",
+        borderRadius: 6,
+        fontFamily: "var(--font-jetbrains), monospace",
+        fontSize: 10,
+        letterSpacing: "0.06em",
+      }}
+    >
+      <span
+        style={{
+          background: "var(--vessel-accent-soft)",
+          color: "var(--vessel-accent)",
+          padding: "2px 8px",
+          borderRadius: 3,
+          fontWeight: 700,
+          fontSize: 9.5,
+          letterSpacing: "0.1em",
+        }}
+      >
+        [OK] PROJECTED
+      </span>
+      <span style={{ color: "var(--ink-2, #c8d1dd)" }}>
+        {projection.accounts} acct · {projection.bills} bill · {projection.goals} goal
+      </span>
+      <span style={{ color: "var(--ink-3, #a4b1c2)", marginLeft: "auto", fontSize: 9.5 }}>
+        {total} rows
+      </span>
     </div>
   );
 }

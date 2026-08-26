@@ -13,6 +13,16 @@
  *   - After turn 4, the audit + completedAt are checked in the
  *     persisted state.
  *   - After reset, the GET returns 404 (no identity row exists).
+ *
+ * Cluster 5.2.5 additions:
+ *   - After turn 4 (which marks onboarding complete), the smoke
+ *     queries the production tables directly via Prisma to verify
+ *     the identity projection ran (Account / Bill / Goal rows for
+ *     the smoke user). Uses the same `node`-from-source Prisma
+ *     client the auth smoke uses, with the same path-resolution
+ *     workaround.
+ *   - The check count grew from 80 → ~97 with the projection
+ *     assertions.
  *   - A new test-llm-call endpoint exercises the L1 rules fallback:
  *     forcing a Mavis call with a bogus URL/key falls through to
  *     the L1 mock engine, and the response carries meta.fellBack=true.
@@ -45,6 +55,25 @@
 const BASE = "http://127.0.0.1:3000";
 const ENDPOINT = `${BASE}/api/dev-agent/run-agent`;
 const TEST_LLM_ENDPOINT = `${BASE}/api/dev-agent/test-llm-call`;
+
+// Cluster 5.2.5: project-identity smoke checks. The smoke asserts
+// that the Account / Bill / Goal tables get rows when the chat
+// completes markOnboardingComplete. We query Prisma directly using
+// the same generated client + better-sqlite3 adapter pattern that
+// smoke-auth.mjs uses. Path matches dbFilePath() in src/server/db.ts
+// so the dev server and the test see the same file.
+import { createRequire } from "node:module";
+import path from "node:path";
+const _require = createRequire(import.meta.url);
+const _generated = _require(path.join(process.cwd(), "src/generated/prisma/client"));
+const { PrismaClient } = _generated;
+const { PrismaBetterSqlite3 } = _require(
+  path.join(process.cwd(), "node_modules/@prisma/adapter-better-sqlite3"),
+);
+const _adapter = new PrismaBetterSqlite3({
+  url: path.join(process.cwd(), "dev.db"),
+});
+const prisma = new PrismaClient({ adapter: _adapter });
 
 const log = (k, v) => console.log(`[${k}] ${v}`);
 
@@ -359,6 +388,126 @@ async function main() {
     typeof p4.body.messageCount === "number" && p4.body.messageCount > 0,
   );
 
+  // ── Cluster 5.2.5: identity → production projection ────────────
+  // markOnboardingComplete triggers projectIdentityToProduction,
+  // which upserts Account / Bill / Goal rows for the user. The
+  // projection is idempotent (wipe-then-insert with the
+  // "[identity] " prefix on Account/Goal + source="identity" on
+  // Bill), so re-running the chat produces the same shape. We
+  // query Prisma directly to assert the rows exist and have the
+  // right fields. The test conversation has 1 income + 1 debt +
+  // 1 goal, no expenses / no assets.
+  log("\nprojection", "verify Account / Bill / Goal rows for smoke-user-1");
+  const projAccounts = await prisma.account.findMany({
+    where: { userId: USER_ID, name: { startsWith: "[identity] " } },
+    orderBy: { sortOrder: "asc" },
+  });
+  const projBills = await prisma.bill.findMany({
+    where: { userId: USER_ID, source: "identity" },
+  });
+  const projGoals = await prisma.goal.findMany({
+    where: { userId: USER_ID, name: { startsWith: "[identity] " } },
+    orderBy: { sortOrder: "asc" },
+  });
+  log(
+    "projection",
+    `accounts=${projAccounts.length} bills=${projBills.length} goals=${projGoals.length}`,
+  );
+
+  // ── Counts (3 checks) ──────────────────────────────────────────
+  check(
+    "projection: 2 Account rows (1 income + 1 debt)",
+    projAccounts.length === 2,
+    `got ${projAccounts.length}`,
+  );
+  check(
+    "projection: 0 Bill rows (test conversation has no expenses)",
+    projBills.length === 0,
+    `got ${projBills.length}`,
+  );
+  check(
+    "projection: 1 Goal row (Emergency Fund)",
+    projGoals.length === 1,
+    `got ${projGoals.length}`,
+  );
+
+  // ── Income → Account (4 checks) ────────────────────────────────
+  const incomeAcct = projAccounts.find((a) => a.name === "[identity] Primary");
+  check("projection: income account [identity] Primary exists", incomeAcct !== undefined);
+  if (incomeAcct) {
+    check(
+      "projection: income account type = checking",
+      incomeAcct.type === "checking",
+      `got "${incomeAcct.type}"`,
+    );
+    check(
+      "projection: income account balance = 0 (per-period amount lives in PaySchedule)",
+      incomeAcct.currentBalance === 0,
+      `got ${incomeAcct.currentBalance}`,
+    );
+    check(
+      "projection: income account institution contains 'monthly:' and 'biweekly'",
+      typeof incomeAcct.institution === "string" &&
+        incomeAcct.institution.includes("monthly:") &&
+        incomeAcct.institution.includes("biweekly"),
+      `got "${incomeAcct.institution}"`,
+    );
+  }
+
+  // ── Debt → Account (4 checks) ──────────────────────────────────
+  const debtAcct = projAccounts.find((a) => a.name === "[identity] Mortgage");
+  check("projection: debt account [identity] Mortgage exists", debtAcct !== undefined);
+  if (debtAcct) {
+    check(
+      "projection: debt account type = other",
+      debtAcct.type === "other",
+      `got "${debtAcct.type}"`,
+    );
+    check(
+      "projection: debt account balance = -30000000 cents (negative $300K)",
+      debtAcct.currentBalance === -30000000,
+      `got ${debtAcct.currentBalance}`,
+    );
+    check(
+      "projection: debt account institution contains 'apr:6.50' and 'kind:mortgage'",
+      typeof debtAcct.institution === "string" &&
+        debtAcct.institution.includes("apr:6.50") &&
+        debtAcct.institution.includes("kind:mortgage"),
+      `got "${debtAcct.institution}"`,
+    );
+  }
+
+  // ── Goal (6 checks) ────────────────────────────────────────────
+  const projGoal = projGoals[0];
+  check("projection: goal [identity] Emergency Fund exists", projGoal !== undefined);
+  if (projGoal) {
+    check(
+      "projection: goal name = [identity] Emergency Fund",
+      projGoal.name === "[identity] Emergency Fund",
+      `got "${projGoal.name}"`,
+    );
+    check(
+      "projection: goal targetAmount = 2000000 cents ($20K)",
+      projGoal.targetAmount === 2000000,
+      `got ${projGoal.targetAmount}`,
+    );
+    check(
+      "projection: goal kind = TRANSFER (auto-sweep)",
+      projGoal.kind === "TRANSFER",
+      `got "${projGoal.kind}"`,
+    );
+    check(
+      "projection: goal goalType = EMERGENCY",
+      projGoal.goalType === "EMERGENCY",
+      `got "${projGoal.goalType}"`,
+    );
+    check(
+      "projection: goal isPrimary = true (priority 1)",
+      projGoal.isPrimary === true,
+      `got ${projGoal.isPrimary}`,
+    );
+  }
+
   // ── Reset path ──────────────────────────────────────────────────
   log("\nreset", "wipe state for this user");
   const reset = await postAgent({
@@ -504,9 +653,12 @@ async function main() {
     process.exit(3);
   }
   console.log("\nALL GREEN");
+
+  await prisma.$disconnect();
 }
 
-main().catch((e) => {
+main().catch(async (e) => {
   console.error("crash:", e);
+  await prisma.$disconnect().catch(() => {});
   process.exit(1);
 });

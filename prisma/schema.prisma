@@ -223,6 +223,36 @@ model PaySchedule {
   @@index([isActive])
 }
 
+/// A recurring bill (Cluster 1.8). Originally seeded in the in-memory
+/// store (BILLS_SEED in src/lib/mock-seed.ts); Cluster 5.2.5 added
+/// this Prisma model so the onboarding chat's expenses can project
+/// into it via projection.ts. The deep pages still read from the
+/// in-memory seed for now; the projection populates the table for
+/// future migration. Once a widget reads from here, the BillSeed
+/// entries can be migrated too.
+model Bill {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  /// Amount per period, in cents.
+  amountCents Int
+  /// weekly | biweekly | semi_monthly | monthly | quarterly | annual
+  cadence     String
+  /// Day of month the bill is due (1-31). Null for non-monthly cadences.
+  dueDay      Int?
+  autopay     Boolean  @default(false)
+  /// Optional ISO timestamp of the most recent payment. Null if not yet paid for the current period.
+  paidAt      DateTime?
+  /// Where this bill came from: "seed" (the in-memory BILLS_SEED), "identity" (projected from the chat's expenses), or "user" (manually entered in a future cluster).
+  source      String   @default("seed")
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([source])
+}
+
 /// A life goal the user is working toward. The "Your Direction" section.
 /// Top priority flag controls what shows in the dashboard hero.
 model Goal {
