@@ -12,6 +12,7 @@
  */
 
 import "server-only";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/server/db";
 import { requireUser } from "@/server/auth/user";
 import {
@@ -29,6 +30,7 @@ import {
   createBill,
   updateBillMetadata,
   deleteBill,
+  setVaultSafeAddress,
   USER_FACING_BILL_EVENTS,
   type VaultDbSnapshot,
   type UserFacingBillEvent,
@@ -37,6 +39,11 @@ import { seedVaultFromEnvelopes, type SeedResult } from "./seed";
 import { deriveMockVault } from "./mock-data";
 import { legalNextStates } from "./state-machine";
 import { getActiveYieldAdapter } from "./yield-adapters";
+import {
+  deploySafe as deploySafeLib,
+  isMockSafeAddress,
+  MOCK_SAFE_ADDRESS,
+} from "./safe-deploy";
 import type { VaultSnapshot } from "./mock-data";
 import type { BillEvent, YieldRoutingStrategy } from "./types";
 
@@ -865,4 +872,105 @@ export async function deleteBillAction(
     console.error("[vault] deleteBill failed:", message);
     return { ok: false, error: message };
   }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Phase 4.0 — Safe deploy server action (M1)
+//
+// The [DEPLOY] button on /vault calls this. The flow:
+//   1. Resolve user + vault.
+//   2. Reject if the vault already has a non-mock Safe
+//      address (deploys are irreversible; the UI also hides
+//      the button in this state, but the server is the
+//      second line of defense).
+//   3. Call the safe-deploy lib to broadcast the
+//      CREATE2 deploy tx. The lib's pre-flight (signer ETH
+//      balance) gives a clear error if the user forgot to
+//      fund the signer.
+//   4. Persist the deployed address + signer + chainId + tx
+//      hash on the vault row, and write a
+//      `vault.safe_deployed` audit entry.
+//   5. Refresh the page's snapshot via `revalidatePath("/vault")`
+//      so the next render shows the new address + chip.
+// ──────────────────────────────────────────────────────────────────────
+
+export async function deploySafeAction(): Promise<
+  | {
+      ok: true;
+      safeAddress: string;
+      chainId: number;
+      signerAddress: string;
+      txHash: string | null;
+    }
+  | { ok: false; error: string }
+> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  const vault = await prisma.vaultAccount.findUnique({
+    where: { userId: user.id },
+  });
+  if (!vault) {
+    return { ok: false, error: "no vault yet — sync first" };
+  }
+  if (!isMockSafeAddress(vault.smartAccountAddress)) {
+    return {
+      ok: false,
+      error: `safe already deployed at ${vault.smartAccountAddress}`,
+    };
+  }
+  let deployed;
+  try {
+    deployed = await deploySafeLib();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] deploySafe failed:", message);
+    // Audit the failure too — the signer is configured, the
+    // intent is real, the user deserves a record of why it
+    // didn't go through.
+    try {
+      await recordVaultAudit({
+        userId: user.id,
+        actionType: "vault.safe_deploy_failed",
+        payload: {
+          error: message,
+          at: new Date().toISOString(),
+        },
+      });
+    } catch {
+      // best-effort; don't mask the original error
+    }
+    return { ok: false, error: message };
+  }
+  try {
+    await setVaultSafeAddress({
+      vaultId: vault.id,
+      userId: user.id,
+      smartAccountAddress: deployed.safeAddress,
+      signerAddress: deployed.signerAddress,
+      chainId: deployed.chainId,
+      txHash: deployed.txHash === "0x" ? null : deployed.txHash,
+    });
+  } catch (err) {
+    // The deploy tx already mined; we just failed to persist.
+    // Surface the persistence error — the chain state is on
+    // the user's behalf, the DB is the user's problem.
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] setVaultSafeAddress failed:", message);
+    return {
+      ok: false,
+      error: `deployed on-chain but DB write failed: ${message}. The Safe is at ${deployed.safeAddress}; re-sync to recover.`,
+    };
+  }
+  revalidatePath("/vault");
+  return {
+    ok: true,
+    safeAddress: deployed.safeAddress,
+    chainId: deployed.chainId,
+    signerAddress: deployed.signerAddress,
+    txHash: deployed.txHash === "0x" ? null : deployed.txHash,
+  };
 }

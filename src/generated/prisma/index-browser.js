@@ -426,6 +426,7 @@ exports.Prisma.VaultAccountScalarFieldEnum = {
   userId: 'userId',
   chainId: 'chainId',
   smartAccountAddress: 'smartAccountAddress',
+  signerAddress: 'signerAddress',
   baseAsset: 'baseAsset',
   status: 'status',
   availableBalance: 'availableBalance',

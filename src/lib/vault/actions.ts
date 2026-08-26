@@ -24,6 +24,7 @@ import {
   createBillAction,
   updateBillAction,
   deleteBillAction,
+  deploySafeAction,
 } from "./server";
 
 /**
@@ -143,4 +144,17 @@ export async function updateBillFromPage(
  */
 export async function deleteBillFromPage(billId: string) {
   return deleteBillAction(billId);
+}
+
+/**
+ * Server action: deploy a Safe to the configured chain
+ * (Base Sepolia by default). Called from the [DEPLOY] button
+ * on /vault when the user has not yet deployed a real Safe.
+ *
+ * Idempotent: refuses to re-deploy if a non-mock address is
+ * already on the vault. The deploy tx is irreversible on-
+ * chain, so the UI hides the button + the server re-checks.
+ */
+export async function deploySafeFromPage() {
+  return deploySafeAction();
 }

@@ -818,8 +818,16 @@ model VaultAccount {
   id                  String   @id @default(cuid())
   userId              String   @unique
   chainId             Int      @default(1)
-  /// Placeholder Safe address in Phase 1/2; viem-validated in Phase 3.
+  /// Placeholder Safe address in Phase 1/2; replaced by the
+  /// real CREATE2-deployed Safe address in Phase 3 (Cluster
+  /// Vault 4.0). When this is the literal `MOCK` placeholder
+  /// string, the [DEPLOY] button is shown on /vault.
   smartAccountAddress String
+  /// The EOA that owns the Safe. Set during the [DEPLOY] flow
+  /// (Cluster Vault 4.0). Persists the signer used at deploy
+  /// time so the audit log + the post-deploy chip can show
+  /// which key holds the Safe.
+  signerAddress       String?
   /// "USDC" in Phase 1/2; widens in Phase 3.
   baseAsset           String   @default("USDC")
   /// ACTIVE | PAUSED | RECOVERY_MODE

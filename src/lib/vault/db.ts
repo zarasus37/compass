@@ -77,6 +77,71 @@ export async function getOrCreateVault(userId: string): Promise<VaultAccount> {
   return toVaultAccount(created);
 }
 
+// ──────────────────────────────────────────────────────────────────────
+// Phase 4.0 — Safe deploy (M1)
+//
+// After the [DEPLOY] button fires, we persist the deployed
+// Safe address + the signer address + the deploy tx hash +
+// the chainId. The audit log captures the same. The
+// `smartAccountAddress` column was the mock literal before;
+// this swap is the inflection from "simulated vault" to
+// "real on-chain vault."
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Set the deployed Safe address + signer on the user's vault.
+ * Refuses to overwrite a non-mock address (deploys are
+ * irreversible; the [DEPLOY] button should be hidden once a
+ * real Safe is set, and the server action re-checks).
+ *
+ * Writes a `vault.safe_deployed` audit entry with the full
+ * deploy context so the future audit-log page can render the
+ * "first deploy" event.
+ */
+export async function setVaultSafeAddress(args: {
+  vaultId: string;
+  userId: string;
+  smartAccountAddress: string;
+  signerAddress: string;
+  chainId: number;
+  txHash: string | null;
+}): Promise<void> {
+  const row = await prisma.vaultAccount.findUnique({
+    where: { id: args.vaultId },
+  });
+  if (!row) {
+    throw new Error(`vault not found: ${args.vaultId}`);
+  }
+  if (
+    row.smartAccountAddress &&
+    row.smartAccountAddress !== "0xMOCK0000000000000000000000000000000000DEAD"
+  ) {
+    throw new Error(
+      `vault ${args.vaultId} already has a deployed Safe: ${row.smartAccountAddress}`,
+    );
+  }
+  await prisma.vaultAccount.update({
+    where: { id: args.vaultId },
+    data: {
+      smartAccountAddress: args.smartAccountAddress,
+      signerAddress: args.signerAddress,
+      chainId: args.chainId,
+      updatedAt: new Date(),
+    },
+  });
+  await recordVaultAudit({
+    userId: args.userId,
+    actionType: "vault.safe_deployed",
+    payload: {
+      smartAccountAddress: args.smartAccountAddress,
+      signerAddress: args.signerAddress,
+      chainId: args.chainId,
+      txHash: args.txHash,
+      at: new Date().toISOString(),
+    },
+  });
+}
+
 /**
  * Refresh the vault's top-level money aggregates from its envelopes
  * + bills. Called after a seed or a yield accrual.
@@ -569,7 +634,9 @@ export async function recordVaultAudit(args: {
     | "vault.yield_routed"
     | "vault.bill_added"
     | "vault.bill_updated"
-    | "vault.bill_deleted";
+    | "vault.bill_deleted"
+    | "vault.safe_deployed"
+    | "vault.safe_deploy_failed";
   payload: unknown;
 }): Promise<void> {
   await prisma.auditLog.create({
@@ -1201,6 +1268,7 @@ function toVaultAccount(row: {
   userId: string;
   chainId: number;
   smartAccountAddress: string;
+  signerAddress?: string | null;
   baseAsset: string;
   status: string;
   availableBalance: number;
@@ -1216,6 +1284,7 @@ function toVaultAccount(row: {
     userId: row.userId,
     chainId: row.chainId,
     smartAccountAddress: row.smartAccountAddress,
+    signerAddress: row.signerAddress ?? undefined,
     baseAsset: row.baseAsset as VaultAccount["baseAsset"],
     status: row.status as VaultAccount["status"],
     availableBalance: row.availableBalance,

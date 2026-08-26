@@ -18,6 +18,7 @@ import { BillScheduleClient } from "@/components/vault/BillScheduleClient";
 import { RiskAckButton } from "@/components/vault/RiskAckButton";
 import { RefreshApyButton } from "@/components/vault/RefreshApyButton";
 import { VaultPauseToggle } from "@/components/vault/VaultPauseToggle";
+import { DeploySafeButton } from "@/components/vault/DeploySafeButton";
 
 export const dynamic = "force-dynamic";
 
@@ -445,7 +446,20 @@ function VaultPauseRow({ vault }: { vault: VaultAccount }) {
       >
         // vault control · {vault.status === "PAUSED" ? "PAUSED" : vault.status === "RECOVERY_MODE" ? "RECOVERY" : "ARMED"}
       </div>
-      <VaultPauseToggle status={vault.status} />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        <DeploySafeButton
+          smartAccountAddress={vault.smartAccountAddress}
+          signerAddress={vault.signerAddress}
+          chainId={vault.chainId}
+        />
+        <VaultPauseToggle status={vault.status} />
+      </div>
     </div>
   );
 }

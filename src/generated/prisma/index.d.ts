@@ -31880,6 +31880,7 @@ export namespace Prisma {
     userId: string | null
     chainId: number | null
     smartAccountAddress: string | null
+    signerAddress: string | null
     baseAsset: string | null
     status: string | null
     availableBalance: number | null
@@ -31896,6 +31897,7 @@ export namespace Prisma {
     userId: string | null
     chainId: number | null
     smartAccountAddress: string | null
+    signerAddress: string | null
     baseAsset: string | null
     status: string | null
     availableBalance: number | null
@@ -31912,6 +31914,7 @@ export namespace Prisma {
     userId: number
     chainId: number
     smartAccountAddress: number
+    signerAddress: number
     baseAsset: number
     status: number
     availableBalance: number
@@ -31948,6 +31951,7 @@ export namespace Prisma {
     userId?: true
     chainId?: true
     smartAccountAddress?: true
+    signerAddress?: true
     baseAsset?: true
     status?: true
     availableBalance?: true
@@ -31964,6 +31968,7 @@ export namespace Prisma {
     userId?: true
     chainId?: true
     smartAccountAddress?: true
+    signerAddress?: true
     baseAsset?: true
     status?: true
     availableBalance?: true
@@ -31980,6 +31985,7 @@ export namespace Prisma {
     userId?: true
     chainId?: true
     smartAccountAddress?: true
+    signerAddress?: true
     baseAsset?: true
     status?: true
     availableBalance?: true
@@ -32083,6 +32089,7 @@ export namespace Prisma {
     userId: string
     chainId: number
     smartAccountAddress: string
+    signerAddress: string | null
     baseAsset: string
     status: string
     availableBalance: number
@@ -32118,6 +32125,7 @@ export namespace Prisma {
     userId?: boolean
     chainId?: boolean
     smartAccountAddress?: boolean
+    signerAddress?: boolean
     baseAsset?: boolean
     status?: boolean
     availableBalance?: boolean
@@ -32139,6 +32147,7 @@ export namespace Prisma {
     userId?: boolean
     chainId?: boolean
     smartAccountAddress?: boolean
+    signerAddress?: boolean
     baseAsset?: boolean
     status?: boolean
     availableBalance?: boolean
@@ -32156,6 +32165,7 @@ export namespace Prisma {
     userId?: boolean
     chainId?: boolean
     smartAccountAddress?: boolean
+    signerAddress?: boolean
     baseAsset?: boolean
     status?: boolean
     availableBalance?: boolean
@@ -32173,6 +32183,7 @@ export namespace Prisma {
     userId?: boolean
     chainId?: boolean
     smartAccountAddress?: boolean
+    signerAddress?: boolean
     baseAsset?: boolean
     status?: boolean
     availableBalance?: boolean
@@ -32184,7 +32195,7 @@ export namespace Prisma {
     updatedAt?: boolean
   }
 
-  export type VaultAccountOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "chainId" | "smartAccountAddress" | "baseAsset" | "status" | "availableBalance" | "settlementReserve" | "deployedToYield" | "accruedYield" | "simulatedApy" | "createdAt" | "updatedAt", ExtArgs["result"]["vaultAccount"]>
+  export type VaultAccountOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "chainId" | "smartAccountAddress" | "signerAddress" | "baseAsset" | "status" | "availableBalance" | "settlementReserve" | "deployedToYield" | "accruedYield" | "simulatedApy" | "createdAt" | "updatedAt", ExtArgs["result"]["vaultAccount"]>
   export type VaultAccountInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
     envelopes?: boolean | VaultAccount$envelopesArgs<ExtArgs>
@@ -32212,9 +32223,19 @@ export namespace Prisma {
       userId: string
       chainId: number
       /**
-       * Placeholder Safe address in Phase 1/2; viem-validated in Phase 3.
+       * Placeholder Safe address in Phase 1/2; replaced by the
+       * real CREATE2-deployed Safe address in Phase 3 (Cluster
+       * Vault 4.0). When this is the literal `MOCK` placeholder
+       * string, the [DEPLOY] button is shown on /vault.
        */
       smartAccountAddress: string
+      /**
+       * The EOA that owns the Safe. Set during the [DEPLOY] flow
+       * (Cluster Vault 4.0). Persists the signer used at deploy
+       * time so the audit log + the post-deploy chip can show
+       * which key holds the Safe.
+       */
+      signerAddress: string | null
       /**
        * "USDC" in Phase 1/2; widens in Phase 3.
        */
@@ -32661,6 +32682,7 @@ export namespace Prisma {
     readonly userId: FieldRef<"VaultAccount", 'String'>
     readonly chainId: FieldRef<"VaultAccount", 'Int'>
     readonly smartAccountAddress: FieldRef<"VaultAccount", 'String'>
+    readonly signerAddress: FieldRef<"VaultAccount", 'String'>
     readonly baseAsset: FieldRef<"VaultAccount", 'String'>
     readonly status: FieldRef<"VaultAccount", 'String'>
     readonly availableBalance: FieldRef<"VaultAccount", 'Int'>
@@ -40791,6 +40813,7 @@ export namespace Prisma {
     userId: 'userId',
     chainId: 'chainId',
     smartAccountAddress: 'smartAccountAddress',
+    signerAddress: 'signerAddress',
     baseAsset: 'baseAsset',
     status: 'status',
     availableBalance: 'availableBalance',
@@ -42977,6 +43000,7 @@ export namespace Prisma {
     userId?: StringFilter<"VaultAccount"> | string
     chainId?: IntFilter<"VaultAccount"> | number
     smartAccountAddress?: StringFilter<"VaultAccount"> | string
+    signerAddress?: StringNullableFilter<"VaultAccount"> | string | null
     baseAsset?: StringFilter<"VaultAccount"> | string
     status?: StringFilter<"VaultAccount"> | string
     availableBalance?: IntFilter<"VaultAccount"> | number
@@ -42997,6 +43021,7 @@ export namespace Prisma {
     userId?: SortOrder
     chainId?: SortOrder
     smartAccountAddress?: SortOrder
+    signerAddress?: SortOrderInput | SortOrder
     baseAsset?: SortOrder
     status?: SortOrder
     availableBalance?: SortOrder
@@ -43020,6 +43045,7 @@ export namespace Prisma {
     NOT?: VaultAccountWhereInput | VaultAccountWhereInput[]
     chainId?: IntFilter<"VaultAccount"> | number
     smartAccountAddress?: StringFilter<"VaultAccount"> | string
+    signerAddress?: StringNullableFilter<"VaultAccount"> | string | null
     baseAsset?: StringFilter<"VaultAccount"> | string
     status?: StringFilter<"VaultAccount"> | string
     availableBalance?: IntFilter<"VaultAccount"> | number
@@ -43040,6 +43066,7 @@ export namespace Prisma {
     userId?: SortOrder
     chainId?: SortOrder
     smartAccountAddress?: SortOrder
+    signerAddress?: SortOrderInput | SortOrder
     baseAsset?: SortOrder
     status?: SortOrder
     availableBalance?: SortOrder
@@ -43064,6 +43091,7 @@ export namespace Prisma {
     userId?: StringWithAggregatesFilter<"VaultAccount"> | string
     chainId?: IntWithAggregatesFilter<"VaultAccount"> | number
     smartAccountAddress?: StringWithAggregatesFilter<"VaultAccount"> | string
+    signerAddress?: StringNullableWithAggregatesFilter<"VaultAccount"> | string | null
     baseAsset?: StringWithAggregatesFilter<"VaultAccount"> | string
     status?: StringWithAggregatesFilter<"VaultAccount"> | string
     availableBalance?: IntWithAggregatesFilter<"VaultAccount"> | number
@@ -45842,6 +45870,7 @@ export namespace Prisma {
     id?: string
     chainId?: number
     smartAccountAddress: string
+    signerAddress?: string | null
     baseAsset?: string
     status?: string
     availableBalance?: number
@@ -45862,6 +45891,7 @@ export namespace Prisma {
     userId: string
     chainId?: number
     smartAccountAddress: string
+    signerAddress?: string | null
     baseAsset?: string
     status?: string
     availableBalance?: number
@@ -45880,6 +45910,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     chainId?: IntFieldUpdateOperationsInput | number
     smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    signerAddress?: NullableStringFieldUpdateOperationsInput | string | null
     baseAsset?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
     availableBalance?: IntFieldUpdateOperationsInput | number
@@ -45900,6 +45931,7 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     chainId?: IntFieldUpdateOperationsInput | number
     smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    signerAddress?: NullableStringFieldUpdateOperationsInput | string | null
     baseAsset?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
     availableBalance?: IntFieldUpdateOperationsInput | number
@@ -45919,6 +45951,7 @@ export namespace Prisma {
     userId: string
     chainId?: number
     smartAccountAddress: string
+    signerAddress?: string | null
     baseAsset?: string
     status?: string
     availableBalance?: number
@@ -45934,6 +45967,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     chainId?: IntFieldUpdateOperationsInput | number
     smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    signerAddress?: NullableStringFieldUpdateOperationsInput | string | null
     baseAsset?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
     availableBalance?: IntFieldUpdateOperationsInput | number
@@ -45950,6 +45984,7 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     chainId?: IntFieldUpdateOperationsInput | number
     smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    signerAddress?: NullableStringFieldUpdateOperationsInput | string | null
     baseAsset?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
     availableBalance?: IntFieldUpdateOperationsInput | number
@@ -48227,6 +48262,7 @@ export namespace Prisma {
     userId?: SortOrder
     chainId?: SortOrder
     smartAccountAddress?: SortOrder
+    signerAddress?: SortOrder
     baseAsset?: SortOrder
     status?: SortOrder
     availableBalance?: SortOrder
@@ -48252,6 +48288,7 @@ export namespace Prisma {
     userId?: SortOrder
     chainId?: SortOrder
     smartAccountAddress?: SortOrder
+    signerAddress?: SortOrder
     baseAsset?: SortOrder
     status?: SortOrder
     availableBalance?: SortOrder
@@ -48268,6 +48305,7 @@ export namespace Prisma {
     userId?: SortOrder
     chainId?: SortOrder
     smartAccountAddress?: SortOrder
+    signerAddress?: SortOrder
     baseAsset?: SortOrder
     status?: SortOrder
     availableBalance?: SortOrder
@@ -51255,6 +51293,7 @@ export namespace Prisma {
     id?: string
     chainId?: number
     smartAccountAddress: string
+    signerAddress?: string | null
     baseAsset?: string
     status?: string
     availableBalance?: number
@@ -51273,6 +51312,7 @@ export namespace Prisma {
     id?: string
     chainId?: number
     smartAccountAddress: string
+    signerAddress?: string | null
     baseAsset?: string
     status?: string
     availableBalance?: number
@@ -51712,6 +51752,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     chainId?: IntFieldUpdateOperationsInput | number
     smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    signerAddress?: NullableStringFieldUpdateOperationsInput | string | null
     baseAsset?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
     availableBalance?: IntFieldUpdateOperationsInput | number
@@ -51730,6 +51771,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     chainId?: IntFieldUpdateOperationsInput | number
     smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    signerAddress?: NullableStringFieldUpdateOperationsInput | string | null
     baseAsset?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
     availableBalance?: IntFieldUpdateOperationsInput | number
@@ -55948,6 +55990,7 @@ export namespace Prisma {
     id?: string
     chainId?: number
     smartAccountAddress: string
+    signerAddress?: string | null
     baseAsset?: string
     status?: string
     availableBalance?: number
@@ -55967,6 +56010,7 @@ export namespace Prisma {
     userId: string
     chainId?: number
     smartAccountAddress: string
+    signerAddress?: string | null
     baseAsset?: string
     status?: string
     availableBalance?: number
@@ -56133,6 +56177,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     chainId?: IntFieldUpdateOperationsInput | number
     smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    signerAddress?: NullableStringFieldUpdateOperationsInput | string | null
     baseAsset?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
     availableBalance?: IntFieldUpdateOperationsInput | number
@@ -56152,6 +56197,7 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     chainId?: IntFieldUpdateOperationsInput | number
     smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    signerAddress?: NullableStringFieldUpdateOperationsInput | string | null
     baseAsset?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
     availableBalance?: IntFieldUpdateOperationsInput | number
@@ -56252,6 +56298,7 @@ export namespace Prisma {
     id?: string
     chainId?: number
     smartAccountAddress: string
+    signerAddress?: string | null
     baseAsset?: string
     status?: string
     availableBalance?: number
@@ -56271,6 +56318,7 @@ export namespace Prisma {
     userId: string
     chainId?: number
     smartAccountAddress: string
+    signerAddress?: string | null
     baseAsset?: string
     status?: string
     availableBalance?: number
@@ -56384,6 +56432,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     chainId?: IntFieldUpdateOperationsInput | number
     smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    signerAddress?: NullableStringFieldUpdateOperationsInput | string | null
     baseAsset?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
     availableBalance?: IntFieldUpdateOperationsInput | number
@@ -56403,6 +56452,7 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     chainId?: IntFieldUpdateOperationsInput | number
     smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    signerAddress?: NullableStringFieldUpdateOperationsInput | string | null
     baseAsset?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
     availableBalance?: IntFieldUpdateOperationsInput | number
@@ -56501,6 +56551,7 @@ export namespace Prisma {
     id?: string
     chainId?: number
     smartAccountAddress: string
+    signerAddress?: string | null
     baseAsset?: string
     status?: string
     availableBalance?: number
@@ -56520,6 +56571,7 @@ export namespace Prisma {
     userId: string
     chainId?: number
     smartAccountAddress: string
+    signerAddress?: string | null
     baseAsset?: string
     status?: string
     availableBalance?: number
@@ -56594,6 +56646,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     chainId?: IntFieldUpdateOperationsInput | number
     smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    signerAddress?: NullableStringFieldUpdateOperationsInput | string | null
     baseAsset?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
     availableBalance?: IntFieldUpdateOperationsInput | number
@@ -56613,6 +56666,7 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     chainId?: IntFieldUpdateOperationsInput | number
     smartAccountAddress?: StringFieldUpdateOperationsInput | string
+    signerAddress?: NullableStringFieldUpdateOperationsInput | string | null
     baseAsset?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
     availableBalance?: IntFieldUpdateOperationsInput | number

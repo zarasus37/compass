@@ -52,6 +52,13 @@ export interface VaultAccount {
   userId: string;
   chainId: number;
   smartAccountAddress: Address;
+  /**
+   * Phase 4.0 (M1) — the EOA that owns the deployed Safe.
+   * Set during the [DEPLOY] flow. Null until the user has
+   * deployed a real Safe (i.e. the `smartAccountAddress` is
+   * still the MOCK literal).
+   */
+  signerAddress?: Address;
   baseAsset: VaultAsset;
   status: VaultAccountStatus;
   /** Total reserves held for scheduled obligations (cents). */
