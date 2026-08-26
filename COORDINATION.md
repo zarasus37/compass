@@ -734,7 +734,80 @@ The other dashboard widgets (period, envelopes, bills, allocation, insights) sti
 
 **Open items (next clusters):**
 - **Cluster 5.2.6 — Widget switch (IN PROGRESS, 3/6 widgets done)**: flip the existing dashboard widgets (period, envelopes, bills, allocation, insights) from the in-memory seed to the production tables. **Done in this session**: recurring/bills (36/36 smoke), envelopes (29/29), goals (28/28). **Remaining**: allocation, insights, accounts. The pattern is established: (1) add `source` field to the model + push schema; (2) add a one-time seeder with `source: "seed"`; (3) add `liveXFromDb(userId)` in `src/lib/mock.ts`; (4) flip the page's read; (5) write a smoke. See COORDINATION.md "Last update" + the three new seeders for the contract.
-- **Cluster 5.3 — Ongoing advisor (Ollama)**: post-onboarding "ask me anything about your money" surface. Same `callAgent` interface, different provider. Privacy-first + free + local. A new `/api/advisor/run` endpoint + a side-drawer on the dashboard that shows recent questions.
+
+---
+
+## HANDOFF — Cluster 5.2.6 widgets 4-6 (allocation, insights, accounts)
+
+**Picked up by**: next fresh session. Read this section + COORDINATION.md "Last update" + the three existing seeders as templates.
+
+**State at handoff** (commit `c45c291`):
+- Widgets 1-3 (recurring/bills, envelopes, goals) are DONE, committed, smokes green.
+- `tsc --noEmit` clean. Adjacent smokes (reset-seed 8/8, deprecated 42/42, onboarding-agent 97/97) all green.
+- Dev server on 127.0.0.1:3000. Restart pattern after any schema change: `Stop-Process -Id <pid>; cd <workspace>; npx next dev -p 3000` (background). **Always restart after `npx prisma generate`** — Next.js caches the generated client at the module-graph level, not source-file level (HMR alone isn't enough).
+
+### The 8-step pattern (do this for every widget)
+
+1. **Schema** — add the `source` field to the model (e.g. `source String @default("seed")`) if not present. **Check first** whether the model has the `user` back-relation: open `prisma/schema.prisma` and look for `user User @relation(fields: [userId], references: [id], onDelete: Cascade)` on the model. **If it's missing, add it FIRST** — both on the model and on the User model (`bills Bill[]`, `envelopes Envelope[]`, `goals Goal[]`, `allocationPlans AllocationPlan[]`, etc.). Missing cascade-delete leaves orphan rows after user-delete test runs, which crash the new seeder with P2002 unique-constraint violations on `id`. Reference: the `Bill` and `Goal` models had this bug; Account and Envelope didn't. Then add an index like `@@index([userId, source])` if you'll be filtering on `source`.
+2. **Push** — `npx prisma db push` (no migration file is the project pattern). Then `npx prisma generate`. Then **restart the dev server**.
+3. **Seeder** — create `src/lib/seed-<model>.ts` exporting `ensureUser<X>Seeded(userId): Promise<{ seeded, version, alreadyHadSeed }>`. Idempotent: count check, then `deleteMany({ where: { userId, source: "seed" } })` + `createMany({ data: <SEED>.map(...) })`. Use the in-memory seed's stable id (e.g. `"env-rent"`, `"bill-rent"`, `"goal-emergency"`, `"plan-default"`) so the UI's `b.id === "env-rent"` key keeps working without a mapping layer. Bump a `<MODEL>_SEED_VERSION` constant if you ever change the canonical seed.
+4. **Read function** — add `liveXFromDb(userId)` in `src/lib/mock.ts` that calls the seeder, then `prisma.<model>.findMany({ where: { userId, isArchived: false }, orderBy: { sortOrder: "asc" } })`, maps the rows to the legacy display shape. Return a plain object array (not Promise) is fine — the call sites `await` it.
+5. **Page switch** — make the page `async`, add `await requireUser()` at the top, replace `const X = liveX()` with `const X = await liveXFromDb(user.id)`. Add `user.id` to every call site that needs it. Make sure the page's component subroutines (BillsTab, EnvelopeDetail, etc.) are also `async` if they call other async functions.
+6. **Consumer widening** — viz components that take `planet: PlanetId` (non-null) may need to be widened to `planet: PlanetId | null` (the DB schema allows null for custom envelopes/goals). Pattern: `planet: PlanetId | null` on the prop type, and `planet ? PLANET_COLORS[planet] : "var(--ink-3)"` on the color lookup. Real examples: `EnvelopeMiniBar.tsx`, `GoalSparkline.tsx`.
+7. **Reset endpoint** — `src/app/api/reset-seed/route.ts` already calls `resetUserEnvelopesToSeed`, `ensureUserBillsSeeded`, `ensureUserGoalsSeeded`. Add the new seeder's call in the same order: envelopes → bills → goals → (new).
+8. **Smoke** — write `tests/smoke-<widget>-db.mjs` that: logs in as `mom@compass.local` / `correct-horse-battery-staple`, posts to `/api/reset-seed`, queries Prisma directly to verify the rows, hits the page and checks the right text appears, and (if there's a write path) does a round-trip via direct DB write + page re-render. Use the `PrismaBetterSqlite3` adapter pattern from `tests/smoke-onboarding-agent.mjs:65-76` for direct DB queries from the smoke. The smoke can clean up `source="user"` rows from previous runs at the top (`prisma.<model>.deleteMany({ where: { userId: { not: "" }, source: "user" } })`) for idempotency.
+
+**Gotchas** (from the 3 widgets just done):
+- The first `prisma.bill.createMany` after a fresh user delete+recreate crashed with P2002 because of orphan Bill rows with `id="bill-rent"` etc. from a previous test run. The `user` back-relation + `onDelete: Cascade` fixes future orphans. For one-time cleanup of existing orphans, write a `_cleanup_orphans.mjs` script that finds rows whose `userId` is not in `prisma.user.findMany()` and `prisma.<model>.deleteMany({ where: { userId: { in: orphans } } })` wipes them.
+- The `setBillPaid` action is `useTransition` + `useOptimistic` (programmatic `await toggleBillPaid(null, fd)`), not a `<form action={...}>` — so smoke tests can't trivially exercise it via form POST + `$ACTION_ID`. Pattern: write to Prisma directly in the smoke (mimics what the action does), then re-render the page to verify the read picks it up. The new-bill form on `/recurring/new` is the opposite — it's a `useActionState` form, so the smoke can extract the action id by scoping to the form around the "Add this bill" button (`formStart = lastIndexOf("<form", addBtnIdx)`), not the page-level first `$ACTION_ID` (which is the engine-pill action).
+- The first HTML-escaped JSON in the page (`&quot;id&quot;:&quot;[hex]&quot;`) is often the engine-pill action, not the new-bill form's action. Scope your extraction to the specific form to avoid triggering the wrong action.
+
+### Widget #4: /allocation (allocation)
+
+- **Models**: `AllocationPlan` + `AllocationRule` (already in `prisma/schema.prisma` lines 297-337). Both have `userId` but check the `user` back-relation + `onDelete: Cascade`. If missing, add `user User @relation(...)` to both models and `allocationPlans AllocationPlan[]` + the implicit `allocationRules` (not on User) to the User model.
+- **Source field**: add `source String @default("seed")` to both models.
+- **Seeder**: `src/lib/seed-allocation.ts`. The in-memory seed is `ALLOCATION_PLAN_SEED` in `src/lib/mock-seed.ts:344-359` — a single plan with 7 rules. Insert order: (a) `prisma.allocationPlan.create({ data: { id: "plan-default", userId, strategy: "envelope", isArmed: true, source: "seed" } })` (note: the seeder needs to use explicit id + return the plan; `createMany` doesn't return ids). (b) Then `prisma.allocationRule.createMany({ data: ALLOCATION_PLAN_SEED.rules.map(r => ({ id: r.id, planId: "plan-default", envelopeId: r.envelopeId, mode: r.mode, value: r.value, sortOrder: r.priority, source: "seed" })) })`. The `mode` enum ("percent" | "fixed" | "remainder") is stored as a String column. The `value` is the percent (0-100) or cents.
+- **Read**: `livePlanFromDb(userId)` in `src/lib/mock.ts`. Lazy seed → `prisma.allocationPlan.findFirst({ where: { userId, isArmed: true } })` (there's typically one armed plan) → map to the `AllocationPlan` shape (with `rules: prisma.allocationRule.findMany({ where: { planId: plan.id }, orderBy: { sortOrder: "asc" } })`). The legacy shape is `{ id, strategy, isArmed, rules: [{ id, envelopeId, mode, value, priority }] }`. The DB shape has `sortOrder` (1-7) which is the same as `priority`.
+- **Page**: `src/app/(app)/allocation/page.tsx` uses `livePlan()`. Switch to `await livePlanFromDb(user.id)` (the page is likely already async or easily made async). The Sankey reads from `livePlan()` + `liveEnvelopes()` — both should be from DB by the time /allocation is wired.
+- **Smoke**: verify the 1 AllocationPlan + 7 AllocationRule rows in the DB, the strategy is "envelope" + isArmed, the rules have the right envelopeIds + percents summing to ≤100. Hit /allocation and verify the Sankey renders.
+
+### Widget #5: /insights (insights)
+
+- **Models**: composite page — reads from `Envelopes`, `Goals`, `Transactions`, `Snapshots`. All of these are already migrated (Goals/Envelopes in widgets 2-3; Transactions still in-memory; Snapshot is a derived view).
+- **Schema**: no new fields. **But** the `Transaction` model is still in-memory. The /insights page likely uses `liveTransactions()` which reads from the in-memory store. The widget switch is OK to skip `liveTransactions` for now (the page will use a hybrid: DB for the migrated widgets, in-memory for Transactions). Note this in the commit message.
+- **Source field**: none added.
+- **Seeder**: none. The page just reads from the already-migrated sources via `liveEnvelopesFromDb`, `liveGoalsFromDb`. The Transaction read can stay in-memory for v1.
+- **Read**: no new function. The page's existing imports change: `liveEnvelopes` → `liveEnvelopesFromDb` (await), `liveGoals` → `liveGoalsFromDb` (await), `liveTransactions` stays.
+- **Page**: `src/app/(app)/insights/page.tsx`. Likely needs to be made async if not already. Replace the live* calls with the FromDb versions. Widen any consumer prop types (planet: PlanetId → PlanetId | null on viz components used here).
+- **Smoke**: hit /insights and verify the page renders with the new DB-driven data. Look for known text from each migrated widget (envelope names, goal names) in the HTML. The page already has smokes (`smoke-insights.mjs`?), check before adding.
+
+### Widget #6: /accounts (accounts)
+
+- **Model**: `Account` in `prisma/schema.prisma:115-138`. Already has `user` relation + `onDelete: Cascade` (line 133). Just needs `source` field added.
+- **Source field**: add `source String @default("seed")` to `Account`.
+- **Seeder**: `src/lib/seed-accounts.ts`. The in-memory seed is `ACCOUNT_SEED` in `src/lib/mock-seed.ts:206-213` — ONE canonical account (acct-chase). The seeder inserts that one row with `source="seed"`. The projection (`src/lib/onboarding/projection.ts`) already inserts `[identity] ` prefixed accounts with `source: "identity"` so those coexist. **Be careful with the `currentBalance`** — the seed has 8_421_000 cents ($84,210) but the projection stores `0` (the per-period amount lives in PaySchedule, a future cluster). The seeder uses 8_421_000 to match the in-memory BILLS_SEED's display.
+- **Read**: `liveAccountFromDb(userId)` in `src/lib/mock.ts`. The legacy shape is `{ id, name, mask, institution, type, balanceCents }` (single account, not array). Lazy seed → `prisma.account.findFirst({ where: { userId, type: "checking", isArchived: false, source: "seed" } })` (or the first account) → map.
+- **Page**: `src/app/(app)/accounts/page.tsx` uses `liveAccount()`. Switch to `await liveAccountFromDb(user.id)`. The page also surfaces the projection's `[identity] ` accounts — those are separate rows. The page may want both lists (canonical + projected). If so, the read function should return both via `findMany`.
+- **Smoke**: verify the 1 seed Account row in the DB, hit /accounts, verify the account name + balance renders.
+
+### When all 6 widgets are done
+
+1. Update COORDINATION.md "Last update" line to call out all 6 widgets done with smoke counts.
+2. Update "Open items" to mark Cluster 5.2.6 as ✅ DONE.
+3. Commit with a message like "Cluster 5.2.6 — Widget switch complete (all 6 widgets on Prisma)".
+4. Update the bottom-dock / vault smokes if they touch any migrated read (they don't currently read from any of the migrated tables directly).
+5. Run **all** smokes and confirm green: `node tests/smoke-auth.mjs` (pre-existing fail), `smoke-bills-db.mjs`, `smoke-envelopes-db.mjs`, `smoke-goals-db.mjs`, `smoke-allocation-db.mjs` (new), `smoke-insights-db.mjs` (new), `smoke-accounts-db.mjs` (new), `smoke-reset-seed.mjs`, `smoke-deprecated.mjs`, `smoke-onboarding-agent.mjs`, plus the 8 visual smokes (alert-bay, bottom-dock, engine-toggle, glossary, horizon-strip, period, sidebar, topbar, vessel-feed, visual-finish). If any regress, fix in the same session before handing back.
+6. Hand back to xKryptic with the commit hash + a "Cluster 5.2.6 complete" summary.
+
+### Reference files (the templates)
+
+- **Best template for a 1-table seeder**: `src/lib/seed-bills.ts` (BILLS_SEED → Bill rows, simple flat insert).
+- **Best template for a model with `kind` + `goalType` enums**: `src/lib/seed-goals.ts` (maps in-memory `GoalKindSeed` / `GoalTypeSeed` to the Prisma `GoalKind` / `GoalType` enums — the string values are identical so the mapping is identity).
+- **Best template for an existing seeder that needed the `source` field added**: `ensureUserEnvelopesSeeded` + `resetUserEnvelopesToSeed` in `src/lib/store.ts` (the seed function was already there from Cluster 3.0; widget #2 just added the `source: "seed"` line to both createMany data blocks).
+- **Best template for a page switch**: `src/app/(app)/goals/page.tsx` (made async, added `await requireUser()`, swapped `liveGoals()` → `await liveGoalsFromDb(user.id)`, filtered to non-null planet + targetDate for the trajectory).
+- **Best template for a smoke**: `tests/smoke-goals-db.mjs` (login, reset, query Prisma, hit page, deep-link filter, DB-write → re-render round trip).
+
+### Cluster 5.3 — Ongoing advisor (Ollama)
 
 ### Cluster 2 (after Cluster 2.0)
 
