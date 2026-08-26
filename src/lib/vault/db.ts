@@ -232,6 +232,175 @@ export async function updateBillStatus(
 }
 
 // ──────────────────────────────────────────────────────────────────────
+// Phase 3.5 — Per-bill editor (add / update / delete)
+//
+// The user becomes the source of truth for their bills: the
+// canonical seed from the live envelopes still runs (idempotent),
+// but new bills (source="user") can be added, edited, and
+// removed via the /vault page. State changes (status transitions
+// through the 13-state machine) continue to go through
+// `transitionBillDb` / `transitionBillServerAction`.
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Create a new bill on the user's vault. The new row gets
+ * `source: "user"` (so the seed pass won't overwrite it on the
+ * next sync) and starts in `FUNDED` status. Returns the new
+ * bill in the domain shape.
+ *
+ * The caller (server action) is responsible for:
+ *  - Computing `executionWindowStart` / `executionWindowEnd` from
+ *    the due date + the window constants
+ *  - Picking `maxAuthorizedAmount` (the seed uses 5% headroom)
+ *  - Resolving `envelopeId` from the compassEnvelopeId the user
+ *    picked on the form
+ */
+export async function createBill(args: {
+  userId: string;
+  vaultId: string;
+  envelopeId: string;
+  billerName: string;
+  billerId: string;
+  maskedAccountNumber: string;
+  amount: number;
+  maxAuthorizedAmount: number;
+  frequency: BillFrequency;
+  dueDate: Date;
+  executionWindowStart: Date;
+  executionWindowEnd: Date;
+  providerPreference?: string;
+}): Promise<ScheduledBill> {
+  const row = await prisma.scheduledBill.create({
+    data: {
+      vaultId: args.vaultId,
+      envelopeId: args.envelopeId,
+      billerName: args.billerName,
+      billerId: args.billerId,
+      maskedAccountNumber: args.maskedAccountNumber,
+      amount: args.amount,
+      maxAuthorizedAmount: args.maxAuthorizedAmount,
+      currency: "USD",
+      frequency: args.frequency,
+      dueDate: args.dueDate,
+      executionWindowStart: args.executionWindowStart,
+      executionWindowEnd: args.executionWindowEnd,
+      status: "FUNDED",
+      providerPreference: args.providerPreference ?? null,
+      source: "user",
+    },
+  });
+  await recordVaultAudit({
+    userId: args.userId,
+    actionType: "vault.bill_added",
+    payload: {
+      billId: row.id,
+      billerName: args.billerName,
+      amount: args.amount,
+      frequency: args.frequency,
+      dueDate: args.dueDate.toISOString(),
+      envelopeId: args.envelopeId,
+    },
+  });
+  return toScheduledBill(row);
+}
+
+/**
+ * Update a bill's metadata. Status changes are NOT allowed here
+ * — those go through `transitionBillDb` (the 13-state machine).
+ * Returns the updated bill. Throws on not-found.
+ */
+export async function updateBillMetadata(
+  userId: string,
+  billId: string,
+  patch: {
+    billerName?: string;
+    amount?: number;
+    maxAuthorizedAmount?: number;
+    frequency?: BillFrequency;
+    dueDate?: Date;
+    executionWindowStart?: Date;
+    executionWindowEnd?: Date;
+    providerPreference?: string | null;
+  },
+): Promise<ScheduledBill> {
+  const before = await prisma.scheduledBill.findUnique({
+    where: { id: billId },
+  });
+  if (!before) {
+    throw new Error(`bill not found: ${billId}`);
+  }
+  const row = await prisma.scheduledBill.update({
+    where: { id: billId },
+    data: {
+      billerName: patch.billerName ?? undefined,
+      amount: patch.amount ?? undefined,
+      maxAuthorizedAmount: patch.maxAuthorizedAmount ?? undefined,
+      frequency: patch.frequency ?? undefined,
+      dueDate: patch.dueDate ?? undefined,
+      executionWindowStart: patch.executionWindowStart ?? undefined,
+      executionWindowEnd: patch.executionWindowEnd ?? undefined,
+      providerPreference:
+        patch.providerPreference === undefined
+          ? undefined
+          : patch.providerPreference,
+      updatedAt: new Date(),
+    },
+  });
+  // Audit log: capture the diff. The fields we send are only
+  // those the caller changed (TS undefined → not in the patch).
+  const changed: Record<string, { from: unknown; to: unknown }> = {};
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === undefined) continue;
+    const beforeVal = (before as unknown as Record<string, unknown>)[k];
+    if (beforeVal instanceof Date) {
+      const beforeIso = beforeVal.toISOString();
+      const toIso = v instanceof Date ? v.toISOString() : v;
+      if (beforeIso !== toIso) {
+        changed[k] = { from: beforeIso, to: toIso };
+      }
+    } else if (beforeVal !== v) {
+      changed[k] = { from: beforeVal, to: v };
+    }
+  }
+  await recordVaultAudit({
+    userId,
+    actionType: "vault.bill_updated",
+    payload: { billId, billerName: row.billerName, changed },
+  });
+  return toScheduledBill(row);
+}
+
+/**
+ * Hard-delete a bill. The audit log captures the deletion.
+ * Soft-delete (an `isArchived` flag) is Phase 4 work — for now
+ * the bill is removed from the vault. The seed pass won't
+ * recreate it (it only runs for `source: "seed"` bills).
+ */
+export async function deleteBill(
+  userId: string,
+  billId: string,
+): Promise<void> {
+  const before = await prisma.scheduledBill.findUnique({
+    where: { id: billId },
+  });
+  if (!before) {
+    throw new Error(`bill not found: ${billId}`);
+  }
+  await prisma.scheduledBill.delete({ where: { id: billId } });
+  await recordVaultAudit({
+    userId,
+    actionType: "vault.bill_deleted",
+    payload: {
+      billId,
+      billerName: before.billerName,
+      amount: before.amount,
+      frequency: before.frequency,
+      source: before.source,
+    },
+  });
+}
+
+// ──────────────────────────────────────────────────────────────────────
 // Yield events (append-only)
 // ──────────────────────────────────────────────────────────────────────
 
@@ -397,7 +566,10 @@ export async function recordVaultAudit(args: {
     | "vault.resumed"
     | "vault.apy_refreshed"
     | "vault.apy_refresh_failed"
-    | "vault.yield_routed";
+    | "vault.yield_routed"
+    | "vault.bill_added"
+    | "vault.bill_updated"
+    | "vault.bill_deleted";
   payload: unknown;
 }): Promise<void> {
   await prisma.auditLog.create({
@@ -1107,6 +1279,7 @@ function toScheduledBill(row: {
   lastAttemptAt: Date | null;
   settlementReference: string | null;
   appliedYieldCents: number;
+  source: string;
   createdAt: Date;
   updatedAt: Date;
 }): ScheduledBill {
@@ -1131,6 +1304,7 @@ function toScheduledBill(row: {
       : undefined,
     settlementReference: row.settlementReference ?? undefined,
     appliedYieldCents: row.appliedYieldCents ?? 0,
+    source: (row.source ?? "seed") as "seed" | "user",
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

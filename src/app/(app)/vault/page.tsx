@@ -1,10 +1,10 @@
 import * as React from "react";
 import { PageHead } from "@/components/alchemy/PageHead";
+import { SectionHeader } from "@/components/alchemy/SectionHeader";
 import { formatMoney, formatMoneySigned } from "@/lib/money";
 import { loadCurrentVaultSnapshot } from "@/lib/vault/server";
-import { userLabel, type BillTone } from "@/lib/vault/state-machine";
+import { userLabel } from "@/lib/vault/state-machine";
 import type {
-  ScheduledBill,
   VaultAlertState,
   VaultEnvelope,
   YieldEvent,
@@ -14,7 +14,7 @@ import type {
 import { formatShortDate } from "@/lib/format";
 import { SyncButton } from "@/components/vault/SyncButton";
 import { YieldRoutingPicker } from "@/components/vault/YieldRoutingPicker";
-import { BillTransitionMenu } from "@/components/vault/BillTransitionMenu";
+import { BillScheduleClient } from "@/components/vault/BillScheduleClient";
 import { RiskAckButton } from "@/components/vault/RiskAckButton";
 import { RefreshApyButton } from "@/components/vault/RefreshApyButton";
 import { VaultPauseToggle } from "@/components/vault/VaultPauseToggle";
@@ -87,7 +87,7 @@ export default async function VaultPage() {
 
       <StatusStrip snap={snap} />
 
-      <BillSchedule bills={snap.bills} />
+      <BillScheduleClient bills={snap.bills} envelopes={snap.envelopes} />
 
       <YieldAttribution
         envelopes={snap.envelopes}
@@ -586,201 +586,11 @@ function KpiCell({
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// 4. Bill schedule
+// 4. Bill schedule — moved to <BillScheduleClient> in Phase 3.5
+//    (client island; the Add/Edit/Delete affordances need shared
+//    state across the rows and the editor modal, which only a
+//    client component can give us).
 // ──────────────────────────────────────────────────────────────────────
-
-function BillSchedule({ bills }: { bills: ScheduledBill[] }) {
-  const sorted = [...bills].sort((a, b) => {
-    if (a.status === "SETTLED" && b.status !== "SETTLED") return 1;
-    if (a.status !== "SETTLED" && b.status === "SETTLED") return -1;
-    return (
-      new Date(a.executionWindowStart).getTime() -
-      new Date(b.executionWindowStart).getTime()
-    );
-  });
-  return (
-    <section style={{ marginBottom: 48 }}>
-      <SectionHeader
-        eyebrow="// bills · scheduled"
-        title="Scheduled bills"
-        em="the queue your vault is working through."
-        accent="cyan"
-      />
-      <div
-        style={{
-          background: "var(--surface)",
-          border: "1px solid var(--line)",
-          borderRadius: 2,
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1.4fr 0.7fr 0.9fr 1fr 0.9fr 0.9fr",
-            alignItems: "center",
-            padding: "10px 24px",
-            background: "var(--vessel-surface)",
-            borderBottom: "1px solid var(--line)",
-            fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 9.5,
-            fontWeight: 600,
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-            color: "var(--ink-3)",
-          }}
-        >
-          <div>biller</div>
-          <div style={{ textAlign: "right" }}>amount</div>
-          <div style={{ textAlign: "right" }}>due</div>
-          <div>execution window</div>
-          <div>status</div>
-          <div style={{ textAlign: "right" }}>provider</div>
-        </div>
-        {sorted.map((b, i) => (
-          <BillRow key={b.id} bill={b} isLast={i === sorted.length - 1} />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function BillRow({ bill, isLast }: { bill: ScheduledBill; isLast: boolean }) {
-  const label = userLabel(bill.status);
-  const billTone = toneForBadge(bill.status);
-  return (
-    <div
-      data-testid={`vault-bill-row-${bill.id}`}
-      style={{
-        padding: "14px 24px 8px",
-        borderBottom: isLast ? "none" : "1px solid var(--line-soft)",
-      }}
-    >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1.4fr 0.7fr 0.9fr 1fr 0.9fr 0.9fr",
-          alignItems: "center",
-          gap: 20,
-        }}
-      >
-        <div>
-          <div
-            style={{
-              fontFamily: "var(--font-sora)",
-              fontSize: 15,
-              fontWeight: 500,
-              color: "var(--ink)",
-              lineHeight: 1.2,
-            }}
-          >
-            {bill.billerName}
-          </div>
-          <div
-            style={{
-              fontFamily: "var(--font-jetbrains), monospace",
-              fontSize: 10.5,
-              color: "var(--ink-3)",
-              marginTop: 3,
-              letterSpacing: "0.04em",
-            }}
-          >
-            {bill.maskedAccountNumber} · {bill.frequency}
-          </div>
-        </div>
-        <div
-          style={{
-            fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 14,
-            color: "var(--ink)",
-            textAlign: "right",
-            fontFeatureSettings: '"tnum" 1, "zero" 1',
-            fontWeight: 500,
-          }}
-        >
-          {formatMoney(bill.amount)}
-        </div>
-        <div
-          style={{
-            fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 12,
-            color: "var(--ink-2)",
-            textAlign: "right",
-          }}
-        >
-          {formatShortDate(bill.dueDate)}
-        </div>
-        <div
-          style={{
-            fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 10.5,
-            color: "var(--ink-3)",
-            letterSpacing: "0.04em",
-          }}
-        >
-          {formatShortDate(bill.executionWindowStart)} →{" "}
-          {formatShortDate(bill.executionWindowEnd)}
-        </div>
-        <div>
-          <StatusBadge label={label} tone={billTone} />
-        </div>
-        <div
-          style={{
-            fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 10.5,
-            color: "var(--ink-3)",
-            textAlign: "right",
-            letterSpacing: "0.04em",
-          }}
-        >
-          {bill.providerPreference ?? "auto"}
-        </div>
-      </div>
-      <BillTransitionMenu billId={bill.id} status={bill.status} />
-    </div>
-  );
-}
-
-function StatusBadge({ label, tone }: { label: string; tone: BillTone }) {
-  const color =
-    tone === "ok"
-      ? "var(--ok)"
-      : tone === "warn"
-        ? "var(--warn)"
-        : tone === "cyan"
-          ? "var(--terminal-cyan)"
-          : "var(--ink-3)";
-  const marker =
-    tone === "ok"
-      ? "[OK]"
-      : tone === "warn"
-        ? "[WARN]"
-        : tone === "cyan"
-          ? "[SIGIL]"
-          : "[—]";
-  return (
-    <span
-      data-testid="vault-bill-badge"
-      data-status-label={label}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        fontFamily: "var(--font-jetbrains), monospace",
-        fontSize: 10,
-        fontWeight: 700,
-        letterSpacing: "0.18em",
-        textTransform: "uppercase",
-        color,
-        border: `1px solid ${color}`,
-        padding: "3px 7px",
-        borderRadius: 2,
-      }}
-    >
-      {marker} {label}
-    </span>
-  );
-}
 
 // ──────────────────────────────────────────────────────────────────────
 // 5. Yield attribution
@@ -1292,92 +1102,11 @@ function AuditFooter({
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// Section header — consistent eyebrow + title + em tail.
+// Section header — moved to <SectionHeader> in
+// src/components/alchemy/SectionHeader.tsx in Phase 3.5. The
+// page now imports it from there (one source of truth, used by
+// the new client islands too).
 // ──────────────────────────────────────────────────────────────────────
-
-function SectionHeader({
-  eyebrow,
-  title,
-  em,
-  accent,
-}: {
-  eyebrow: string;
-  title: string;
-  em: string;
-  accent: "cyan" | "gold" | "mercury" | "jupiter";
-}) {
-  const color =
-    accent === "gold"
-      ? "var(--gold)"
-      : accent === "mercury"
-        ? "var(--mercury)"
-        : accent === "jupiter"
-          ? "var(--jupiter)"
-          : "var(--terminal-cyan)";
-  const eyebrowParts = eyebrow.match(/^(\/\/)\s*(.*)$/);
-  const eyebrowPrefix = eyebrowParts?.[1] ?? "//";
-  const eyebrowRest = eyebrowParts?.[2] ?? "";
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "space-between",
-        marginBottom: 16,
-        paddingBottom: 12,
-        borderBottom: "1px solid var(--line)",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-        <span
-          style={{
-            fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 9.5,
-            fontWeight: 600,
-            color,
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-          }}
-        >
-          <span style={{ color: "var(--ink-4)" }}>{eyebrowPrefix}</span>{" "}
-          {eyebrowRest}
-        </span>
-        <h2
-          style={{
-            fontFamily: "var(--font-sora)",
-            fontWeight: 600,
-            fontSize: 22,
-            margin: 0,
-            color: "var(--ink)",
-            letterSpacing: "-0.01em",
-          }}
-        >
-          {title}
-        </h2>
-        <span
-          style={{
-            fontFamily: "var(--font-sora)",
-            fontWeight: 400,
-            fontSize: 14,
-            color: "var(--ink-3)",
-          }}
-        >
-          {em}
-        </span>
-      </div>
-      <span
-        aria-hidden
-        style={{
-          display: "inline-block",
-          width: 60,
-          height: 1,
-          background: color,
-          boxShadow: `0 0 8px ${color}`,
-        }}
-      />
-    </div>
-  );
-}
 
 // ──────────────────────────────────────────────────────────────────────
 // Vault status chip — small badge next to the page title.
@@ -1448,25 +1177,6 @@ function SourceChip({ source }: { source: "db" | "empty" }) {
   );
 }
 
-function toneForBadge(status: ScheduledBill["status"]): BillTone {
-  switch (status) {
-    case "SETTLED":
-      return "ok";
-    case "INSUFFICIENT_FUNDS":
-    case "MANUAL_ACTION_REQUIRED":
-    case "FAILED_RETRYABLE":
-    case "FAILED_FINAL":
-    case "REQUIRES_REVIEW":
-      return "warn";
-    case "DRAFT":
-    case "FUNDED":
-    case "EARNING":
-    case "PREPARING_SETTLEMENT":
-    case "EXECUTING":
-      return "cyan";
-    case "PAUSED":
-    case "CANCELLED":
-    default:
-      return "ink";
-  }
-}
+// (Local `toneForBadge` removed in Phase 3.5; the client island
+// (<BillScheduleClient>) imports the same `tone` function from
+// the state machine directly.)

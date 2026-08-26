@@ -199,6 +199,13 @@ export interface ScheduledBill {
    * not a principal draw.
    */
   appliedYieldCents?: number;
+  /**
+   * Phase 3.5 — `seed` (migrated by the canonical seed pass from
+   * `liveBills()`) or `user` (added via the vault's per-bill
+   * editor). The seed pass only writes `source: "seed"` rows, so
+   * user-added bills survive a re-sync.
+   */
+  source?: "seed" | "user";
   createdAt: string;
   updatedAt: string;
 }

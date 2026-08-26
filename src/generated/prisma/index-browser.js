@@ -357,7 +357,11 @@ exports.Prisma.IdentityAssetScalarFieldEnum = {
   kind: 'kind',
   balanceDollars: 'balanceDollars',
   sortOrder: 'sortOrder',
-  createdAt: 'createdAt'
+  createdAt: 'createdAt',
+  employerMatchPercent: 'employerMatchPercent',
+  vestingYears: 'vestingYears',
+  fundChoices: 'fundChoices',
+  expenseRatioPct: 'expenseRatioPct'
 };
 
 exports.Prisma.IdentityGoalScalarFieldEnum = {
@@ -381,6 +385,16 @@ exports.Prisma.IdentityEventScalarFieldEnum = {
   date: 'date',
   estimatedCostDollars: 'estimatedCostDollars',
   isFlexible: 'isFlexible',
+  sortOrder: 'sortOrder',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.IdentitySpendingHabitScalarFieldEnum = {
+  id: 'id',
+  identityId: 'identityId',
+  category: 'category',
+  habit: 'habit',
+  frequency: 'frequency',
   sortOrder: 'sortOrder',
   createdAt: 'createdAt'
 };
@@ -458,6 +472,8 @@ exports.Prisma.ScheduledBillScalarFieldEnum = {
   providerPreference: 'providerPreference',
   lastAttemptAt: 'lastAttemptAt',
   settlementReference: 'settlementReference',
+  appliedYieldCents: 'appliedYieldCents',
+  source: 'source',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -547,6 +563,7 @@ exports.Prisma.ModelName = {
   IdentityAsset: 'IdentityAsset',
   IdentityGoal: 'IdentityGoal',
   IdentityEvent: 'IdentityEvent',
+  IdentitySpendingHabit: 'IdentitySpendingHabit',
   IdentityHouseholdMember: 'IdentityHouseholdMember',
   OnboardingMessage: 'OnboardingMessage',
   VaultAccount: 'VaultAccount',

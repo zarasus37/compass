@@ -26,6 +26,9 @@ import {
   userHasVaultData,
   refreshVaultAggregates,
   routeYieldForStrategy,
+  createBill,
+  updateBillMetadata,
+  deleteBill,
   USER_FACING_BILL_EVENTS,
   type VaultDbSnapshot,
   type UserFacingBillEvent,
@@ -582,6 +585,284 @@ export async function simulateNextStateAction(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[vault] simulateNextState failed:", message);
+    return { ok: false, error: message };
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Phase 3.5 — Per-bill CRUD server actions
+//
+// The user can add / update / delete their own bills via the
+// /vault page. State transitions (status changes) go through
+// the existing transitionBillServerAction.
+// ──────────────────────────────────────────────────────────────────────
+
+const BILL_FREQUENCIES: ReadonlySet<string> = new Set([
+  "WEEKLY",
+  "MONTHLY",
+  "QUARTERLY",
+  "ANNUALLY",
+  "ONE_TIME",
+]);
+
+interface BillFormFields {
+  billerName: string;
+  amountCents: number;
+  frequency: string;
+  dueDay: number;
+  providerPreference?: string;
+}
+
+/** Validate a bill form payload, return a normalized BillFormFields
+ *  or an error string. */
+function validateBillForm(input: unknown): BillFormFields | string {
+  if (!input || typeof input !== "object") return "form data is required";
+  const o = input as Record<string, unknown>;
+  const billerName =
+    typeof o.billerName === "string" ? o.billerName.trim() : "";
+  if (!billerName) return "biller name is required";
+  if (billerName.length > 80) return "biller name is too long";
+  const amountCents =
+    typeof o.amountCents === "number" ? o.amountCents : NaN;
+  if (!Number.isFinite(amountCents) || amountCents <= 0) {
+    return "amount must be a positive number (cents)";
+  }
+  if (amountCents > 1_000_000_00) return "amount is unreasonably large";
+  const frequency = typeof o.frequency === "string" ? o.frequency : "";
+  if (!BILL_FREQUENCIES.has(frequency)) {
+    return `unknown frequency: ${frequency}`;
+  }
+  const dueDay = typeof o.dueDay === "number" ? o.dueDay : NaN;
+  if (!Number.isFinite(dueDay) || dueDay < 1 || dueDay > 31) {
+    return "due day must be 1-31";
+  }
+  const providerPreference =
+    typeof o.providerPreference === "string" && o.providerPreference
+      ? o.providerPreference
+      : undefined;
+  return { billerName, amountCents, frequency, dueDay, providerPreference };
+}
+
+/** Compute the next due date (and execution window) for a bill
+ *  with the given day-of-month and frequency. The window opens
+ *  3 days before the due date and closes 1 day after. */
+function computeBillSchedule(
+  dueDay: number,
+  frequency: "WEEKLY" | "MONTHLY" | "QUARTERLY" | "ANNUALLY" | "ONE_TIME",
+  now: Date = new Date(),
+): { dueDate: Date; windowStart: Date; windowEnd: Date } {
+  const today = new Date(now);
+  // For monthly+ frequencies, the next due date is the next
+  // occurrence of `dueDay` strictly after today.
+  let candidate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    dueDay,
+    9,
+    0,
+    0,
+    0,
+  );
+  if (candidate.getTime() <= today.getTime()) {
+    if (frequency === "WEEKLY") {
+      candidate = new Date(candidate.getTime() + 7 * 24 * 60 * 60 * 1000);
+    } else if (frequency === "QUARTERLY") {
+      candidate = new Date(today.getFullYear(), today.getMonth() + 3, dueDay);
+    } else if (frequency === "ANNUALLY") {
+      candidate = new Date(today.getFullYear() + 1, today.getMonth(), dueDay);
+    } else {
+      // MONTHLY or ONE_TIME — roll to next month
+      candidate = new Date(
+        today.getFullYear(),
+        today.getMonth() + 1,
+        dueDay,
+        9,
+        0,
+        0,
+        0,
+      );
+    }
+  }
+  const windowStart = new Date(candidate);
+  windowStart.setDate(candidate.getDate() - 3);
+  const windowEnd = new Date(candidate);
+  windowEnd.setDate(candidate.getDate() + 1);
+  return { dueDate: candidate, windowStart, windowEnd };
+}
+
+/** Generate a stable slug for `billerId` (the composite unique
+ *  key) from the biller name. Lowercase, dashes, stripped of
+ *  non-alphanumerics. Appends a 4-char suffix on collision
+ *  (the caller resolves duplicates; this is the happy path). */
+function slugifyBillerId(name: string): string {
+  return (
+    "user-" +
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 32) +
+    "-" +
+    Math.random().toString(36).slice(2, 6)
+  );
+}
+
+/**
+ * Server action: create a new bill. The new bill is `source: "user"`
+ * so the seed pass won't overwrite it. Status starts at `FUNDED`.
+ */
+export async function createBillAction(
+  rawForm: unknown,
+  envelopeId: string,
+): Promise<{ ok: true; billId: string } | { ok: false; error: string }> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  const validated = validateBillForm(rawForm);
+  if (typeof validated === "string") {
+    return { ok: false, error: validated };
+  }
+  const vault = await prisma.vaultAccount.findUnique({
+    where: { userId: user.id },
+  });
+  if (!vault) {
+    return { ok: false, error: "no vault yet — sync first" };
+  }
+  // Verify the envelope belongs to this vault (security: a
+  // crafted envelopeId could otherwise attach a bill to a
+  // different vault's envelope).
+  const envelope = await prisma.vaultEnvelope.findUnique({
+    where: { id: envelopeId },
+  });
+  if (!envelope || envelope.vaultId !== vault.id) {
+    return { ok: false, error: "envelope not found" };
+  }
+  const { dueDate, windowStart, windowEnd } = computeBillSchedule(
+    validated.dueDay,
+    validated.frequency as "WEEKLY" | "MONTHLY" | "QUARTERLY" | "ANNUALLY" | "ONE_TIME",
+  );
+  const maxAuthorized = Math.round(validated.amountCents * 1.05);
+  // Generate a unique billerId (slug). The composite unique on
+  // (vaultId, billerId) would otherwise reject a re-add of the
+  // same name; the random suffix keeps the happy path simple.
+  const billerId = slugifyBillerId(validated.billerName);
+  try {
+    const bill = await createBill({
+      userId: user.id,
+      vaultId: vault.id,
+      envelopeId,
+      billerName: validated.billerName,
+      billerId,
+      maskedAccountNumber: "•••• 4218",
+      amount: validated.amountCents,
+      maxAuthorizedAmount: maxAuthorized,
+      frequency: validated.frequency as "WEEKLY" | "MONTHLY" | "QUARTERLY" | "ANNUALLY" | "ONE_TIME",
+      dueDate,
+      executionWindowStart: windowStart,
+      executionWindowEnd: windowEnd,
+      providerPreference: validated.providerPreference,
+    });
+    return { ok: true, billId: bill.id };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] createBill failed:", message);
+    return { ok: false, error: message };
+  }
+}
+
+/**
+ * Server action: update a bill's metadata. Status changes go
+ * through `transitionBillServerAction` — this action only handles
+ * the editable fields (name, amount, frequency, due day,
+ * provider).
+ */
+export async function updateBillAction(
+  billId: string,
+  rawForm: unknown,
+): Promise<
+  | { ok: true; billId: string }
+  | { ok: false; error: string }
+> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  const validated = validateBillForm(rawForm);
+  if (typeof validated === "string") {
+    return { ok: false, error: validated };
+  }
+  const bill = await prisma.scheduledBill.findUnique({
+    where: { id: billId },
+  });
+  if (!bill) {
+    return { ok: false, error: "bill not found" };
+  }
+  // Verify the bill belongs to the current user's vault.
+  const vault = await prisma.vaultAccount.findUnique({
+    where: { id: bill.vaultId },
+  });
+  if (!vault || vault.userId !== user.id) {
+    return { ok: false, error: "bill not found" };
+  }
+  const { dueDate, windowStart, windowEnd } = computeBillSchedule(
+    validated.dueDay,
+    validated.frequency as "WEEKLY" | "MONTHLY" | "QUARTERLY" | "ANNUALLY" | "ONE_TIME",
+  );
+  try {
+    const updated = await updateBillMetadata(user.id, billId, {
+      billerName: validated.billerName,
+      amount: validated.amountCents,
+      maxAuthorizedAmount: Math.round(validated.amountCents * 1.05),
+      frequency: validated.frequency as "WEEKLY" | "MONTHLY" | "QUARTERLY" | "ANNUALLY" | "ONE_TIME",
+      dueDate,
+      executionWindowStart: windowStart,
+      executionWindowEnd: windowEnd,
+      providerPreference: validated.providerPreference ?? null,
+    });
+    return { ok: true, billId: updated.id };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] updateBill failed:", message);
+    return { ok: false, error: message };
+  }
+}
+
+/**
+ * Server action: delete a bill. The caller (client component) is
+ * expected to confirm via `window.confirm` first.
+ */
+export async function deleteBillAction(
+  billId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  const bill = await prisma.scheduledBill.findUnique({
+    where: { id: billId },
+  });
+  if (!bill) {
+    return { ok: false, error: "bill not found" };
+  }
+  const vault = await prisma.vaultAccount.findUnique({
+    where: { id: bill.vaultId },
+  });
+  if (!vault || vault.userId !== user.id) {
+    return { ok: false, error: "bill not found" };
+  }
+  try {
+    await deleteBill(user.id, billId);
+    return { ok: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] deleteBill failed:", message);
     return { ok: false, error: message };
   }
 }

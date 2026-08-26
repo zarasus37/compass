@@ -455,6 +455,60 @@ async function main() {
     ),
   );
 
+  // ── Phase 3.5 — per-bill editor (Add / Edit / Delete) ───────
+  // The client island (<BillScheduleClient>) owns the modal
+  // state. We verify the page surfaces the entry points: a [+] Add
+  // bill button, an Edit + Delete button on every bill row, and
+  // the per-row actions container. The modal itself opens
+  // client-side, so we only check the static HTML here.
+  check(
+    "Phase 3.5 — [+] Add bill button is on the page",
+    /data-testid="vault-add-bill-button"/.test(text),
+  );
+  check(
+    "Phase 3.5 — [+] Add bill button label is the right one",
+    />\[\+\]\s*Add bill</.test(text),
+  );
+  // Every bill row gets Edit + Delete buttons.
+  const editCount = (
+    text.match(/data-testid="vault-edit-bill-button-[^"]+"/g) ?? []
+  ).length;
+  const deleteCount = (
+    text.match(/data-testid="vault-delete-bill-button-[^"]+"/g) ?? []
+  ).length;
+  check(
+    "Phase 3.5 — every bill row has an Edit button",
+    editCount >= 6,
+    `count=${editCount}`,
+  );
+  check(
+    "Phase 3.5 — every bill row has a Delete button",
+    deleteCount >= 6,
+    `count=${deleteCount}`,
+  );
+  // The per-row actions container is rendered.
+  check(
+    "Phase 3.5 — bill-row-actions container is on the page",
+    /data-testid="bill-row-actions-[^"]+"/.test(text),
+  );
+  // The Edit + Delete button labels match the terminal voice.
+  check(
+    "Phase 3.5 — Edit button uses the Edit label",
+    /data-testid="vault-edit-bill-button-[^"]+"[^>]*>\s*Edit\s*</.test(text),
+  );
+  check(
+    "Phase 3.5 — Delete button uses the Delete label",
+    /data-testid="vault-delete-bill-button-[^"]+"[^>]*>\s*Delete\s*</.test(text),
+  );
+  // The seed bills should still carry `data-bill-source="seed"`
+  // (the default). A user-added bill would carry
+  // `data-bill-source="user"` + a [USER] chip — no seed data
+  // exercises that path here, but the marker is in the schema.
+  check(
+    "Phase 3.5 — every bill row has a data-bill-source attribute",
+    (text.match(/data-bill-source="(seed|user)"/g) ?? []).length >= 6,
+  );
+
   // ── Tally ──────────────────────────────────────────────────────
   console.log("\n--- checks ---");
   const pass = results.filter((r) => r.ok).length;

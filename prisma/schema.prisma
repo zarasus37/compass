@@ -907,6 +907,10 @@ model ScheduledBill {
   /// is unchanged (per the spec's "Principal reserved for bills
   /// is never reduced by a yield-routing choice" rule).
   appliedYieldCents     Int      @default(0)
+  /// Phase 3.5 — `seed` (migrated by the canonical seed pass)
+  /// or `user` (added via the vault's per-bill editor). Lets the
+  /// UI distinguish "always-here" bills from "I added this one".
+  source                String   @default("seed")
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 

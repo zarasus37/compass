@@ -204,6 +204,19 @@ export type IdentityGoal = $Result.DefaultSelection<Prisma.$IdentityGoalPayload>
  */
 export type IdentityEvent = $Result.DefaultSelection<Prisma.$IdentityEventPayload>
 /**
+ * Model IdentitySpendingHabit
+ * Cluster 5.3.2 — one spending habit the user shared during
+ * onboarding. Qualitative context (not transactions): "I do a
+ * Costco run weekly" / "Date night every Friday" / "Starbucks
+ * 5x/week" / "80-mile round-trip commute". The advisor reads
+ * this in the read-only layer to make personalized observations
+ * ("you mentioned you do a Costco run weekly — is the Groceries
+ * envelope tracking?"). Captured during onboarding because
+ * the user is more willing to share this kind of context when
+ * the agent asks in a natural way.
+ */
+export type IdentitySpendingHabit = $Result.DefaultSelection<Prisma.$IdentitySpendingHabitPayload>
+/**
  * Model IdentityHouseholdMember
  * One household member (spouse, child, dependent).
  */
@@ -633,6 +646,16 @@ export class PrismaClient<
     * ```
     */
   get identityEvent(): Prisma.IdentityEventDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.identitySpendingHabit`: Exposes CRUD operations for the **IdentitySpendingHabit** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more IdentitySpendingHabits
+    * const identitySpendingHabits = await prisma.identitySpendingHabit.findMany()
+    * ```
+    */
+  get identitySpendingHabit(): Prisma.IdentitySpendingHabitDelegate<ExtArgs, ClientOptions>;
 
   /**
    * `prisma.identityHouseholdMember`: Exposes CRUD operations for the **IdentityHouseholdMember** model.
@@ -1190,6 +1213,7 @@ export namespace Prisma {
     IdentityAsset: 'IdentityAsset',
     IdentityGoal: 'IdentityGoal',
     IdentityEvent: 'IdentityEvent',
+    IdentitySpendingHabit: 'IdentitySpendingHabit',
     IdentityHouseholdMember: 'IdentityHouseholdMember',
     OnboardingMessage: 'OnboardingMessage',
     VaultAccount: 'VaultAccount',
@@ -1214,7 +1238,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "session" | "account" | "envelope" | "transaction" | "paySchedule" | "bill" | "goal" | "allocationPlan" | "allocationRule" | "auditLog" | "systemSettings" | "payPeriod" | "financialIdentity" | "identityIncome" | "identityExpense" | "identityDebt" | "identityAsset" | "identityGoal" | "identityEvent" | "identityHouseholdMember" | "onboardingMessage" | "vaultAccount" | "vaultEnvelope" | "scheduledBill" | "yieldEvent" | "paymentAttempt" | "providerEvent" | "vaultPreferences"
+      modelProps: "user" | "session" | "account" | "envelope" | "transaction" | "paySchedule" | "bill" | "goal" | "allocationPlan" | "allocationRule" | "auditLog" | "systemSettings" | "payPeriod" | "financialIdentity" | "identityIncome" | "identityExpense" | "identityDebt" | "identityAsset" | "identityGoal" | "identityEvent" | "identitySpendingHabit" | "identityHouseholdMember" | "onboardingMessage" | "vaultAccount" | "vaultEnvelope" | "scheduledBill" | "yieldEvent" | "paymentAttempt" | "providerEvent" | "vaultPreferences"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -2698,6 +2722,80 @@ export namespace Prisma {
           }
         }
       }
+      IdentitySpendingHabit: {
+        payload: Prisma.$IdentitySpendingHabitPayload<ExtArgs>
+        fields: Prisma.IdentitySpendingHabitFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.IdentitySpendingHabitFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentitySpendingHabitPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.IdentitySpendingHabitFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentitySpendingHabitPayload>
+          }
+          findFirst: {
+            args: Prisma.IdentitySpendingHabitFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentitySpendingHabitPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.IdentitySpendingHabitFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentitySpendingHabitPayload>
+          }
+          findMany: {
+            args: Prisma.IdentitySpendingHabitFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentitySpendingHabitPayload>[]
+          }
+          create: {
+            args: Prisma.IdentitySpendingHabitCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentitySpendingHabitPayload>
+          }
+          createMany: {
+            args: Prisma.IdentitySpendingHabitCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.IdentitySpendingHabitCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentitySpendingHabitPayload>[]
+          }
+          delete: {
+            args: Prisma.IdentitySpendingHabitDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentitySpendingHabitPayload>
+          }
+          update: {
+            args: Prisma.IdentitySpendingHabitUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentitySpendingHabitPayload>
+          }
+          deleteMany: {
+            args: Prisma.IdentitySpendingHabitDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.IdentitySpendingHabitUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.IdentitySpendingHabitUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentitySpendingHabitPayload>[]
+          }
+          upsert: {
+            args: Prisma.IdentitySpendingHabitUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$IdentitySpendingHabitPayload>
+          }
+          aggregate: {
+            args: Prisma.IdentitySpendingHabitAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateIdentitySpendingHabit>
+          }
+          groupBy: {
+            args: Prisma.IdentitySpendingHabitGroupByArgs<ExtArgs>
+            result: $Utils.Optional<IdentitySpendingHabitGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.IdentitySpendingHabitCountArgs<ExtArgs>
+            result: $Utils.Optional<IdentitySpendingHabitCountAggregateOutputType> | number
+          }
+        }
+      }
       IdentityHouseholdMember: {
         payload: Prisma.$IdentityHouseholdMemberPayload<ExtArgs>
         fields: Prisma.IdentityHouseholdMemberFieldRefs
@@ -3507,6 +3605,7 @@ export namespace Prisma {
     identityAsset?: IdentityAssetOmit
     identityGoal?: IdentityGoalOmit
     identityEvent?: IdentityEventOmit
+    identitySpendingHabit?: IdentitySpendingHabitOmit
     identityHouseholdMember?: IdentityHouseholdMemberOmit
     onboardingMessage?: OnboardingMessageOmit
     vaultAccount?: VaultAccountOmit
@@ -3817,6 +3916,7 @@ export namespace Prisma {
     goals: number
     events: number
     household: number
+    spendingHabits: number
     messages: number
   }
 
@@ -3828,6 +3928,7 @@ export namespace Prisma {
     goals?: boolean | FinancialIdentityCountOutputTypeCountGoalsArgs
     events?: boolean | FinancialIdentityCountOutputTypeCountEventsArgs
     household?: boolean | FinancialIdentityCountOutputTypeCountHouseholdArgs
+    spendingHabits?: boolean | FinancialIdentityCountOutputTypeCountSpendingHabitsArgs
     messages?: boolean | FinancialIdentityCountOutputTypeCountMessagesArgs
   }
 
@@ -3889,6 +3990,13 @@ export namespace Prisma {
    */
   export type FinancialIdentityCountOutputTypeCountHouseholdArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: IdentityHouseholdMemberWhereInput
+  }
+
+  /**
+   * FinancialIdentityCountOutputType without action
+   */
+  export type FinancialIdentityCountOutputTypeCountSpendingHabitsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: IdentitySpendingHabitWhereInput
   }
 
   /**
@@ -20083,6 +20191,7 @@ export namespace Prisma {
     goals?: boolean | FinancialIdentity$goalsArgs<ExtArgs>
     events?: boolean | FinancialIdentity$eventsArgs<ExtArgs>
     household?: boolean | FinancialIdentity$householdArgs<ExtArgs>
+    spendingHabits?: boolean | FinancialIdentity$spendingHabitsArgs<ExtArgs>
     messages?: boolean | FinancialIdentity$messagesArgs<ExtArgs>
     _count?: boolean | FinancialIdentityCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["financialIdentity"]>
@@ -20177,6 +20286,7 @@ export namespace Prisma {
     goals?: boolean | FinancialIdentity$goalsArgs<ExtArgs>
     events?: boolean | FinancialIdentity$eventsArgs<ExtArgs>
     household?: boolean | FinancialIdentity$householdArgs<ExtArgs>
+    spendingHabits?: boolean | FinancialIdentity$spendingHabitsArgs<ExtArgs>
     messages?: boolean | FinancialIdentity$messagesArgs<ExtArgs>
     _count?: boolean | FinancialIdentityCountOutputTypeDefaultArgs<ExtArgs>
   }
@@ -20198,6 +20308,13 @@ export namespace Prisma {
       goals: Prisma.$IdentityGoalPayload<ExtArgs>[]
       events: Prisma.$IdentityEventPayload<ExtArgs>[]
       household: Prisma.$IdentityHouseholdMemberPayload<ExtArgs>[]
+      /**
+       * Cluster 5.3.2 — qualitative spending patterns the user shared
+       * during onboarding. Not transaction data; "I do a Costco run
+       * weekly" / "Date night every Friday" / "Starbucks 5x/week".
+       * The advisor reads this in the read-only layer.
+       */
+      spendingHabits: Prisma.$IdentitySpendingHabitPayload<ExtArgs>[]
       messages: Prisma.$OnboardingMessagePayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
@@ -20629,6 +20746,7 @@ export namespace Prisma {
     goals<T extends FinancialIdentity$goalsArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentity$goalsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityGoalPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     events<T extends FinancialIdentity$eventsArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentity$eventsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     household<T extends FinancialIdentity$householdArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentity$householdArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentityHouseholdMemberPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    spendingHabits<T extends FinancialIdentity$spendingHabitsArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentity$spendingHabitsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentitySpendingHabitPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     messages<T extends FinancialIdentity$messagesArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentity$messagesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$OnboardingMessagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -21246,6 +21364,30 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: IdentityHouseholdMemberScalarFieldEnum | IdentityHouseholdMemberScalarFieldEnum[]
+  }
+
+  /**
+   * FinancialIdentity.spendingHabits
+   */
+  export type FinancialIdentity$spendingHabitsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentitySpendingHabit
+     */
+    select?: IdentitySpendingHabitSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentitySpendingHabit
+     */
+    omit?: IdentitySpendingHabitOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentitySpendingHabitInclude<ExtArgs> | null
+    where?: IdentitySpendingHabitWhereInput
+    orderBy?: IdentitySpendingHabitOrderByWithRelationInput | IdentitySpendingHabitOrderByWithRelationInput[]
+    cursor?: IdentitySpendingHabitWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: IdentitySpendingHabitScalarFieldEnum | IdentitySpendingHabitScalarFieldEnum[]
   }
 
   /**
@@ -24774,11 +24916,17 @@ export namespace Prisma {
   export type IdentityAssetAvgAggregateOutputType = {
     balanceDollars: number | null
     sortOrder: number | null
+    employerMatchPercent: number | null
+    vestingYears: number | null
+    expenseRatioPct: number | null
   }
 
   export type IdentityAssetSumAggregateOutputType = {
     balanceDollars: number | null
     sortOrder: number | null
+    employerMatchPercent: number | null
+    vestingYears: number | null
+    expenseRatioPct: number | null
   }
 
   export type IdentityAssetMinAggregateOutputType = {
@@ -24789,6 +24937,10 @@ export namespace Prisma {
     balanceDollars: number | null
     sortOrder: number | null
     createdAt: Date | null
+    employerMatchPercent: number | null
+    vestingYears: number | null
+    fundChoices: string | null
+    expenseRatioPct: number | null
   }
 
   export type IdentityAssetMaxAggregateOutputType = {
@@ -24799,6 +24951,10 @@ export namespace Prisma {
     balanceDollars: number | null
     sortOrder: number | null
     createdAt: Date | null
+    employerMatchPercent: number | null
+    vestingYears: number | null
+    fundChoices: string | null
+    expenseRatioPct: number | null
   }
 
   export type IdentityAssetCountAggregateOutputType = {
@@ -24809,6 +24965,10 @@ export namespace Prisma {
     balanceDollars: number
     sortOrder: number
     createdAt: number
+    employerMatchPercent: number
+    vestingYears: number
+    fundChoices: number
+    expenseRatioPct: number
     _all: number
   }
 
@@ -24816,11 +24976,17 @@ export namespace Prisma {
   export type IdentityAssetAvgAggregateInputType = {
     balanceDollars?: true
     sortOrder?: true
+    employerMatchPercent?: true
+    vestingYears?: true
+    expenseRatioPct?: true
   }
 
   export type IdentityAssetSumAggregateInputType = {
     balanceDollars?: true
     sortOrder?: true
+    employerMatchPercent?: true
+    vestingYears?: true
+    expenseRatioPct?: true
   }
 
   export type IdentityAssetMinAggregateInputType = {
@@ -24831,6 +24997,10 @@ export namespace Prisma {
     balanceDollars?: true
     sortOrder?: true
     createdAt?: true
+    employerMatchPercent?: true
+    vestingYears?: true
+    fundChoices?: true
+    expenseRatioPct?: true
   }
 
   export type IdentityAssetMaxAggregateInputType = {
@@ -24841,6 +25011,10 @@ export namespace Prisma {
     balanceDollars?: true
     sortOrder?: true
     createdAt?: true
+    employerMatchPercent?: true
+    vestingYears?: true
+    fundChoices?: true
+    expenseRatioPct?: true
   }
 
   export type IdentityAssetCountAggregateInputType = {
@@ -24851,6 +25025,10 @@ export namespace Prisma {
     balanceDollars?: true
     sortOrder?: true
     createdAt?: true
+    employerMatchPercent?: true
+    vestingYears?: true
+    fundChoices?: true
+    expenseRatioPct?: true
     _all?: true
   }
 
@@ -24948,6 +25126,10 @@ export namespace Prisma {
     balanceDollars: number
     sortOrder: number
     createdAt: Date
+    employerMatchPercent: number | null
+    vestingYears: number | null
+    fundChoices: string | null
+    expenseRatioPct: number | null
     _count: IdentityAssetCountAggregateOutputType | null
     _avg: IdentityAssetAvgAggregateOutputType | null
     _sum: IdentityAssetSumAggregateOutputType | null
@@ -24977,6 +25159,10 @@ export namespace Prisma {
     balanceDollars?: boolean
     sortOrder?: boolean
     createdAt?: boolean
+    employerMatchPercent?: boolean
+    vestingYears?: boolean
+    fundChoices?: boolean
+    expenseRatioPct?: boolean
     identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["identityAsset"]>
 
@@ -24988,6 +25174,10 @@ export namespace Prisma {
     balanceDollars?: boolean
     sortOrder?: boolean
     createdAt?: boolean
+    employerMatchPercent?: boolean
+    vestingYears?: boolean
+    fundChoices?: boolean
+    expenseRatioPct?: boolean
     identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["identityAsset"]>
 
@@ -24999,6 +25189,10 @@ export namespace Prisma {
     balanceDollars?: boolean
     sortOrder?: boolean
     createdAt?: boolean
+    employerMatchPercent?: boolean
+    vestingYears?: boolean
+    fundChoices?: boolean
+    expenseRatioPct?: boolean
     identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["identityAsset"]>
 
@@ -25010,9 +25204,13 @@ export namespace Prisma {
     balanceDollars?: boolean
     sortOrder?: boolean
     createdAt?: boolean
+    employerMatchPercent?: boolean
+    vestingYears?: boolean
+    fundChoices?: boolean
+    expenseRatioPct?: boolean
   }
 
-  export type IdentityAssetOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "identityId" | "label" | "kind" | "balanceDollars" | "sortOrder" | "createdAt", ExtArgs["result"]["identityAsset"]>
+  export type IdentityAssetOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "identityId" | "label" | "kind" | "balanceDollars" | "sortOrder" | "createdAt" | "employerMatchPercent" | "vestingYears" | "fundChoices" | "expenseRatioPct", ExtArgs["result"]["identityAsset"]>
   export type IdentityAssetInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
   }
@@ -25040,6 +25238,10 @@ export namespace Prisma {
       balanceDollars: number
       sortOrder: number
       createdAt: Date
+      employerMatchPercent: number | null
+      vestingYears: number | null
+      fundChoices: string | null
+      expenseRatioPct: number | null
     }, ExtArgs["result"]["identityAsset"]>
     composites: {}
   }
@@ -25471,6 +25673,10 @@ export namespace Prisma {
     readonly balanceDollars: FieldRef<"IdentityAsset", 'Int'>
     readonly sortOrder: FieldRef<"IdentityAsset", 'Int'>
     readonly createdAt: FieldRef<"IdentityAsset", 'DateTime'>
+    readonly employerMatchPercent: FieldRef<"IdentityAsset", 'Float'>
+    readonly vestingYears: FieldRef<"IdentityAsset", 'Int'>
+    readonly fundChoices: FieldRef<"IdentityAsset", 'String'>
+    readonly expenseRatioPct: FieldRef<"IdentityAsset", 'Float'>
   }
     
 
@@ -28219,6 +28425,1139 @@ export namespace Prisma {
      * Choose, which related nodes to fetch as well
      */
     include?: IdentityEventInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model IdentitySpendingHabit
+   */
+
+  export type AggregateIdentitySpendingHabit = {
+    _count: IdentitySpendingHabitCountAggregateOutputType | null
+    _avg: IdentitySpendingHabitAvgAggregateOutputType | null
+    _sum: IdentitySpendingHabitSumAggregateOutputType | null
+    _min: IdentitySpendingHabitMinAggregateOutputType | null
+    _max: IdentitySpendingHabitMaxAggregateOutputType | null
+  }
+
+  export type IdentitySpendingHabitAvgAggregateOutputType = {
+    sortOrder: number | null
+  }
+
+  export type IdentitySpendingHabitSumAggregateOutputType = {
+    sortOrder: number | null
+  }
+
+  export type IdentitySpendingHabitMinAggregateOutputType = {
+    id: string | null
+    identityId: string | null
+    category: string | null
+    habit: string | null
+    frequency: string | null
+    sortOrder: number | null
+    createdAt: Date | null
+  }
+
+  export type IdentitySpendingHabitMaxAggregateOutputType = {
+    id: string | null
+    identityId: string | null
+    category: string | null
+    habit: string | null
+    frequency: string | null
+    sortOrder: number | null
+    createdAt: Date | null
+  }
+
+  export type IdentitySpendingHabitCountAggregateOutputType = {
+    id: number
+    identityId: number
+    category: number
+    habit: number
+    frequency: number
+    sortOrder: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type IdentitySpendingHabitAvgAggregateInputType = {
+    sortOrder?: true
+  }
+
+  export type IdentitySpendingHabitSumAggregateInputType = {
+    sortOrder?: true
+  }
+
+  export type IdentitySpendingHabitMinAggregateInputType = {
+    id?: true
+    identityId?: true
+    category?: true
+    habit?: true
+    frequency?: true
+    sortOrder?: true
+    createdAt?: true
+  }
+
+  export type IdentitySpendingHabitMaxAggregateInputType = {
+    id?: true
+    identityId?: true
+    category?: true
+    habit?: true
+    frequency?: true
+    sortOrder?: true
+    createdAt?: true
+  }
+
+  export type IdentitySpendingHabitCountAggregateInputType = {
+    id?: true
+    identityId?: true
+    category?: true
+    habit?: true
+    frequency?: true
+    sortOrder?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type IdentitySpendingHabitAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which IdentitySpendingHabit to aggregate.
+     */
+    where?: IdentitySpendingHabitWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentitySpendingHabits to fetch.
+     */
+    orderBy?: IdentitySpendingHabitOrderByWithRelationInput | IdentitySpendingHabitOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: IdentitySpendingHabitWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentitySpendingHabits from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentitySpendingHabits.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned IdentitySpendingHabits
+    **/
+    _count?: true | IdentitySpendingHabitCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: IdentitySpendingHabitAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: IdentitySpendingHabitSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: IdentitySpendingHabitMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: IdentitySpendingHabitMaxAggregateInputType
+  }
+
+  export type GetIdentitySpendingHabitAggregateType<T extends IdentitySpendingHabitAggregateArgs> = {
+        [P in keyof T & keyof AggregateIdentitySpendingHabit]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateIdentitySpendingHabit[P]>
+      : GetScalarType<T[P], AggregateIdentitySpendingHabit[P]>
+  }
+
+
+
+
+  export type IdentitySpendingHabitGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: IdentitySpendingHabitWhereInput
+    orderBy?: IdentitySpendingHabitOrderByWithAggregationInput | IdentitySpendingHabitOrderByWithAggregationInput[]
+    by: IdentitySpendingHabitScalarFieldEnum[] | IdentitySpendingHabitScalarFieldEnum
+    having?: IdentitySpendingHabitScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: IdentitySpendingHabitCountAggregateInputType | true
+    _avg?: IdentitySpendingHabitAvgAggregateInputType
+    _sum?: IdentitySpendingHabitSumAggregateInputType
+    _min?: IdentitySpendingHabitMinAggregateInputType
+    _max?: IdentitySpendingHabitMaxAggregateInputType
+  }
+
+  export type IdentitySpendingHabitGroupByOutputType = {
+    id: string
+    identityId: string
+    category: string
+    habit: string
+    frequency: string | null
+    sortOrder: number
+    createdAt: Date
+    _count: IdentitySpendingHabitCountAggregateOutputType | null
+    _avg: IdentitySpendingHabitAvgAggregateOutputType | null
+    _sum: IdentitySpendingHabitSumAggregateOutputType | null
+    _min: IdentitySpendingHabitMinAggregateOutputType | null
+    _max: IdentitySpendingHabitMaxAggregateOutputType | null
+  }
+
+  type GetIdentitySpendingHabitGroupByPayload<T extends IdentitySpendingHabitGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<IdentitySpendingHabitGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof IdentitySpendingHabitGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], IdentitySpendingHabitGroupByOutputType[P]>
+            : GetScalarType<T[P], IdentitySpendingHabitGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type IdentitySpendingHabitSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    category?: boolean
+    habit?: boolean
+    frequency?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identitySpendingHabit"]>
+
+  export type IdentitySpendingHabitSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    category?: boolean
+    habit?: boolean
+    frequency?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identitySpendingHabit"]>
+
+  export type IdentitySpendingHabitSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    identityId?: boolean
+    category?: boolean
+    habit?: boolean
+    frequency?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["identitySpendingHabit"]>
+
+  export type IdentitySpendingHabitSelectScalar = {
+    id?: boolean
+    identityId?: boolean
+    category?: boolean
+    habit?: boolean
+    frequency?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+  }
+
+  export type IdentitySpendingHabitOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "identityId" | "category" | "habit" | "frequency" | "sortOrder" | "createdAt", ExtArgs["result"]["identitySpendingHabit"]>
+  export type IdentitySpendingHabitInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+  export type IdentitySpendingHabitIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+  export type IdentitySpendingHabitIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    identity?: boolean | FinancialIdentityDefaultArgs<ExtArgs>
+  }
+
+  export type $IdentitySpendingHabitPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "IdentitySpendingHabit"
+    objects: {
+      identity: Prisma.$FinancialIdentityPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      identityId: string
+      /**
+       * groceries | dining | coffee | transportation | entertainment
+       * | shopping | subscriptions | personal_care | other
+       */
+      category: string
+      /**
+       * Free-form description of the habit. "Costco weekly run",
+       * "Date night Friday", "Starbucks 5x/week", "80mi round-trip
+       * commute". Keep tight — one short sentence.
+       */
+      habit: string
+      /**
+       * daily | weekly | monthly | quarterly | occasional | null
+       */
+      frequency: string | null
+      sortOrder: number
+      createdAt: Date
+    }, ExtArgs["result"]["identitySpendingHabit"]>
+    composites: {}
+  }
+
+  type IdentitySpendingHabitGetPayload<S extends boolean | null | undefined | IdentitySpendingHabitDefaultArgs> = $Result.GetResult<Prisma.$IdentitySpendingHabitPayload, S>
+
+  type IdentitySpendingHabitCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<IdentitySpendingHabitFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: IdentitySpendingHabitCountAggregateInputType | true
+    }
+
+  export interface IdentitySpendingHabitDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['IdentitySpendingHabit'], meta: { name: 'IdentitySpendingHabit' } }
+    /**
+     * Find zero or one IdentitySpendingHabit that matches the filter.
+     * @param {IdentitySpendingHabitFindUniqueArgs} args - Arguments to find a IdentitySpendingHabit
+     * @example
+     * // Get one IdentitySpendingHabit
+     * const identitySpendingHabit = await prisma.identitySpendingHabit.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends IdentitySpendingHabitFindUniqueArgs>(args: SelectSubset<T, IdentitySpendingHabitFindUniqueArgs<ExtArgs>>): Prisma__IdentitySpendingHabitClient<$Result.GetResult<Prisma.$IdentitySpendingHabitPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one IdentitySpendingHabit that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {IdentitySpendingHabitFindUniqueOrThrowArgs} args - Arguments to find a IdentitySpendingHabit
+     * @example
+     * // Get one IdentitySpendingHabit
+     * const identitySpendingHabit = await prisma.identitySpendingHabit.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends IdentitySpendingHabitFindUniqueOrThrowArgs>(args: SelectSubset<T, IdentitySpendingHabitFindUniqueOrThrowArgs<ExtArgs>>): Prisma__IdentitySpendingHabitClient<$Result.GetResult<Prisma.$IdentitySpendingHabitPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first IdentitySpendingHabit that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentitySpendingHabitFindFirstArgs} args - Arguments to find a IdentitySpendingHabit
+     * @example
+     * // Get one IdentitySpendingHabit
+     * const identitySpendingHabit = await prisma.identitySpendingHabit.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends IdentitySpendingHabitFindFirstArgs>(args?: SelectSubset<T, IdentitySpendingHabitFindFirstArgs<ExtArgs>>): Prisma__IdentitySpendingHabitClient<$Result.GetResult<Prisma.$IdentitySpendingHabitPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first IdentitySpendingHabit that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentitySpendingHabitFindFirstOrThrowArgs} args - Arguments to find a IdentitySpendingHabit
+     * @example
+     * // Get one IdentitySpendingHabit
+     * const identitySpendingHabit = await prisma.identitySpendingHabit.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends IdentitySpendingHabitFindFirstOrThrowArgs>(args?: SelectSubset<T, IdentitySpendingHabitFindFirstOrThrowArgs<ExtArgs>>): Prisma__IdentitySpendingHabitClient<$Result.GetResult<Prisma.$IdentitySpendingHabitPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more IdentitySpendingHabits that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentitySpendingHabitFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all IdentitySpendingHabits
+     * const identitySpendingHabits = await prisma.identitySpendingHabit.findMany()
+     * 
+     * // Get first 10 IdentitySpendingHabits
+     * const identitySpendingHabits = await prisma.identitySpendingHabit.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const identitySpendingHabitWithIdOnly = await prisma.identitySpendingHabit.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends IdentitySpendingHabitFindManyArgs>(args?: SelectSubset<T, IdentitySpendingHabitFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentitySpendingHabitPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a IdentitySpendingHabit.
+     * @param {IdentitySpendingHabitCreateArgs} args - Arguments to create a IdentitySpendingHabit.
+     * @example
+     * // Create one IdentitySpendingHabit
+     * const IdentitySpendingHabit = await prisma.identitySpendingHabit.create({
+     *   data: {
+     *     // ... data to create a IdentitySpendingHabit
+     *   }
+     * })
+     * 
+     */
+    create<T extends IdentitySpendingHabitCreateArgs>(args: SelectSubset<T, IdentitySpendingHabitCreateArgs<ExtArgs>>): Prisma__IdentitySpendingHabitClient<$Result.GetResult<Prisma.$IdentitySpendingHabitPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many IdentitySpendingHabits.
+     * @param {IdentitySpendingHabitCreateManyArgs} args - Arguments to create many IdentitySpendingHabits.
+     * @example
+     * // Create many IdentitySpendingHabits
+     * const identitySpendingHabit = await prisma.identitySpendingHabit.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends IdentitySpendingHabitCreateManyArgs>(args?: SelectSubset<T, IdentitySpendingHabitCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many IdentitySpendingHabits and returns the data saved in the database.
+     * @param {IdentitySpendingHabitCreateManyAndReturnArgs} args - Arguments to create many IdentitySpendingHabits.
+     * @example
+     * // Create many IdentitySpendingHabits
+     * const identitySpendingHabit = await prisma.identitySpendingHabit.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many IdentitySpendingHabits and only return the `id`
+     * const identitySpendingHabitWithIdOnly = await prisma.identitySpendingHabit.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends IdentitySpendingHabitCreateManyAndReturnArgs>(args?: SelectSubset<T, IdentitySpendingHabitCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentitySpendingHabitPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a IdentitySpendingHabit.
+     * @param {IdentitySpendingHabitDeleteArgs} args - Arguments to delete one IdentitySpendingHabit.
+     * @example
+     * // Delete one IdentitySpendingHabit
+     * const IdentitySpendingHabit = await prisma.identitySpendingHabit.delete({
+     *   where: {
+     *     // ... filter to delete one IdentitySpendingHabit
+     *   }
+     * })
+     * 
+     */
+    delete<T extends IdentitySpendingHabitDeleteArgs>(args: SelectSubset<T, IdentitySpendingHabitDeleteArgs<ExtArgs>>): Prisma__IdentitySpendingHabitClient<$Result.GetResult<Prisma.$IdentitySpendingHabitPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one IdentitySpendingHabit.
+     * @param {IdentitySpendingHabitUpdateArgs} args - Arguments to update one IdentitySpendingHabit.
+     * @example
+     * // Update one IdentitySpendingHabit
+     * const identitySpendingHabit = await prisma.identitySpendingHabit.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends IdentitySpendingHabitUpdateArgs>(args: SelectSubset<T, IdentitySpendingHabitUpdateArgs<ExtArgs>>): Prisma__IdentitySpendingHabitClient<$Result.GetResult<Prisma.$IdentitySpendingHabitPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more IdentitySpendingHabits.
+     * @param {IdentitySpendingHabitDeleteManyArgs} args - Arguments to filter IdentitySpendingHabits to delete.
+     * @example
+     * // Delete a few IdentitySpendingHabits
+     * const { count } = await prisma.identitySpendingHabit.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends IdentitySpendingHabitDeleteManyArgs>(args?: SelectSubset<T, IdentitySpendingHabitDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more IdentitySpendingHabits.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentitySpendingHabitUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many IdentitySpendingHabits
+     * const identitySpendingHabit = await prisma.identitySpendingHabit.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends IdentitySpendingHabitUpdateManyArgs>(args: SelectSubset<T, IdentitySpendingHabitUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more IdentitySpendingHabits and returns the data updated in the database.
+     * @param {IdentitySpendingHabitUpdateManyAndReturnArgs} args - Arguments to update many IdentitySpendingHabits.
+     * @example
+     * // Update many IdentitySpendingHabits
+     * const identitySpendingHabit = await prisma.identitySpendingHabit.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more IdentitySpendingHabits and only return the `id`
+     * const identitySpendingHabitWithIdOnly = await prisma.identitySpendingHabit.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends IdentitySpendingHabitUpdateManyAndReturnArgs>(args: SelectSubset<T, IdentitySpendingHabitUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$IdentitySpendingHabitPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one IdentitySpendingHabit.
+     * @param {IdentitySpendingHabitUpsertArgs} args - Arguments to update or create a IdentitySpendingHabit.
+     * @example
+     * // Update or create a IdentitySpendingHabit
+     * const identitySpendingHabit = await prisma.identitySpendingHabit.upsert({
+     *   create: {
+     *     // ... data to create a IdentitySpendingHabit
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the IdentitySpendingHabit we want to update
+     *   }
+     * })
+     */
+    upsert<T extends IdentitySpendingHabitUpsertArgs>(args: SelectSubset<T, IdentitySpendingHabitUpsertArgs<ExtArgs>>): Prisma__IdentitySpendingHabitClient<$Result.GetResult<Prisma.$IdentitySpendingHabitPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of IdentitySpendingHabits.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentitySpendingHabitCountArgs} args - Arguments to filter IdentitySpendingHabits to count.
+     * @example
+     * // Count the number of IdentitySpendingHabits
+     * const count = await prisma.identitySpendingHabit.count({
+     *   where: {
+     *     // ... the filter for the IdentitySpendingHabits we want to count
+     *   }
+     * })
+    **/
+    count<T extends IdentitySpendingHabitCountArgs>(
+      args?: Subset<T, IdentitySpendingHabitCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], IdentitySpendingHabitCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a IdentitySpendingHabit.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentitySpendingHabitAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends IdentitySpendingHabitAggregateArgs>(args: Subset<T, IdentitySpendingHabitAggregateArgs>): Prisma.PrismaPromise<GetIdentitySpendingHabitAggregateType<T>>
+
+    /**
+     * Group by IdentitySpendingHabit.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {IdentitySpendingHabitGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends IdentitySpendingHabitGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: IdentitySpendingHabitGroupByArgs['orderBy'] }
+        : { orderBy?: IdentitySpendingHabitGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, IdentitySpendingHabitGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetIdentitySpendingHabitGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the IdentitySpendingHabit model
+   */
+  readonly fields: IdentitySpendingHabitFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for IdentitySpendingHabit.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__IdentitySpendingHabitClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    identity<T extends FinancialIdentityDefaultArgs<ExtArgs> = {}>(args?: Subset<T, FinancialIdentityDefaultArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the IdentitySpendingHabit model
+   */
+  interface IdentitySpendingHabitFieldRefs {
+    readonly id: FieldRef<"IdentitySpendingHabit", 'String'>
+    readonly identityId: FieldRef<"IdentitySpendingHabit", 'String'>
+    readonly category: FieldRef<"IdentitySpendingHabit", 'String'>
+    readonly habit: FieldRef<"IdentitySpendingHabit", 'String'>
+    readonly frequency: FieldRef<"IdentitySpendingHabit", 'String'>
+    readonly sortOrder: FieldRef<"IdentitySpendingHabit", 'Int'>
+    readonly createdAt: FieldRef<"IdentitySpendingHabit", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * IdentitySpendingHabit findUnique
+   */
+  export type IdentitySpendingHabitFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentitySpendingHabit
+     */
+    select?: IdentitySpendingHabitSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentitySpendingHabit
+     */
+    omit?: IdentitySpendingHabitOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentitySpendingHabitInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentitySpendingHabit to fetch.
+     */
+    where: IdentitySpendingHabitWhereUniqueInput
+  }
+
+  /**
+   * IdentitySpendingHabit findUniqueOrThrow
+   */
+  export type IdentitySpendingHabitFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentitySpendingHabit
+     */
+    select?: IdentitySpendingHabitSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentitySpendingHabit
+     */
+    omit?: IdentitySpendingHabitOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentitySpendingHabitInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentitySpendingHabit to fetch.
+     */
+    where: IdentitySpendingHabitWhereUniqueInput
+  }
+
+  /**
+   * IdentitySpendingHabit findFirst
+   */
+  export type IdentitySpendingHabitFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentitySpendingHabit
+     */
+    select?: IdentitySpendingHabitSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentitySpendingHabit
+     */
+    omit?: IdentitySpendingHabitOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentitySpendingHabitInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentitySpendingHabit to fetch.
+     */
+    where?: IdentitySpendingHabitWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentitySpendingHabits to fetch.
+     */
+    orderBy?: IdentitySpendingHabitOrderByWithRelationInput | IdentitySpendingHabitOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for IdentitySpendingHabits.
+     */
+    cursor?: IdentitySpendingHabitWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentitySpendingHabits from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentitySpendingHabits.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentitySpendingHabits.
+     */
+    distinct?: IdentitySpendingHabitScalarFieldEnum | IdentitySpendingHabitScalarFieldEnum[]
+  }
+
+  /**
+   * IdentitySpendingHabit findFirstOrThrow
+   */
+  export type IdentitySpendingHabitFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentitySpendingHabit
+     */
+    select?: IdentitySpendingHabitSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentitySpendingHabit
+     */
+    omit?: IdentitySpendingHabitOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentitySpendingHabitInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentitySpendingHabit to fetch.
+     */
+    where?: IdentitySpendingHabitWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentitySpendingHabits to fetch.
+     */
+    orderBy?: IdentitySpendingHabitOrderByWithRelationInput | IdentitySpendingHabitOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for IdentitySpendingHabits.
+     */
+    cursor?: IdentitySpendingHabitWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentitySpendingHabits from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentitySpendingHabits.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentitySpendingHabits.
+     */
+    distinct?: IdentitySpendingHabitScalarFieldEnum | IdentitySpendingHabitScalarFieldEnum[]
+  }
+
+  /**
+   * IdentitySpendingHabit findMany
+   */
+  export type IdentitySpendingHabitFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentitySpendingHabit
+     */
+    select?: IdentitySpendingHabitSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentitySpendingHabit
+     */
+    omit?: IdentitySpendingHabitOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentitySpendingHabitInclude<ExtArgs> | null
+    /**
+     * Filter, which IdentitySpendingHabits to fetch.
+     */
+    where?: IdentitySpendingHabitWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of IdentitySpendingHabits to fetch.
+     */
+    orderBy?: IdentitySpendingHabitOrderByWithRelationInput | IdentitySpendingHabitOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing IdentitySpendingHabits.
+     */
+    cursor?: IdentitySpendingHabitWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` IdentitySpendingHabits from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` IdentitySpendingHabits.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of IdentitySpendingHabits.
+     */
+    distinct?: IdentitySpendingHabitScalarFieldEnum | IdentitySpendingHabitScalarFieldEnum[]
+  }
+
+  /**
+   * IdentitySpendingHabit create
+   */
+  export type IdentitySpendingHabitCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentitySpendingHabit
+     */
+    select?: IdentitySpendingHabitSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentitySpendingHabit
+     */
+    omit?: IdentitySpendingHabitOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentitySpendingHabitInclude<ExtArgs> | null
+    /**
+     * The data needed to create a IdentitySpendingHabit.
+     */
+    data: XOR<IdentitySpendingHabitCreateInput, IdentitySpendingHabitUncheckedCreateInput>
+  }
+
+  /**
+   * IdentitySpendingHabit createMany
+   */
+  export type IdentitySpendingHabitCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many IdentitySpendingHabits.
+     */
+    data: IdentitySpendingHabitCreateManyInput | IdentitySpendingHabitCreateManyInput[]
+  }
+
+  /**
+   * IdentitySpendingHabit createManyAndReturn
+   */
+  export type IdentitySpendingHabitCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentitySpendingHabit
+     */
+    select?: IdentitySpendingHabitSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentitySpendingHabit
+     */
+    omit?: IdentitySpendingHabitOmit<ExtArgs> | null
+    /**
+     * The data used to create many IdentitySpendingHabits.
+     */
+    data: IdentitySpendingHabitCreateManyInput | IdentitySpendingHabitCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentitySpendingHabitIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * IdentitySpendingHabit update
+   */
+  export type IdentitySpendingHabitUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentitySpendingHabit
+     */
+    select?: IdentitySpendingHabitSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentitySpendingHabit
+     */
+    omit?: IdentitySpendingHabitOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentitySpendingHabitInclude<ExtArgs> | null
+    /**
+     * The data needed to update a IdentitySpendingHabit.
+     */
+    data: XOR<IdentitySpendingHabitUpdateInput, IdentitySpendingHabitUncheckedUpdateInput>
+    /**
+     * Choose, which IdentitySpendingHabit to update.
+     */
+    where: IdentitySpendingHabitWhereUniqueInput
+  }
+
+  /**
+   * IdentitySpendingHabit updateMany
+   */
+  export type IdentitySpendingHabitUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update IdentitySpendingHabits.
+     */
+    data: XOR<IdentitySpendingHabitUpdateManyMutationInput, IdentitySpendingHabitUncheckedUpdateManyInput>
+    /**
+     * Filter which IdentitySpendingHabits to update
+     */
+    where?: IdentitySpendingHabitWhereInput
+    /**
+     * Limit how many IdentitySpendingHabits to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * IdentitySpendingHabit updateManyAndReturn
+   */
+  export type IdentitySpendingHabitUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentitySpendingHabit
+     */
+    select?: IdentitySpendingHabitSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentitySpendingHabit
+     */
+    omit?: IdentitySpendingHabitOmit<ExtArgs> | null
+    /**
+     * The data used to update IdentitySpendingHabits.
+     */
+    data: XOR<IdentitySpendingHabitUpdateManyMutationInput, IdentitySpendingHabitUncheckedUpdateManyInput>
+    /**
+     * Filter which IdentitySpendingHabits to update
+     */
+    where?: IdentitySpendingHabitWhereInput
+    /**
+     * Limit how many IdentitySpendingHabits to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentitySpendingHabitIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * IdentitySpendingHabit upsert
+   */
+  export type IdentitySpendingHabitUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentitySpendingHabit
+     */
+    select?: IdentitySpendingHabitSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentitySpendingHabit
+     */
+    omit?: IdentitySpendingHabitOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentitySpendingHabitInclude<ExtArgs> | null
+    /**
+     * The filter to search for the IdentitySpendingHabit to update in case it exists.
+     */
+    where: IdentitySpendingHabitWhereUniqueInput
+    /**
+     * In case the IdentitySpendingHabit found by the `where` argument doesn't exist, create a new IdentitySpendingHabit with this data.
+     */
+    create: XOR<IdentitySpendingHabitCreateInput, IdentitySpendingHabitUncheckedCreateInput>
+    /**
+     * In case the IdentitySpendingHabit was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<IdentitySpendingHabitUpdateInput, IdentitySpendingHabitUncheckedUpdateInput>
+  }
+
+  /**
+   * IdentitySpendingHabit delete
+   */
+  export type IdentitySpendingHabitDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentitySpendingHabit
+     */
+    select?: IdentitySpendingHabitSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentitySpendingHabit
+     */
+    omit?: IdentitySpendingHabitOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentitySpendingHabitInclude<ExtArgs> | null
+    /**
+     * Filter which IdentitySpendingHabit to delete.
+     */
+    where: IdentitySpendingHabitWhereUniqueInput
+  }
+
+  /**
+   * IdentitySpendingHabit deleteMany
+   */
+  export type IdentitySpendingHabitDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which IdentitySpendingHabits to delete
+     */
+    where?: IdentitySpendingHabitWhereInput
+    /**
+     * Limit how many IdentitySpendingHabits to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * IdentitySpendingHabit without action
+   */
+  export type IdentitySpendingHabitDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the IdentitySpendingHabit
+     */
+    select?: IdentitySpendingHabitSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the IdentitySpendingHabit
+     */
+    omit?: IdentitySpendingHabitOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: IdentitySpendingHabitInclude<ExtArgs> | null
   }
 
 
@@ -33133,11 +34472,13 @@ export namespace Prisma {
   export type ScheduledBillAvgAggregateOutputType = {
     amount: number | null
     maxAuthorizedAmount: number | null
+    appliedYieldCents: number | null
   }
 
   export type ScheduledBillSumAggregateOutputType = {
     amount: number | null
     maxAuthorizedAmount: number | null
+    appliedYieldCents: number | null
   }
 
   export type ScheduledBillMinAggregateOutputType = {
@@ -33158,6 +34499,8 @@ export namespace Prisma {
     providerPreference: string | null
     lastAttemptAt: Date | null
     settlementReference: string | null
+    appliedYieldCents: number | null
+    source: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -33180,6 +34523,8 @@ export namespace Prisma {
     providerPreference: string | null
     lastAttemptAt: Date | null
     settlementReference: string | null
+    appliedYieldCents: number | null
+    source: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -33202,6 +34547,8 @@ export namespace Prisma {
     providerPreference: number
     lastAttemptAt: number
     settlementReference: number
+    appliedYieldCents: number
+    source: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -33211,11 +34558,13 @@ export namespace Prisma {
   export type ScheduledBillAvgAggregateInputType = {
     amount?: true
     maxAuthorizedAmount?: true
+    appliedYieldCents?: true
   }
 
   export type ScheduledBillSumAggregateInputType = {
     amount?: true
     maxAuthorizedAmount?: true
+    appliedYieldCents?: true
   }
 
   export type ScheduledBillMinAggregateInputType = {
@@ -33236,6 +34585,8 @@ export namespace Prisma {
     providerPreference?: true
     lastAttemptAt?: true
     settlementReference?: true
+    appliedYieldCents?: true
+    source?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -33258,6 +34609,8 @@ export namespace Prisma {
     providerPreference?: true
     lastAttemptAt?: true
     settlementReference?: true
+    appliedYieldCents?: true
+    source?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -33280,6 +34633,8 @@ export namespace Prisma {
     providerPreference?: true
     lastAttemptAt?: true
     settlementReference?: true
+    appliedYieldCents?: true
+    source?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -33389,6 +34744,8 @@ export namespace Prisma {
     providerPreference: string | null
     lastAttemptAt: Date | null
     settlementReference: string | null
+    appliedYieldCents: number
+    source: string
     createdAt: Date
     updatedAt: Date
     _count: ScheduledBillCountAggregateOutputType | null
@@ -33430,6 +34787,8 @@ export namespace Prisma {
     providerPreference?: boolean
     lastAttemptAt?: boolean
     settlementReference?: boolean
+    appliedYieldCents?: boolean
+    source?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
@@ -33456,6 +34815,8 @@ export namespace Prisma {
     providerPreference?: boolean
     lastAttemptAt?: boolean
     settlementReference?: boolean
+    appliedYieldCents?: boolean
+    source?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
@@ -33480,6 +34841,8 @@ export namespace Prisma {
     providerPreference?: boolean
     lastAttemptAt?: boolean
     settlementReference?: boolean
+    appliedYieldCents?: boolean
+    source?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
@@ -33504,11 +34867,13 @@ export namespace Prisma {
     providerPreference?: boolean
     lastAttemptAt?: boolean
     settlementReference?: boolean
+    appliedYieldCents?: boolean
+    source?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type ScheduledBillOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "vaultId" | "envelopeId" | "billerName" | "billerId" | "maskedAccountNumber" | "amount" | "maxAuthorizedAmount" | "currency" | "frequency" | "dueDate" | "executionWindowStart" | "executionWindowEnd" | "status" | "providerPreference" | "lastAttemptAt" | "settlementReference" | "createdAt" | "updatedAt", ExtArgs["result"]["scheduledBill"]>
+  export type ScheduledBillOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "vaultId" | "envelopeId" | "billerName" | "billerId" | "maskedAccountNumber" | "amount" | "maxAuthorizedAmount" | "currency" | "frequency" | "dueDate" | "executionWindowStart" | "executionWindowEnd" | "status" | "providerPreference" | "lastAttemptAt" | "settlementReference" | "appliedYieldCents" | "source" | "createdAt" | "updatedAt", ExtArgs["result"]["scheduledBill"]>
   export type ScheduledBillInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     vault?: boolean | VaultAccountDefaultArgs<ExtArgs>
     envelope?: boolean | VaultEnvelopeDefaultArgs<ExtArgs>
@@ -33559,6 +34924,21 @@ export namespace Prisma {
       providerPreference: string | null
       lastAttemptAt: Date | null
       settlementReference: string | null
+      /**
+       * Phase 3.1 — Yield routed to this bill by the
+       * `APPLY_TO_NEXT_BILL` strategy (cents). The bill's effective
+       * out-of-pocket cost is `amount - appliedYieldCents` when
+       * the off-ramp settles; the principal reserved in the envelope
+       * is unchanged (per the spec's "Principal reserved for bills
+       * is never reduced by a yield-routing choice" rule).
+       */
+      appliedYieldCents: number
+      /**
+       * Phase 3.5 — `seed` (migrated by the canonical seed pass)
+       * or `user` (added via the vault's per-bill editor). Lets the
+       * UI distinguish "always-here" bills from "I added this one".
+       */
+      source: string
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["scheduledBill"]>
@@ -34004,6 +35384,8 @@ export namespace Prisma {
     readonly providerPreference: FieldRef<"ScheduledBill", 'String'>
     readonly lastAttemptAt: FieldRef<"ScheduledBill", 'DateTime'>
     readonly settlementReference: FieldRef<"ScheduledBill", 'String'>
+    readonly appliedYieldCents: FieldRef<"ScheduledBill", 'Int'>
+    readonly source: FieldRef<"ScheduledBill", 'String'>
     readonly createdAt: FieldRef<"ScheduledBill", 'DateTime'>
     readonly updatedAt: FieldRef<"ScheduledBill", 'DateTime'>
   }
@@ -39322,7 +40704,11 @@ export namespace Prisma {
     kind: 'kind',
     balanceDollars: 'balanceDollars',
     sortOrder: 'sortOrder',
-    createdAt: 'createdAt'
+    createdAt: 'createdAt',
+    employerMatchPercent: 'employerMatchPercent',
+    vestingYears: 'vestingYears',
+    fundChoices: 'fundChoices',
+    expenseRatioPct: 'expenseRatioPct'
   };
 
   export type IdentityAssetScalarFieldEnum = (typeof IdentityAssetScalarFieldEnum)[keyof typeof IdentityAssetScalarFieldEnum]
@@ -39357,6 +40743,19 @@ export namespace Prisma {
   };
 
   export type IdentityEventScalarFieldEnum = (typeof IdentityEventScalarFieldEnum)[keyof typeof IdentityEventScalarFieldEnum]
+
+
+  export const IdentitySpendingHabitScalarFieldEnum: {
+    id: 'id',
+    identityId: 'identityId',
+    category: 'category',
+    habit: 'habit',
+    frequency: 'frequency',
+    sortOrder: 'sortOrder',
+    createdAt: 'createdAt'
+  };
+
+  export type IdentitySpendingHabitScalarFieldEnum = (typeof IdentitySpendingHabitScalarFieldEnum)[keyof typeof IdentitySpendingHabitScalarFieldEnum]
 
 
   export const IdentityHouseholdMemberScalarFieldEnum: {
@@ -39444,6 +40843,8 @@ export namespace Prisma {
     providerPreference: 'providerPreference',
     lastAttemptAt: 'lastAttemptAt',
     settlementReference: 'settlementReference',
+    appliedYieldCents: 'appliedYieldCents',
+    source: 'source',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -40751,6 +42152,7 @@ export namespace Prisma {
     goals?: IdentityGoalListRelationFilter
     events?: IdentityEventListRelationFilter
     household?: IdentityHouseholdMemberListRelationFilter
+    spendingHabits?: IdentitySpendingHabitListRelationFilter
     messages?: OnboardingMessageListRelationFilter
   }
 
@@ -40786,6 +42188,7 @@ export namespace Prisma {
     goals?: IdentityGoalOrderByRelationAggregateInput
     events?: IdentityEventOrderByRelationAggregateInput
     household?: IdentityHouseholdMemberOrderByRelationAggregateInput
+    spendingHabits?: IdentitySpendingHabitOrderByRelationAggregateInput
     messages?: OnboardingMessageOrderByRelationAggregateInput
   }
 
@@ -40824,6 +42227,7 @@ export namespace Prisma {
     goals?: IdentityGoalListRelationFilter
     events?: IdentityEventListRelationFilter
     household?: IdentityHouseholdMemberListRelationFilter
+    spendingHabits?: IdentitySpendingHabitListRelationFilter
     messages?: OnboardingMessageListRelationFilter
   }, "id" | "userId">
 
@@ -41119,6 +42523,10 @@ export namespace Prisma {
     balanceDollars?: IntFilter<"IdentityAsset"> | number
     sortOrder?: IntFilter<"IdentityAsset"> | number
     createdAt?: DateTimeFilter<"IdentityAsset"> | Date | string
+    employerMatchPercent?: FloatNullableFilter<"IdentityAsset"> | number | null
+    vestingYears?: IntNullableFilter<"IdentityAsset"> | number | null
+    fundChoices?: StringNullableFilter<"IdentityAsset"> | string | null
+    expenseRatioPct?: FloatNullableFilter<"IdentityAsset"> | number | null
     identity?: XOR<FinancialIdentityScalarRelationFilter, FinancialIdentityWhereInput>
   }
 
@@ -41130,6 +42538,10 @@ export namespace Prisma {
     balanceDollars?: SortOrder
     sortOrder?: SortOrder
     createdAt?: SortOrder
+    employerMatchPercent?: SortOrderInput | SortOrder
+    vestingYears?: SortOrderInput | SortOrder
+    fundChoices?: SortOrderInput | SortOrder
+    expenseRatioPct?: SortOrderInput | SortOrder
     identity?: FinancialIdentityOrderByWithRelationInput
   }
 
@@ -41144,6 +42556,10 @@ export namespace Prisma {
     balanceDollars?: IntFilter<"IdentityAsset"> | number
     sortOrder?: IntFilter<"IdentityAsset"> | number
     createdAt?: DateTimeFilter<"IdentityAsset"> | Date | string
+    employerMatchPercent?: FloatNullableFilter<"IdentityAsset"> | number | null
+    vestingYears?: IntNullableFilter<"IdentityAsset"> | number | null
+    fundChoices?: StringNullableFilter<"IdentityAsset"> | string | null
+    expenseRatioPct?: FloatNullableFilter<"IdentityAsset"> | number | null
     identity?: XOR<FinancialIdentityScalarRelationFilter, FinancialIdentityWhereInput>
   }, "id">
 
@@ -41155,6 +42571,10 @@ export namespace Prisma {
     balanceDollars?: SortOrder
     sortOrder?: SortOrder
     createdAt?: SortOrder
+    employerMatchPercent?: SortOrderInput | SortOrder
+    vestingYears?: SortOrderInput | SortOrder
+    fundChoices?: SortOrderInput | SortOrder
+    expenseRatioPct?: SortOrderInput | SortOrder
     _count?: IdentityAssetCountOrderByAggregateInput
     _avg?: IdentityAssetAvgOrderByAggregateInput
     _max?: IdentityAssetMaxOrderByAggregateInput
@@ -41173,6 +42593,10 @@ export namespace Prisma {
     balanceDollars?: IntWithAggregatesFilter<"IdentityAsset"> | number
     sortOrder?: IntWithAggregatesFilter<"IdentityAsset"> | number
     createdAt?: DateTimeWithAggregatesFilter<"IdentityAsset"> | Date | string
+    employerMatchPercent?: FloatNullableWithAggregatesFilter<"IdentityAsset"> | number | null
+    vestingYears?: IntNullableWithAggregatesFilter<"IdentityAsset"> | number | null
+    fundChoices?: StringNullableWithAggregatesFilter<"IdentityAsset"> | string | null
+    expenseRatioPct?: FloatNullableWithAggregatesFilter<"IdentityAsset"> | number | null
   }
 
   export type IdentityGoalWhereInput = {
@@ -41332,6 +42756,73 @@ export namespace Prisma {
     isFlexible?: BoolWithAggregatesFilter<"IdentityEvent"> | boolean
     sortOrder?: IntWithAggregatesFilter<"IdentityEvent"> | number
     createdAt?: DateTimeWithAggregatesFilter<"IdentityEvent"> | Date | string
+  }
+
+  export type IdentitySpendingHabitWhereInput = {
+    AND?: IdentitySpendingHabitWhereInput | IdentitySpendingHabitWhereInput[]
+    OR?: IdentitySpendingHabitWhereInput[]
+    NOT?: IdentitySpendingHabitWhereInput | IdentitySpendingHabitWhereInput[]
+    id?: StringFilter<"IdentitySpendingHabit"> | string
+    identityId?: StringFilter<"IdentitySpendingHabit"> | string
+    category?: StringFilter<"IdentitySpendingHabit"> | string
+    habit?: StringFilter<"IdentitySpendingHabit"> | string
+    frequency?: StringNullableFilter<"IdentitySpendingHabit"> | string | null
+    sortOrder?: IntFilter<"IdentitySpendingHabit"> | number
+    createdAt?: DateTimeFilter<"IdentitySpendingHabit"> | Date | string
+    identity?: XOR<FinancialIdentityScalarRelationFilter, FinancialIdentityWhereInput>
+  }
+
+  export type IdentitySpendingHabitOrderByWithRelationInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    category?: SortOrder
+    habit?: SortOrder
+    frequency?: SortOrderInput | SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+    identity?: FinancialIdentityOrderByWithRelationInput
+  }
+
+  export type IdentitySpendingHabitWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: IdentitySpendingHabitWhereInput | IdentitySpendingHabitWhereInput[]
+    OR?: IdentitySpendingHabitWhereInput[]
+    NOT?: IdentitySpendingHabitWhereInput | IdentitySpendingHabitWhereInput[]
+    identityId?: StringFilter<"IdentitySpendingHabit"> | string
+    category?: StringFilter<"IdentitySpendingHabit"> | string
+    habit?: StringFilter<"IdentitySpendingHabit"> | string
+    frequency?: StringNullableFilter<"IdentitySpendingHabit"> | string | null
+    sortOrder?: IntFilter<"IdentitySpendingHabit"> | number
+    createdAt?: DateTimeFilter<"IdentitySpendingHabit"> | Date | string
+    identity?: XOR<FinancialIdentityScalarRelationFilter, FinancialIdentityWhereInput>
+  }, "id">
+
+  export type IdentitySpendingHabitOrderByWithAggregationInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    category?: SortOrder
+    habit?: SortOrder
+    frequency?: SortOrderInput | SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+    _count?: IdentitySpendingHabitCountOrderByAggregateInput
+    _avg?: IdentitySpendingHabitAvgOrderByAggregateInput
+    _max?: IdentitySpendingHabitMaxOrderByAggregateInput
+    _min?: IdentitySpendingHabitMinOrderByAggregateInput
+    _sum?: IdentitySpendingHabitSumOrderByAggregateInput
+  }
+
+  export type IdentitySpendingHabitScalarWhereWithAggregatesInput = {
+    AND?: IdentitySpendingHabitScalarWhereWithAggregatesInput | IdentitySpendingHabitScalarWhereWithAggregatesInput[]
+    OR?: IdentitySpendingHabitScalarWhereWithAggregatesInput[]
+    NOT?: IdentitySpendingHabitScalarWhereWithAggregatesInput | IdentitySpendingHabitScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"IdentitySpendingHabit"> | string
+    identityId?: StringWithAggregatesFilter<"IdentitySpendingHabit"> | string
+    category?: StringWithAggregatesFilter<"IdentitySpendingHabit"> | string
+    habit?: StringWithAggregatesFilter<"IdentitySpendingHabit"> | string
+    frequency?: StringNullableWithAggregatesFilter<"IdentitySpendingHabit"> | string | null
+    sortOrder?: IntWithAggregatesFilter<"IdentitySpendingHabit"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"IdentitySpendingHabit"> | Date | string
   }
 
   export type IdentityHouseholdMemberWhereInput = {
@@ -41716,6 +43207,8 @@ export namespace Prisma {
     providerPreference?: StringNullableFilter<"ScheduledBill"> | string | null
     lastAttemptAt?: DateTimeNullableFilter<"ScheduledBill"> | Date | string | null
     settlementReference?: StringNullableFilter<"ScheduledBill"> | string | null
+    appliedYieldCents?: IntFilter<"ScheduledBill"> | number
+    source?: StringFilter<"ScheduledBill"> | string
     createdAt?: DateTimeFilter<"ScheduledBill"> | Date | string
     updatedAt?: DateTimeFilter<"ScheduledBill"> | Date | string
     vault?: XOR<VaultAccountScalarRelationFilter, VaultAccountWhereInput>
@@ -41741,6 +43234,8 @@ export namespace Prisma {
     providerPreference?: SortOrderInput | SortOrder
     lastAttemptAt?: SortOrderInput | SortOrder
     settlementReference?: SortOrderInput | SortOrder
+    appliedYieldCents?: SortOrder
+    source?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     vault?: VaultAccountOrderByWithRelationInput
@@ -41770,6 +43265,8 @@ export namespace Prisma {
     providerPreference?: StringNullableFilter<"ScheduledBill"> | string | null
     lastAttemptAt?: DateTimeNullableFilter<"ScheduledBill"> | Date | string | null
     settlementReference?: StringNullableFilter<"ScheduledBill"> | string | null
+    appliedYieldCents?: IntFilter<"ScheduledBill"> | number
+    source?: StringFilter<"ScheduledBill"> | string
     createdAt?: DateTimeFilter<"ScheduledBill"> | Date | string
     updatedAt?: DateTimeFilter<"ScheduledBill"> | Date | string
     vault?: XOR<VaultAccountScalarRelationFilter, VaultAccountWhereInput>
@@ -41795,6 +43292,8 @@ export namespace Prisma {
     providerPreference?: SortOrderInput | SortOrder
     lastAttemptAt?: SortOrderInput | SortOrder
     settlementReference?: SortOrderInput | SortOrder
+    appliedYieldCents?: SortOrder
+    source?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: ScheduledBillCountOrderByAggregateInput
@@ -41825,6 +43324,8 @@ export namespace Prisma {
     providerPreference?: StringNullableWithAggregatesFilter<"ScheduledBill"> | string | null
     lastAttemptAt?: DateTimeNullableWithAggregatesFilter<"ScheduledBill"> | Date | string | null
     settlementReference?: StringNullableWithAggregatesFilter<"ScheduledBill"> | string | null
+    appliedYieldCents?: IntWithAggregatesFilter<"ScheduledBill"> | number
+    source?: StringWithAggregatesFilter<"ScheduledBill"> | string
     createdAt?: DateTimeWithAggregatesFilter<"ScheduledBill"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"ScheduledBill"> | Date | string
   }
@@ -43425,6 +44926,7 @@ export namespace Prisma {
     goals?: IdentityGoalCreateNestedManyWithoutIdentityInput
     events?: IdentityEventCreateNestedManyWithoutIdentityInput
     household?: IdentityHouseholdMemberCreateNestedManyWithoutIdentityInput
+    spendingHabits?: IdentitySpendingHabitCreateNestedManyWithoutIdentityInput
     messages?: OnboardingMessageCreateNestedManyWithoutIdentityInput
   }
 
@@ -43459,6 +44961,7 @@ export namespace Prisma {
     goals?: IdentityGoalUncheckedCreateNestedManyWithoutIdentityInput
     events?: IdentityEventUncheckedCreateNestedManyWithoutIdentityInput
     household?: IdentityHouseholdMemberUncheckedCreateNestedManyWithoutIdentityInput
+    spendingHabits?: IdentitySpendingHabitUncheckedCreateNestedManyWithoutIdentityInput
     messages?: OnboardingMessageUncheckedCreateNestedManyWithoutIdentityInput
   }
 
@@ -43493,6 +44996,7 @@ export namespace Prisma {
     goals?: IdentityGoalUpdateManyWithoutIdentityNestedInput
     events?: IdentityEventUpdateManyWithoutIdentityNestedInput
     household?: IdentityHouseholdMemberUpdateManyWithoutIdentityNestedInput
+    spendingHabits?: IdentitySpendingHabitUpdateManyWithoutIdentityNestedInput
     messages?: OnboardingMessageUpdateManyWithoutIdentityNestedInput
   }
 
@@ -43527,6 +45031,7 @@ export namespace Prisma {
     goals?: IdentityGoalUncheckedUpdateManyWithoutIdentityNestedInput
     events?: IdentityEventUncheckedUpdateManyWithoutIdentityNestedInput
     household?: IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityNestedInput
+    spendingHabits?: IdentitySpendingHabitUncheckedUpdateManyWithoutIdentityNestedInput
     messages?: OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput
   }
 
@@ -43849,6 +45354,10 @@ export namespace Prisma {
     balanceDollars?: number
     sortOrder?: number
     createdAt?: Date | string
+    employerMatchPercent?: number | null
+    vestingYears?: number | null
+    fundChoices?: string | null
+    expenseRatioPct?: number | null
     identity: FinancialIdentityCreateNestedOneWithoutAssetsInput
   }
 
@@ -43860,6 +45369,10 @@ export namespace Prisma {
     balanceDollars?: number
     sortOrder?: number
     createdAt?: Date | string
+    employerMatchPercent?: number | null
+    vestingYears?: number | null
+    fundChoices?: string | null
+    expenseRatioPct?: number | null
   }
 
   export type IdentityAssetUpdateInput = {
@@ -43869,6 +45382,10 @@ export namespace Prisma {
     balanceDollars?: IntFieldUpdateOperationsInput | number
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    employerMatchPercent?: NullableFloatFieldUpdateOperationsInput | number | null
+    vestingYears?: NullableIntFieldUpdateOperationsInput | number | null
+    fundChoices?: NullableStringFieldUpdateOperationsInput | string | null
+    expenseRatioPct?: NullableFloatFieldUpdateOperationsInput | number | null
     identity?: FinancialIdentityUpdateOneRequiredWithoutAssetsNestedInput
   }
 
@@ -43880,6 +45397,10 @@ export namespace Prisma {
     balanceDollars?: IntFieldUpdateOperationsInput | number
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    employerMatchPercent?: NullableFloatFieldUpdateOperationsInput | number | null
+    vestingYears?: NullableIntFieldUpdateOperationsInput | number | null
+    fundChoices?: NullableStringFieldUpdateOperationsInput | string | null
+    expenseRatioPct?: NullableFloatFieldUpdateOperationsInput | number | null
   }
 
   export type IdentityAssetCreateManyInput = {
@@ -43890,6 +45411,10 @@ export namespace Prisma {
     balanceDollars?: number
     sortOrder?: number
     createdAt?: Date | string
+    employerMatchPercent?: number | null
+    vestingYears?: number | null
+    fundChoices?: string | null
+    expenseRatioPct?: number | null
   }
 
   export type IdentityAssetUpdateManyMutationInput = {
@@ -43899,6 +45424,10 @@ export namespace Prisma {
     balanceDollars?: IntFieldUpdateOperationsInput | number
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    employerMatchPercent?: NullableFloatFieldUpdateOperationsInput | number | null
+    vestingYears?: NullableIntFieldUpdateOperationsInput | number | null
+    fundChoices?: NullableStringFieldUpdateOperationsInput | string | null
+    expenseRatioPct?: NullableFloatFieldUpdateOperationsInput | number | null
   }
 
   export type IdentityAssetUncheckedUpdateManyInput = {
@@ -43909,6 +45438,10 @@ export namespace Prisma {
     balanceDollars?: IntFieldUpdateOperationsInput | number
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    employerMatchPercent?: NullableFloatFieldUpdateOperationsInput | number | null
+    vestingYears?: NullableIntFieldUpdateOperationsInput | number | null
+    fundChoices?: NullableStringFieldUpdateOperationsInput | string | null
+    expenseRatioPct?: NullableFloatFieldUpdateOperationsInput | number | null
   }
 
   export type IdentityGoalCreateInput = {
@@ -44080,6 +45613,75 @@ export namespace Prisma {
     date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     estimatedCostDollars?: IntFieldUpdateOperationsInput | number
     isFlexible?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentitySpendingHabitCreateInput = {
+    id?: string
+    category: string
+    habit: string
+    frequency?: string | null
+    sortOrder?: number
+    createdAt?: Date | string
+    identity: FinancialIdentityCreateNestedOneWithoutSpendingHabitsInput
+  }
+
+  export type IdentitySpendingHabitUncheckedCreateInput = {
+    id?: string
+    identityId: string
+    category: string
+    habit: string
+    frequency?: string | null
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentitySpendingHabitUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    habit?: StringFieldUpdateOperationsInput | string
+    frequency?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    identity?: FinancialIdentityUpdateOneRequiredWithoutSpendingHabitsNestedInput
+  }
+
+  export type IdentitySpendingHabitUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    identityId?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    habit?: StringFieldUpdateOperationsInput | string
+    frequency?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentitySpendingHabitCreateManyInput = {
+    id?: string
+    identityId: string
+    category: string
+    habit: string
+    frequency?: string | null
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentitySpendingHabitUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    habit?: StringFieldUpdateOperationsInput | string
+    frequency?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentitySpendingHabitUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    identityId?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    habit?: StringFieldUpdateOperationsInput | string
+    frequency?: NullableStringFieldUpdateOperationsInput | string | null
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -44500,6 +46102,8 @@ export namespace Prisma {
     providerPreference?: string | null
     lastAttemptAt?: Date | string | null
     settlementReference?: string | null
+    appliedYieldCents?: number
+    source?: string
     createdAt?: Date | string
     updatedAt?: Date | string
     vault: VaultAccountCreateNestedOneWithoutBillsInput
@@ -44525,6 +46129,8 @@ export namespace Prisma {
     providerPreference?: string | null
     lastAttemptAt?: Date | string | null
     settlementReference?: string | null
+    appliedYieldCents?: number
+    source?: string
     createdAt?: Date | string
     updatedAt?: Date | string
     paymentAttempts?: PaymentAttemptUncheckedCreateNestedManyWithoutBillInput
@@ -44546,6 +46152,8 @@ export namespace Prisma {
     providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
     lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    appliedYieldCents?: IntFieldUpdateOperationsInput | number
+    source?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     vault?: VaultAccountUpdateOneRequiredWithoutBillsNestedInput
@@ -44571,6 +46179,8 @@ export namespace Prisma {
     providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
     lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    appliedYieldCents?: IntFieldUpdateOperationsInput | number
+    source?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     paymentAttempts?: PaymentAttemptUncheckedUpdateManyWithoutBillNestedInput
@@ -44594,6 +46204,8 @@ export namespace Prisma {
     providerPreference?: string | null
     lastAttemptAt?: Date | string | null
     settlementReference?: string | null
+    appliedYieldCents?: number
+    source?: string
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -44614,6 +46226,8 @@ export namespace Prisma {
     providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
     lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    appliedYieldCents?: IntFieldUpdateOperationsInput | number
+    source?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -44636,6 +46250,8 @@ export namespace Prisma {
     providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
     lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    appliedYieldCents?: IntFieldUpdateOperationsInput | number
+    source?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -45970,6 +47586,12 @@ export namespace Prisma {
     none?: IdentityHouseholdMemberWhereInput
   }
 
+  export type IdentitySpendingHabitListRelationFilter = {
+    every?: IdentitySpendingHabitWhereInput
+    some?: IdentitySpendingHabitWhereInput
+    none?: IdentitySpendingHabitWhereInput
+  }
+
   export type OnboardingMessageListRelationFilter = {
     every?: OnboardingMessageWhereInput
     some?: OnboardingMessageWhereInput
@@ -46001,6 +47623,10 @@ export namespace Prisma {
   }
 
   export type IdentityHouseholdMemberOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type IdentitySpendingHabitOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -46262,6 +47888,17 @@ export namespace Prisma {
     _max?: NestedFloatFilter<$PrismaModel>
   }
 
+  export type FloatNullableFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel> | null
+    in?: number[] | null
+    notIn?: number[] | null
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatNullableFilter<$PrismaModel> | number | null
+  }
+
   export type IdentityAssetCountOrderByAggregateInput = {
     id?: SortOrder
     identityId?: SortOrder
@@ -46270,11 +47907,18 @@ export namespace Prisma {
     balanceDollars?: SortOrder
     sortOrder?: SortOrder
     createdAt?: SortOrder
+    employerMatchPercent?: SortOrder
+    vestingYears?: SortOrder
+    fundChoices?: SortOrder
+    expenseRatioPct?: SortOrder
   }
 
   export type IdentityAssetAvgOrderByAggregateInput = {
     balanceDollars?: SortOrder
     sortOrder?: SortOrder
+    employerMatchPercent?: SortOrder
+    vestingYears?: SortOrder
+    expenseRatioPct?: SortOrder
   }
 
   export type IdentityAssetMaxOrderByAggregateInput = {
@@ -46285,6 +47929,10 @@ export namespace Prisma {
     balanceDollars?: SortOrder
     sortOrder?: SortOrder
     createdAt?: SortOrder
+    employerMatchPercent?: SortOrder
+    vestingYears?: SortOrder
+    fundChoices?: SortOrder
+    expenseRatioPct?: SortOrder
   }
 
   export type IdentityAssetMinOrderByAggregateInput = {
@@ -46295,11 +47943,34 @@ export namespace Prisma {
     balanceDollars?: SortOrder
     sortOrder?: SortOrder
     createdAt?: SortOrder
+    employerMatchPercent?: SortOrder
+    vestingYears?: SortOrder
+    fundChoices?: SortOrder
+    expenseRatioPct?: SortOrder
   }
 
   export type IdentityAssetSumOrderByAggregateInput = {
     balanceDollars?: SortOrder
     sortOrder?: SortOrder
+    employerMatchPercent?: SortOrder
+    vestingYears?: SortOrder
+    expenseRatioPct?: SortOrder
+  }
+
+  export type FloatNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel> | null
+    in?: number[] | null
+    notIn?: number[] | null
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatNullableWithAggregatesFilter<$PrismaModel> | number | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _avg?: NestedFloatNullableFilter<$PrismaModel>
+    _sum?: NestedFloatNullableFilter<$PrismaModel>
+    _min?: NestedFloatNullableFilter<$PrismaModel>
+    _max?: NestedFloatNullableFilter<$PrismaModel>
   }
 
   export type IdentityGoalCountOrderByAggregateInput = {
@@ -46398,6 +48069,44 @@ export namespace Prisma {
 
   export type IdentityEventSumOrderByAggregateInput = {
     estimatedCostDollars?: SortOrder
+    sortOrder?: SortOrder
+  }
+
+  export type IdentitySpendingHabitCountOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    category?: SortOrder
+    habit?: SortOrder
+    frequency?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentitySpendingHabitAvgOrderByAggregateInput = {
+    sortOrder?: SortOrder
+  }
+
+  export type IdentitySpendingHabitMaxOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    category?: SortOrder
+    habit?: SortOrder
+    frequency?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentitySpendingHabitMinOrderByAggregateInput = {
+    id?: SortOrder
+    identityId?: SortOrder
+    category?: SortOrder
+    habit?: SortOrder
+    frequency?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type IdentitySpendingHabitSumOrderByAggregateInput = {
     sortOrder?: SortOrder
   }
 
@@ -46687,6 +48396,8 @@ export namespace Prisma {
     providerPreference?: SortOrder
     lastAttemptAt?: SortOrder
     settlementReference?: SortOrder
+    appliedYieldCents?: SortOrder
+    source?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -46694,6 +48405,7 @@ export namespace Prisma {
   export type ScheduledBillAvgOrderByAggregateInput = {
     amount?: SortOrder
     maxAuthorizedAmount?: SortOrder
+    appliedYieldCents?: SortOrder
   }
 
   export type ScheduledBillMaxOrderByAggregateInput = {
@@ -46714,6 +48426,8 @@ export namespace Prisma {
     providerPreference?: SortOrder
     lastAttemptAt?: SortOrder
     settlementReference?: SortOrder
+    appliedYieldCents?: SortOrder
+    source?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -46736,6 +48450,8 @@ export namespace Prisma {
     providerPreference?: SortOrder
     lastAttemptAt?: SortOrder
     settlementReference?: SortOrder
+    appliedYieldCents?: SortOrder
+    source?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -46743,17 +48459,7 @@ export namespace Prisma {
   export type ScheduledBillSumOrderByAggregateInput = {
     amount?: SortOrder
     maxAuthorizedAmount?: SortOrder
-  }
-
-  export type FloatNullableFilter<$PrismaModel = never> = {
-    equals?: number | FloatFieldRefInput<$PrismaModel> | null
-    in?: number[] | null
-    notIn?: number[] | null
-    lt?: number | FloatFieldRefInput<$PrismaModel>
-    lte?: number | FloatFieldRefInput<$PrismaModel>
-    gt?: number | FloatFieldRefInput<$PrismaModel>
-    gte?: number | FloatFieldRefInput<$PrismaModel>
-    not?: NestedFloatNullableFilter<$PrismaModel> | number | null
+    appliedYieldCents?: SortOrder
   }
 
   export type YieldEventCountOrderByAggregateInput = {
@@ -46800,22 +48506,6 @@ export namespace Prisma {
   export type YieldEventSumOrderByAggregateInput = {
     amount?: SortOrder
     annualizedRate?: SortOrder
-  }
-
-  export type FloatNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: number | FloatFieldRefInput<$PrismaModel> | null
-    in?: number[] | null
-    notIn?: number[] | null
-    lt?: number | FloatFieldRefInput<$PrismaModel>
-    lte?: number | FloatFieldRefInput<$PrismaModel>
-    gt?: number | FloatFieldRefInput<$PrismaModel>
-    gte?: number | FloatFieldRefInput<$PrismaModel>
-    not?: NestedFloatNullableWithAggregatesFilter<$PrismaModel> | number | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _avg?: NestedFloatNullableFilter<$PrismaModel>
-    _sum?: NestedFloatNullableFilter<$PrismaModel>
-    _min?: NestedFloatNullableFilter<$PrismaModel>
-    _max?: NestedFloatNullableFilter<$PrismaModel>
   }
 
   export type ScheduledBillScalarRelationFilter = {
@@ -47963,6 +49653,13 @@ export namespace Prisma {
     connect?: IdentityHouseholdMemberWhereUniqueInput | IdentityHouseholdMemberWhereUniqueInput[]
   }
 
+  export type IdentitySpendingHabitCreateNestedManyWithoutIdentityInput = {
+    create?: XOR<IdentitySpendingHabitCreateWithoutIdentityInput, IdentitySpendingHabitUncheckedCreateWithoutIdentityInput> | IdentitySpendingHabitCreateWithoutIdentityInput[] | IdentitySpendingHabitUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentitySpendingHabitCreateOrConnectWithoutIdentityInput | IdentitySpendingHabitCreateOrConnectWithoutIdentityInput[]
+    createMany?: IdentitySpendingHabitCreateManyIdentityInputEnvelope
+    connect?: IdentitySpendingHabitWhereUniqueInput | IdentitySpendingHabitWhereUniqueInput[]
+  }
+
   export type OnboardingMessageCreateNestedManyWithoutIdentityInput = {
     create?: XOR<OnboardingMessageCreateWithoutIdentityInput, OnboardingMessageUncheckedCreateWithoutIdentityInput> | OnboardingMessageCreateWithoutIdentityInput[] | OnboardingMessageUncheckedCreateWithoutIdentityInput[]
     connectOrCreate?: OnboardingMessageCreateOrConnectWithoutIdentityInput | OnboardingMessageCreateOrConnectWithoutIdentityInput[]
@@ -48017,6 +49714,13 @@ export namespace Prisma {
     connectOrCreate?: IdentityHouseholdMemberCreateOrConnectWithoutIdentityInput | IdentityHouseholdMemberCreateOrConnectWithoutIdentityInput[]
     createMany?: IdentityHouseholdMemberCreateManyIdentityInputEnvelope
     connect?: IdentityHouseholdMemberWhereUniqueInput | IdentityHouseholdMemberWhereUniqueInput[]
+  }
+
+  export type IdentitySpendingHabitUncheckedCreateNestedManyWithoutIdentityInput = {
+    create?: XOR<IdentitySpendingHabitCreateWithoutIdentityInput, IdentitySpendingHabitUncheckedCreateWithoutIdentityInput> | IdentitySpendingHabitCreateWithoutIdentityInput[] | IdentitySpendingHabitUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentitySpendingHabitCreateOrConnectWithoutIdentityInput | IdentitySpendingHabitCreateOrConnectWithoutIdentityInput[]
+    createMany?: IdentitySpendingHabitCreateManyIdentityInputEnvelope
+    connect?: IdentitySpendingHabitWhereUniqueInput | IdentitySpendingHabitWhereUniqueInput[]
   }
 
   export type OnboardingMessageUncheckedCreateNestedManyWithoutIdentityInput = {
@@ -48132,6 +49836,20 @@ export namespace Prisma {
     deleteMany?: IdentityHouseholdMemberScalarWhereInput | IdentityHouseholdMemberScalarWhereInput[]
   }
 
+  export type IdentitySpendingHabitUpdateManyWithoutIdentityNestedInput = {
+    create?: XOR<IdentitySpendingHabitCreateWithoutIdentityInput, IdentitySpendingHabitUncheckedCreateWithoutIdentityInput> | IdentitySpendingHabitCreateWithoutIdentityInput[] | IdentitySpendingHabitUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentitySpendingHabitCreateOrConnectWithoutIdentityInput | IdentitySpendingHabitCreateOrConnectWithoutIdentityInput[]
+    upsert?: IdentitySpendingHabitUpsertWithWhereUniqueWithoutIdentityInput | IdentitySpendingHabitUpsertWithWhereUniqueWithoutIdentityInput[]
+    createMany?: IdentitySpendingHabitCreateManyIdentityInputEnvelope
+    set?: IdentitySpendingHabitWhereUniqueInput | IdentitySpendingHabitWhereUniqueInput[]
+    disconnect?: IdentitySpendingHabitWhereUniqueInput | IdentitySpendingHabitWhereUniqueInput[]
+    delete?: IdentitySpendingHabitWhereUniqueInput | IdentitySpendingHabitWhereUniqueInput[]
+    connect?: IdentitySpendingHabitWhereUniqueInput | IdentitySpendingHabitWhereUniqueInput[]
+    update?: IdentitySpendingHabitUpdateWithWhereUniqueWithoutIdentityInput | IdentitySpendingHabitUpdateWithWhereUniqueWithoutIdentityInput[]
+    updateMany?: IdentitySpendingHabitUpdateManyWithWhereWithoutIdentityInput | IdentitySpendingHabitUpdateManyWithWhereWithoutIdentityInput[]
+    deleteMany?: IdentitySpendingHabitScalarWhereInput | IdentitySpendingHabitScalarWhereInput[]
+  }
+
   export type OnboardingMessageUpdateManyWithoutIdentityNestedInput = {
     create?: XOR<OnboardingMessageCreateWithoutIdentityInput, OnboardingMessageUncheckedCreateWithoutIdentityInput> | OnboardingMessageCreateWithoutIdentityInput[] | OnboardingMessageUncheckedCreateWithoutIdentityInput[]
     connectOrCreate?: OnboardingMessageCreateOrConnectWithoutIdentityInput | OnboardingMessageCreateOrConnectWithoutIdentityInput[]
@@ -48244,6 +49962,20 @@ export namespace Prisma {
     deleteMany?: IdentityHouseholdMemberScalarWhereInput | IdentityHouseholdMemberScalarWhereInput[]
   }
 
+  export type IdentitySpendingHabitUncheckedUpdateManyWithoutIdentityNestedInput = {
+    create?: XOR<IdentitySpendingHabitCreateWithoutIdentityInput, IdentitySpendingHabitUncheckedCreateWithoutIdentityInput> | IdentitySpendingHabitCreateWithoutIdentityInput[] | IdentitySpendingHabitUncheckedCreateWithoutIdentityInput[]
+    connectOrCreate?: IdentitySpendingHabitCreateOrConnectWithoutIdentityInput | IdentitySpendingHabitCreateOrConnectWithoutIdentityInput[]
+    upsert?: IdentitySpendingHabitUpsertWithWhereUniqueWithoutIdentityInput | IdentitySpendingHabitUpsertWithWhereUniqueWithoutIdentityInput[]
+    createMany?: IdentitySpendingHabitCreateManyIdentityInputEnvelope
+    set?: IdentitySpendingHabitWhereUniqueInput | IdentitySpendingHabitWhereUniqueInput[]
+    disconnect?: IdentitySpendingHabitWhereUniqueInput | IdentitySpendingHabitWhereUniqueInput[]
+    delete?: IdentitySpendingHabitWhereUniqueInput | IdentitySpendingHabitWhereUniqueInput[]
+    connect?: IdentitySpendingHabitWhereUniqueInput | IdentitySpendingHabitWhereUniqueInput[]
+    update?: IdentitySpendingHabitUpdateWithWhereUniqueWithoutIdentityInput | IdentitySpendingHabitUpdateWithWhereUniqueWithoutIdentityInput[]
+    updateMany?: IdentitySpendingHabitUpdateManyWithWhereWithoutIdentityInput | IdentitySpendingHabitUpdateManyWithWhereWithoutIdentityInput[]
+    deleteMany?: IdentitySpendingHabitScalarWhereInput | IdentitySpendingHabitScalarWhereInput[]
+  }
+
   export type OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput = {
     create?: XOR<OnboardingMessageCreateWithoutIdentityInput, OnboardingMessageUncheckedCreateWithoutIdentityInput> | OnboardingMessageCreateWithoutIdentityInput[] | OnboardingMessageUncheckedCreateWithoutIdentityInput[]
     connectOrCreate?: OnboardingMessageCreateOrConnectWithoutIdentityInput | OnboardingMessageCreateOrConnectWithoutIdentityInput[]
@@ -48314,6 +50046,14 @@ export namespace Prisma {
     connect?: FinancialIdentityWhereUniqueInput
   }
 
+  export type NullableFloatFieldUpdateOperationsInput = {
+    set?: number | null
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
+  }
+
   export type FinancialIdentityUpdateOneRequiredWithoutAssetsNestedInput = {
     create?: XOR<FinancialIdentityCreateWithoutAssetsInput, FinancialIdentityUncheckedCreateWithoutAssetsInput>
     connectOrCreate?: FinancialIdentityCreateOrConnectWithoutAssetsInput
@@ -48348,6 +50088,20 @@ export namespace Prisma {
     upsert?: FinancialIdentityUpsertWithoutEventsInput
     connect?: FinancialIdentityWhereUniqueInput
     update?: XOR<XOR<FinancialIdentityUpdateToOneWithWhereWithoutEventsInput, FinancialIdentityUpdateWithoutEventsInput>, FinancialIdentityUncheckedUpdateWithoutEventsInput>
+  }
+
+  export type FinancialIdentityCreateNestedOneWithoutSpendingHabitsInput = {
+    create?: XOR<FinancialIdentityCreateWithoutSpendingHabitsInput, FinancialIdentityUncheckedCreateWithoutSpendingHabitsInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutSpendingHabitsInput
+    connect?: FinancialIdentityWhereUniqueInput
+  }
+
+  export type FinancialIdentityUpdateOneRequiredWithoutSpendingHabitsNestedInput = {
+    create?: XOR<FinancialIdentityCreateWithoutSpendingHabitsInput, FinancialIdentityUncheckedCreateWithoutSpendingHabitsInput>
+    connectOrCreate?: FinancialIdentityCreateOrConnectWithoutSpendingHabitsInput
+    upsert?: FinancialIdentityUpsertWithoutSpendingHabitsInput
+    connect?: FinancialIdentityWhereUniqueInput
+    update?: XOR<XOR<FinancialIdentityUpdateToOneWithWhereWithoutSpendingHabitsInput, FinancialIdentityUpdateWithoutSpendingHabitsInput>, FinancialIdentityUncheckedUpdateWithoutSpendingHabitsInput>
   }
 
   export type FinancialIdentityCreateNestedOneWithoutHouseholdInput = {
@@ -48710,14 +50464,6 @@ export namespace Prisma {
     create?: XOR<VaultEnvelopeCreateWithoutYieldEventsInput, VaultEnvelopeUncheckedCreateWithoutYieldEventsInput>
     connectOrCreate?: VaultEnvelopeCreateOrConnectWithoutYieldEventsInput
     connect?: VaultEnvelopeWhereUniqueInput
-  }
-
-  export type NullableFloatFieldUpdateOperationsInput = {
-    set?: number | null
-    increment?: number
-    decrement?: number
-    multiply?: number
-    divide?: number
   }
 
   export type VaultAccountUpdateOneRequiredWithoutYieldEventsNestedInput = {
@@ -49462,6 +51208,7 @@ export namespace Prisma {
     goals?: IdentityGoalCreateNestedManyWithoutIdentityInput
     events?: IdentityEventCreateNestedManyWithoutIdentityInput
     household?: IdentityHouseholdMemberCreateNestedManyWithoutIdentityInput
+    spendingHabits?: IdentitySpendingHabitCreateNestedManyWithoutIdentityInput
     messages?: OnboardingMessageCreateNestedManyWithoutIdentityInput
   }
 
@@ -49495,6 +51242,7 @@ export namespace Prisma {
     goals?: IdentityGoalUncheckedCreateNestedManyWithoutIdentityInput
     events?: IdentityEventUncheckedCreateNestedManyWithoutIdentityInput
     household?: IdentityHouseholdMemberUncheckedCreateNestedManyWithoutIdentityInput
+    spendingHabits?: IdentitySpendingHabitUncheckedCreateNestedManyWithoutIdentityInput
     messages?: OnboardingMessageUncheckedCreateNestedManyWithoutIdentityInput
   }
 
@@ -49911,6 +51659,7 @@ export namespace Prisma {
     goals?: IdentityGoalUpdateManyWithoutIdentityNestedInput
     events?: IdentityEventUpdateManyWithoutIdentityNestedInput
     household?: IdentityHouseholdMemberUpdateManyWithoutIdentityNestedInput
+    spendingHabits?: IdentitySpendingHabitUpdateManyWithoutIdentityNestedInput
     messages?: OnboardingMessageUpdateManyWithoutIdentityNestedInput
   }
 
@@ -49944,6 +51693,7 @@ export namespace Prisma {
     goals?: IdentityGoalUncheckedUpdateManyWithoutIdentityNestedInput
     events?: IdentityEventUncheckedUpdateManyWithoutIdentityNestedInput
     household?: IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityNestedInput
+    spendingHabits?: IdentitySpendingHabitUncheckedUpdateManyWithoutIdentityNestedInput
     messages?: OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput
   }
 
@@ -51959,6 +53709,10 @@ export namespace Prisma {
     balanceDollars?: number
     sortOrder?: number
     createdAt?: Date | string
+    employerMatchPercent?: number | null
+    vestingYears?: number | null
+    fundChoices?: string | null
+    expenseRatioPct?: number | null
   }
 
   export type IdentityAssetUncheckedCreateWithoutIdentityInput = {
@@ -51968,6 +53722,10 @@ export namespace Prisma {
     balanceDollars?: number
     sortOrder?: number
     createdAt?: Date | string
+    employerMatchPercent?: number | null
+    vestingYears?: number | null
+    fundChoices?: string | null
+    expenseRatioPct?: number | null
   }
 
   export type IdentityAssetCreateOrConnectWithoutIdentityInput = {
@@ -52070,6 +53828,33 @@ export namespace Prisma {
 
   export type IdentityHouseholdMemberCreateManyIdentityInputEnvelope = {
     data: IdentityHouseholdMemberCreateManyIdentityInput | IdentityHouseholdMemberCreateManyIdentityInput[]
+  }
+
+  export type IdentitySpendingHabitCreateWithoutIdentityInput = {
+    id?: string
+    category: string
+    habit: string
+    frequency?: string | null
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentitySpendingHabitUncheckedCreateWithoutIdentityInput = {
+    id?: string
+    category: string
+    habit: string
+    frequency?: string | null
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentitySpendingHabitCreateOrConnectWithoutIdentityInput = {
+    where: IdentitySpendingHabitWhereUniqueInput
+    create: XOR<IdentitySpendingHabitCreateWithoutIdentityInput, IdentitySpendingHabitUncheckedCreateWithoutIdentityInput>
+  }
+
+  export type IdentitySpendingHabitCreateManyIdentityInputEnvelope = {
+    data: IdentitySpendingHabitCreateManyIdentityInput | IdentitySpendingHabitCreateManyIdentityInput[]
   }
 
   export type OnboardingMessageCreateWithoutIdentityInput = {
@@ -52278,6 +54063,10 @@ export namespace Prisma {
     balanceDollars?: IntFilter<"IdentityAsset"> | number
     sortOrder?: IntFilter<"IdentityAsset"> | number
     createdAt?: DateTimeFilter<"IdentityAsset"> | Date | string
+    employerMatchPercent?: FloatNullableFilter<"IdentityAsset"> | number | null
+    vestingYears?: IntNullableFilter<"IdentityAsset"> | number | null
+    fundChoices?: StringNullableFilter<"IdentityAsset"> | string | null
+    expenseRatioPct?: FloatNullableFilter<"IdentityAsset"> | number | null
   }
 
   export type IdentityGoalUpsertWithWhereUniqueWithoutIdentityInput = {
@@ -52373,6 +54162,35 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"IdentityHouseholdMember"> | Date | string
   }
 
+  export type IdentitySpendingHabitUpsertWithWhereUniqueWithoutIdentityInput = {
+    where: IdentitySpendingHabitWhereUniqueInput
+    update: XOR<IdentitySpendingHabitUpdateWithoutIdentityInput, IdentitySpendingHabitUncheckedUpdateWithoutIdentityInput>
+    create: XOR<IdentitySpendingHabitCreateWithoutIdentityInput, IdentitySpendingHabitUncheckedCreateWithoutIdentityInput>
+  }
+
+  export type IdentitySpendingHabitUpdateWithWhereUniqueWithoutIdentityInput = {
+    where: IdentitySpendingHabitWhereUniqueInput
+    data: XOR<IdentitySpendingHabitUpdateWithoutIdentityInput, IdentitySpendingHabitUncheckedUpdateWithoutIdentityInput>
+  }
+
+  export type IdentitySpendingHabitUpdateManyWithWhereWithoutIdentityInput = {
+    where: IdentitySpendingHabitScalarWhereInput
+    data: XOR<IdentitySpendingHabitUpdateManyMutationInput, IdentitySpendingHabitUncheckedUpdateManyWithoutIdentityInput>
+  }
+
+  export type IdentitySpendingHabitScalarWhereInput = {
+    AND?: IdentitySpendingHabitScalarWhereInput | IdentitySpendingHabitScalarWhereInput[]
+    OR?: IdentitySpendingHabitScalarWhereInput[]
+    NOT?: IdentitySpendingHabitScalarWhereInput | IdentitySpendingHabitScalarWhereInput[]
+    id?: StringFilter<"IdentitySpendingHabit"> | string
+    identityId?: StringFilter<"IdentitySpendingHabit"> | string
+    category?: StringFilter<"IdentitySpendingHabit"> | string
+    habit?: StringFilter<"IdentitySpendingHabit"> | string
+    frequency?: StringNullableFilter<"IdentitySpendingHabit"> | string | null
+    sortOrder?: IntFilter<"IdentitySpendingHabit"> | number
+    createdAt?: DateTimeFilter<"IdentitySpendingHabit"> | Date | string
+  }
+
   export type OnboardingMessageUpsertWithWhereUniqueWithoutIdentityInput = {
     where: OnboardingMessageWhereUniqueInput
     update: XOR<OnboardingMessageUpdateWithoutIdentityInput, OnboardingMessageUncheckedUpdateWithoutIdentityInput>
@@ -52433,6 +54251,7 @@ export namespace Prisma {
     goals?: IdentityGoalCreateNestedManyWithoutIdentityInput
     events?: IdentityEventCreateNestedManyWithoutIdentityInput
     household?: IdentityHouseholdMemberCreateNestedManyWithoutIdentityInput
+    spendingHabits?: IdentitySpendingHabitCreateNestedManyWithoutIdentityInput
     messages?: OnboardingMessageCreateNestedManyWithoutIdentityInput
   }
 
@@ -52466,6 +54285,7 @@ export namespace Prisma {
     goals?: IdentityGoalUncheckedCreateNestedManyWithoutIdentityInput
     events?: IdentityEventUncheckedCreateNestedManyWithoutIdentityInput
     household?: IdentityHouseholdMemberUncheckedCreateNestedManyWithoutIdentityInput
+    spendingHabits?: IdentitySpendingHabitUncheckedCreateNestedManyWithoutIdentityInput
     messages?: OnboardingMessageUncheckedCreateNestedManyWithoutIdentityInput
   }
 
@@ -52515,6 +54335,7 @@ export namespace Prisma {
     goals?: IdentityGoalUpdateManyWithoutIdentityNestedInput
     events?: IdentityEventUpdateManyWithoutIdentityNestedInput
     household?: IdentityHouseholdMemberUpdateManyWithoutIdentityNestedInput
+    spendingHabits?: IdentitySpendingHabitUpdateManyWithoutIdentityNestedInput
     messages?: OnboardingMessageUpdateManyWithoutIdentityNestedInput
   }
 
@@ -52548,6 +54369,7 @@ export namespace Prisma {
     goals?: IdentityGoalUncheckedUpdateManyWithoutIdentityNestedInput
     events?: IdentityEventUncheckedUpdateManyWithoutIdentityNestedInput
     household?: IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityNestedInput
+    spendingHabits?: IdentitySpendingHabitUncheckedUpdateManyWithoutIdentityNestedInput
     messages?: OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput
   }
 
@@ -52581,6 +54403,7 @@ export namespace Prisma {
     goals?: IdentityGoalCreateNestedManyWithoutIdentityInput
     events?: IdentityEventCreateNestedManyWithoutIdentityInput
     household?: IdentityHouseholdMemberCreateNestedManyWithoutIdentityInput
+    spendingHabits?: IdentitySpendingHabitCreateNestedManyWithoutIdentityInput
     messages?: OnboardingMessageCreateNestedManyWithoutIdentityInput
   }
 
@@ -52614,6 +54437,7 @@ export namespace Prisma {
     goals?: IdentityGoalUncheckedCreateNestedManyWithoutIdentityInput
     events?: IdentityEventUncheckedCreateNestedManyWithoutIdentityInput
     household?: IdentityHouseholdMemberUncheckedCreateNestedManyWithoutIdentityInput
+    spendingHabits?: IdentitySpendingHabitUncheckedCreateNestedManyWithoutIdentityInput
     messages?: OnboardingMessageUncheckedCreateNestedManyWithoutIdentityInput
   }
 
@@ -52663,6 +54487,7 @@ export namespace Prisma {
     goals?: IdentityGoalUpdateManyWithoutIdentityNestedInput
     events?: IdentityEventUpdateManyWithoutIdentityNestedInput
     household?: IdentityHouseholdMemberUpdateManyWithoutIdentityNestedInput
+    spendingHabits?: IdentitySpendingHabitUpdateManyWithoutIdentityNestedInput
     messages?: OnboardingMessageUpdateManyWithoutIdentityNestedInput
   }
 
@@ -52696,6 +54521,7 @@ export namespace Prisma {
     goals?: IdentityGoalUncheckedUpdateManyWithoutIdentityNestedInput
     events?: IdentityEventUncheckedUpdateManyWithoutIdentityNestedInput
     household?: IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityNestedInput
+    spendingHabits?: IdentitySpendingHabitUncheckedUpdateManyWithoutIdentityNestedInput
     messages?: OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput
   }
 
@@ -52729,6 +54555,7 @@ export namespace Prisma {
     goals?: IdentityGoalCreateNestedManyWithoutIdentityInput
     events?: IdentityEventCreateNestedManyWithoutIdentityInput
     household?: IdentityHouseholdMemberCreateNestedManyWithoutIdentityInput
+    spendingHabits?: IdentitySpendingHabitCreateNestedManyWithoutIdentityInput
     messages?: OnboardingMessageCreateNestedManyWithoutIdentityInput
   }
 
@@ -52762,6 +54589,7 @@ export namespace Prisma {
     goals?: IdentityGoalUncheckedCreateNestedManyWithoutIdentityInput
     events?: IdentityEventUncheckedCreateNestedManyWithoutIdentityInput
     household?: IdentityHouseholdMemberUncheckedCreateNestedManyWithoutIdentityInput
+    spendingHabits?: IdentitySpendingHabitUncheckedCreateNestedManyWithoutIdentityInput
     messages?: OnboardingMessageUncheckedCreateNestedManyWithoutIdentityInput
   }
 
@@ -52811,6 +54639,7 @@ export namespace Prisma {
     goals?: IdentityGoalUpdateManyWithoutIdentityNestedInput
     events?: IdentityEventUpdateManyWithoutIdentityNestedInput
     household?: IdentityHouseholdMemberUpdateManyWithoutIdentityNestedInput
+    spendingHabits?: IdentitySpendingHabitUpdateManyWithoutIdentityNestedInput
     messages?: OnboardingMessageUpdateManyWithoutIdentityNestedInput
   }
 
@@ -52844,6 +54673,7 @@ export namespace Prisma {
     goals?: IdentityGoalUncheckedUpdateManyWithoutIdentityNestedInput
     events?: IdentityEventUncheckedUpdateManyWithoutIdentityNestedInput
     household?: IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityNestedInput
+    spendingHabits?: IdentitySpendingHabitUncheckedUpdateManyWithoutIdentityNestedInput
     messages?: OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput
   }
 
@@ -52877,6 +54707,7 @@ export namespace Prisma {
     goals?: IdentityGoalCreateNestedManyWithoutIdentityInput
     events?: IdentityEventCreateNestedManyWithoutIdentityInput
     household?: IdentityHouseholdMemberCreateNestedManyWithoutIdentityInput
+    spendingHabits?: IdentitySpendingHabitCreateNestedManyWithoutIdentityInput
     messages?: OnboardingMessageCreateNestedManyWithoutIdentityInput
   }
 
@@ -52910,6 +54741,7 @@ export namespace Prisma {
     goals?: IdentityGoalUncheckedCreateNestedManyWithoutIdentityInput
     events?: IdentityEventUncheckedCreateNestedManyWithoutIdentityInput
     household?: IdentityHouseholdMemberUncheckedCreateNestedManyWithoutIdentityInput
+    spendingHabits?: IdentitySpendingHabitUncheckedCreateNestedManyWithoutIdentityInput
     messages?: OnboardingMessageUncheckedCreateNestedManyWithoutIdentityInput
   }
 
@@ -52959,6 +54791,7 @@ export namespace Prisma {
     goals?: IdentityGoalUpdateManyWithoutIdentityNestedInput
     events?: IdentityEventUpdateManyWithoutIdentityNestedInput
     household?: IdentityHouseholdMemberUpdateManyWithoutIdentityNestedInput
+    spendingHabits?: IdentitySpendingHabitUpdateManyWithoutIdentityNestedInput
     messages?: OnboardingMessageUpdateManyWithoutIdentityNestedInput
   }
 
@@ -52992,6 +54825,7 @@ export namespace Prisma {
     goals?: IdentityGoalUncheckedUpdateManyWithoutIdentityNestedInput
     events?: IdentityEventUncheckedUpdateManyWithoutIdentityNestedInput
     household?: IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityNestedInput
+    spendingHabits?: IdentitySpendingHabitUncheckedUpdateManyWithoutIdentityNestedInput
     messages?: OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput
   }
 
@@ -53025,6 +54859,7 @@ export namespace Prisma {
     assets?: IdentityAssetCreateNestedManyWithoutIdentityInput
     events?: IdentityEventCreateNestedManyWithoutIdentityInput
     household?: IdentityHouseholdMemberCreateNestedManyWithoutIdentityInput
+    spendingHabits?: IdentitySpendingHabitCreateNestedManyWithoutIdentityInput
     messages?: OnboardingMessageCreateNestedManyWithoutIdentityInput
   }
 
@@ -53058,6 +54893,7 @@ export namespace Prisma {
     assets?: IdentityAssetUncheckedCreateNestedManyWithoutIdentityInput
     events?: IdentityEventUncheckedCreateNestedManyWithoutIdentityInput
     household?: IdentityHouseholdMemberUncheckedCreateNestedManyWithoutIdentityInput
+    spendingHabits?: IdentitySpendingHabitUncheckedCreateNestedManyWithoutIdentityInput
     messages?: OnboardingMessageUncheckedCreateNestedManyWithoutIdentityInput
   }
 
@@ -53107,6 +54943,7 @@ export namespace Prisma {
     assets?: IdentityAssetUpdateManyWithoutIdentityNestedInput
     events?: IdentityEventUpdateManyWithoutIdentityNestedInput
     household?: IdentityHouseholdMemberUpdateManyWithoutIdentityNestedInput
+    spendingHabits?: IdentitySpendingHabitUpdateManyWithoutIdentityNestedInput
     messages?: OnboardingMessageUpdateManyWithoutIdentityNestedInput
   }
 
@@ -53140,6 +54977,7 @@ export namespace Prisma {
     assets?: IdentityAssetUncheckedUpdateManyWithoutIdentityNestedInput
     events?: IdentityEventUncheckedUpdateManyWithoutIdentityNestedInput
     household?: IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityNestedInput
+    spendingHabits?: IdentitySpendingHabitUncheckedUpdateManyWithoutIdentityNestedInput
     messages?: OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput
   }
 
@@ -53173,6 +55011,7 @@ export namespace Prisma {
     assets?: IdentityAssetCreateNestedManyWithoutIdentityInput
     goals?: IdentityGoalCreateNestedManyWithoutIdentityInput
     household?: IdentityHouseholdMemberCreateNestedManyWithoutIdentityInput
+    spendingHabits?: IdentitySpendingHabitCreateNestedManyWithoutIdentityInput
     messages?: OnboardingMessageCreateNestedManyWithoutIdentityInput
   }
 
@@ -53206,6 +55045,7 @@ export namespace Prisma {
     assets?: IdentityAssetUncheckedCreateNestedManyWithoutIdentityInput
     goals?: IdentityGoalUncheckedCreateNestedManyWithoutIdentityInput
     household?: IdentityHouseholdMemberUncheckedCreateNestedManyWithoutIdentityInput
+    spendingHabits?: IdentitySpendingHabitUncheckedCreateNestedManyWithoutIdentityInput
     messages?: OnboardingMessageUncheckedCreateNestedManyWithoutIdentityInput
   }
 
@@ -53255,6 +55095,7 @@ export namespace Prisma {
     assets?: IdentityAssetUpdateManyWithoutIdentityNestedInput
     goals?: IdentityGoalUpdateManyWithoutIdentityNestedInput
     household?: IdentityHouseholdMemberUpdateManyWithoutIdentityNestedInput
+    spendingHabits?: IdentitySpendingHabitUpdateManyWithoutIdentityNestedInput
     messages?: OnboardingMessageUpdateManyWithoutIdentityNestedInput
   }
 
@@ -53287,6 +55128,159 @@ export namespace Prisma {
     debts?: IdentityDebtUncheckedUpdateManyWithoutIdentityNestedInput
     assets?: IdentityAssetUncheckedUpdateManyWithoutIdentityNestedInput
     goals?: IdentityGoalUncheckedUpdateManyWithoutIdentityNestedInput
+    household?: IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityNestedInput
+    spendingHabits?: IdentitySpendingHabitUncheckedUpdateManyWithoutIdentityNestedInput
+    messages?: OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput
+  }
+
+  export type FinancialIdentityCreateWithoutSpendingHabitsInput = {
+    id?: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutIdentityInput
+    incomes?: IdentityIncomeCreateNestedManyWithoutIdentityInput
+    expenses?: IdentityExpenseCreateNestedManyWithoutIdentityInput
+    debts?: IdentityDebtCreateNestedManyWithoutIdentityInput
+    assets?: IdentityAssetCreateNestedManyWithoutIdentityInput
+    goals?: IdentityGoalCreateNestedManyWithoutIdentityInput
+    events?: IdentityEventCreateNestedManyWithoutIdentityInput
+    household?: IdentityHouseholdMemberCreateNestedManyWithoutIdentityInput
+    messages?: OnboardingMessageCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityUncheckedCreateWithoutSpendingHabitsInput = {
+    id?: string
+    userId: string
+    ageRange?: string | null
+    employmentStatus?: string | null
+    location?: string | null
+    timeHorizonYears?: number | null
+    riskTolerance?: string | null
+    riskNotes?: string | null
+    aiTierPref?: string | null
+    riskComfort?: string | null
+    currency?: string
+    auditIdentity?: string | null
+    auditFindings?: string | null
+    auditPlan?: string | null
+    auditFirstStep?: string | null
+    auditTeaching?: string | null
+    auditBuiltAt?: Date | string | null
+    completedAt?: Date | string | null
+    lastProvider?: string | null
+    lastFellBack?: boolean
+    lastErrorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    incomes?: IdentityIncomeUncheckedCreateNestedManyWithoutIdentityInput
+    expenses?: IdentityExpenseUncheckedCreateNestedManyWithoutIdentityInput
+    debts?: IdentityDebtUncheckedCreateNestedManyWithoutIdentityInput
+    assets?: IdentityAssetUncheckedCreateNestedManyWithoutIdentityInput
+    goals?: IdentityGoalUncheckedCreateNestedManyWithoutIdentityInput
+    events?: IdentityEventUncheckedCreateNestedManyWithoutIdentityInput
+    household?: IdentityHouseholdMemberUncheckedCreateNestedManyWithoutIdentityInput
+    messages?: OnboardingMessageUncheckedCreateNestedManyWithoutIdentityInput
+  }
+
+  export type FinancialIdentityCreateOrConnectWithoutSpendingHabitsInput = {
+    where: FinancialIdentityWhereUniqueInput
+    create: XOR<FinancialIdentityCreateWithoutSpendingHabitsInput, FinancialIdentityUncheckedCreateWithoutSpendingHabitsInput>
+  }
+
+  export type FinancialIdentityUpsertWithoutSpendingHabitsInput = {
+    update: XOR<FinancialIdentityUpdateWithoutSpendingHabitsInput, FinancialIdentityUncheckedUpdateWithoutSpendingHabitsInput>
+    create: XOR<FinancialIdentityCreateWithoutSpendingHabitsInput, FinancialIdentityUncheckedCreateWithoutSpendingHabitsInput>
+    where?: FinancialIdentityWhereInput
+  }
+
+  export type FinancialIdentityUpdateToOneWithWhereWithoutSpendingHabitsInput = {
+    where?: FinancialIdentityWhereInput
+    data: XOR<FinancialIdentityUpdateWithoutSpendingHabitsInput, FinancialIdentityUncheckedUpdateWithoutSpendingHabitsInput>
+  }
+
+  export type FinancialIdentityUpdateWithoutSpendingHabitsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutIdentityNestedInput
+    incomes?: IdentityIncomeUpdateManyWithoutIdentityNestedInput
+    expenses?: IdentityExpenseUpdateManyWithoutIdentityNestedInput
+    debts?: IdentityDebtUpdateManyWithoutIdentityNestedInput
+    assets?: IdentityAssetUpdateManyWithoutIdentityNestedInput
+    goals?: IdentityGoalUpdateManyWithoutIdentityNestedInput
+    events?: IdentityEventUpdateManyWithoutIdentityNestedInput
+    household?: IdentityHouseholdMemberUpdateManyWithoutIdentityNestedInput
+    messages?: OnboardingMessageUpdateManyWithoutIdentityNestedInput
+  }
+
+  export type FinancialIdentityUncheckedUpdateWithoutSpendingHabitsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    ageRange?: NullableStringFieldUpdateOperationsInput | string | null
+    employmentStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    timeHorizonYears?: NullableIntFieldUpdateOperationsInput | number | null
+    riskTolerance?: NullableStringFieldUpdateOperationsInput | string | null
+    riskNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    aiTierPref?: NullableStringFieldUpdateOperationsInput | string | null
+    riskComfort?: NullableStringFieldUpdateOperationsInput | string | null
+    currency?: StringFieldUpdateOperationsInput | string
+    auditIdentity?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFindings?: NullableStringFieldUpdateOperationsInput | string | null
+    auditPlan?: NullableStringFieldUpdateOperationsInput | string | null
+    auditFirstStep?: NullableStringFieldUpdateOperationsInput | string | null
+    auditTeaching?: NullableStringFieldUpdateOperationsInput | string | null
+    auditBuiltAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastProvider?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFellBack?: BoolFieldUpdateOperationsInput | boolean
+    lastErrorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    incomes?: IdentityIncomeUncheckedUpdateManyWithoutIdentityNestedInput
+    expenses?: IdentityExpenseUncheckedUpdateManyWithoutIdentityNestedInput
+    debts?: IdentityDebtUncheckedUpdateManyWithoutIdentityNestedInput
+    assets?: IdentityAssetUncheckedUpdateManyWithoutIdentityNestedInput
+    goals?: IdentityGoalUncheckedUpdateManyWithoutIdentityNestedInput
+    events?: IdentityEventUncheckedUpdateManyWithoutIdentityNestedInput
     household?: IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityNestedInput
     messages?: OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput
   }
@@ -53321,6 +55315,7 @@ export namespace Prisma {
     assets?: IdentityAssetCreateNestedManyWithoutIdentityInput
     goals?: IdentityGoalCreateNestedManyWithoutIdentityInput
     events?: IdentityEventCreateNestedManyWithoutIdentityInput
+    spendingHabits?: IdentitySpendingHabitCreateNestedManyWithoutIdentityInput
     messages?: OnboardingMessageCreateNestedManyWithoutIdentityInput
   }
 
@@ -53354,6 +55349,7 @@ export namespace Prisma {
     assets?: IdentityAssetUncheckedCreateNestedManyWithoutIdentityInput
     goals?: IdentityGoalUncheckedCreateNestedManyWithoutIdentityInput
     events?: IdentityEventUncheckedCreateNestedManyWithoutIdentityInput
+    spendingHabits?: IdentitySpendingHabitUncheckedCreateNestedManyWithoutIdentityInput
     messages?: OnboardingMessageUncheckedCreateNestedManyWithoutIdentityInput
   }
 
@@ -53403,6 +55399,7 @@ export namespace Prisma {
     assets?: IdentityAssetUpdateManyWithoutIdentityNestedInput
     goals?: IdentityGoalUpdateManyWithoutIdentityNestedInput
     events?: IdentityEventUpdateManyWithoutIdentityNestedInput
+    spendingHabits?: IdentitySpendingHabitUpdateManyWithoutIdentityNestedInput
     messages?: OnboardingMessageUpdateManyWithoutIdentityNestedInput
   }
 
@@ -53436,6 +55433,7 @@ export namespace Prisma {
     assets?: IdentityAssetUncheckedUpdateManyWithoutIdentityNestedInput
     goals?: IdentityGoalUncheckedUpdateManyWithoutIdentityNestedInput
     events?: IdentityEventUncheckedUpdateManyWithoutIdentityNestedInput
+    spendingHabits?: IdentitySpendingHabitUncheckedUpdateManyWithoutIdentityNestedInput
     messages?: OnboardingMessageUncheckedUpdateManyWithoutIdentityNestedInput
   }
 
@@ -53470,6 +55468,7 @@ export namespace Prisma {
     goals?: IdentityGoalCreateNestedManyWithoutIdentityInput
     events?: IdentityEventCreateNestedManyWithoutIdentityInput
     household?: IdentityHouseholdMemberCreateNestedManyWithoutIdentityInput
+    spendingHabits?: IdentitySpendingHabitCreateNestedManyWithoutIdentityInput
   }
 
   export type FinancialIdentityUncheckedCreateWithoutMessagesInput = {
@@ -53503,6 +55502,7 @@ export namespace Prisma {
     goals?: IdentityGoalUncheckedCreateNestedManyWithoutIdentityInput
     events?: IdentityEventUncheckedCreateNestedManyWithoutIdentityInput
     household?: IdentityHouseholdMemberUncheckedCreateNestedManyWithoutIdentityInput
+    spendingHabits?: IdentitySpendingHabitUncheckedCreateNestedManyWithoutIdentityInput
   }
 
   export type FinancialIdentityCreateOrConnectWithoutMessagesInput = {
@@ -53552,6 +55552,7 @@ export namespace Prisma {
     goals?: IdentityGoalUpdateManyWithoutIdentityNestedInput
     events?: IdentityEventUpdateManyWithoutIdentityNestedInput
     household?: IdentityHouseholdMemberUpdateManyWithoutIdentityNestedInput
+    spendingHabits?: IdentitySpendingHabitUpdateManyWithoutIdentityNestedInput
   }
 
   export type FinancialIdentityUncheckedUpdateWithoutMessagesInput = {
@@ -53585,6 +55586,7 @@ export namespace Prisma {
     goals?: IdentityGoalUncheckedUpdateManyWithoutIdentityNestedInput
     events?: IdentityEventUncheckedUpdateManyWithoutIdentityNestedInput
     household?: IdentityHouseholdMemberUncheckedUpdateManyWithoutIdentityNestedInput
+    spendingHabits?: IdentitySpendingHabitUncheckedUpdateManyWithoutIdentityNestedInput
   }
 
   export type UserCreateWithoutVaultAccountInput = {
@@ -53701,6 +55703,8 @@ export namespace Prisma {
     providerPreference?: string | null
     lastAttemptAt?: Date | string | null
     settlementReference?: string | null
+    appliedYieldCents?: number
+    source?: string
     createdAt?: Date | string
     updatedAt?: Date | string
     envelope: VaultEnvelopeCreateNestedOneWithoutBillsInput
@@ -53724,6 +55728,8 @@ export namespace Prisma {
     providerPreference?: string | null
     lastAttemptAt?: Date | string | null
     settlementReference?: string | null
+    appliedYieldCents?: number
+    source?: string
     createdAt?: Date | string
     updatedAt?: Date | string
     paymentAttempts?: PaymentAttemptUncheckedCreateNestedManyWithoutBillInput
@@ -53901,6 +55907,8 @@ export namespace Prisma {
     providerPreference?: StringNullableFilter<"ScheduledBill"> | string | null
     lastAttemptAt?: DateTimeNullableFilter<"ScheduledBill"> | Date | string | null
     settlementReference?: StringNullableFilter<"ScheduledBill"> | string | null
+    appliedYieldCents?: IntFilter<"ScheduledBill"> | number
+    source?: StringFilter<"ScheduledBill"> | string
     createdAt?: DateTimeFilter<"ScheduledBill"> | Date | string
     updatedAt?: DateTimeFilter<"ScheduledBill"> | Date | string
   }
@@ -54038,6 +56046,8 @@ export namespace Prisma {
     providerPreference?: string | null
     lastAttemptAt?: Date | string | null
     settlementReference?: string | null
+    appliedYieldCents?: number
+    source?: string
     createdAt?: Date | string
     updatedAt?: Date | string
     vault: VaultAccountCreateNestedOneWithoutBillsInput
@@ -54061,6 +56071,8 @@ export namespace Prisma {
     providerPreference?: string | null
     lastAttemptAt?: Date | string | null
     settlementReference?: string | null
+    appliedYieldCents?: number
+    source?: string
     createdAt?: Date | string
     updatedAt?: Date | string
     paymentAttempts?: PaymentAttemptUncheckedCreateNestedManyWithoutBillInput
@@ -54677,6 +56689,8 @@ export namespace Prisma {
     providerPreference?: string | null
     lastAttemptAt?: Date | string | null
     settlementReference?: string | null
+    appliedYieldCents?: number
+    source?: string
     createdAt?: Date | string
     updatedAt?: Date | string
     vault: VaultAccountCreateNestedOneWithoutBillsInput
@@ -54701,6 +56715,8 @@ export namespace Prisma {
     providerPreference?: string | null
     lastAttemptAt?: Date | string | null
     settlementReference?: string | null
+    appliedYieldCents?: number
+    source?: string
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -54762,6 +56778,8 @@ export namespace Prisma {
     providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
     lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    appliedYieldCents?: IntFieldUpdateOperationsInput | number
+    source?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     vault?: VaultAccountUpdateOneRequiredWithoutBillsNestedInput
@@ -54786,6 +56804,8 @@ export namespace Prisma {
     providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
     lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    appliedYieldCents?: IntFieldUpdateOperationsInput | number
+    source?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -55824,6 +57844,10 @@ export namespace Prisma {
     balanceDollars?: number
     sortOrder?: number
     createdAt?: Date | string
+    employerMatchPercent?: number | null
+    vestingYears?: number | null
+    fundChoices?: string | null
+    expenseRatioPct?: number | null
   }
 
   export type IdentityGoalCreateManyIdentityInput = {
@@ -55855,6 +57879,15 @@ export namespace Prisma {
     relationship: string
     financiallyEntwined?: boolean
     ageRange?: string | null
+    sortOrder?: number
+    createdAt?: Date | string
+  }
+
+  export type IdentitySpendingHabitCreateManyIdentityInput = {
+    id?: string
+    category: string
+    habit: string
+    frequency?: string | null
     sortOrder?: number
     createdAt?: Date | string
   }
@@ -55969,6 +58002,10 @@ export namespace Prisma {
     balanceDollars?: IntFieldUpdateOperationsInput | number
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    employerMatchPercent?: NullableFloatFieldUpdateOperationsInput | number | null
+    vestingYears?: NullableIntFieldUpdateOperationsInput | number | null
+    fundChoices?: NullableStringFieldUpdateOperationsInput | string | null
+    expenseRatioPct?: NullableFloatFieldUpdateOperationsInput | number | null
   }
 
   export type IdentityAssetUncheckedUpdateWithoutIdentityInput = {
@@ -55978,6 +58015,10 @@ export namespace Prisma {
     balanceDollars?: IntFieldUpdateOperationsInput | number
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    employerMatchPercent?: NullableFloatFieldUpdateOperationsInput | number | null
+    vestingYears?: NullableIntFieldUpdateOperationsInput | number | null
+    fundChoices?: NullableStringFieldUpdateOperationsInput | string | null
+    expenseRatioPct?: NullableFloatFieldUpdateOperationsInput | number | null
   }
 
   export type IdentityAssetUncheckedUpdateManyWithoutIdentityInput = {
@@ -55987,6 +58028,10 @@ export namespace Prisma {
     balanceDollars?: IntFieldUpdateOperationsInput | number
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    employerMatchPercent?: NullableFloatFieldUpdateOperationsInput | number | null
+    vestingYears?: NullableIntFieldUpdateOperationsInput | number | null
+    fundChoices?: NullableStringFieldUpdateOperationsInput | string | null
+    expenseRatioPct?: NullableFloatFieldUpdateOperationsInput | number | null
   }
 
   export type IdentityGoalUpdateWithoutIdentityInput = {
@@ -56088,6 +58133,33 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type IdentitySpendingHabitUpdateWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    habit?: StringFieldUpdateOperationsInput | string
+    frequency?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentitySpendingHabitUncheckedUpdateWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    habit?: StringFieldUpdateOperationsInput | string
+    frequency?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type IdentitySpendingHabitUncheckedUpdateManyWithoutIdentityInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    habit?: StringFieldUpdateOperationsInput | string
+    frequency?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type OnboardingMessageUpdateWithoutIdentityInput = {
     id?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
@@ -56151,6 +58223,8 @@ export namespace Prisma {
     providerPreference?: string | null
     lastAttemptAt?: Date | string | null
     settlementReference?: string | null
+    appliedYieldCents?: number
+    source?: string
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -56234,6 +58308,8 @@ export namespace Prisma {
     providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
     lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    appliedYieldCents?: IntFieldUpdateOperationsInput | number
+    source?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     envelope?: VaultEnvelopeUpdateOneRequiredWithoutBillsNestedInput
@@ -56257,6 +58333,8 @@ export namespace Prisma {
     providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
     lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    appliedYieldCents?: IntFieldUpdateOperationsInput | number
+    source?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     paymentAttempts?: PaymentAttemptUncheckedUpdateManyWithoutBillNestedInput
@@ -56279,6 +58357,8 @@ export namespace Prisma {
     providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
     lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    appliedYieldCents?: IntFieldUpdateOperationsInput | number
+    source?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -56333,6 +58413,8 @@ export namespace Prisma {
     providerPreference?: string | null
     lastAttemptAt?: Date | string | null
     settlementReference?: string | null
+    appliedYieldCents?: number
+    source?: string
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -56364,6 +58446,8 @@ export namespace Prisma {
     providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
     lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    appliedYieldCents?: IntFieldUpdateOperationsInput | number
+    source?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     vault?: VaultAccountUpdateOneRequiredWithoutBillsNestedInput
@@ -56387,6 +58471,8 @@ export namespace Prisma {
     providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
     lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    appliedYieldCents?: IntFieldUpdateOperationsInput | number
+    source?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     paymentAttempts?: PaymentAttemptUncheckedUpdateManyWithoutBillNestedInput
@@ -56409,6 +58495,8 @@ export namespace Prisma {
     providerPreference?: NullableStringFieldUpdateOperationsInput | string | null
     lastAttemptAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     settlementReference?: NullableStringFieldUpdateOperationsInput | string | null
+    appliedYieldCents?: IntFieldUpdateOperationsInput | number
+    source?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

@@ -21,6 +21,9 @@ import {
   transitionBillServerAction,
   simulateNextStateAction,
   refreshVaultApyAction,
+  createBillAction,
+  updateBillAction,
+  deleteBillAction,
 } from "./server";
 
 /**
@@ -106,4 +109,38 @@ export async function simulateNextBillStateFromPage(billId: string) {
  */
 export async function refreshVaultApyFromPage() {
   return refreshVaultApyAction();
+}
+
+/**
+ * Server action: add a new bill to the user's vault. Form
+ * shape: `{ billerName, amountCents, frequency, dueDay,
+ * providerPreference? }`. The new bill starts in `FUNDED`
+ * status and is tagged `source: "user"` so the seed pass
+ * won't overwrite it.
+ */
+export async function createBillFromPage(
+  rawForm: unknown,
+  envelopeId: string,
+) {
+  return createBillAction(rawForm, envelopeId);
+}
+
+/**
+ * Server action: update a bill's editable metadata (name,
+ * amount, frequency, due day, provider). Status changes go
+ * through `transitionBillFromPage`.
+ */
+export async function updateBillFromPage(
+  billId: string,
+  rawForm: unknown,
+) {
+  return updateBillAction(billId, rawForm);
+}
+
+/**
+ * Server action: delete a bill from the user's vault. The
+ * client component confirms via `window.confirm` before calling.
+ */
+export async function deleteBillFromPage(billId: string) {
+  return deleteBillAction(billId);
 }
