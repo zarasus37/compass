@@ -16,11 +16,13 @@ import { SnapshotCard } from "@/components/dashboard/cards/snapshot";
 import { SpendRingCard } from "@/components/dashboard/cards/spend-ring";
 import { NetTrajectoryCard } from "@/components/dashboard/cards/net-trajectory";
 import { PayDistributionCard } from "@/components/dashboard/cards/pay-distribution";
+import { IdentitySummaryCard } from "@/components/dashboard/cards/identity-summary";
 import { AllocationFeed, type AllocationRow } from "@/components/dashboard/AllocationFeed";
 import { BottomNav } from "@/components/shell/BottomNav";
 import { TopAppBar } from "@/components/shell/TopAppBar";
 import { RebalanceAlertBay } from "@/components/alerts/RebalanceAlertBay";
 import { CARD_META, type CardId } from "@/components/dashboard/catalog";
+import { loadIdentitySummary } from "@/lib/identity/identity-summary";
 import {
   liveEnvelopes,
   liveGoals,
@@ -464,6 +466,15 @@ export default async function Dashboard() {
   const tp = CARD_META["top-priority"];
   const nx = CARD_META["next-step"];
   const sn = CARD_META["snapshot"];
+  const idc = CARD_META["identity-summary"];
+
+  // Load the user's FinancialIdentity summary for the Identity
+  // Summary card (Cluster 5.2). The card renders three states:
+  // no identity (CTA), partial identity (resume), or full
+  // identity (the data). The summary load is the only Prisma
+  // read in the dashboard — the rest of the cards still use the
+  // in-memory seed until Cluster 5.2's follow-ups replace them.
+  const identitySummary = await loadIdentitySummary(user.id);
 
   const cardNodes: Record<CardId, React.ReactNode> = {
     "daily-tracking": (
@@ -544,6 +555,39 @@ export default async function Dashboard() {
         }
       >
         <NextStepCard data={{ overLimit }} />
+      </DashboardCard>
+    ),
+    "identity-summary": (
+      <DashboardCard
+        cardId="identity-summary"
+        href={idc.href}
+        eyebrow={idc.eyebrow}
+        title={idc.title}
+        em={idc.em}
+        accent={idc.accent}
+        rightMeta={
+          <span
+            style={{
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 9.5,
+              color: identitySummary?.completed
+                ? "var(--vessel-accent)"
+                : identitySummary
+                  ? "var(--vessel-watch)"
+                  : "var(--ink-3, #a4b1c2)",
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+            }}
+          >
+            {identitySummary?.completed
+              ? "[OK] INDEXED"
+              : identitySummary
+                ? "[WARN] PARTIAL"
+                : "[ ] NOT SET"}
+          </span>
+        }
+      >
+        <IdentitySummaryCard data={identitySummary} />
       </DashboardCard>
     ),
     "top-priority": (

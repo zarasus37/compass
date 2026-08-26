@@ -17,7 +17,8 @@ export type CardId =
   | "snapshot"
   | "spend-ring"
   | "net-trajectory"
-  | "pay-distribution";
+  | "pay-distribution"
+  | "identity-summary";
 
 export type CardSpan = "full" | "half";
 
@@ -160,6 +161,19 @@ export const CARD_CATALOG: CardMeta[] = [
     defaultOn: false,
     description:
       "Single concentric ring showing total remaining budget for the period. The big number in the center is the cash you actually have left. Tap to see the full Ouroboros + Trajectory on /insights.",
+  },
+  {
+    id: "identity-summary",
+    eyebrow: "// identity",
+    title: "Your Identity",
+    em: "what the advisor knows.",
+    glyph: "◈",
+    accent: "cyan",
+    href: "/onboarding",
+    span: "full",
+    defaultOn: true,
+    description:
+      "The picture Compass built from your onboarding chat — primary income, debt total, top goals, and growth-oriented suggestions with click-throughs to the deep pages. Resumes the chat when incomplete; empty state when no identity yet.",
   },
 ];
 

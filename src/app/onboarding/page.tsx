@@ -17,6 +17,7 @@ import { loadConversation } from "@/lib/onboarding/state";
 import { ChatSurface } from "@/components/onboarding/ChatSurface";
 import { ProgressRail, type Milestone } from "@/components/onboarding/ProgressRail";
 import { ProviderBanner } from "@/components/onboarding/ProviderBanner";
+import { DemoModeButton } from "@/components/onboarding/DemoModeButton";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -43,6 +44,13 @@ export default async function OnboardingPage() {
 
   const milestones = computeMilestones(state);
 
+  // Show the "Use demo data" button when the user has no messages
+  // yet (fresh visit) or has only the assistant's greeting (hasn't
+  // actually started chatting). Hides once they're past the first
+  // user message.
+  const userMessageCount = state.messages.filter((m) => m.role === "user").length;
+  const showDemoButton = !state.completedAt && userMessageCount === 0;
+
   return (
     <>
       <ProgressRail milestones={milestones} />
@@ -51,6 +59,7 @@ export default async function OnboardingPage() {
         fellBack={state.lastFellBack}
         fallbackError={state.lastErrorMessage}
       />
+      {showDemoButton ? <DemoModeButton /> : null}
       <ChatSurface initialState={state} milestones={milestones} />
     </>
   );
