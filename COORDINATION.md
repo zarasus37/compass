@@ -1577,6 +1577,7 @@ The 5.2.6 widgets 4–6 (allocation, insights, accounts) work is in the working 
 
 - `d9e3dc9` **Cluster Vault 2.0** — Backend ledger. 6 new Prisma tables (VaultAccount, VaultEnvelope, ScheduledBill, YieldEvent, PaymentAttempt, ProviderEvent), DB-sourced /vault page, idempotency on (providerName, idempotencyKey), 32/32 integration + 33/33 smoke green.
 - `a43b3d8` **Cluster Vault 2.5** — Make it interactive. New VaultPreferences table, 4-strategy yield-routing picker, per-bill state-transition menus, risk-disclosure persistence, vault pause/resume toggle. 49/49 integration + 49/49 smoke green. tsc clean.
+- `c3a4c15` **Cluster Vault 3.0** — Real yield adapter. New IYieldAdapter interface + 3 stub adapters (Mock / Sky / Aave, picked via `VAULT_YIELD_ADAPTER` env var) + `[SYNC] REFRESH` button on /vault + `refreshVaultApyAction` server action + `vault.apy_refreshed` / `vault.apy_refresh_failed` audit-log types. 56/56 integration + 53/53 smoke green. tsc clean.
 
 **What just shipped (Phase 2.5 surface, in detail)**
 - New `VaultPreferences` Prisma model: `yieldRoutingStrategy` (String @default("COMPOUND")), `riskAcknowledgedAt` (DateTime?), `userId @unique`. Back-relation on User.
