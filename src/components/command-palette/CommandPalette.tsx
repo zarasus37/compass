@@ -36,6 +36,11 @@ import {
   match,
   type MatchResult,
 } from "@/lib/command-palette/match";
+import {
+  getRecent,
+  pushRecent,
+  type RecentItem,
+} from "@/lib/command-palette/recent-items";
 import type {
   PaletteItem,
   PaletteKind,
@@ -67,6 +72,10 @@ export function CommandPalette({
   const listRef = React.useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = React.useState("");
   const [activeIndex, setActiveIndex] = React.useState(0);
+  // Cluster 7.2 — the RECENT list. Read on mount + after
+  // every navigation. Stored in localStorage via the
+  // recent-items module.
+  const [recent, setRecent] = React.useState<RecentItem[]>([]);
 
   // Flatten the search index into a single array for matching.
   const allItems: PaletteItem[] = React.useMemo(
@@ -74,16 +83,57 @@ export function CommandPalette({
     [searchIndex],
   );
 
-  const results: MatchResult[] = React.useMemo(() => {
-    const out = match(query, allItems);
-    return out.slice(0, MAX_RESULTS);
-  }, [query, allItems]);
+  // The RECENT list is shown above the search results when
+  // the query is empty. When the user types, the filter
+  // takes over and the RECENT section disappears.
+  const showRecent = query.trim().length === 0 && recent.length > 0;
 
-  // Reset the active index when the query changes (so the
-  // first match is always the default).
+  // The full list of "rows" the palette renders: RECENT
+  // rows on top (when shown) + filtered search results below.
+  // Each row has a `kind` (PaletteKind) + an `item` (the
+  // PaletteItem to navigate to on click/Enter). For RECENT
+  // rows, the item is the recent's stored href/title/etc.
+  type Row = { kind: "RECENT" | "RESULT"; item: PaletteItem };
+
+  const rows: Row[] = React.useMemo(() => {
+    if (showRecent) {
+      const recentRows: Row[] = recent.map((r) => ({
+        kind: "RECENT",
+        item: {
+          id: r.id,
+          title: r.title,
+          href: r.href,
+          kind: r.kind,
+          chapter: null,
+          sub: r.sub,
+        },
+      }));
+      // Below the RECENT section, show the first 12 ROUTE
+      // items as the "default" set (so the user has something
+      // to scroll without typing).
+      const defaultResults: MatchResult[] = match("", allItems).slice(0, 12);
+      const defaultRows: Row[] = defaultResults.map((r) => ({
+        kind: "RESULT",
+        item: r.item,
+      }));
+      return [...recentRows, ...defaultRows];
+    }
+    const results = match(query, allItems).slice(0, MAX_RESULTS);
+    return results.map((r) => ({ kind: "RESULT", item: r.item }));
+  }, [showRecent, recent, allItems, query]);
+
+  // Reset the active index when the query or RECENT state
+  // changes (so the first row is always the default).
   React.useEffect(() => {
     setActiveIndex(0);
-  }, [query]);
+  }, [query, showRecent]);
+
+  // Read the recent list on mount + on every palette open.
+  React.useEffect(() => {
+    if (isOpen) {
+      setRecent(getRecent());
+    }
+  }, [isOpen]);
 
   // Focus the input on open.
   React.useEffect(() => {
@@ -113,11 +163,15 @@ export function CommandPalette({
     if (active) {
       active.scrollIntoView({ block: "nearest" });
     }
-  }, [activeIndex, isOpen]);
+  }, [activeIndex, isOpen, rows.length]);
 
   if (!isOpen) return null;
 
   function navigate(item: PaletteItem) {
+    // Cluster 7.2 — record the navigation in the RECENT
+    // list before closing. The next palette open will see
+    // the item at the top.
+    pushRecent(item);
     onClose();
     router.push(item.href);
   }
@@ -130,25 +184,25 @@ export function CommandPalette({
     }
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActiveIndex((i) => (results.length === 0 ? 0 : (i + 1) % results.length));
+      setActiveIndex((i) => (rows.length === 0 ? 0 : (i + 1) % rows.length));
       return;
     }
     if (e.key === "ArrowUp") {
       e.preventDefault();
       setActiveIndex((i) =>
-        results.length === 0 ? 0 : (i - 1 + results.length) % results.length,
+        rows.length === 0 ? 0 : (i - 1 + rows.length) % rows.length,
       );
       return;
     }
     if (e.key === "Enter") {
       e.preventDefault();
-      const target = results[activeIndex];
+      const target = rows[activeIndex];
       if (target) navigate(target.item);
       return;
     }
   }
 
-  const activeResult = results[activeIndex];
+  const activeResult = rows[activeIndex];
 
   return (
     <div
@@ -237,7 +291,7 @@ export function CommandPalette({
             minHeight: 80,
           }}
         >
-          {results.length === 0 ? (
+          {rows.length === 0 ? (
             <div
               data-testid="command-palette-empty"
               style={{
@@ -252,43 +306,76 @@ export function CommandPalette({
               [—] No matches. Try a different query.
             </div>
           ) : (
-            results.map((r, i) => {
-              const isActive = i === activeIndex;
-              return (
-                <button
-                  key={r.item.id}
-                  type="button"
-                  role="option"
-                  aria-selected={isActive}
-                  data-testid={`command-palette-item-${r.item.kind.toLowerCase()}`}
-                  data-palette-index={i}
-                  data-active={isActive ? "true" : "false"}
-                  onClick={() => navigate(r.item)}
-                  onMouseEnter={() => setActiveIndex(i)}
+            <>
+              {showRecent && (
+                <div
+                  data-testid="command-palette-recent-header"
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "auto 1fr auto",
-                    alignItems: "center",
-                    gap: 12,
-                    width: "100%",
-                    padding: "10px 16px",
-                    background: isActive
-                      ? "var(--vessel-accent-soft)"
-                      : "transparent",
-                    borderLeft: `3px solid ${
-                      isActive ? "var(--vessel-accent)" : "transparent"
-                    }`,
-                    border: "none",
-                    borderTop: "none",
-                    borderRight: "none",
-                    borderBottom: "none",
-                    color: "var(--ink)",
-                    textAlign: "left",
-                    cursor: "pointer",
-                    fontFamily: "var(--font-sora)",
-                    fontSize: 13,
+                    padding: "8px 16px 4px",
+                    fontFamily: "var(--font-jetbrains), monospace",
+                    fontSize: 10,
+                    color: "var(--ink-3)",
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
                   }}
                 >
+                  // RECENT · {recent.length} item{recent.length === 1 ? "" : "s"}
+                </div>
+              )}
+              {showRecent && rows.length > recent.length && (
+                <div
+                  data-testid="command-palette-default-header"
+                  style={{
+                    padding: "12px 16px 4px",
+                    fontFamily: "var(--font-jetbrains), monospace",
+                    fontSize: 10,
+                    color: "var(--ink-3)",
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
+                    borderTop: "1px solid var(--vessel-border)",
+                    marginTop: 4,
+                  }}
+                >
+                  // ROUTES · all
+                </div>
+              )}
+              {rows.map((r, i) => {
+                const isActive = i === activeIndex;
+                return (
+                  <button
+                    key={`${r.kind}:${r.item.id}`}
+                    type="button"
+                    role="option"
+                    aria-selected={isActive}
+                    data-testid={`command-palette-item-${r.item.kind.toLowerCase()}`}
+                    data-palette-index={i}
+                    data-active={isActive ? "true" : "false"}
+                    onClick={() => navigate(r.item)}
+                    onMouseEnter={() => setActiveIndex(i)}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "auto 1fr auto",
+                      alignItems: "center",
+                      gap: 12,
+                      width: "100%",
+                      padding: "10px 16px",
+                      background: isActive
+                        ? "var(--vessel-accent-soft)"
+                        : "transparent",
+                      borderLeft: `3px solid ${
+                        isActive ? "var(--vessel-accent)" : "transparent"
+                      }`,
+                      border: "none",
+                      borderTop: "none",
+                      borderRight: "none",
+                      borderBottom: "none",
+                      color: "var(--ink)",
+                      textAlign: "left",
+                      cursor: "pointer",
+                      fontFamily: "var(--font-sora)",
+                      fontSize: 13,
+                    }}
+                  >
                   <span
                     style={{
                       fontFamily: "var(--font-jetbrains), monospace",
@@ -330,8 +417,9 @@ export function CommandPalette({
                     {r.item.sub}
                   </span>
                 </button>
-              );
-            })
+                );
+              })}
+            </>
           )}
         </div>
 
@@ -351,7 +439,7 @@ export function CommandPalette({
           }}
         >
           <span data-testid="command-palette-count">
-            // {results.length} {results.length === 1 ? "result" : "results"}
+            // {rows.length} {rows.length === 1 ? "row" : "rows"}
             {activeResult
               ? ` · ${activeResult.item.kind.toLowerCase()}: ${activeResult.item.title}`
               : ""}

@@ -418,6 +418,96 @@ async function main() {
     `with-q total=${qaJson.index.total} without-q total=${apiJson.index.total}`,
   );
 
+  // ── 17. Cluster 7.2 — recent items wire format.
+  // The recent items are pure client state (localStorage),
+  // so the server returns recentCount: 0. The smoke locks in
+  // the field exists; the actual list lives in the browser.
+  check(
+    "/api/command-palette returns recentCount field",
+    typeof qaJson.recentCount === "number",
+    `got recentCount=${qaJson.recentCount}`,
+  );
+  check(
+    "/api/command-palette recentCount is 0 (server-side, no localStorage access)",
+    qaJson.recentCount === 0,
+    `got recentCount=${qaJson.recentCount}`,
+  );
+
+  // ── 18. The recent-items source file has the right shape.
+  // (Source check, not HTTP — localStorage is a client-only
+  // API and the smoke harness is HTTP-only.)
+  const fs = await import("node:fs");
+  const recentSrc = fs.readFileSync(
+    "src/lib/command-palette/recent-items.ts",
+    "utf8",
+  );
+  check(
+    "recent-items.ts exports getRecent",
+    /export function getRecent/.test(recentSrc),
+    "getRecent not exported",
+  );
+  check(
+    "recent-items.ts exports pushRecent",
+    /export function pushRecent/.test(recentSrc),
+    "pushRecent not exported",
+  );
+  check(
+    "recent-items.ts exports clearRecent",
+    /export function clearRecent/.test(recentSrc),
+    "clearRecent not exported",
+  );
+  check(
+    "recent-items.ts uses localStorage key 'compass-palette-recent'",
+    /STORAGE_KEY\s*=\s*"compass-palette-recent"/.test(recentSrc),
+    "STORAGE_KEY missing or wrong",
+  );
+  check(
+    "recent-items.ts has MAX_RECENT = 8",
+    /MAX_RECENT\s*=\s*8/.test(recentSrc),
+    "MAX_RECENT missing or wrong",
+  );
+  check(
+    "recent-items.ts is SSR-safe (checks for localStorage undefined)",
+    /typeof localStorage === "undefined"/.test(recentSrc),
+    "SSR guard missing",
+  );
+
+  // ── 19. The CommandPalette.tsx imports + uses the recent
+  // items module.
+  const paletteSrc = fs.readFileSync(
+    "src/components/command-palette/CommandPalette.tsx",
+    "utf8",
+  );
+  check(
+    "CommandPalette imports getRecent",
+    /import\s*\{[^}]*\bgetRecent\b[^}]*\}\s*from\s*["']@\/lib\/command-palette\/recent-items["']/.test(
+      paletteSrc,
+    ),
+    "getRecent import missing",
+  );
+  check(
+    "CommandPalette imports pushRecent",
+    /import\s*\{[^}]*\bpushRecent\b[^}]*\}\s*from\s*["']@\/lib\/command-palette\/recent-items["']/.test(
+      paletteSrc,
+    ),
+    "pushRecent import missing",
+  );
+  check(
+    "CommandPalette calls pushRecent in the navigate function",
+    /pushRecent\(item\)/.test(paletteSrc),
+    "pushRecent not called in navigate",
+  );
+  check(
+    "CommandPalette renders the RECENT section header",
+    /command-palette-recent-header/.test(paletteSrc),
+    "RECENT section header missing",
+  );
+  check(
+    "CommandPalette reads recent on open",
+    /setRecent\(getRecent\(\)\)/.test(paletteSrc),
+    "recent not read on open",
+  );
+
   // ── 12. The match function exists and is exported (we
   // verify via the /api/command-palette payload structure
   // since the function is pure; the index shape mirrors the

@@ -52,5 +52,11 @@ export async function GET(request: Request) {
     query: q,
     results: results.map((r) => ({ id: r.item.id, rank: r.rank })),
     resultCount: results.length,
+    // Cluster 7.2 — recent items are pure client state
+    // (localStorage). The wire-format field is here so the
+    // smoke can lock in the contract; the actual count is
+    // 0 on the server (the server has no access to the
+    // user's browser storage).
+    recentCount: 0,
   });
 }
