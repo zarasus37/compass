@@ -532,6 +532,23 @@ exports.Prisma.VaultPreferencesScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.VaultScheduleScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  enabled: 'enabled',
+  cronExpression: 'cronExpression',
+  timezone: 'timezone',
+  lookAheadDays: 'lookAheadDays',
+  minReserveCents: 'minReserveCents',
+  lastRunAt: 'lastRunAt',
+  lastRunStatus: 'lastRunStatus',
+  lastRunError: 'lastRunError',
+  lastRunBillsAffected: 'lastRunBillsAffected',
+  nextRunAt: 'nextRunAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -586,7 +603,8 @@ exports.Prisma.ModelName = {
   YieldEvent: 'YieldEvent',
   PaymentAttempt: 'PaymentAttempt',
   ProviderEvent: 'ProviderEvent',
-  VaultPreferences: 'VaultPreferences'
+  VaultPreferences: 'VaultPreferences',
+  VaultSchedule: 'VaultSchedule'
 };
 
 /**

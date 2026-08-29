@@ -88,6 +88,9 @@ model User {
   /// risk-disclosure acknowledgment). One row per user. Cascaded
   /// on user delete.
   vaultPreferences VaultPreferences?
+  /// Cluster 6.0 — auto bill-pay scheduler config. One row per
+  /// user. Cascaded on user delete.
+  vaultSchedule    VaultSchedule?
 
   @@index([email])
 }
@@ -1070,4 +1073,53 @@ model VaultPreferences {
   updatedAt            DateTime  @updatedAt
 
   @@index([userId])
+}
+
+/// Cluster 6.0 — Auto bill-pay scheduler. One row per user.
+/// Holds the cron expression + look-ahead + reserve gate + the
+/// "when did the scheduler last fire" book-keeping the /vault
+/// status strip reads. The actual scheduler logic lives in
+/// src/lib/vault/scheduler.ts; this table is just the state.
+model VaultSchedule {
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Whether the scheduler should run for this user. When false,
+  /// `runSchedulerForUser` short-circuits and `lastRunStatus` is
+  /// recorded as "SKIPPED". The /vault/schedule page shows a
+  /// "Schedule paused" pill when this is false.
+  enabled              Boolean   @default(true)
+  /// Standard 5-field cron expression. Validated at upsert time
+  /// with `cron-parser`. Presets offered by the UI: "0 9 * * *"
+  /// (daily 9am), "0 9,18 * * *" (twice daily), "0 9 * * 1"
+  /// (weekly Monday), "0 9 1 * *" (monthly 1st).
+  cronExpression       String    @default("0 9 * * *")
+  /// IANA timezone, e.g. "America/Chicago". Computed against this
+  /// timezone when determining next-run. Default = America/Chicago
+  /// (server local TZ in dev). When the user-profile TZ lands
+  /// in a later cluster, this column will be defaulted from
+  /// that.
+  timezone             String    @default("America/Chicago")
+  /// How far ahead the scheduler should look for bills whose
+  /// execution window is open. 1 = bills due in the next 24h;
+  /// 7 = bills due in the next week. 0 = bills whose window
+  /// has already opened (more aggressive). Capped at 7.
+  lookAheadDays        Int       @default(1)
+  /// Skip execution if `VaultAccount.settlementReserve` is below
+  /// this threshold. Protects against accidentally draining the
+  /// reserve for a single large bill. 0 = no reserve gate.
+  minReserveCents      Int       @default(0)
+  lastRunAt            DateTime?
+  /// SUCCESS | NO_BILLS | SKIPPED | ERROR
+  lastRunStatus        String?
+  lastRunError         String?
+  lastRunBillsAffected Int       @default(0)
+  /// Computed by the engine on every save + after every run.
+  /// Used by /vault's "Next auto-run: in 2h 14m" indicator.
+  nextRunAt            DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([enabled, nextRunAt])
 }

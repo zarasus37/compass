@@ -296,6 +296,15 @@ export type ProviderEvent = $Result.DefaultSelection<Prisma.$ProviderEventPayloa
  * changes yield-routing strategy in a future slice.
  */
 export type VaultPreferences = $Result.DefaultSelection<Prisma.$VaultPreferencesPayload>
+/**
+ * Model VaultSchedule
+ * Cluster 6.0 — Auto bill-pay scheduler. One row per user.
+ * Holds the cron expression + look-ahead + reserve gate + the
+ * "when did the scheduler last fire" book-keeping the /vault
+ * status strip reads. The actual scheduler logic lives in
+ * src/lib/vault/scheduler.ts; this table is just the state.
+ */
+export type VaultSchedule = $Result.DefaultSelection<Prisma.$VaultSchedulePayload>
 
 /**
  * Enums
@@ -746,6 +755,16 @@ export class PrismaClient<
     * ```
     */
   get vaultPreferences(): Prisma.VaultPreferencesDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.vaultSchedule`: Exposes CRUD operations for the **VaultSchedule** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more VaultSchedules
+    * const vaultSchedules = await prisma.vaultSchedule.findMany()
+    * ```
+    */
+  get vaultSchedule(): Prisma.VaultScheduleDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -1222,7 +1241,8 @@ export namespace Prisma {
     YieldEvent: 'YieldEvent',
     PaymentAttempt: 'PaymentAttempt',
     ProviderEvent: 'ProviderEvent',
-    VaultPreferences: 'VaultPreferences'
+    VaultPreferences: 'VaultPreferences',
+    VaultSchedule: 'VaultSchedule'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -1238,7 +1258,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "session" | "account" | "envelope" | "transaction" | "paySchedule" | "bill" | "goal" | "allocationPlan" | "allocationRule" | "auditLog" | "systemSettings" | "payPeriod" | "financialIdentity" | "identityIncome" | "identityExpense" | "identityDebt" | "identityAsset" | "identityGoal" | "identityEvent" | "identitySpendingHabit" | "identityHouseholdMember" | "onboardingMessage" | "vaultAccount" | "vaultEnvelope" | "scheduledBill" | "yieldEvent" | "paymentAttempt" | "providerEvent" | "vaultPreferences"
+      modelProps: "user" | "session" | "account" | "envelope" | "transaction" | "paySchedule" | "bill" | "goal" | "allocationPlan" | "allocationRule" | "auditLog" | "systemSettings" | "payPeriod" | "financialIdentity" | "identityIncome" | "identityExpense" | "identityDebt" | "identityAsset" | "identityGoal" | "identityEvent" | "identitySpendingHabit" | "identityHouseholdMember" | "onboardingMessage" | "vaultAccount" | "vaultEnvelope" | "scheduledBill" | "yieldEvent" | "paymentAttempt" | "providerEvent" | "vaultPreferences" | "vaultSchedule"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -3462,6 +3482,80 @@ export namespace Prisma {
           }
         }
       }
+      VaultSchedule: {
+        payload: Prisma.$VaultSchedulePayload<ExtArgs>
+        fields: Prisma.VaultScheduleFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.VaultScheduleFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultSchedulePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.VaultScheduleFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultSchedulePayload>
+          }
+          findFirst: {
+            args: Prisma.VaultScheduleFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultSchedulePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.VaultScheduleFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultSchedulePayload>
+          }
+          findMany: {
+            args: Prisma.VaultScheduleFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultSchedulePayload>[]
+          }
+          create: {
+            args: Prisma.VaultScheduleCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultSchedulePayload>
+          }
+          createMany: {
+            args: Prisma.VaultScheduleCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.VaultScheduleCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultSchedulePayload>[]
+          }
+          delete: {
+            args: Prisma.VaultScheduleDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultSchedulePayload>
+          }
+          update: {
+            args: Prisma.VaultScheduleUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultSchedulePayload>
+          }
+          deleteMany: {
+            args: Prisma.VaultScheduleDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.VaultScheduleUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.VaultScheduleUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultSchedulePayload>[]
+          }
+          upsert: {
+            args: Prisma.VaultScheduleUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$VaultSchedulePayload>
+          }
+          aggregate: {
+            args: Prisma.VaultScheduleAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateVaultSchedule>
+          }
+          groupBy: {
+            args: Prisma.VaultScheduleGroupByArgs<ExtArgs>
+            result: $Utils.Optional<VaultScheduleGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.VaultScheduleCountArgs<ExtArgs>
+            result: $Utils.Optional<VaultScheduleCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -3615,6 +3709,7 @@ export namespace Prisma {
     paymentAttempt?: PaymentAttemptOmit
     providerEvent?: ProviderEventOmit
     vaultPreferences?: VaultPreferencesOmit
+    vaultSchedule?: VaultScheduleOmit
   }
 
   /* Types for Logging */
@@ -4416,6 +4511,7 @@ export namespace Prisma {
     identity?: boolean | User$identityArgs<ExtArgs>
     vaultAccount?: boolean | User$vaultAccountArgs<ExtArgs>
     vaultPreferences?: boolean | User$vaultPreferencesArgs<ExtArgs>
+    vaultSchedule?: boolean | User$vaultScheduleArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["user"]>
 
@@ -4472,6 +4568,7 @@ export namespace Prisma {
     identity?: boolean | User$identityArgs<ExtArgs>
     vaultAccount?: boolean | User$vaultAccountArgs<ExtArgs>
     vaultPreferences?: boolean | User$vaultPreferencesArgs<ExtArgs>
+    vaultSchedule?: boolean | User$vaultScheduleArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type UserIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -4501,6 +4598,11 @@ export namespace Prisma {
        * on user delete.
        */
       vaultPreferences: Prisma.$VaultPreferencesPayload<ExtArgs> | null
+      /**
+       * Cluster 6.0 — auto bill-pay scheduler config. One row per
+       * user. Cascaded on user delete.
+       */
+      vaultSchedule: Prisma.$VaultSchedulePayload<ExtArgs> | null
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -4934,6 +5036,7 @@ export namespace Prisma {
     identity<T extends User$identityArgs<ExtArgs> = {}>(args?: Subset<T, User$identityArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     vaultAccount<T extends User$vaultAccountArgs<ExtArgs> = {}>(args?: Subset<T, User$vaultAccountArgs<ExtArgs>>): Prisma__VaultAccountClient<$Result.GetResult<Prisma.$VaultAccountPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     vaultPreferences<T extends User$vaultPreferencesArgs<ExtArgs> = {}>(args?: Subset<T, User$vaultPreferencesArgs<ExtArgs>>): Prisma__VaultPreferencesClient<$Result.GetResult<Prisma.$VaultPreferencesPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    vaultSchedule<T extends User$vaultScheduleArgs<ExtArgs> = {}>(args?: Subset<T, User$vaultScheduleArgs<ExtArgs>>): Prisma__VaultScheduleClient<$Result.GetResult<Prisma.$VaultSchedulePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -5636,6 +5739,25 @@ export namespace Prisma {
      */
     include?: VaultPreferencesInclude<ExtArgs> | null
     where?: VaultPreferencesWhereInput
+  }
+
+  /**
+   * User.vaultSchedule
+   */
+  export type User$vaultScheduleArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultSchedule
+     */
+    select?: VaultScheduleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultSchedule
+     */
+    omit?: VaultScheduleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultScheduleInclude<ExtArgs> | null
+    where?: VaultScheduleWhereInput
   }
 
   /**
@@ -40590,6 +40712,1265 @@ export namespace Prisma {
 
 
   /**
+   * Model VaultSchedule
+   */
+
+  export type AggregateVaultSchedule = {
+    _count: VaultScheduleCountAggregateOutputType | null
+    _avg: VaultScheduleAvgAggregateOutputType | null
+    _sum: VaultScheduleSumAggregateOutputType | null
+    _min: VaultScheduleMinAggregateOutputType | null
+    _max: VaultScheduleMaxAggregateOutputType | null
+  }
+
+  export type VaultScheduleAvgAggregateOutputType = {
+    lookAheadDays: number | null
+    minReserveCents: number | null
+    lastRunBillsAffected: number | null
+  }
+
+  export type VaultScheduleSumAggregateOutputType = {
+    lookAheadDays: number | null
+    minReserveCents: number | null
+    lastRunBillsAffected: number | null
+  }
+
+  export type VaultScheduleMinAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    enabled: boolean | null
+    cronExpression: string | null
+    timezone: string | null
+    lookAheadDays: number | null
+    minReserveCents: number | null
+    lastRunAt: Date | null
+    lastRunStatus: string | null
+    lastRunError: string | null
+    lastRunBillsAffected: number | null
+    nextRunAt: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type VaultScheduleMaxAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    enabled: boolean | null
+    cronExpression: string | null
+    timezone: string | null
+    lookAheadDays: number | null
+    minReserveCents: number | null
+    lastRunAt: Date | null
+    lastRunStatus: string | null
+    lastRunError: string | null
+    lastRunBillsAffected: number | null
+    nextRunAt: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type VaultScheduleCountAggregateOutputType = {
+    id: number
+    userId: number
+    enabled: number
+    cronExpression: number
+    timezone: number
+    lookAheadDays: number
+    minReserveCents: number
+    lastRunAt: number
+    lastRunStatus: number
+    lastRunError: number
+    lastRunBillsAffected: number
+    nextRunAt: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type VaultScheduleAvgAggregateInputType = {
+    lookAheadDays?: true
+    minReserveCents?: true
+    lastRunBillsAffected?: true
+  }
+
+  export type VaultScheduleSumAggregateInputType = {
+    lookAheadDays?: true
+    minReserveCents?: true
+    lastRunBillsAffected?: true
+  }
+
+  export type VaultScheduleMinAggregateInputType = {
+    id?: true
+    userId?: true
+    enabled?: true
+    cronExpression?: true
+    timezone?: true
+    lookAheadDays?: true
+    minReserveCents?: true
+    lastRunAt?: true
+    lastRunStatus?: true
+    lastRunError?: true
+    lastRunBillsAffected?: true
+    nextRunAt?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type VaultScheduleMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    enabled?: true
+    cronExpression?: true
+    timezone?: true
+    lookAheadDays?: true
+    minReserveCents?: true
+    lastRunAt?: true
+    lastRunStatus?: true
+    lastRunError?: true
+    lastRunBillsAffected?: true
+    nextRunAt?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type VaultScheduleCountAggregateInputType = {
+    id?: true
+    userId?: true
+    enabled?: true
+    cronExpression?: true
+    timezone?: true
+    lookAheadDays?: true
+    minReserveCents?: true
+    lastRunAt?: true
+    lastRunStatus?: true
+    lastRunError?: true
+    lastRunBillsAffected?: true
+    nextRunAt?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type VaultScheduleAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which VaultSchedule to aggregate.
+     */
+    where?: VaultScheduleWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of VaultSchedules to fetch.
+     */
+    orderBy?: VaultScheduleOrderByWithRelationInput | VaultScheduleOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: VaultScheduleWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` VaultSchedules from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` VaultSchedules.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned VaultSchedules
+    **/
+    _count?: true | VaultScheduleCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: VaultScheduleAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: VaultScheduleSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: VaultScheduleMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: VaultScheduleMaxAggregateInputType
+  }
+
+  export type GetVaultScheduleAggregateType<T extends VaultScheduleAggregateArgs> = {
+        [P in keyof T & keyof AggregateVaultSchedule]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateVaultSchedule[P]>
+      : GetScalarType<T[P], AggregateVaultSchedule[P]>
+  }
+
+
+
+
+  export type VaultScheduleGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: VaultScheduleWhereInput
+    orderBy?: VaultScheduleOrderByWithAggregationInput | VaultScheduleOrderByWithAggregationInput[]
+    by: VaultScheduleScalarFieldEnum[] | VaultScheduleScalarFieldEnum
+    having?: VaultScheduleScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: VaultScheduleCountAggregateInputType | true
+    _avg?: VaultScheduleAvgAggregateInputType
+    _sum?: VaultScheduleSumAggregateInputType
+    _min?: VaultScheduleMinAggregateInputType
+    _max?: VaultScheduleMaxAggregateInputType
+  }
+
+  export type VaultScheduleGroupByOutputType = {
+    id: string
+    userId: string
+    enabled: boolean
+    cronExpression: string
+    timezone: string
+    lookAheadDays: number
+    minReserveCents: number
+    lastRunAt: Date | null
+    lastRunStatus: string | null
+    lastRunError: string | null
+    lastRunBillsAffected: number
+    nextRunAt: Date | null
+    createdAt: Date
+    updatedAt: Date
+    _count: VaultScheduleCountAggregateOutputType | null
+    _avg: VaultScheduleAvgAggregateOutputType | null
+    _sum: VaultScheduleSumAggregateOutputType | null
+    _min: VaultScheduleMinAggregateOutputType | null
+    _max: VaultScheduleMaxAggregateOutputType | null
+  }
+
+  type GetVaultScheduleGroupByPayload<T extends VaultScheduleGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<VaultScheduleGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof VaultScheduleGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], VaultScheduleGroupByOutputType[P]>
+            : GetScalarType<T[P], VaultScheduleGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type VaultScheduleSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    enabled?: boolean
+    cronExpression?: boolean
+    timezone?: boolean
+    lookAheadDays?: boolean
+    minReserveCents?: boolean
+    lastRunAt?: boolean
+    lastRunStatus?: boolean
+    lastRunError?: boolean
+    lastRunBillsAffected?: boolean
+    nextRunAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["vaultSchedule"]>
+
+  export type VaultScheduleSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    enabled?: boolean
+    cronExpression?: boolean
+    timezone?: boolean
+    lookAheadDays?: boolean
+    minReserveCents?: boolean
+    lastRunAt?: boolean
+    lastRunStatus?: boolean
+    lastRunError?: boolean
+    lastRunBillsAffected?: boolean
+    nextRunAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["vaultSchedule"]>
+
+  export type VaultScheduleSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    enabled?: boolean
+    cronExpression?: boolean
+    timezone?: boolean
+    lookAheadDays?: boolean
+    minReserveCents?: boolean
+    lastRunAt?: boolean
+    lastRunStatus?: boolean
+    lastRunError?: boolean
+    lastRunBillsAffected?: boolean
+    nextRunAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["vaultSchedule"]>
+
+  export type VaultScheduleSelectScalar = {
+    id?: boolean
+    userId?: boolean
+    enabled?: boolean
+    cronExpression?: boolean
+    timezone?: boolean
+    lookAheadDays?: boolean
+    minReserveCents?: boolean
+    lastRunAt?: boolean
+    lastRunStatus?: boolean
+    lastRunError?: boolean
+    lastRunBillsAffected?: boolean
+    nextRunAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type VaultScheduleOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "enabled" | "cronExpression" | "timezone" | "lookAheadDays" | "minReserveCents" | "lastRunAt" | "lastRunStatus" | "lastRunError" | "lastRunBillsAffected" | "nextRunAt" | "createdAt" | "updatedAt", ExtArgs["result"]["vaultSchedule"]>
+  export type VaultScheduleInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type VaultScheduleIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type VaultScheduleIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+
+  export type $VaultSchedulePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "VaultSchedule"
+    objects: {
+      user: Prisma.$UserPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      userId: string
+      /**
+       * Whether the scheduler should run for this user. When false,
+       * `runSchedulerForUser` short-circuits and `lastRunStatus` is
+       * recorded as "SKIPPED". The /vault/schedule page shows a
+       * "Schedule paused" pill when this is false.
+       */
+      enabled: boolean
+      /**
+       * Standard 5-field cron expression. Validated at upsert time
+       * with `cron-parser`. Presets offered by the UI: "0 9 * * *"
+       * (daily 9am), "0 9,18 * * *" (twice daily), "0 9 * * 1"
+       * (weekly Monday), "0 9 1 * *" (monthly 1st).
+       */
+      cronExpression: string
+      /**
+       * IANA timezone, e.g. "America/Chicago". Computed against this
+       * timezone when determining next-run. Default = America/Chicago
+       * (server local TZ in dev). When the user-profile TZ lands
+       * in a later cluster, this column will be defaulted from
+       * that.
+       */
+      timezone: string
+      /**
+       * How far ahead the scheduler should look for bills whose
+       * execution window is open. 1 = bills due in the next 24h;
+       * 7 = bills due in the next week. 0 = bills whose window
+       * has already opened (more aggressive). Capped at 7.
+       */
+      lookAheadDays: number
+      /**
+       * Skip execution if `VaultAccount.settlementReserve` is below
+       * this threshold. Protects against accidentally draining the
+       * reserve for a single large bill. 0 = no reserve gate.
+       */
+      minReserveCents: number
+      lastRunAt: Date | null
+      /**
+       * SUCCESS | NO_BILLS | SKIPPED | ERROR
+       */
+      lastRunStatus: string | null
+      lastRunError: string | null
+      lastRunBillsAffected: number
+      /**
+       * Computed by the engine on every save + after every run.
+       * Used by /vault's "Next auto-run: in 2h 14m" indicator.
+       */
+      nextRunAt: Date | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["vaultSchedule"]>
+    composites: {}
+  }
+
+  type VaultScheduleGetPayload<S extends boolean | null | undefined | VaultScheduleDefaultArgs> = $Result.GetResult<Prisma.$VaultSchedulePayload, S>
+
+  type VaultScheduleCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<VaultScheduleFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: VaultScheduleCountAggregateInputType | true
+    }
+
+  export interface VaultScheduleDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['VaultSchedule'], meta: { name: 'VaultSchedule' } }
+    /**
+     * Find zero or one VaultSchedule that matches the filter.
+     * @param {VaultScheduleFindUniqueArgs} args - Arguments to find a VaultSchedule
+     * @example
+     * // Get one VaultSchedule
+     * const vaultSchedule = await prisma.vaultSchedule.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends VaultScheduleFindUniqueArgs>(args: SelectSubset<T, VaultScheduleFindUniqueArgs<ExtArgs>>): Prisma__VaultScheduleClient<$Result.GetResult<Prisma.$VaultSchedulePayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one VaultSchedule that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {VaultScheduleFindUniqueOrThrowArgs} args - Arguments to find a VaultSchedule
+     * @example
+     * // Get one VaultSchedule
+     * const vaultSchedule = await prisma.vaultSchedule.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends VaultScheduleFindUniqueOrThrowArgs>(args: SelectSubset<T, VaultScheduleFindUniqueOrThrowArgs<ExtArgs>>): Prisma__VaultScheduleClient<$Result.GetResult<Prisma.$VaultSchedulePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first VaultSchedule that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultScheduleFindFirstArgs} args - Arguments to find a VaultSchedule
+     * @example
+     * // Get one VaultSchedule
+     * const vaultSchedule = await prisma.vaultSchedule.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends VaultScheduleFindFirstArgs>(args?: SelectSubset<T, VaultScheduleFindFirstArgs<ExtArgs>>): Prisma__VaultScheduleClient<$Result.GetResult<Prisma.$VaultSchedulePayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first VaultSchedule that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultScheduleFindFirstOrThrowArgs} args - Arguments to find a VaultSchedule
+     * @example
+     * // Get one VaultSchedule
+     * const vaultSchedule = await prisma.vaultSchedule.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends VaultScheduleFindFirstOrThrowArgs>(args?: SelectSubset<T, VaultScheduleFindFirstOrThrowArgs<ExtArgs>>): Prisma__VaultScheduleClient<$Result.GetResult<Prisma.$VaultSchedulePayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more VaultSchedules that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultScheduleFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all VaultSchedules
+     * const vaultSchedules = await prisma.vaultSchedule.findMany()
+     * 
+     * // Get first 10 VaultSchedules
+     * const vaultSchedules = await prisma.vaultSchedule.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const vaultScheduleWithIdOnly = await prisma.vaultSchedule.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends VaultScheduleFindManyArgs>(args?: SelectSubset<T, VaultScheduleFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$VaultSchedulePayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a VaultSchedule.
+     * @param {VaultScheduleCreateArgs} args - Arguments to create a VaultSchedule.
+     * @example
+     * // Create one VaultSchedule
+     * const VaultSchedule = await prisma.vaultSchedule.create({
+     *   data: {
+     *     // ... data to create a VaultSchedule
+     *   }
+     * })
+     * 
+     */
+    create<T extends VaultScheduleCreateArgs>(args: SelectSubset<T, VaultScheduleCreateArgs<ExtArgs>>): Prisma__VaultScheduleClient<$Result.GetResult<Prisma.$VaultSchedulePayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many VaultSchedules.
+     * @param {VaultScheduleCreateManyArgs} args - Arguments to create many VaultSchedules.
+     * @example
+     * // Create many VaultSchedules
+     * const vaultSchedule = await prisma.vaultSchedule.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends VaultScheduleCreateManyArgs>(args?: SelectSubset<T, VaultScheduleCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many VaultSchedules and returns the data saved in the database.
+     * @param {VaultScheduleCreateManyAndReturnArgs} args - Arguments to create many VaultSchedules.
+     * @example
+     * // Create many VaultSchedules
+     * const vaultSchedule = await prisma.vaultSchedule.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many VaultSchedules and only return the `id`
+     * const vaultScheduleWithIdOnly = await prisma.vaultSchedule.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends VaultScheduleCreateManyAndReturnArgs>(args?: SelectSubset<T, VaultScheduleCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$VaultSchedulePayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a VaultSchedule.
+     * @param {VaultScheduleDeleteArgs} args - Arguments to delete one VaultSchedule.
+     * @example
+     * // Delete one VaultSchedule
+     * const VaultSchedule = await prisma.vaultSchedule.delete({
+     *   where: {
+     *     // ... filter to delete one VaultSchedule
+     *   }
+     * })
+     * 
+     */
+    delete<T extends VaultScheduleDeleteArgs>(args: SelectSubset<T, VaultScheduleDeleteArgs<ExtArgs>>): Prisma__VaultScheduleClient<$Result.GetResult<Prisma.$VaultSchedulePayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one VaultSchedule.
+     * @param {VaultScheduleUpdateArgs} args - Arguments to update one VaultSchedule.
+     * @example
+     * // Update one VaultSchedule
+     * const vaultSchedule = await prisma.vaultSchedule.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends VaultScheduleUpdateArgs>(args: SelectSubset<T, VaultScheduleUpdateArgs<ExtArgs>>): Prisma__VaultScheduleClient<$Result.GetResult<Prisma.$VaultSchedulePayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more VaultSchedules.
+     * @param {VaultScheduleDeleteManyArgs} args - Arguments to filter VaultSchedules to delete.
+     * @example
+     * // Delete a few VaultSchedules
+     * const { count } = await prisma.vaultSchedule.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends VaultScheduleDeleteManyArgs>(args?: SelectSubset<T, VaultScheduleDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more VaultSchedules.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultScheduleUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many VaultSchedules
+     * const vaultSchedule = await prisma.vaultSchedule.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends VaultScheduleUpdateManyArgs>(args: SelectSubset<T, VaultScheduleUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more VaultSchedules and returns the data updated in the database.
+     * @param {VaultScheduleUpdateManyAndReturnArgs} args - Arguments to update many VaultSchedules.
+     * @example
+     * // Update many VaultSchedules
+     * const vaultSchedule = await prisma.vaultSchedule.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more VaultSchedules and only return the `id`
+     * const vaultScheduleWithIdOnly = await prisma.vaultSchedule.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends VaultScheduleUpdateManyAndReturnArgs>(args: SelectSubset<T, VaultScheduleUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$VaultSchedulePayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one VaultSchedule.
+     * @param {VaultScheduleUpsertArgs} args - Arguments to update or create a VaultSchedule.
+     * @example
+     * // Update or create a VaultSchedule
+     * const vaultSchedule = await prisma.vaultSchedule.upsert({
+     *   create: {
+     *     // ... data to create a VaultSchedule
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the VaultSchedule we want to update
+     *   }
+     * })
+     */
+    upsert<T extends VaultScheduleUpsertArgs>(args: SelectSubset<T, VaultScheduleUpsertArgs<ExtArgs>>): Prisma__VaultScheduleClient<$Result.GetResult<Prisma.$VaultSchedulePayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of VaultSchedules.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultScheduleCountArgs} args - Arguments to filter VaultSchedules to count.
+     * @example
+     * // Count the number of VaultSchedules
+     * const count = await prisma.vaultSchedule.count({
+     *   where: {
+     *     // ... the filter for the VaultSchedules we want to count
+     *   }
+     * })
+    **/
+    count<T extends VaultScheduleCountArgs>(
+      args?: Subset<T, VaultScheduleCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], VaultScheduleCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a VaultSchedule.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultScheduleAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends VaultScheduleAggregateArgs>(args: Subset<T, VaultScheduleAggregateArgs>): Prisma.PrismaPromise<GetVaultScheduleAggregateType<T>>
+
+    /**
+     * Group by VaultSchedule.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {VaultScheduleGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends VaultScheduleGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: VaultScheduleGroupByArgs['orderBy'] }
+        : { orderBy?: VaultScheduleGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, VaultScheduleGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetVaultScheduleGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the VaultSchedule model
+   */
+  readonly fields: VaultScheduleFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for VaultSchedule.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__VaultScheduleClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the VaultSchedule model
+   */
+  interface VaultScheduleFieldRefs {
+    readonly id: FieldRef<"VaultSchedule", 'String'>
+    readonly userId: FieldRef<"VaultSchedule", 'String'>
+    readonly enabled: FieldRef<"VaultSchedule", 'Boolean'>
+    readonly cronExpression: FieldRef<"VaultSchedule", 'String'>
+    readonly timezone: FieldRef<"VaultSchedule", 'String'>
+    readonly lookAheadDays: FieldRef<"VaultSchedule", 'Int'>
+    readonly minReserveCents: FieldRef<"VaultSchedule", 'Int'>
+    readonly lastRunAt: FieldRef<"VaultSchedule", 'DateTime'>
+    readonly lastRunStatus: FieldRef<"VaultSchedule", 'String'>
+    readonly lastRunError: FieldRef<"VaultSchedule", 'String'>
+    readonly lastRunBillsAffected: FieldRef<"VaultSchedule", 'Int'>
+    readonly nextRunAt: FieldRef<"VaultSchedule", 'DateTime'>
+    readonly createdAt: FieldRef<"VaultSchedule", 'DateTime'>
+    readonly updatedAt: FieldRef<"VaultSchedule", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * VaultSchedule findUnique
+   */
+  export type VaultScheduleFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultSchedule
+     */
+    select?: VaultScheduleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultSchedule
+     */
+    omit?: VaultScheduleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultScheduleInclude<ExtArgs> | null
+    /**
+     * Filter, which VaultSchedule to fetch.
+     */
+    where: VaultScheduleWhereUniqueInput
+  }
+
+  /**
+   * VaultSchedule findUniqueOrThrow
+   */
+  export type VaultScheduleFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultSchedule
+     */
+    select?: VaultScheduleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultSchedule
+     */
+    omit?: VaultScheduleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultScheduleInclude<ExtArgs> | null
+    /**
+     * Filter, which VaultSchedule to fetch.
+     */
+    where: VaultScheduleWhereUniqueInput
+  }
+
+  /**
+   * VaultSchedule findFirst
+   */
+  export type VaultScheduleFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultSchedule
+     */
+    select?: VaultScheduleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultSchedule
+     */
+    omit?: VaultScheduleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultScheduleInclude<ExtArgs> | null
+    /**
+     * Filter, which VaultSchedule to fetch.
+     */
+    where?: VaultScheduleWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of VaultSchedules to fetch.
+     */
+    orderBy?: VaultScheduleOrderByWithRelationInput | VaultScheduleOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for VaultSchedules.
+     */
+    cursor?: VaultScheduleWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` VaultSchedules from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` VaultSchedules.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of VaultSchedules.
+     */
+    distinct?: VaultScheduleScalarFieldEnum | VaultScheduleScalarFieldEnum[]
+  }
+
+  /**
+   * VaultSchedule findFirstOrThrow
+   */
+  export type VaultScheduleFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultSchedule
+     */
+    select?: VaultScheduleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultSchedule
+     */
+    omit?: VaultScheduleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultScheduleInclude<ExtArgs> | null
+    /**
+     * Filter, which VaultSchedule to fetch.
+     */
+    where?: VaultScheduleWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of VaultSchedules to fetch.
+     */
+    orderBy?: VaultScheduleOrderByWithRelationInput | VaultScheduleOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for VaultSchedules.
+     */
+    cursor?: VaultScheduleWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` VaultSchedules from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` VaultSchedules.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of VaultSchedules.
+     */
+    distinct?: VaultScheduleScalarFieldEnum | VaultScheduleScalarFieldEnum[]
+  }
+
+  /**
+   * VaultSchedule findMany
+   */
+  export type VaultScheduleFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultSchedule
+     */
+    select?: VaultScheduleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultSchedule
+     */
+    omit?: VaultScheduleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultScheduleInclude<ExtArgs> | null
+    /**
+     * Filter, which VaultSchedules to fetch.
+     */
+    where?: VaultScheduleWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of VaultSchedules to fetch.
+     */
+    orderBy?: VaultScheduleOrderByWithRelationInput | VaultScheduleOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing VaultSchedules.
+     */
+    cursor?: VaultScheduleWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` VaultSchedules from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` VaultSchedules.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of VaultSchedules.
+     */
+    distinct?: VaultScheduleScalarFieldEnum | VaultScheduleScalarFieldEnum[]
+  }
+
+  /**
+   * VaultSchedule create
+   */
+  export type VaultScheduleCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultSchedule
+     */
+    select?: VaultScheduleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultSchedule
+     */
+    omit?: VaultScheduleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultScheduleInclude<ExtArgs> | null
+    /**
+     * The data needed to create a VaultSchedule.
+     */
+    data: XOR<VaultScheduleCreateInput, VaultScheduleUncheckedCreateInput>
+  }
+
+  /**
+   * VaultSchedule createMany
+   */
+  export type VaultScheduleCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many VaultSchedules.
+     */
+    data: VaultScheduleCreateManyInput | VaultScheduleCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * VaultSchedule createManyAndReturn
+   */
+  export type VaultScheduleCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultSchedule
+     */
+    select?: VaultScheduleSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultSchedule
+     */
+    omit?: VaultScheduleOmit<ExtArgs> | null
+    /**
+     * The data used to create many VaultSchedules.
+     */
+    data: VaultScheduleCreateManyInput | VaultScheduleCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultScheduleIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * VaultSchedule update
+   */
+  export type VaultScheduleUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultSchedule
+     */
+    select?: VaultScheduleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultSchedule
+     */
+    omit?: VaultScheduleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultScheduleInclude<ExtArgs> | null
+    /**
+     * The data needed to update a VaultSchedule.
+     */
+    data: XOR<VaultScheduleUpdateInput, VaultScheduleUncheckedUpdateInput>
+    /**
+     * Choose, which VaultSchedule to update.
+     */
+    where: VaultScheduleWhereUniqueInput
+  }
+
+  /**
+   * VaultSchedule updateMany
+   */
+  export type VaultScheduleUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update VaultSchedules.
+     */
+    data: XOR<VaultScheduleUpdateManyMutationInput, VaultScheduleUncheckedUpdateManyInput>
+    /**
+     * Filter which VaultSchedules to update
+     */
+    where?: VaultScheduleWhereInput
+    /**
+     * Limit how many VaultSchedules to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * VaultSchedule updateManyAndReturn
+   */
+  export type VaultScheduleUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultSchedule
+     */
+    select?: VaultScheduleSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultSchedule
+     */
+    omit?: VaultScheduleOmit<ExtArgs> | null
+    /**
+     * The data used to update VaultSchedules.
+     */
+    data: XOR<VaultScheduleUpdateManyMutationInput, VaultScheduleUncheckedUpdateManyInput>
+    /**
+     * Filter which VaultSchedules to update
+     */
+    where?: VaultScheduleWhereInput
+    /**
+     * Limit how many VaultSchedules to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultScheduleIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * VaultSchedule upsert
+   */
+  export type VaultScheduleUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultSchedule
+     */
+    select?: VaultScheduleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultSchedule
+     */
+    omit?: VaultScheduleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultScheduleInclude<ExtArgs> | null
+    /**
+     * The filter to search for the VaultSchedule to update in case it exists.
+     */
+    where: VaultScheduleWhereUniqueInput
+    /**
+     * In case the VaultSchedule found by the `where` argument doesn't exist, create a new VaultSchedule with this data.
+     */
+    create: XOR<VaultScheduleCreateInput, VaultScheduleUncheckedCreateInput>
+    /**
+     * In case the VaultSchedule was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<VaultScheduleUpdateInput, VaultScheduleUncheckedUpdateInput>
+  }
+
+  /**
+   * VaultSchedule delete
+   */
+  export type VaultScheduleDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultSchedule
+     */
+    select?: VaultScheduleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultSchedule
+     */
+    omit?: VaultScheduleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultScheduleInclude<ExtArgs> | null
+    /**
+     * Filter which VaultSchedule to delete.
+     */
+    where: VaultScheduleWhereUniqueInput
+  }
+
+  /**
+   * VaultSchedule deleteMany
+   */
+  export type VaultScheduleDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which VaultSchedules to delete
+     */
+    where?: VaultScheduleWhereInput
+    /**
+     * Limit how many VaultSchedules to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * VaultSchedule without action
+   */
+  export type VaultScheduleDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the VaultSchedule
+     */
+    select?: VaultScheduleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the VaultSchedule
+     */
+    omit?: VaultScheduleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: VaultScheduleInclude<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -41105,6 +42486,26 @@ export namespace Prisma {
   export type VaultPreferencesScalarFieldEnum = (typeof VaultPreferencesScalarFieldEnum)[keyof typeof VaultPreferencesScalarFieldEnum]
 
 
+  export const VaultScheduleScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    enabled: 'enabled',
+    cronExpression: 'cronExpression',
+    timezone: 'timezone',
+    lookAheadDays: 'lookAheadDays',
+    minReserveCents: 'minReserveCents',
+    lastRunAt: 'lastRunAt',
+    lastRunStatus: 'lastRunStatus',
+    lastRunError: 'lastRunError',
+    lastRunBillsAffected: 'lastRunBillsAffected',
+    nextRunAt: 'nextRunAt',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type VaultScheduleScalarFieldEnum = (typeof VaultScheduleScalarFieldEnum)[keyof typeof VaultScheduleScalarFieldEnum]
+
+
   export const SortOrder: {
     asc: 'asc',
     desc: 'desc'
@@ -41254,6 +42655,7 @@ export namespace Prisma {
     identity?: XOR<FinancialIdentityNullableScalarRelationFilter, FinancialIdentityWhereInput> | null
     vaultAccount?: XOR<VaultAccountNullableScalarRelationFilter, VaultAccountWhereInput> | null
     vaultPreferences?: XOR<VaultPreferencesNullableScalarRelationFilter, VaultPreferencesWhereInput> | null
+    vaultSchedule?: XOR<VaultScheduleNullableScalarRelationFilter, VaultScheduleWhereInput> | null
   }
 
   export type UserOrderByWithRelationInput = {
@@ -41279,6 +42681,7 @@ export namespace Prisma {
     identity?: FinancialIdentityOrderByWithRelationInput
     vaultAccount?: VaultAccountOrderByWithRelationInput
     vaultPreferences?: VaultPreferencesOrderByWithRelationInput
+    vaultSchedule?: VaultScheduleOrderByWithRelationInput
   }
 
   export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -41307,6 +42710,7 @@ export namespace Prisma {
     identity?: XOR<FinancialIdentityNullableScalarRelationFilter, FinancialIdentityWhereInput> | null
     vaultAccount?: XOR<VaultAccountNullableScalarRelationFilter, VaultAccountWhereInput> | null
     vaultPreferences?: XOR<VaultPreferencesNullableScalarRelationFilter, VaultPreferencesWhereInput> | null
+    vaultSchedule?: XOR<VaultScheduleNullableScalarRelationFilter, VaultScheduleWhereInput> | null
   }, "id" | "email">
 
   export type UserOrderByWithAggregationInput = {
@@ -43902,6 +45306,108 @@ export namespace Prisma {
     updatedAt?: DateTimeWithAggregatesFilter<"VaultPreferences"> | Date | string
   }
 
+  export type VaultScheduleWhereInput = {
+    AND?: VaultScheduleWhereInput | VaultScheduleWhereInput[]
+    OR?: VaultScheduleWhereInput[]
+    NOT?: VaultScheduleWhereInput | VaultScheduleWhereInput[]
+    id?: StringFilter<"VaultSchedule"> | string
+    userId?: StringFilter<"VaultSchedule"> | string
+    enabled?: BoolFilter<"VaultSchedule"> | boolean
+    cronExpression?: StringFilter<"VaultSchedule"> | string
+    timezone?: StringFilter<"VaultSchedule"> | string
+    lookAheadDays?: IntFilter<"VaultSchedule"> | number
+    minReserveCents?: IntFilter<"VaultSchedule"> | number
+    lastRunAt?: DateTimeNullableFilter<"VaultSchedule"> | Date | string | null
+    lastRunStatus?: StringNullableFilter<"VaultSchedule"> | string | null
+    lastRunError?: StringNullableFilter<"VaultSchedule"> | string | null
+    lastRunBillsAffected?: IntFilter<"VaultSchedule"> | number
+    nextRunAt?: DateTimeNullableFilter<"VaultSchedule"> | Date | string | null
+    createdAt?: DateTimeFilter<"VaultSchedule"> | Date | string
+    updatedAt?: DateTimeFilter<"VaultSchedule"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }
+
+  export type VaultScheduleOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    enabled?: SortOrder
+    cronExpression?: SortOrder
+    timezone?: SortOrder
+    lookAheadDays?: SortOrder
+    minReserveCents?: SortOrder
+    lastRunAt?: SortOrderInput | SortOrder
+    lastRunStatus?: SortOrderInput | SortOrder
+    lastRunError?: SortOrderInput | SortOrder
+    lastRunBillsAffected?: SortOrder
+    nextRunAt?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    user?: UserOrderByWithRelationInput
+  }
+
+  export type VaultScheduleWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    userId?: string
+    AND?: VaultScheduleWhereInput | VaultScheduleWhereInput[]
+    OR?: VaultScheduleWhereInput[]
+    NOT?: VaultScheduleWhereInput | VaultScheduleWhereInput[]
+    enabled?: BoolFilter<"VaultSchedule"> | boolean
+    cronExpression?: StringFilter<"VaultSchedule"> | string
+    timezone?: StringFilter<"VaultSchedule"> | string
+    lookAheadDays?: IntFilter<"VaultSchedule"> | number
+    minReserveCents?: IntFilter<"VaultSchedule"> | number
+    lastRunAt?: DateTimeNullableFilter<"VaultSchedule"> | Date | string | null
+    lastRunStatus?: StringNullableFilter<"VaultSchedule"> | string | null
+    lastRunError?: StringNullableFilter<"VaultSchedule"> | string | null
+    lastRunBillsAffected?: IntFilter<"VaultSchedule"> | number
+    nextRunAt?: DateTimeNullableFilter<"VaultSchedule"> | Date | string | null
+    createdAt?: DateTimeFilter<"VaultSchedule"> | Date | string
+    updatedAt?: DateTimeFilter<"VaultSchedule"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }, "id" | "userId">
+
+  export type VaultScheduleOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    enabled?: SortOrder
+    cronExpression?: SortOrder
+    timezone?: SortOrder
+    lookAheadDays?: SortOrder
+    minReserveCents?: SortOrder
+    lastRunAt?: SortOrderInput | SortOrder
+    lastRunStatus?: SortOrderInput | SortOrder
+    lastRunError?: SortOrderInput | SortOrder
+    lastRunBillsAffected?: SortOrder
+    nextRunAt?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: VaultScheduleCountOrderByAggregateInput
+    _avg?: VaultScheduleAvgOrderByAggregateInput
+    _max?: VaultScheduleMaxOrderByAggregateInput
+    _min?: VaultScheduleMinOrderByAggregateInput
+    _sum?: VaultScheduleSumOrderByAggregateInput
+  }
+
+  export type VaultScheduleScalarWhereWithAggregatesInput = {
+    AND?: VaultScheduleScalarWhereWithAggregatesInput | VaultScheduleScalarWhereWithAggregatesInput[]
+    OR?: VaultScheduleScalarWhereWithAggregatesInput[]
+    NOT?: VaultScheduleScalarWhereWithAggregatesInput | VaultScheduleScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"VaultSchedule"> | string
+    userId?: StringWithAggregatesFilter<"VaultSchedule"> | string
+    enabled?: BoolWithAggregatesFilter<"VaultSchedule"> | boolean
+    cronExpression?: StringWithAggregatesFilter<"VaultSchedule"> | string
+    timezone?: StringWithAggregatesFilter<"VaultSchedule"> | string
+    lookAheadDays?: IntWithAggregatesFilter<"VaultSchedule"> | number
+    minReserveCents?: IntWithAggregatesFilter<"VaultSchedule"> | number
+    lastRunAt?: DateTimeNullableWithAggregatesFilter<"VaultSchedule"> | Date | string | null
+    lastRunStatus?: StringNullableWithAggregatesFilter<"VaultSchedule"> | string | null
+    lastRunError?: StringNullableWithAggregatesFilter<"VaultSchedule"> | string | null
+    lastRunBillsAffected?: IntWithAggregatesFilter<"VaultSchedule"> | number
+    nextRunAt?: DateTimeNullableWithAggregatesFilter<"VaultSchedule"> | Date | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"VaultSchedule"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"VaultSchedule"> | Date | string
+  }
+
   export type UserCreateInput = {
     id?: string
     name: string
@@ -43925,6 +45431,7 @@ export namespace Prisma {
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateInput = {
@@ -43950,6 +45457,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserUpdateInput = {
@@ -43975,6 +45483,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateInput = {
@@ -44000,6 +45509,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type UserCreateManyInput = {
@@ -46888,6 +48398,124 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type VaultScheduleCreateInput = {
+    id?: string
+    enabled?: boolean
+    cronExpression?: string
+    timezone?: string
+    lookAheadDays?: number
+    minReserveCents?: number
+    lastRunAt?: Date | string | null
+    lastRunStatus?: string | null
+    lastRunError?: string | null
+    lastRunBillsAffected?: number
+    nextRunAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutVaultScheduleInput
+  }
+
+  export type VaultScheduleUncheckedCreateInput = {
+    id?: string
+    userId: string
+    enabled?: boolean
+    cronExpression?: string
+    timezone?: string
+    lookAheadDays?: number
+    minReserveCents?: number
+    lastRunAt?: Date | string | null
+    lastRunStatus?: string | null
+    lastRunError?: string | null
+    lastRunBillsAffected?: number
+    nextRunAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type VaultScheduleUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    cronExpression?: StringFieldUpdateOperationsInput | string
+    timezone?: StringFieldUpdateOperationsInput | string
+    lookAheadDays?: IntFieldUpdateOperationsInput | number
+    minReserveCents?: IntFieldUpdateOperationsInput | number
+    lastRunAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastRunStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastRunError?: NullableStringFieldUpdateOperationsInput | string | null
+    lastRunBillsAffected?: IntFieldUpdateOperationsInput | number
+    nextRunAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutVaultScheduleNestedInput
+  }
+
+  export type VaultScheduleUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    cronExpression?: StringFieldUpdateOperationsInput | string
+    timezone?: StringFieldUpdateOperationsInput | string
+    lookAheadDays?: IntFieldUpdateOperationsInput | number
+    minReserveCents?: IntFieldUpdateOperationsInput | number
+    lastRunAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastRunStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastRunError?: NullableStringFieldUpdateOperationsInput | string | null
+    lastRunBillsAffected?: IntFieldUpdateOperationsInput | number
+    nextRunAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type VaultScheduleCreateManyInput = {
+    id?: string
+    userId: string
+    enabled?: boolean
+    cronExpression?: string
+    timezone?: string
+    lookAheadDays?: number
+    minReserveCents?: number
+    lastRunAt?: Date | string | null
+    lastRunStatus?: string | null
+    lastRunError?: string | null
+    lastRunBillsAffected?: number
+    nextRunAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type VaultScheduleUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    cronExpression?: StringFieldUpdateOperationsInput | string
+    timezone?: StringFieldUpdateOperationsInput | string
+    lookAheadDays?: IntFieldUpdateOperationsInput | number
+    minReserveCents?: IntFieldUpdateOperationsInput | number
+    lastRunAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastRunStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastRunError?: NullableStringFieldUpdateOperationsInput | string | null
+    lastRunBillsAffected?: IntFieldUpdateOperationsInput | number
+    nextRunAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type VaultScheduleUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    cronExpression?: StringFieldUpdateOperationsInput | string
+    timezone?: StringFieldUpdateOperationsInput | string
+    lookAheadDays?: IntFieldUpdateOperationsInput | number
+    minReserveCents?: IntFieldUpdateOperationsInput | number
+    lastRunAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastRunStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastRunError?: NullableStringFieldUpdateOperationsInput | string | null
+    lastRunBillsAffected?: IntFieldUpdateOperationsInput | number
+    nextRunAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type StringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -47007,6 +48635,11 @@ export namespace Prisma {
   export type VaultPreferencesNullableScalarRelationFilter = {
     is?: VaultPreferencesWhereInput | null
     isNot?: VaultPreferencesWhereInput | null
+  }
+
+  export type VaultScheduleNullableScalarRelationFilter = {
+    is?: VaultScheduleWhereInput | null
+    isNot?: VaultScheduleWhereInput | null
   }
 
   export type SortOrderInput = {
@@ -48984,6 +50617,69 @@ export namespace Prisma {
     updatedAt?: SortOrder
   }
 
+  export type VaultScheduleCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    enabled?: SortOrder
+    cronExpression?: SortOrder
+    timezone?: SortOrder
+    lookAheadDays?: SortOrder
+    minReserveCents?: SortOrder
+    lastRunAt?: SortOrder
+    lastRunStatus?: SortOrder
+    lastRunError?: SortOrder
+    lastRunBillsAffected?: SortOrder
+    nextRunAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type VaultScheduleAvgOrderByAggregateInput = {
+    lookAheadDays?: SortOrder
+    minReserveCents?: SortOrder
+    lastRunBillsAffected?: SortOrder
+  }
+
+  export type VaultScheduleMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    enabled?: SortOrder
+    cronExpression?: SortOrder
+    timezone?: SortOrder
+    lookAheadDays?: SortOrder
+    minReserveCents?: SortOrder
+    lastRunAt?: SortOrder
+    lastRunStatus?: SortOrder
+    lastRunError?: SortOrder
+    lastRunBillsAffected?: SortOrder
+    nextRunAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type VaultScheduleMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    enabled?: SortOrder
+    cronExpression?: SortOrder
+    timezone?: SortOrder
+    lookAheadDays?: SortOrder
+    minReserveCents?: SortOrder
+    lastRunAt?: SortOrder
+    lastRunStatus?: SortOrder
+    lastRunError?: SortOrder
+    lastRunBillsAffected?: SortOrder
+    nextRunAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type VaultScheduleSumOrderByAggregateInput = {
+    lookAheadDays?: SortOrder
+    minReserveCents?: SortOrder
+    lastRunBillsAffected?: SortOrder
+  }
+
   export type SessionCreateNestedManyWithoutUserInput = {
     create?: XOR<SessionCreateWithoutUserInput, SessionUncheckedCreateWithoutUserInput> | SessionCreateWithoutUserInput[] | SessionUncheckedCreateWithoutUserInput[]
     connectOrCreate?: SessionCreateOrConnectWithoutUserInput | SessionCreateOrConnectWithoutUserInput[]
@@ -49065,6 +50761,12 @@ export namespace Prisma {
     connect?: VaultPreferencesWhereUniqueInput
   }
 
+  export type VaultScheduleCreateNestedOneWithoutUserInput = {
+    create?: XOR<VaultScheduleCreateWithoutUserInput, VaultScheduleUncheckedCreateWithoutUserInput>
+    connectOrCreate?: VaultScheduleCreateOrConnectWithoutUserInput
+    connect?: VaultScheduleWhereUniqueInput
+  }
+
   export type SessionUncheckedCreateNestedManyWithoutUserInput = {
     create?: XOR<SessionCreateWithoutUserInput, SessionUncheckedCreateWithoutUserInput> | SessionCreateWithoutUserInput[] | SessionUncheckedCreateWithoutUserInput[]
     connectOrCreate?: SessionCreateOrConnectWithoutUserInput | SessionCreateOrConnectWithoutUserInput[]
@@ -49144,6 +50846,12 @@ export namespace Prisma {
     create?: XOR<VaultPreferencesCreateWithoutUserInput, VaultPreferencesUncheckedCreateWithoutUserInput>
     connectOrCreate?: VaultPreferencesCreateOrConnectWithoutUserInput
     connect?: VaultPreferencesWhereUniqueInput
+  }
+
+  export type VaultScheduleUncheckedCreateNestedOneWithoutUserInput = {
+    create?: XOR<VaultScheduleCreateWithoutUserInput, VaultScheduleUncheckedCreateWithoutUserInput>
+    connectOrCreate?: VaultScheduleCreateOrConnectWithoutUserInput
+    connect?: VaultScheduleWhereUniqueInput
   }
 
   export type StringFieldUpdateOperationsInput = {
@@ -49322,6 +51030,16 @@ export namespace Prisma {
     update?: XOR<XOR<VaultPreferencesUpdateToOneWithWhereWithoutUserInput, VaultPreferencesUpdateWithoutUserInput>, VaultPreferencesUncheckedUpdateWithoutUserInput>
   }
 
+  export type VaultScheduleUpdateOneWithoutUserNestedInput = {
+    create?: XOR<VaultScheduleCreateWithoutUserInput, VaultScheduleUncheckedCreateWithoutUserInput>
+    connectOrCreate?: VaultScheduleCreateOrConnectWithoutUserInput
+    upsert?: VaultScheduleUpsertWithoutUserInput
+    disconnect?: VaultScheduleWhereInput | boolean
+    delete?: VaultScheduleWhereInput | boolean
+    connect?: VaultScheduleWhereUniqueInput
+    update?: XOR<XOR<VaultScheduleUpdateToOneWithWhereWithoutUserInput, VaultScheduleUpdateWithoutUserInput>, VaultScheduleUncheckedUpdateWithoutUserInput>
+  }
+
   export type SessionUncheckedUpdateManyWithoutUserNestedInput = {
     create?: XOR<SessionCreateWithoutUserInput, SessionUncheckedCreateWithoutUserInput> | SessionCreateWithoutUserInput[] | SessionUncheckedCreateWithoutUserInput[]
     connectOrCreate?: SessionCreateOrConnectWithoutUserInput | SessionCreateOrConnectWithoutUserInput[]
@@ -49476,6 +51194,16 @@ export namespace Prisma {
     delete?: VaultPreferencesWhereInput | boolean
     connect?: VaultPreferencesWhereUniqueInput
     update?: XOR<XOR<VaultPreferencesUpdateToOneWithWhereWithoutUserInput, VaultPreferencesUpdateWithoutUserInput>, VaultPreferencesUncheckedUpdateWithoutUserInput>
+  }
+
+  export type VaultScheduleUncheckedUpdateOneWithoutUserNestedInput = {
+    create?: XOR<VaultScheduleCreateWithoutUserInput, VaultScheduleUncheckedCreateWithoutUserInput>
+    connectOrCreate?: VaultScheduleCreateOrConnectWithoutUserInput
+    upsert?: VaultScheduleUpsertWithoutUserInput
+    disconnect?: VaultScheduleWhereInput | boolean
+    delete?: VaultScheduleWhereInput | boolean
+    connect?: VaultScheduleWhereUniqueInput
+    update?: XOR<XOR<VaultScheduleUpdateToOneWithWhereWithoutUserInput, VaultScheduleUpdateWithoutUserInput>, VaultScheduleUncheckedUpdateWithoutUserInput>
   }
 
   export type UserCreateNestedOneWithoutSessionsInput = {
@@ -50912,6 +52640,20 @@ export namespace Prisma {
     update?: XOR<XOR<UserUpdateToOneWithWhereWithoutVaultPreferencesInput, UserUpdateWithoutVaultPreferencesInput>, UserUncheckedUpdateWithoutVaultPreferencesInput>
   }
 
+  export type UserCreateNestedOneWithoutVaultScheduleInput = {
+    create?: XOR<UserCreateWithoutVaultScheduleInput, UserUncheckedCreateWithoutVaultScheduleInput>
+    connectOrCreate?: UserCreateOrConnectWithoutVaultScheduleInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type UserUpdateOneRequiredWithoutVaultScheduleNestedInput = {
+    create?: XOR<UserCreateWithoutVaultScheduleInput, UserUncheckedCreateWithoutVaultScheduleInput>
+    connectOrCreate?: UserCreateOrConnectWithoutVaultScheduleInput
+    upsert?: UserUpsertWithoutVaultScheduleInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutVaultScheduleInput, UserUpdateWithoutVaultScheduleInput>, UserUncheckedUpdateWithoutVaultScheduleInput>
+  }
+
   export type NestedStringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -51678,6 +53420,43 @@ export namespace Prisma {
     create: XOR<VaultPreferencesCreateWithoutUserInput, VaultPreferencesUncheckedCreateWithoutUserInput>
   }
 
+  export type VaultScheduleCreateWithoutUserInput = {
+    id?: string
+    enabled?: boolean
+    cronExpression?: string
+    timezone?: string
+    lookAheadDays?: number
+    minReserveCents?: number
+    lastRunAt?: Date | string | null
+    lastRunStatus?: string | null
+    lastRunError?: string | null
+    lastRunBillsAffected?: number
+    nextRunAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type VaultScheduleUncheckedCreateWithoutUserInput = {
+    id?: string
+    enabled?: boolean
+    cronExpression?: string
+    timezone?: string
+    lookAheadDays?: number
+    minReserveCents?: number
+    lastRunAt?: Date | string | null
+    lastRunStatus?: string | null
+    lastRunError?: string | null
+    lastRunBillsAffected?: number
+    nextRunAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type VaultScheduleCreateOrConnectWithoutUserInput = {
+    where: VaultScheduleWhereUniqueInput
+    create: XOR<VaultScheduleCreateWithoutUserInput, VaultScheduleUncheckedCreateWithoutUserInput>
+  }
+
   export type SessionUpsertWithWhereUniqueWithoutUserInput = {
     where: SessionWhereUniqueInput
     update: XOR<SessionUpdateWithoutUserInput, SessionUncheckedUpdateWithoutUserInput>
@@ -52148,6 +53927,49 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type VaultScheduleUpsertWithoutUserInput = {
+    update: XOR<VaultScheduleUpdateWithoutUserInput, VaultScheduleUncheckedUpdateWithoutUserInput>
+    create: XOR<VaultScheduleCreateWithoutUserInput, VaultScheduleUncheckedCreateWithoutUserInput>
+    where?: VaultScheduleWhereInput
+  }
+
+  export type VaultScheduleUpdateToOneWithWhereWithoutUserInput = {
+    where?: VaultScheduleWhereInput
+    data: XOR<VaultScheduleUpdateWithoutUserInput, VaultScheduleUncheckedUpdateWithoutUserInput>
+  }
+
+  export type VaultScheduleUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    cronExpression?: StringFieldUpdateOperationsInput | string
+    timezone?: StringFieldUpdateOperationsInput | string
+    lookAheadDays?: IntFieldUpdateOperationsInput | number
+    minReserveCents?: IntFieldUpdateOperationsInput | number
+    lastRunAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastRunStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastRunError?: NullableStringFieldUpdateOperationsInput | string | null
+    lastRunBillsAffected?: IntFieldUpdateOperationsInput | number
+    nextRunAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type VaultScheduleUncheckedUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    cronExpression?: StringFieldUpdateOperationsInput | string
+    timezone?: StringFieldUpdateOperationsInput | string
+    lookAheadDays?: IntFieldUpdateOperationsInput | number
+    minReserveCents?: IntFieldUpdateOperationsInput | number
+    lastRunAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastRunStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastRunError?: NullableStringFieldUpdateOperationsInput | string | null
+    lastRunBillsAffected?: IntFieldUpdateOperationsInput | number
+    nextRunAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type UserCreateWithoutSessionsInput = {
     id?: string
     name: string
@@ -52170,6 +53992,7 @@ export namespace Prisma {
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutSessionsInput = {
@@ -52194,6 +54017,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutSessionsInput = {
@@ -52234,6 +54058,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutSessionsInput = {
@@ -52258,6 +54083,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type UserCreateWithoutAccountsInput = {
@@ -52282,6 +54108,7 @@ export namespace Prisma {
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutAccountsInput = {
@@ -52306,6 +54133,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutAccountsInput = {
@@ -52424,6 +54252,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutAccountsInput = {
@@ -52448,6 +54277,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type TransactionUpsertWithWhereUniqueWithoutAccountInput = {
@@ -52504,6 +54334,7 @@ export namespace Prisma {
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutEnvelopesInput = {
@@ -52528,6 +54359,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutEnvelopesInput = {
@@ -52685,6 +54517,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutEnvelopesInput = {
@@ -52709,6 +54542,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type TransactionUpsertWithWhereUniqueWithoutEnvelopeInput = {
@@ -52826,6 +54660,7 @@ export namespace Prisma {
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutTransactionsInput = {
@@ -52850,6 +54685,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutTransactionsInput = {
@@ -52974,6 +54810,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutTransactionsInput = {
@@ -52998,6 +54835,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type AccountUpsertWithoutTransactionsInput = {
@@ -53118,6 +54956,7 @@ export namespace Prisma {
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutPaySchedulesInput = {
@@ -53142,6 +54981,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutPaySchedulesInput = {
@@ -53221,6 +55061,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutPaySchedulesInput = {
@@ -53245,6 +55086,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type AccountUpsertWithoutPaySchedulesInput = {
@@ -53314,6 +55156,7 @@ export namespace Prisma {
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutBillsInput = {
@@ -53338,6 +55181,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutBillsInput = {
@@ -53378,6 +55222,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutBillsInput = {
@@ -53402,6 +55247,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type UserCreateWithoutGoalsInput = {
@@ -53426,6 +55272,7 @@ export namespace Prisma {
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutGoalsInput = {
@@ -53450,6 +55297,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutGoalsInput = {
@@ -53490,6 +55338,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutGoalsInput = {
@@ -53514,6 +55363,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type UserCreateWithoutAllocationPlansInput = {
@@ -53538,6 +55388,7 @@ export namespace Prisma {
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutAllocationPlansInput = {
@@ -53562,6 +55413,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutAllocationPlansInput = {
@@ -53632,6 +55484,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutAllocationPlansInput = {
@@ -53656,6 +55509,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type AllocationRuleUpsertWithWhereUniqueWithoutPlanInput = {
@@ -53852,6 +55706,7 @@ export namespace Prisma {
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutAuditLogInput = {
@@ -53876,6 +55731,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutAuditLogInput = {
@@ -53916,6 +55772,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutAuditLogInput = {
@@ -53940,6 +55797,7 @@ export namespace Prisma {
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type UserCreateWithoutIdentityInput = {
@@ -53964,6 +55822,7 @@ export namespace Prisma {
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutIdentityInput = {
@@ -53988,6 +55847,7 @@ export namespace Prisma {
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutIdentityInput = {
@@ -54310,6 +56170,7 @@ export namespace Prisma {
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutIdentityInput = {
@@ -54334,6 +56195,7 @@ export namespace Prisma {
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type IdentityIncomeUpsertWithWhereUniqueWithoutIdentityInput = {
@@ -56002,6 +57864,7 @@ export namespace Prisma {
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutVaultAccountInput = {
@@ -56026,6 +57889,7 @@ export namespace Prisma {
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutVaultAccountInput = {
@@ -56202,6 +58066,7 @@ export namespace Prisma {
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutVaultAccountInput = {
@@ -56226,6 +58091,7 @@ export namespace Prisma {
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type VaultEnvelopeUpsertWithWhereUniqueWithoutVaultInput = {
@@ -57406,6 +59272,7 @@ export namespace Prisma {
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutVaultPreferencesInput = {
@@ -57430,6 +59297,7 @@ export namespace Prisma {
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutVaultPreferencesInput = {
@@ -57470,6 +59338,7 @@ export namespace Prisma {
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutVaultPreferencesInput = {
@@ -57494,6 +59363,123 @@ export namespace Prisma {
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
+  }
+
+  export type UserCreateWithoutVaultScheduleInput = {
+    id?: string
+    name: string
+    email: string
+    passwordHash: string
+    aiTier?: number
+    routingLevel?: number
+    defaultViewId?: string | null
+    settings?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    sessions?: SessionCreateNestedManyWithoutUserInput
+    accounts?: AccountCreateNestedManyWithoutUserInput
+    envelopes?: EnvelopeCreateNestedManyWithoutUserInput
+    transactions?: TransactionCreateNestedManyWithoutUserInput
+    paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
+    goals?: GoalCreateNestedManyWithoutUserInput
+    allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    bills?: BillCreateNestedManyWithoutUserInput
+    auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutVaultScheduleInput = {
+    id?: string
+    name: string
+    email: string
+    passwordHash: string
+    aiTier?: number
+    routingLevel?: number
+    defaultViewId?: string | null
+    settings?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
+    accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
+    envelopes?: EnvelopeUncheckedCreateNestedManyWithoutUserInput
+    transactions?: TransactionUncheckedCreateNestedManyWithoutUserInput
+    paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
+    goals?: GoalUncheckedCreateNestedManyWithoutUserInput
+    allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutVaultScheduleInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutVaultScheduleInput, UserUncheckedCreateWithoutVaultScheduleInput>
+  }
+
+  export type UserUpsertWithoutVaultScheduleInput = {
+    update: XOR<UserUpdateWithoutVaultScheduleInput, UserUncheckedUpdateWithoutVaultScheduleInput>
+    create: XOR<UserCreateWithoutVaultScheduleInput, UserUncheckedCreateWithoutVaultScheduleInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutVaultScheduleInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutVaultScheduleInput, UserUncheckedUpdateWithoutVaultScheduleInput>
+  }
+
+  export type UserUpdateWithoutVaultScheduleInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    aiTier?: IntFieldUpdateOperationsInput | number
+    routingLevel?: IntFieldUpdateOperationsInput | number
+    defaultViewId?: NullableStringFieldUpdateOperationsInput | string | null
+    settings?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    sessions?: SessionUpdateManyWithoutUserNestedInput
+    accounts?: AccountUpdateManyWithoutUserNestedInput
+    envelopes?: EnvelopeUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUpdateManyWithoutUserNestedInput
+    paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
+    goals?: GoalUpdateManyWithoutUserNestedInput
+    allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    bills?: BillUpdateManyWithoutUserNestedInput
+    auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutVaultScheduleInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    aiTier?: IntFieldUpdateOperationsInput | number
+    routingLevel?: IntFieldUpdateOperationsInput | number
+    defaultViewId?: NullableStringFieldUpdateOperationsInput | string | null
+    settings?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
+    accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
+    envelopes?: EnvelopeUncheckedUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUncheckedUpdateManyWithoutUserNestedInput
+    paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
+    goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
+    allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type SessionCreateManyUserInput = {
