@@ -21,6 +21,13 @@
  * The data shapes (`ScheduledBill`, `VaultEnvelope`) are plain
  * JSON-serializable objects, so the server→client boundary is a
  * non-issue.
+ *
+ * Cluster Vault 4.0 M4: the row now also renders the
+ * `ExecuteBillButton` (for bills in FUNDED / EARNING) and the
+ * `BillRecoveryPanel` (for bills in a degraded state). The page
+ * computes the `canExecute` gate per bill on the server (so we
+ * have a current `disabledReason` at render time) and passes
+ * the result down.
  */
 
 import { useMemo, useState } from "react";
@@ -28,6 +35,8 @@ import { SectionHeader } from "@/components/alchemy/SectionHeader";
 import { BillTransitionMenu } from "@/components/vault/BillTransitionMenu";
 import { BillEditor } from "@/components/vault/BillEditor";
 import { BillRowActions } from "@/components/vault/BillRowActions";
+import { ExecuteBillButton } from "@/components/vault/ExecuteBillButton";
+import { BillRecoveryPanel } from "@/components/vault/BillRecoveryPanel";
 import { formatMoney } from "@/lib/money";
 import { formatShortDate } from "@/lib/format";
 import { tone as toneForBadge, userLabel, type BillTone } from "@/lib/vault/state-machine";
@@ -35,12 +44,22 @@ import type { ScheduledBill, VaultEnvelope } from "@/lib/vault/types";
 
 type Mode = "add" | "edit" | null;
 
+export interface BillGateInfo {
+  /** True when canExecute passed. The Execute button is enabled. */
+  canExecute: boolean;
+  /** Human-readable reason when canExecute failed. Null when it passed. */
+  reason: string | null;
+}
+
 export function BillScheduleClient({
   bills,
   envelopes,
+  gateByBillId,
 }: {
   bills: ScheduledBill[];
   envelopes: VaultEnvelope[];
+  /** Map: billId → canExecute result. Computed on the server. */
+  gateByBillId: Record<string, BillGateInfo>;
 }) {
   const [mode, setMode] = useState<Mode>(null);
   const [editingBill, setEditingBill] = useState<ScheduledBill | null>(null);
@@ -128,6 +147,7 @@ export function BillScheduleClient({
             bill={b}
             isLast={i === sorted.length - 1}
             onEdit={openEdit}
+            gate={gateByBillId[b.id] ?? { canExecute: false, reason: "gate not computed" }}
           />
         ))}
       </div>
@@ -176,10 +196,12 @@ function BillRow({
   bill,
   isLast,
   onEdit,
+  gate,
 }: {
   bill: ScheduledBill;
   isLast: boolean;
   onEdit: (bill: ScheduledBill) => void;
+  gate: BillGateInfo;
 }) {
   const label = userLabel(bill.status);
   const billTone = toneForBadge(bill.status);
@@ -304,10 +326,28 @@ function BillRow({
       >
         <BillTransitionMenu billId={bill.id} status={bill.status} />
         <BillRowActions bill={bill} onEdit={onEdit} />
+        {(bill.status === "FUNDED" || bill.status === "EARNING") && (
+          <ExecuteBillButton
+            billId={bill.id}
+            disabled={!gate.canExecute}
+            disabledReason={gate.reason}
+          />
+        )}
       </div>
+      {RECOVERY_STATUSES.has(bill.status) && (
+        <BillRecoveryPanel bill={bill} />
+      )}
     </div>
   );
 }
+
+const RECOVERY_STATUSES = new Set([
+  "INSUFFICIENT_FUNDS",
+  "REQUIRES_REVIEW",
+  "MANUAL_ACTION_REQUIRED",
+  "FAILED_RETRYABLE",
+  "FAILED_FINAL",
+]);
 
 function StatusBadge({ label, tone }: { label: string; tone: BillTone }) {
   const color =

@@ -66,8 +66,18 @@ import {
   getAaveUsdcBalance,
   getAUsdcTokenAddress,
 } from "./aave";
+import {
+  OffRampGateway,
+  canExecute as canExecuteGate,
+  eventFromResult,
+} from "./gateway";
 import type { VaultSnapshot } from "./mock-data";
-import type { BillEvent, YieldRoutingStrategy } from "./types";
+import type {
+  BillEvent,
+  ScheduledBill,
+  VaultAccount,
+  YieldRoutingStrategy,
+} from "./types";
 
 /**
  * Load the vault snapshot for the current user. Returns the DB
@@ -1755,5 +1765,392 @@ export async function refreshAUsdcBalanceAction(): Promise<
     onChainAUsdcBalanceCents,
     aUsdcTokenAddress,
     refreshedAt: refreshedAt.toISOString(),
+  };
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Cluster Vault 4.0 M4 — off-ramp gateway server actions.
+//
+// Three actions that drive the gateway + state machine:
+//
+//   1. executeBillPaymentAction — the "Execute now" button on a
+//      bill in FUNDED/EARNING. Runs canExecute, then the gateway,
+//      then the state machine. The idempotency key is auto-derived
+//      from (billId, current minute) so re-clicks in the same minute
+//      are deduped via the PaymentAttempt unique index.
+//
+//   2. retryBillPaymentAction — the "Retry" button on a bill in
+//      a degraded state (FAILED_RETRYABLE / INSUFFICIENT_FUNDS /
+//      REQUIRES_REVIEW). Calls RETRY (funnels back to EARNING),
+//      then re-enters executeBillPaymentAction.
+//
+//   3. confirmManualPaymentAction — the "Mark manually paid" button
+//      on a bill in MANUAL_ACTION_REQUIRED / FAILED_FINAL. Calls
+//      CONFIRM_SETTLED with `providerName: "manual"` and the user's
+//      `settlementRef` as the transactionId. The user pays out-
+//      of-band and confirms here; the bill lands in SETTLED.
+//
+// All 3 actions revalidate /vault on success so the table + alert
+// banner reflect the new state on the next render.
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * The auto-derived idempotency key for `executeBillPaymentAction`.
+ * Stable within a 1-minute window so accidental double-clicks
+ * dedupe, but rotates often enough that a real retry later in
+ * the day gets a fresh PaymentAttempt row.
+ */
+function executionIdempotencyKey(billId: string, now: Date = new Date()): string {
+  const minute = Math.floor(now.getTime() / 60_000);
+  return `bill:${billId}:exec:${minute}`;
+}
+
+/**
+ * Load a VaultAccount + ScheduledBill pair for the current user.
+ * Returns null if either is missing (the caller surfaces a 404
+ * to the UI). Used by the 3 new actions.
+ */
+async function loadBillAndVault(
+  billId: string,
+  userId: string,
+): Promise<{ bill: ScheduledBill; vault: VaultAccount } | null> {
+  const billRow = await prisma.scheduledBill.findUnique({ where: { id: billId } });
+  if (!billRow) return null;
+  // Defensive: confirm the bill belongs to this user's vault.
+  const vaultRow = await prisma.vaultAccount.findFirst({
+    where: { id: billRow.vaultId, userId },
+  });
+  if (!vaultRow) return null;
+  const bill = toScheduledBillLocal(billRow);
+  const vault = toVaultAccountLocal(vaultRow);
+  return { bill, vault };
+}
+
+export type ExecuteBillPaymentResult =
+  | {
+      ok: true;
+      from: string;
+      to: string;
+      providerName: string;
+      transactionId?: string;
+      requiresManualAction: boolean;
+    }
+  | { ok: false; error: string; reason?: string };
+
+/**
+ * Run the gateway for a single bill. The user-facing "Execute now"
+ * button calls this. The 7-condition `canExecute` gate runs first;
+ * a failure short-circuits with the reason in the response.
+ */
+export async function executeBillPaymentAction(
+  billId: string,
+): Promise<ExecuteBillPaymentResult> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  try {
+    const ctx = await loadBillAndVault(billId, user.id);
+    if (!ctx) return { ok: false, error: `bill not found: ${billId}` };
+    const { bill, vault } = ctx;
+    const gate = await canExecuteGate(bill, vault);
+    if (!gate.ok) {
+      return { ok: false, error: gate.reason, reason: gate.reason };
+    }
+    const idempotencyKey = executionIdempotencyKey(bill.id);
+    const gateway = OffRampGateway.buildDefault(user.id);
+    // Drive the state machine: EARNING → BEGIN_SETTLEMENT →
+    // PREPARING_SETTLEMENT → EXECUTE → EXECUTING. Then call the
+    // gateway, which writes PaymentAttempt + ProviderEvent +
+    // audit. The final CONFIRM_SETTLED / MANUAL_ACTION_REQUIRED
+    // / FAIL_FINAL is derived from the result and applied.
+    const begin = await transitionBillDb(user.id, bill.id, { type: "BEGIN_SETTLEMENT" });
+    if (!begin.ok) return { ok: false, error: begin.error };
+    const exec = await transitionBillDb(user.id, bill.id, { type: "EXECUTE" });
+    if (!exec.ok) return { ok: false, error: exec.error };
+    const result = await gateway.executePayment(exec.bill, idempotencyKey);
+    const event = eventFromResult(result, exec.bill);
+    const from = bill.status;
+    const transition = await transitionBillDb(user.id, bill.id, event);
+    if (!transition.ok) {
+      return { ok: false, error: transition.error };
+    }
+    // Audit the gateway decision explicitly. `transitionBillDb`
+    // already wrote `vault.bill_state_changed`; the gateway
+    // outcome is a separate concern.
+    await recordVaultAudit({
+      userId: user.id,
+      actionType: "vault.payment_executed",
+      payload: {
+        billId,
+        providerName: result.providerName,
+        success: result.success,
+        requiresManualAction: result.success
+          ? result.requiresManualAction
+          : false,
+        error: result.success
+          ? null
+          : "error" in result
+            ? result.error
+            : null,
+      },
+    });
+    revalidatePath("/vault");
+    return {
+      ok: true,
+      from,
+      to: transition.bill.status,
+      providerName: result.providerName,
+      transactionId:
+        "transactionId" in result ? result.transactionId : undefined,
+      requiresManualAction: result.success
+        ? result.requiresManualAction
+        : false,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] executeBillPayment failed:", message);
+    return { ok: false, error: message };
+  }
+}
+
+/**
+ * Retry a bill in a degraded state. Validates that the bill is
+ * in a legal source state (FAILED_RETRYABLE / INSUFFICIENT_FUNDS /
+ * REQUIRES_REVIEW / MANUAL_ACTION_REQUIRED), calls `RETRY` to
+ * funnel it back to EARNING, then runs the gateway.
+ */
+export async function retryBillPaymentAction(
+  billId: string,
+): Promise<ExecuteBillPaymentResult> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  try {
+    const ctx = await loadBillAndVault(billId, user.id);
+    if (!ctx) return { ok: false, error: `bill not found: ${billId}` };
+    const { bill, vault } = ctx;
+    const RETRYABLE = new Set([
+      "INSUFFICIENT_FUNDS",
+      "REQUIRES_REVIEW",
+      "MANUAL_ACTION_REQUIRED",
+      "FAILED_RETRYABLE",
+    ]);
+    if (!RETRYABLE.has(bill.status)) {
+      return {
+        ok: false,
+        error: `cannot retry from ${bill.status}`,
+        reason: `Bill is in ${bill.status}; retry only valid from a degraded state.`,
+      };
+    }
+    // Step 1: RETRY → EARNING (or → SETTLED if manual-action confirm).
+    // For most degraded states, RETRY funnels to EARNING.
+    const retryEvent: BillEvent = { type: "RETRY" };
+    const from = bill.status;
+    const retryTransition = await transitionBillDb(user.id, bill.id, retryEvent);
+    if (!retryTransition.ok) {
+      return { ok: false, error: retryTransition.error };
+    }
+    // Step 2: re-enter the gateway with the now-EARNING bill.
+    const gate = await canExecuteGate(retryTransition.bill, vault);
+    if (!gate.ok) {
+      // Retry succeeded (bill is EARNING again) but the gate now
+      // refuses — return a partial result so the UI can show the
+      // new state plus the gate's reason.
+      revalidatePath("/vault");
+      return { ok: false, error: gate.reason, reason: gate.reason };
+    }
+    const idempotencyKey = executionIdempotencyKey(bill.id, new Date());
+    const gateway = OffRampGateway.buildDefault(user.id);
+    // Drive the same 3 transitions as executeBillPaymentAction:
+    // EARNING → BEGIN_SETTLEMENT → PREPARING_SETTLEMENT → EXECUTE
+    // → EXECUTING → CONFIRM_SETTLED / MANUAL_ACTION_REQUIRED /
+    // FAIL_FINAL.
+    const begin = await transitionBillDb(user.id, bill.id, { type: "BEGIN_SETTLEMENT" });
+    if (!begin.ok) return { ok: false, error: begin.error };
+    const exec = await transitionBillDb(user.id, bill.id, { type: "EXECUTE" });
+    if (!exec.ok) return { ok: false, error: exec.error };
+    const result = await gateway.executePayment(exec.bill, idempotencyKey);
+    const event = eventFromResult(result, exec.bill);
+    const transition = await transitionBillDb(user.id, bill.id, event);
+    if (!transition.ok) {
+      return { ok: false, error: transition.error };
+    }
+    revalidatePath("/vault");
+    return {
+      ok: true,
+      from,
+      to: transition.bill.status,
+      providerName: result.providerName,
+      transactionId:
+        "transactionId" in result ? result.transactionId : undefined,
+      requiresManualAction: result.success
+        ? result.requiresManualAction
+        : false,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] retryBillPayment failed:", message);
+    return { ok: false, error: message };
+  }
+}
+
+export type ConfirmManualResult =
+  | { ok: true; from: string; to: string; settlementRef: string }
+  | { ok: false; error: string };
+
+/**
+ * Mark a bill paid out-of-band. The user pays the biller directly
+ * (because the gateway fell back to Manual Push, or every provider
+ * failed), then confirms here. Transitions the bill from
+ * MANUAL_ACTION_REQUIRED or FAILED_FINAL to SETTLED with
+ * `providerName: "manual"`.
+ *
+ * `settlementRef` is a free-form string the user types — typically
+ * a confirmation number from the biller. Required.
+ */
+export async function confirmManualPaymentAction(
+  billId: string,
+  settlementRef: string,
+): Promise<ConfirmManualResult> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  if (typeof settlementRef !== "string" || settlementRef.trim().length === 0) {
+    return { ok: false, error: "settlementRef is required" };
+  }
+  try {
+    const ctx = await loadBillAndVault(billId, user.id);
+    if (!ctx) return { ok: false, error: `bill not found: ${billId}` };
+    const { bill } = ctx;
+    const VALID_FROM = new Set([
+      "MANUAL_ACTION_REQUIRED",
+      "FAILED_FINAL",
+      "EXECUTING",
+      "REQUIRES_REVIEW",
+    ]);
+    if (!VALID_FROM.has(bill.status)) {
+      return {
+        ok: false,
+        error: `cannot confirm manual payment from ${bill.status}`,
+      };
+    }
+    const event: BillEvent = {
+      type: "CONFIRM_SETTLED",
+      providerName: "manual",
+      transactionId: settlementRef.trim(),
+    };
+    const from = bill.status;
+    const transition = await transitionBillDb(user.id, bill.id, event);
+    if (!transition.ok) {
+      return { ok: false, error: transition.error };
+    }
+    // Audit the manual settlement explicitly.
+    await recordVaultAudit({
+      userId: user.id,
+      actionType: "vault.payment_manually_confirmed",
+      payload: {
+        billId,
+        settlementRef: settlementRef.trim(),
+        from,
+      },
+    });
+    revalidatePath("/vault");
+    return {
+      ok: true,
+      from,
+      to: transition.bill.status,
+      settlementRef: settlementRef.trim(),
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] confirmManualPayment failed:", message);
+    return { ok: false, error: message };
+  }
+}
+
+/**
+ * Local row → domain-type converters. The Prisma row shapes differ
+ * slightly from the public ScheduledBill + VaultAccount types
+ * (camelCase vs snake_case, Date → ISO string, etc.), so we map
+ * inline rather than depending on `db.ts`'s internal helpers.
+ */
+function toScheduledBillLocal(row: any): ScheduledBill {
+  return {
+    id: row.id,
+    vaultId: row.vaultId,
+    envelopeId: row.envelopeId,
+    billerName: row.billerName,
+    billerId: row.billerId,
+    maskedAccountNumber: row.maskedAccountNumber,
+    amount: row.amount,
+    maxAuthorizedAmount: row.maxAuthorizedAmount,
+    currency: "USD",
+    frequency: row.frequency,
+    dueDate:
+      row.dueDate instanceof Date
+        ? row.dueDate.toISOString().slice(0, 10)
+        : row.dueDate,
+    executionWindowStart:
+      row.executionWindowStart instanceof Date
+        ? row.executionWindowStart.toISOString()
+        : row.executionWindowStart,
+    executionWindowEnd:
+      row.executionWindowEnd instanceof Date
+        ? row.executionWindowEnd.toISOString()
+        : row.executionWindowEnd,
+    status: row.status,
+    providerPreference: row.providerPreference ?? undefined,
+    lastAttemptAt:
+      row.lastAttemptAt instanceof Date
+        ? row.lastAttemptAt.toISOString()
+        : row.lastAttemptAt ?? undefined,
+    settlementReference: row.settlementReference ?? undefined,
+    appliedYieldCents: row.appliedYieldCents ?? undefined,
+    source: row.source ?? undefined,
+    createdAt:
+      row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
+    updatedAt:
+      row.updatedAt instanceof Date ? row.updatedAt.toISOString() : row.updatedAt,
+  };
+}
+
+function toVaultAccountLocal(row: any): VaultAccount {
+  return {
+    id: row.id,
+    userId: row.userId,
+    chainId: row.chainId,
+    smartAccountAddress: row.smartAccountAddress,
+    signerAddress: row.signerAddress ?? undefined,
+    baseAsset: "USDC",
+    status: row.status,
+    availableBalance: row.availableBalance,
+    settlementReserve: row.settlementReserve,
+    deployedToYield: row.deployedToYield,
+    accruedYield: row.accruedYield,
+    simulatedApy: row.simulatedApy,
+    onChainUsdcBalanceCents: row.onChainUsdcBalanceCents,
+    onChainBalanceRefreshedAt:
+      row.onChainBalanceRefreshedAt instanceof Date
+        ? row.onChainBalanceRefreshedAt.toISOString()
+        : row.onChainBalanceRefreshedAt ?? null,
+    onChainAUsdcBalanceCents: row.onChainAUsdcBalanceCents,
+    aUsdcBalanceRefreshedAt:
+      row.aUsdcBalanceRefreshedAt instanceof Date
+        ? row.aUsdcBalanceRefreshedAt.toISOString()
+        : row.aUsdcBalanceRefreshedAt ?? null,
+    aUsdcTokenAddress: row.aUsdcTokenAddress ?? undefined,
+    createdAt:
+      row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
+    updatedAt:
+      row.updatedAt instanceof Date ? row.updatedAt.toISOString() : row.updatedAt,
   };
 }

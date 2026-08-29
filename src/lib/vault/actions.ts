@@ -30,6 +30,9 @@ import {
   depositSafeUsdcAction,
   withdrawSafeUsdcAction,
   refreshAUsdcBalanceAction,
+  executeBillPaymentAction,
+  retryBillPaymentAction,
+  confirmManualPaymentAction,
 } from "./server";
 
 /**
@@ -38,6 +41,24 @@ import {
  */
 export async function syncVaultFromEnvelopes() {
   return syncVaultAction();
+}
+
+// Cluster Vault 4.0 M4 — off-ramp gateway actions. Re-exported here
+// so client components can import them from the actions barrel
+// (the standard pattern for server actions in this project).
+export async function executeBillPaymentServerAction(billId: string) {
+  return executeBillPaymentAction(billId);
+}
+
+export async function retryBillPaymentServerAction(billId: string) {
+  return retryBillPaymentAction(billId);
+}
+
+export async function confirmManualPaymentServerAction(
+  billId: string,
+  settlementRef: string,
+) {
+  return confirmManualPaymentAction(billId, settlementRef);
 }
 
 /**

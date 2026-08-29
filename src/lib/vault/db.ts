@@ -925,7 +925,14 @@ export async function recordVaultAudit(args: {
     | "vault.funded"
     | "vault.balance_refreshed"
     | "vault.aave_supply"
-    | "vault.aave_withdraw";
+    | "vault.aave_withdraw"
+    // Cluster Vault 4.0 M4 — gateway outcomes. `payment_executed`
+    // records the gateway's per-click decision (provider chain,
+    // success/degraded/failure); `payment_manually_confirmed`
+    // records the user confirming an out-of-band payment after
+    // the gateway fell back to the manual adapter.
+    | "vault.payment_executed"
+    | "vault.payment_manually_confirmed";
   payload: unknown;
 }): Promise<void> {
   await prisma.auditLog.create({

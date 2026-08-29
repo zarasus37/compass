@@ -15,6 +15,7 @@ import { formatShortDate } from "@/lib/format";
 import { SyncButton } from "@/components/vault/SyncButton";
 import { YieldRoutingPicker } from "@/components/vault/YieldRoutingPicker";
 import { BillScheduleClient } from "@/components/vault/BillScheduleClient";
+import { canExecute as canExecuteGate } from "@/lib/vault/gateway";
 import { RiskAckButton } from "@/components/vault/RiskAckButton";
 import { RefreshApyButton } from "@/components/vault/RefreshApyButton";
 import { VaultPauseToggle } from "@/components/vault/VaultPauseToggle";
@@ -101,7 +102,11 @@ export default async function VaultPage() {
 
       <StatusStrip snap={snap} />
 
-      <BillScheduleClient bills={snap.bills} envelopes={snap.envelopes} />
+      <BillScheduleClient
+        bills={snap.bills}
+        envelopes={snap.envelopes}
+        gateByBillId={await computeGateByBillId(snap.bills, snap.vault)}
+      />
 
       <YieldAttribution
         envelopes={snap.envelopes}
@@ -1000,8 +1005,82 @@ function OffRampPanel({ adapters }: { adapters: OffRampAdapterStatus[] }) {
           </div>
         ))}
       </div>
+      <div
+        data-testid="vault-gateway-chain"
+        style={{
+          marginTop: 14,
+          padding: "12px 16px",
+          border: "1px solid var(--line-soft)",
+          background: "var(--vessel-surface)",
+          borderRadius: 2,
+        }}
+      >
+        <div
+          style={{
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 9.5,
+            fontWeight: 600,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            color: "var(--ink-3)",
+            marginBottom: 6,
+          }}
+        >
+          <span style={{ color: "var(--ink-4)" }}>//</span> gateway chain
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 12,
+            color: "var(--ink)",
+            letterSpacing: "0.04em",
+          }}
+        >
+          preference → {"Spritz"} → {"Monto"} → {"Manual Push"}
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--font-sora)",
+            fontSize: 12,
+            color: "var(--ink-2)",
+            marginTop: 4,
+            lineHeight: 1.4,
+          }}
+        >
+          Each bill&apos;s provider preference is tried first. If it
+          rejects, the gateway falls through to the next adapter in
+          the chain.{"Manual Push"} is the non-negotiable safety
+          path — when the bill lands in MANUAL_ACTION_REQUIRED, the
+          user pays out-of-band and marks it settled from the
+          recovery panel.
+        </div>
+      </div>
     </section>
   );
+}
+
+/**
+ * Compute the canExecute gate for every bill in the snapshot,
+ * keyed by billId. Used by BillScheduleClient to decide whether
+ * to enable the [EXECUTE] button + show the reason in a tooltip.
+ */
+async function computeGateByBillId(
+  bills: ReadonlyArray<import("@/lib/vault/types").ScheduledBill>,
+  vault: import("@/lib/vault/types").VaultAccount,
+): Promise<Record<string, { canExecute: boolean; reason: string | null }>> {
+  const out: Record<string, { canExecute: boolean; reason: string | null }> = {};
+  for (const b of bills) {
+    if (b.status !== "FUNDED" && b.status !== "EARNING") {
+      out[b.id] = { canExecute: false, reason: null };
+      continue;
+    }
+    const gate = await canExecuteGate(b, vault);
+    out[b.id] = {
+      canExecute: gate.ok,
+      reason: gate.ok ? null : gate.reason,
+    };
+  }
+  return out;
 }
 
 // ──────────────────────────────────────────────────────────────────────

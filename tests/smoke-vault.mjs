@@ -330,6 +330,28 @@ async function main() {
     );
   }
 
+  // Cluster Vault 4.0 M4 — gateway chain subsection. The new
+  // // gateway chain block lists the preference → Spritz → Monto
+  // → Manual Push fallback order. The smoke just verifies the
+  // block is present + the chain is named.
+  check(
+    "M4: gateway chain subsection present",
+    /data-testid="vault-gateway-chain"/.test(text),
+  );
+  check(
+    "M4: gateway chain renders the fallback order",
+    /gateway chain/i.test(text) &&
+      /Spritz/.test(text) &&
+      /Monto/.test(text) &&
+      /Manual Push/.test(text),
+    "gateway chain block missing one of Spritz / Monto / Manual Push",
+  );
+  check(
+    "M4: gateway chain explains the safety path",
+    /safety path|non-negotiable|manual/i.test(text),
+    "no safety-path explanation",
+  );
+
   // ── Two-tier allocation ────────────────────────────────────────
   check(
     `two-tier allocation copy present (settlement / yield / liquid)`,
