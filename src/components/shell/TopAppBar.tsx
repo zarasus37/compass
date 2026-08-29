@@ -27,6 +27,7 @@ import {
   type EngineLevel,
 } from "@/app/(app)/settings/engine-actions";
 import { EnginePillButton } from "./EnginePillButton";
+import { SearchButton } from "./SearchButton";
 
 export interface TopAppBarProps {
   /** Active engine level read from SystemSettings (L1 = rules, L2 = AI). */
@@ -188,6 +189,7 @@ export function TopAppBar({ engineLevel, payPeriod }: TopAppBarProps) {
           gap: 6,
         }}
       >
+        <SearchButton />
         <form
           action={toggleEngineAction}
           style={{ margin: 0, padding: 0, display: "inline-flex" }}

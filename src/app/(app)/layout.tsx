@@ -7,6 +7,8 @@ import { TopAppBar } from "@/components/shell/TopAppBar";
 import { RebalanceAlertBay } from "@/components/alerts/RebalanceAlertBay";
 import { liveEnvelopes, getCurrentPayPeriod } from "@/lib/mock";
 import { getActiveEngineLevel } from "@/app/(app)/settings/engine-actions";
+import { CommandPaletteProvider } from "@/components/command-palette/CommandPaletteProvider";
+import { getSearchIndex } from "@/lib/command-palette/search-index";
 
 /**
  * App shell — the signed-in layout. Wraps every page in the (app)
@@ -63,33 +65,39 @@ export default async function AppLayout({
     targetCents: e.target,
   }));
 
-  // Read engine + pay period concurrently.
-  const [engineLevel, payPeriod] = await Promise.all([
+  // Read engine + pay period + the command palette search
+  // index concurrently. The index is small (~50 items: 16
+  // routes + ~30 dynamic DB rows) and crosses the
+  // server→client boundary as a plain JSON object.
+  const [engineLevel, payPeriod, searchIndex] = await Promise.all([
     getActiveEngineLevel(),
     getCurrentPayPeriod(),
+    getSearchIndex(user.id),
   ]);
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", minHeight: "100vh" }}>
-      <AppSidebar user={{ name: user.name, email: user.email }} />
-      <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <TopAppBar
-          engineLevel={engineLevel}
-          payPeriod={{ startDate: payPeriod.startDate, endDate: payPeriod.endDate }}
-        />
-        <main
-          style={{
-            padding: "40px 80px 112px", // 16px extra for BottomNav
-            maxWidth: 1480,
-            position: "relative",
-            flex: 1,
-          }}
-        >
-          <RebalanceAlertBay envelopes={alertBayEnvelopes} overLimit={overLimit} />
-          {children}
-        </main>
+    <CommandPaletteProvider searchIndex={searchIndex}>
+      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", minHeight: "100vh" }}>
+        <AppSidebar user={{ name: user.name, email: user.email }} />
+        <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+          <TopAppBar
+            engineLevel={engineLevel}
+            payPeriod={{ startDate: payPeriod.startDate, endDate: payPeriod.endDate }}
+          />
+          <main
+            style={{
+              padding: "40px 80px 112px", // 16px extra for BottomNav
+              maxWidth: 1480,
+              position: "relative",
+              flex: 1,
+            }}
+          >
+            <RebalanceAlertBay envelopes={alertBayEnvelopes} overLimit={overLimit} />
+            {children}
+          </main>
+        </div>
+        <BottomNav />
       </div>
-      <BottomNav />
-    </div>
+    </CommandPaletteProvider>
   );
 }
