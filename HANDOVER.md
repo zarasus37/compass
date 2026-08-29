@@ -1,14 +1,16 @@
 # Compass — Fresh-Session Handoff
 
-**Date**: 2026-08-29 03:15 CDT
-**Last commit**: `37dc04b` — *Cluster 6.0.1 — Vault mainnet (Base 8453) (2026-08-29).*
-**Predecessor commit**: `6393645` (spec) → `2f06d0b` (Cluster 6.0 docs) → `62b8528` (Cluster 6.0 — Vault scheduler) → `e23503c` (smoke:all wiring)
+**Date**: 2026-08-29 03:50 CDT
+**Last commit**: `8ef4f8f` — *Cluster 6.0 fix-up — VaultSchedule in Prisma schema (2026-08-29).*
+**Predecessor commit**: `8c97dbf` (Cluster 6.0.1 docs) → `37dc04b` (Cluster 6.0.1 — Vault mainnet) → `6393645` (spec) → `2f06d0b` (Cluster 6.0 docs) → `62b8528` (Cluster 6.0 — Vault scheduler) → `e23503c` (smoke:all wiring)
 
 ---
 
 ## TL;DR
 
-Compass is at a clean natural breakpoint. The last cluster (6.0.1 — Vault mainnet) wired the existing Safe-deploy + Aave V3 supply/withdraw flow to Base mainnet by swapping the hardcoded `baseSepolia.id` check in `safe-deploy.ts` for a `CHAIN_TABLE` indexed by chainId, mirrored as `AAVE_CHAIN_TABLE` in `aave.ts`. Canonical mainnet addresses cross-referenced against the Aave address book + safe-deployments. New read-only `GET /api/vault/chain-config` endpoint returns the resolved config. `/vault` StatusStrip surfaces a gold `MAINNET` chip on chainId 8453. `prod.ts` refuses to start in production with the testnet chainId. **All 26 smokes green via `pnpm smoke:all`** (1 auth + 10 data-layer + 13 UI + 1 integration-vault + 1 deploy = 26; ~1,300 checks; smoke-deploy went from 72 to 95 checks), `tsc` clean, dev server live on testnet default.
+Compass is at a clean natural breakpoint. The most recent work was a **Cluster 6.0 fix-up** (commit `8ef4f8f`): Cluster 6.0 (commit `62b8528`) shipped the Vault scheduler end-to-end but the `VaultSchedule` Prisma model was missing from that commit. The DB had the table (someone ran `prisma db push` against the working tree), the engine read/wrote the row, and the smoke was green — but a fresh checkout of `62b8528` wouldn't have the model, so `prisma db push` would fail. The fix-up lands the missing schema + the regenerated Prisma client + the `cron-parser` dep + the `cron:dev` script. No source-file changes; no behavior change; no new smoke checks (the 55 existing `smoke-vault-scheduler` checks stay green). **All 26 smokes green via `pnpm smoke:all`** (1 auth + 10 data-layer + 13 UI + 1 integration-vault + 1 deploy = 26; ~1,300 checks), `tsc` clean, dev server live on testnet default.
+
+The last visible-feature cluster was **6.0.1 — Vault mainnet** (commit `37dc04b`): wired the existing Safe-deploy + Aave V3 supply/withdraw flow to Base mainnet by swapping the hardcoded `baseSepolia.id` check in `safe-deploy.ts` for a `CHAIN_TABLE` indexed by chainId, mirrored as `AAVE_CHAIN_TABLE` in `aave.ts`. Canonical mainnet addresses cross-referenced against the Aave address book + safe-deployments. New read-only `GET /api/vault/chain-config` endpoint returns the resolved config. `/vault` StatusStrip surfaces a gold `MAINNET` chip on chainId 8453. `prod.ts` refuses to start in production with the testnet chainId.
 
 If you're a fresh session picking this up: read the spec, read `COORDINATION.md` end-to-end, then go. Nothing about the mainnet wiring is half-done — but **no real mainnet deploy was performed** in this cluster (no funded deployer EOA). The wiring is verified; a real deploy remains a manual gate xKryptic holds.
 
