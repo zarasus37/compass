@@ -53,9 +53,13 @@ const ACCOUNT_SEED_VERSION = 1;
 export async function ensureUserAccountsSeeded(
   userId: string,
 ): Promise<{ seeded: number; version: number; alreadyHadSeed: boolean }> {
-  // Cheap path: the user already has a seed account.
+  // Cheap path: the user already has the canonical seed account.
+  // Match by the stable ACCOUNT_SEED.id (not by `source: "seed"`)
+  // so non-canonical rows that share the same source — e.g. the
+  // projection rows the onboarding chat writes with `name: "[identity] ..."`
+  // — don't trick the seeder into wiping them.
   const existing = await prisma.account.findFirst({
-    where: { userId, source: "seed" },
+    where: { userId, id: ACCOUNT_SEED.id },
     select: { id: true, name: true, currentBalance: true },
   });
 
@@ -67,9 +71,9 @@ export async function ensureUserAccountsSeeded(
     };
   }
 
-  // (Re)seed: drop existing seed rows + re-insert from ACCOUNT_SEED.
+  // (Re)seed: drop only the canonical seed row (by id), then re-insert.
   await prisma.account.deleteMany({
-    where: { userId, source: "seed" },
+    where: { userId, id: ACCOUNT_SEED.id },
   });
 
   await prisma.account.create({
