@@ -10,8 +10,10 @@ import type {
   VaultEnvelope,
   YieldEvent,
   OffRampAdapterStatus,
+  OffRampProvider,
   VaultAccount,
 } from "@/lib/vault/types";
+import { OFFRAMP_PROVIDER_LABEL } from "@/lib/vault/types";
 import { formatShortDate } from "@/lib/format";
 import { SyncButton } from "@/components/vault/SyncButton";
 import { YieldRoutingPicker } from "@/components/vault/YieldRoutingPicker";
@@ -90,6 +92,10 @@ export default async function VaultPage() {
         actions={
           <>
             <SourceChip source={source} />
+            <span style={{ width: 8 }} />
+            <OffRampProviderChip
+              provider={snap.preferences.offRampProvider}
+            />
             <span style={{ width: 8 }} />
             <VaultStatusChip status={snap.vault.status} />
           </>
@@ -1067,6 +1073,17 @@ function YieldRoutingSection({
 // ──────────────────────────────────────────────────────────────────────
 
 function OffRampPanel({ adapters }: { adapters: OffRampAdapterStatus[] }) {
+  // Cluster 7.3 — the chain summary at the bottom of the panel
+  // reflects the user's currently-configured provider. The order
+  // is the canonical chain (Mock, Spritz, Monto, Manual Push) with
+  // the configured one pulled to the front.
+  const canonicalOrder = ["Mock", "Spritz", "Monto", "Manual Push"];
+  const activeName = adapters.find((a) => a.isActive)?.name ?? "Mock";
+  const remaining = canonicalOrder.filter(
+    (n) => n !== activeName && adapters.some((a) => a.name === n),
+  );
+  const chainDisplay = [activeName, ...remaining].join(" → ");
+
   return (
     <section style={{ marginBottom: 48 }}>
       <SectionHeader
@@ -1088,23 +1105,58 @@ function OffRampPanel({ adapters }: { adapters: OffRampAdapterStatus[] }) {
         {adapters.map((a, i) => (
           <div
             key={a.name}
+            data-testid={`vault-offramp-row-${a.name.toLowerCase().replace(/\s+/g, "-")}`}
+            data-active={a.isActive ? "true" : "false"}
             style={{
               padding: "20px 24px",
-              borderRight: i < adapters.length - 1 ? "1px solid var(--line-soft)" : "none",
+              borderRight:
+                i < adapters.length - 1 ? "1px solid var(--line-soft)" : "none",
+              borderLeft: a.isActive
+                ? "3px solid var(--vessel-accent)"
+                : "3px solid transparent",
+              background: a.isActive ? "var(--vessel-accent-soft)" : "transparent",
             }}
           >
             <div
               style={{
-                fontFamily: "var(--font-jetbrains), monospace",
-                fontSize: 9.5,
-                fontWeight: 600,
-                color: "var(--ink-3)",
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
                 marginBottom: 10,
               }}
             >
-              <span style={{ color: "var(--ink-4)" }}>//</span> {a.name}
+              <div
+                style={{
+                  fontFamily: "var(--font-jetbrains), monospace",
+                  fontSize: 9.5,
+                  fontWeight: 600,
+                  color: a.isActive ? "var(--vessel-accent)" : "var(--ink-3)",
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                }}
+              >
+                <span style={{ color: "var(--ink-4)" }}>//</span> {a.name}
+              </div>
+              {a.isActive && (
+                <span
+                  data-testid={`vault-offramp-row-current-${a.name.toLowerCase().replace(/\s+/g, "-")}`}
+                  style={{
+                    fontFamily: "var(--font-jetbrains), monospace",
+                    fontSize: 9,
+                    fontWeight: 700,
+                    letterSpacing: "0.20em",
+                    textTransform: "uppercase",
+                    color: "var(--vessel-accent)",
+                    border: "1px solid var(--vessel-accent)",
+                    padding: "2px 6px",
+                    borderRadius: 2,
+                    flexShrink: 0,
+                  }}
+                >
+                  Current
+                </span>
+              )}
             </div>
             <div
               style={{
@@ -1138,6 +1190,7 @@ function OffRampPanel({ adapters }: { adapters: OffRampAdapterStatus[] }) {
       </div>
       <div
         data-testid="vault-gateway-chain"
+        data-chain={chainDisplay}
         style={{
           marginTop: 14,
           padding: "12px 16px",
@@ -1167,7 +1220,7 @@ function OffRampPanel({ adapters }: { adapters: OffRampAdapterStatus[] }) {
             letterSpacing: "0.04em",
           }}
         >
-          preference → {"Spritz"} → {"Monto"} → {"Manual Push"}
+          {chainDisplay}
         </div>
         <div
           style={{
@@ -1180,10 +1233,11 @@ function OffRampPanel({ adapters }: { adapters: OffRampAdapterStatus[] }) {
         >
           Each bill&apos;s provider preference is tried first. If it
           rejects, the gateway falls through to the next adapter in
-          the chain.{"Manual Push"} is the non-negotiable safety
-          path — when the bill lands in MANUAL_ACTION_REQUIRED, the
-          user pays out-of-band and marks it settled from the
-          recovery panel.
+          the chain.{" "}
+          <strong style={{ color: "var(--ink)" }}>Manual Push</strong>{" "}
+          is the non-negotiable safety path — when the bill lands in
+          MANUAL_ACTION_REQUIRED, the user pays out-of-band and marks
+          it settled from the recovery panel.
         </div>
       </div>
     </section>
@@ -1462,6 +1516,39 @@ function VaultStatusChip({
     >
       {marker} {status}
     </span>
+  );
+}
+
+// Off-ramp provider chip — Cluster 7.3. Small badge in the PageHead
+// actions slot showing the user's currently-configured off-ramp
+// provider. Renders the canonical label (e.g. "Spritz") so the
+// user can see at a glance which rail the gateway will try first.
+// The OffRampPanel below surfaces the full adapter status.
+function OffRampProviderChip({ provider }: { provider: OffRampProvider }) {
+  const color = "var(--vessel-accent)";
+  return (
+    <Link
+      href="/vault/preferences#vault-prefs-offramp"
+      data-testid="vault-offramp-chip"
+      data-provider={provider}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        fontFamily: "var(--font-jetbrains), monospace",
+        fontSize: 10.5,
+        fontWeight: 700,
+        letterSpacing: "0.20em",
+        textTransform: "uppercase",
+        color,
+        border: `1px solid ${color}`,
+        padding: "6px 12px",
+        borderRadius: 2,
+        textDecoration: "none",
+      }}
+    >
+      [PROVIDER] {OFFRAMP_PROVIDER_LABEL[provider]}
+    </Link>
   );
 }
 

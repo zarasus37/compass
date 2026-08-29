@@ -46,6 +46,8 @@ import type {
   VaultAlertState,
   VaultPreferences,
   YieldRoutingStrategy,
+  OffRampProvider,
+  OFFRAMP_PROVIDER_ADAPTER_NAME,
   BillEvent,
 } from "./types";
 import { deriveAlertState, transitionBill as transitionBillPure } from "./state-machine";
@@ -933,7 +935,12 @@ export async function recordVaultAudit(args: {
     // records the user confirming an out-of-band payment after
     // the gateway fell back to the manual adapter.
     | "vault.payment_executed"
-    | "vault.payment_manually_confirmed";
+    | "vault.payment_manually_confirmed"
+    // Cluster 7.3 — user-level off-ramp provider preference
+    // change. Audit row written from `setOffRampProviderAction`
+    // with `{ from, to }` payload so the future audit-log page
+    // can show the provider history.
+    | "vault.off_ramp_provider_changed";
   payload: unknown;
 }): Promise<void> {
   await prisma.auditLog.create({
@@ -985,6 +992,24 @@ export async function setYieldRoutingStrategy(
   const row = await prisma.vaultPreferences.update({
     where: { userId },
     data: { yieldRoutingStrategy: strategy },
+  });
+  return toVaultPreferences(row);
+}
+
+/**
+ * Cluster 7.3 — Update the user's off-ramp provider preference.
+ * Same shape as `setYieldRoutingStrategy`: validates the input
+ * against the `OffRampProvider` union, idempotent create-if-missing
+ * so the first setter wins correctly, returns the updated row.
+ */
+export async function setOffRampProvider(
+  userId: string,
+  provider: OffRampProvider,
+): Promise<VaultPreferences> {
+  await getOrCreateVaultPreferences(userId);
+  const row = await prisma.vaultPreferences.update({
+    where: { userId },
+    data: { offRampProvider: provider },
   });
   return toVaultPreferences(row);
 }
@@ -1551,19 +1576,35 @@ export async function loadVaultSnapshot(
     },
     offRampAdapters: [
       {
+        name: "Mock",
+        available: true,
+        note: "Clean path. No external call. Use for end-to-end testing.",
+        isActive: preferences.offRampProvider === "MOCK",
+      },
+      {
         name: "Spritz",
         available: true,
-        note: "Mock DB-backed (Phase 2) — always succeeds",
+        note:
+          preferences.offRampProvider === "SPRITZ"
+            ? "Real provider via Spritz SDK. Configure SPRITZ_INTEGRATION_KEY + SPRITZ_SANDBOX=true to go live."
+            : "Real provider via Spritz SDK. Falls back to MOCK when credentials are missing.",
+        isActive: preferences.offRampProvider === "SPRITZ",
       },
       {
         name: "Monto",
         available: true,
-        note: "Mock DB-backed (Phase 2) — always succeeds",
+        note: "Stub — always succeeds. Real integration pending.",
+        isActive: preferences.offRampProvider === "MONTO",
       },
       {
         name: "Manual Push",
         available: true,
-        note: "Fallback DB-backed (Phase 2) — MANUAL_ACTION_REQUIRED",
+        note: "Safety path. Always returns MANUAL_ACTION_REQUIRED when reached.",
+        // Manual Push is never the active user-level choice — it's the
+        // terminal fallback the gateway falls through to. The isActive
+        // flag stays false even when SPRITZ_INTEGRATION_KEY is
+        // missing and the Spritz row is showing the MOCK fallback.
+        isActive: false,
       },
     ],
   };
@@ -1743,6 +1784,11 @@ function toVaultPreferences(row: {
   userId: string;
   yieldRoutingStrategy: string;
   riskAcknowledgedAt: Date | null;
+  /// Cluster 7.3 — may be undefined for rows created before this
+  /// column was added. Default to MOCK (the safe path) so the
+  /// gateway still works for pre-existing users without an explicit
+  /// preference. New rows get "MOCK" from the schema default.
+  offRampProvider?: string;
   createdAt: Date;
   updatedAt: Date;
 }): VaultPreferences {
@@ -1753,6 +1799,7 @@ function toVaultPreferences(row: {
     riskAcknowledgedAt: row.riskAcknowledgedAt
       ? row.riskAcknowledgedAt.toISOString()
       : null,
+    offRampProvider: (row.offRampProvider ?? "MOCK") as OffRampProvider,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

@@ -42,18 +42,22 @@
 import "server-only";
 import type {
   IOffRampAdapter,
+  OffRampProvider,
   OffRampRequest,
   OffRampResult,
   ScheduledBill,
   VaultAccount,
 } from "./types";
+import { OFFRAMP_PROVIDER_ADAPTER_NAME } from "./types";
 import type { BillEvent } from "./state-machine";
 import {
+  MockOffRampAdapter,
   SpritzAdapter,
   MontoAdapter,
   FallbackManualPushAdapter,
   createDbBackedAdapter,
 } from "./adapters";
+import { createSpritzAdapter } from "./spritz-client";
 import { prisma } from "@/server/db";
 
 /**
@@ -164,22 +168,48 @@ export class OffRampGateway {
   }
 
   /**
-   * The default chain. The user-preference (from `ScheduledBill.providerPreference`)
-   * is the first choice; if that fails, the gateway falls through to the
-   * other stubs in the order below; the last adapter in the chain is
-   * always `FallbackManualPushAdapter` (the non-negotiable safety path).
+   * The default chain. Cluster 7.3 — takes the user's
+   * `VaultPreferences.offRampProvider` and builds the chain with
+   * that adapter first, followed by the other real providers in a
+   * stable order, and `Manual Push` as the terminal safety path.
    *
    * The `Manual Push` adapter returns the degraded-success branch of
    * `OffRampResult` (success=true, requiresManualAction=true) so the
    * bill lands in `MANUAL_ACTION_REQUIRED` — the user is told to pay
    * out-of-band and confirm.
+   *
+   * The `preference` parameter is the user's `OffRampProvider`
+   * literal ("MOCK" | "SPRITZ" | "MONTO"). It is mapped to the
+   * adapter name ("Mock" | "Spritz" | "Monto") via
+   * `OFFRAMP_PROVIDER_ADAPTER_NAME`. The chain starts with the
+   * preferred adapter, then continues through the remaining real
+   * adapters in their canonical order, ending with "Manual Push".
+   * Unknown preferences fall back to "Mock" so the gateway still
+   * has a working first adapter.
    */
-  static buildDefault(userId: string): OffRampGateway {
-    const fallbackChain = ["Spritz", "Monto", "Manual Push"];
+  static buildDefault(userId: string, preference: OffRampProvider = "MOCK"): OffRampGateway {
+    const preferredAdapterName =
+      preference in OFFRAMP_PROVIDER_ADAPTER_NAME
+        ? OFFRAMP_PROVIDER_ADAPTER_NAME[preference]
+        : "Mock";
+    // Canonical order for the non-preferred real adapters. Manual
+    // Push is always the terminal entry, never the user-facing
+    // preference.
+    const realAdapters: string[] = ["Mock", "Spritz", "Monto"];
+    const chain = [
+      preferredAdapterName,
+      ...realAdapters.filter((n) => n !== preferredAdapterName),
+      "Manual Push",
+    ];
+
     const wrapped = new Map<string, IOffRampAdapter>();
     wrapped.set(
+      "Mock",
+      createDbBackedAdapter(new MockOffRampAdapter("Mock"), userId),
+    );
+    wrapped.set(
       "Spritz",
-      createDbBackedAdapter(new SpritzAdapter(), userId),
+      createDbBackedAdapter(createSpritzAdapter({ userId }), userId),
     );
     wrapped.set(
       "Monto",
@@ -189,18 +219,27 @@ export class OffRampGateway {
       "Manual Push",
       createDbBackedAdapter(new FallbackManualPushAdapter(), userId),
     );
-    return new OffRampGateway(userId, wrapped, fallbackChain);
+    return new OffRampGateway(userId, wrapped, chain);
   }
 
   /**
    * The chain the gateway will try for a specific bill, given the
-   * bill's `providerPreference`. If the preference is set + known,
-   * it's first; otherwise the chain starts at "Spritz". The chain
-   * always ends with "Manual Push".
+   * bill's `providerPreference` and the user's configured
+   * preference (baked into the constructor's `fallbackOrder`).
+   *
+   * Cluster 7.3 — when the bill has no per-bill `providerPreference`
+   * override, the chain starts at the user's preference (the first
+   * entry of `fallbackOrder`). When the bill sets a preference that
+   * matches a known adapter, that adapter goes first; the rest of
+   * the chain follows in the user-preference order. The chain
+   * always ends with "Manual Push" (the terminal safety path).
    */
   resolveChain(bill: ScheduledBill): string[] {
     const pref = bill.providerPreference;
-    const known = pref && this.adapters.has(pref) ? pref : "Spritz";
+    const known =
+      pref && this.adapters.has(pref)
+        ? pref
+        : (this.fallbackOrder[0] ?? "Mock");
     const tail = this.fallbackOrder.filter((n) => n !== known);
     return [known, ...tail];
   }

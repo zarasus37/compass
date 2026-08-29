@@ -39640,6 +39640,7 @@ export namespace Prisma {
     userId: string | null
     yieldRoutingStrategy: string | null
     riskAcknowledgedAt: Date | null
+    offRampProvider: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -39649,6 +39650,7 @@ export namespace Prisma {
     userId: string | null
     yieldRoutingStrategy: string | null
     riskAcknowledgedAt: Date | null
+    offRampProvider: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -39658,6 +39660,7 @@ export namespace Prisma {
     userId: number
     yieldRoutingStrategy: number
     riskAcknowledgedAt: number
+    offRampProvider: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -39669,6 +39672,7 @@ export namespace Prisma {
     userId?: true
     yieldRoutingStrategy?: true
     riskAcknowledgedAt?: true
+    offRampProvider?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -39678,6 +39682,7 @@ export namespace Prisma {
     userId?: true
     yieldRoutingStrategy?: true
     riskAcknowledgedAt?: true
+    offRampProvider?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -39687,6 +39692,7 @@ export namespace Prisma {
     userId?: true
     yieldRoutingStrategy?: true
     riskAcknowledgedAt?: true
+    offRampProvider?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -39769,6 +39775,7 @@ export namespace Prisma {
     userId: string
     yieldRoutingStrategy: string
     riskAcknowledgedAt: Date | null
+    offRampProvider: string
     createdAt: Date
     updatedAt: Date
     _count: VaultPreferencesCountAggregateOutputType | null
@@ -39795,6 +39802,7 @@ export namespace Prisma {
     userId?: boolean
     yieldRoutingStrategy?: boolean
     riskAcknowledgedAt?: boolean
+    offRampProvider?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
@@ -39805,6 +39813,7 @@ export namespace Prisma {
     userId?: boolean
     yieldRoutingStrategy?: boolean
     riskAcknowledgedAt?: boolean
+    offRampProvider?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
@@ -39815,6 +39824,7 @@ export namespace Prisma {
     userId?: boolean
     yieldRoutingStrategy?: boolean
     riskAcknowledgedAt?: boolean
+    offRampProvider?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
@@ -39825,11 +39835,12 @@ export namespace Prisma {
     userId?: boolean
     yieldRoutingStrategy?: boolean
     riskAcknowledgedAt?: boolean
+    offRampProvider?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type VaultPreferencesOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "yieldRoutingStrategy" | "riskAcknowledgedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["vaultPreferences"]>
+  export type VaultPreferencesOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "yieldRoutingStrategy" | "riskAcknowledgedAt" | "offRampProvider" | "createdAt" | "updatedAt", ExtArgs["result"]["vaultPreferences"]>
   export type VaultPreferencesInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
   }
@@ -39860,6 +39871,18 @@ export namespace Prisma {
        * the top-of-page risk modal renders only when this is null.
        */
       riskAcknowledgedAt: Date | null
+      /**
+       * Cluster 7.3 — user-level default for the off-ramp gateway's
+       * first-choice provider. One of OffRampProvider (TS union in
+       * src/lib/vault/types.ts): MOCK | SPRITZ | MONTO. Default MOCK
+       * so a brand-new user (no row yet) gets the safe path. The
+       * gateway builds its adapter chain with this provider first
+       * when the bill has no per-bill `providerPreference` override.
+       * String column rather than Prisma enum to match the rest of
+       * the vault's string columns and to keep the migration surface
+       * additive.
+       */
+      offRampProvider: string
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["vaultPreferences"]>
@@ -40290,6 +40313,7 @@ export namespace Prisma {
     readonly userId: FieldRef<"VaultPreferences", 'String'>
     readonly yieldRoutingStrategy: FieldRef<"VaultPreferences", 'String'>
     readonly riskAcknowledgedAt: FieldRef<"VaultPreferences", 'DateTime'>
+    readonly offRampProvider: FieldRef<"VaultPreferences", 'String'>
     readonly createdAt: FieldRef<"VaultPreferences", 'DateTime'>
     readonly updatedAt: FieldRef<"VaultPreferences", 'DateTime'>
   }
@@ -42479,6 +42503,7 @@ export namespace Prisma {
     userId: 'userId',
     yieldRoutingStrategy: 'yieldRoutingStrategy',
     riskAcknowledgedAt: 'riskAcknowledgedAt',
+    offRampProvider: 'offRampProvider',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -45254,6 +45279,7 @@ export namespace Prisma {
     userId?: StringFilter<"VaultPreferences"> | string
     yieldRoutingStrategy?: StringFilter<"VaultPreferences"> | string
     riskAcknowledgedAt?: DateTimeNullableFilter<"VaultPreferences"> | Date | string | null
+    offRampProvider?: StringFilter<"VaultPreferences"> | string
     createdAt?: DateTimeFilter<"VaultPreferences"> | Date | string
     updatedAt?: DateTimeFilter<"VaultPreferences"> | Date | string
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
@@ -45264,6 +45290,7 @@ export namespace Prisma {
     userId?: SortOrder
     yieldRoutingStrategy?: SortOrder
     riskAcknowledgedAt?: SortOrderInput | SortOrder
+    offRampProvider?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     user?: UserOrderByWithRelationInput
@@ -45277,6 +45304,7 @@ export namespace Prisma {
     NOT?: VaultPreferencesWhereInput | VaultPreferencesWhereInput[]
     yieldRoutingStrategy?: StringFilter<"VaultPreferences"> | string
     riskAcknowledgedAt?: DateTimeNullableFilter<"VaultPreferences"> | Date | string | null
+    offRampProvider?: StringFilter<"VaultPreferences"> | string
     createdAt?: DateTimeFilter<"VaultPreferences"> | Date | string
     updatedAt?: DateTimeFilter<"VaultPreferences"> | Date | string
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
@@ -45287,6 +45315,7 @@ export namespace Prisma {
     userId?: SortOrder
     yieldRoutingStrategy?: SortOrder
     riskAcknowledgedAt?: SortOrderInput | SortOrder
+    offRampProvider?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: VaultPreferencesCountOrderByAggregateInput
@@ -45302,6 +45331,7 @@ export namespace Prisma {
     userId?: StringWithAggregatesFilter<"VaultPreferences"> | string
     yieldRoutingStrategy?: StringWithAggregatesFilter<"VaultPreferences"> | string
     riskAcknowledgedAt?: DateTimeNullableWithAggregatesFilter<"VaultPreferences"> | Date | string | null
+    offRampProvider?: StringWithAggregatesFilter<"VaultPreferences"> | string
     createdAt?: DateTimeWithAggregatesFilter<"VaultPreferences"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"VaultPreferences"> | Date | string
   }
@@ -48340,6 +48370,7 @@ export namespace Prisma {
     id?: string
     yieldRoutingStrategy?: string
     riskAcknowledgedAt?: Date | string | null
+    offRampProvider?: string
     createdAt?: Date | string
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutVaultPreferencesInput
@@ -48350,6 +48381,7 @@ export namespace Prisma {
     userId: string
     yieldRoutingStrategy?: string
     riskAcknowledgedAt?: Date | string | null
+    offRampProvider?: string
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -48358,6 +48390,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     yieldRoutingStrategy?: StringFieldUpdateOperationsInput | string
     riskAcknowledgedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    offRampProvider?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutVaultPreferencesNestedInput
@@ -48368,6 +48401,7 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     yieldRoutingStrategy?: StringFieldUpdateOperationsInput | string
     riskAcknowledgedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    offRampProvider?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -48377,6 +48411,7 @@ export namespace Prisma {
     userId: string
     yieldRoutingStrategy?: string
     riskAcknowledgedAt?: Date | string | null
+    offRampProvider?: string
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -48385,6 +48420,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     yieldRoutingStrategy?: StringFieldUpdateOperationsInput | string
     riskAcknowledgedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    offRampProvider?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -48394,6 +48430,7 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     yieldRoutingStrategy?: StringFieldUpdateOperationsInput | string
     riskAcknowledgedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    offRampProvider?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -50595,6 +50632,7 @@ export namespace Prisma {
     userId?: SortOrder
     yieldRoutingStrategy?: SortOrder
     riskAcknowledgedAt?: SortOrder
+    offRampProvider?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -50604,6 +50642,7 @@ export namespace Prisma {
     userId?: SortOrder
     yieldRoutingStrategy?: SortOrder
     riskAcknowledgedAt?: SortOrder
+    offRampProvider?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -50613,6 +50652,7 @@ export namespace Prisma {
     userId?: SortOrder
     yieldRoutingStrategy?: SortOrder
     riskAcknowledgedAt?: SortOrder
+    offRampProvider?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -53403,6 +53443,7 @@ export namespace Prisma {
     id?: string
     yieldRoutingStrategy?: string
     riskAcknowledgedAt?: Date | string | null
+    offRampProvider?: string
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -53411,6 +53452,7 @@ export namespace Prisma {
     id?: string
     yieldRoutingStrategy?: string
     riskAcknowledgedAt?: Date | string | null
+    offRampProvider?: string
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -53915,6 +53957,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     yieldRoutingStrategy?: StringFieldUpdateOperationsInput | string
     riskAcknowledgedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    offRampProvider?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -53923,6 +53966,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     yieldRoutingStrategy?: StringFieldUpdateOperationsInput | string
     riskAcknowledgedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    offRampProvider?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

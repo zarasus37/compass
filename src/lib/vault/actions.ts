@@ -15,6 +15,7 @@ import {
   syncVaultAction,
   clearVaultAction,
   setYieldRoutingAction,
+  setOffRampProviderAction,
   acknowledgeRiskAction,
   revokeRiskAcknowledgementAction,
   pauseVaultAction,
@@ -79,6 +80,17 @@ export async function clearVault() {
  */
 export async function setYieldRoutingStrategyAction(strategy: string) {
   return setYieldRoutingAction(strategy);
+}
+
+/**
+ * Cluster 7.3 — Server action: set the user's off-ramp provider
+ * preference. Same shape as `setYieldRoutingStrategyAction`:
+ * validates the input against the TS union, rejects unknown values
+ * with a structured error, writes a `vault.off_ramp_provider_changed`
+ * audit entry on success.
+ */
+export async function setOffRampProviderActionClient(provider: string) {
+  return setOffRampProviderAction(provider);
 }
 
 /**

@@ -421,16 +421,19 @@ export function deriveMockVault(userId: string = "user-mom"): VaultSnapshot {
       name: "Spritz",
       available: true,
       note: "Mock — always succeeds (Phase 1)",
+      isActive: false,
     },
     {
       name: "Monto",
       available: true,
       note: "Mock — always succeeds (Phase 1)",
+      isActive: false,
     },
     {
       name: "Manual Push",
       available: true,
       note: "Fallback — always MANUAL_ACTION_REQUIRED (Phase 1)",
+      isActive: false,
     },
   ];
 
@@ -452,6 +455,7 @@ export function deriveMockVault(userId: string = "user-mom"): VaultSnapshot {
       userId: "mock-user",
       yieldRoutingStrategy: "COMPOUND",
       riskAcknowledgedAt: null,
+      offRampProvider: "MOCK",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },

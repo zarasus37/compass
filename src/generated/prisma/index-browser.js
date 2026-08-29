@@ -528,6 +528,7 @@ exports.Prisma.VaultPreferencesScalarFieldEnum = {
   userId: 'userId',
   yieldRoutingStrategy: 'yieldRoutingStrategy',
   riskAcknowledgedAt: 'riskAcknowledgedAt',
+  offRampProvider: 'offRampProvider',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };

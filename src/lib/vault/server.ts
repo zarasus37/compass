@@ -21,6 +21,7 @@ import {
   getOrCreateVault,
   getOrCreateVaultPreferences,
   setYieldRoutingStrategy,
+  setOffRampProvider,
   acknowledgeRisk,
   revokeRiskAcknowledgement,
   setVaultAccountStatus,
@@ -78,6 +79,7 @@ import type {
   ScheduledBill,
   VaultAccount,
   YieldRoutingStrategy,
+  OffRampProvider,
 } from "./types";
 
 /**
@@ -438,6 +440,64 @@ export async function setYieldRoutingAction(
     console.error("[vault] setYieldRouting failed:", message);
     return { ok: false, error: message };
   }
+}
+
+// Cluster 7.3 — Off-ramp provider preference. Same shape as
+// `setYieldRoutingAction` (whitelist validation, audit entry, ok/
+// error result). The preference flows through to the gateway via
+// `buildGatewayForUser`, which `executeBillPaymentAction` and
+// `retryBillPaymentAction` call before each settlement.
+const OFFRAMP_PROVIDER_VALUES = new Set<OffRampProvider>([
+  "MOCK",
+  "SPRITZ",
+  "MONTO",
+]);
+
+/**
+ * Set the user's off-ramp provider preference. Validates the
+ * input against the TS union; unknown values are rejected before
+ * the write so a malformed form payload can't poison the column.
+ */
+export async function setOffRampProviderAction(
+  rawProvider: string,
+): Promise<{ ok: true; provider: OffRampProvider } | { ok: false; error: string }> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  if (!OFFRAMP_PROVIDER_VALUES.has(rawProvider as OffRampProvider)) {
+    return { ok: false, error: `unknown provider: ${rawProvider}` };
+  }
+  const provider = rawProvider as OffRampProvider;
+  try {
+    const prev = await getOrCreateVaultPreferences(user.id);
+    await setOffRampProvider(user.id, provider);
+    await recordVaultAudit({
+      userId: user.id,
+      actionType: "vault.off_ramp_provider_changed",
+      payload: { from: prev.offRampProvider, to: provider },
+    });
+    return { ok: true, provider };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] setOffRampProvider failed:", message);
+    return { ok: false, error: message };
+  }
+}
+
+/**
+ * Cluster 7.3 — Build the off-ramp gateway for a user, taking
+ * their `VaultPreferences.offRampProvider` into account. The two
+ * payment actions (`executeBillPaymentAction` and
+ * `retryBillPaymentAction`) call this instead of
+ * `OffRampGateway.buildDefault` directly so the user-preference
+ * flows through automatically.
+ */
+async function buildGatewayForUser(userId: string): Promise<OffRampGateway> {
+  const prefs = await getOrCreateVaultPreferences(userId);
+  return OffRampGateway.buildDefault(userId, prefs.offRampProvider);
 }
 
 /**
@@ -1900,7 +1960,7 @@ export async function executeBillPaymentAction(
       return { ok: false, error: gate.reason, reason: gate.reason };
     }
     const idempotencyKey = executionIdempotencyKey(bill.id);
-    const gateway = OffRampGateway.buildDefault(user.id);
+    const gateway = await buildGatewayForUser(user.id);
     // Drive the state machine: EARNING → BEGIN_SETTLEMENT →
     // PREPARING_SETTLEMENT → EXECUTE → EXECUTING. Then call the
     // gateway, which writes PaymentAttempt + ProviderEvent +
@@ -2006,7 +2066,7 @@ export async function retryBillPaymentAction(
       return { ok: false, error: gate.reason, reason: gate.reason };
     }
     const idempotencyKey = executionIdempotencyKey(bill.id, new Date());
-    const gateway = OffRampGateway.buildDefault(user.id);
+    const gateway = await buildGatewayForUser(user.id);
     // Drive the same 3 transitions as executeBillPaymentAction:
     // EARNING → BEGIN_SETTLEMENT → PREPARING_SETTLEMENT → EXECUTE
     // → EXECUTING → CONFIRM_SETTLED / MANUAL_ACTION_REQUIRED /

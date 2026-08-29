@@ -1069,6 +1069,16 @@ model VaultPreferences {
   /// When the user acknowledged the risk disclosure. NULL = not yet;
   /// the top-of-page risk modal renders only when this is null.
   riskAcknowledgedAt   DateTime?
+  /// Cluster 7.3 — user-level default for the off-ramp gateway's
+  /// first-choice provider. One of OffRampProvider (TS union in
+  /// src/lib/vault/types.ts): MOCK | SPRITZ | MONTO. Default MOCK
+  /// so a brand-new user (no row yet) gets the safe path. The
+  /// gateway builds its adapter chain with this provider first
+  /// when the bill has no per-bill `providerPreference` override.
+  /// String column rather than Prisma enum to match the rest of
+  /// the vault's string columns and to keep the migration surface
+  /// additive.
+  offRampProvider      String    @default("MOCK")
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 

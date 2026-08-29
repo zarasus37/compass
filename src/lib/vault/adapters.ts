@@ -2,8 +2,21 @@
  * Compass Vault — off-ramp adapter stubs (Phase 1.0) + DB-backed
  * wrapper (Phase 2.0).
  *
- * Three stub implementations of `IOffRampAdapter`:
- *   - `SpritzAdapter`               — always succeeds (clean path)
+ * Four stub implementations of `IOffRampAdapter`:
+ *   - `MockOffRampAdapter`          — Cluster 7.3; always succeeds
+ *                                     (clean path, no external call;
+ *                                     the safe default for new users
+ *                                     and the fallback target when a
+ *                                     real provider is unconfigured)
+ *   - `SpritzAdapter`               — always succeeds (clean path).
+ *                                     Cluster 7.3 prefers the
+ *                                     `SpritzClientAdapter` from
+ *                                     `spritz-client.ts` which can
+ *                                     self-fall-back to Mock when
+ *                                     SPRITZ_INTEGRATION_KEY is
+ *                                     missing; this stub remains
+ *                                     for unit tests and the legacy
+ *                                     integration paths.
  *   - `MontoAdapter`                — always succeeds (clean path)
  *   - `FallbackManualPushAdapter`   — always returns MANUAL_ACTION_REQUIRED
  *                                     (safety path; exercises the
@@ -61,8 +74,53 @@ function withIdempotency(
 }
 
 /**
+ * Cluster 7.3 — MOCK adapter. The user's explicit "no external
+ * call, no real money" choice. Always returns a fully-settled
+ * success with a deterministic tx id. Idempotent on the same
+ * `idempotencyKey` via the same in-process `idempotencyCache`
+ * the other adapters use.
+ *
+ * The `name` parameter is the adapter name the gateway registers
+ * this instance under. Defaults to "Mock" for the user-facing
+ * MOCK picker option; the Spritz fallback (`createSpritzAdapter`
+ * in `spritz-client.ts`) passes "Spritz" so the gateway chain
+ * still has a Spritz entry when SDK credentials are missing.
+ */
+export class MockOffRampAdapter implements IOffRampAdapter {
+  readonly name: string;
+  private readonly idPrefix: string;
+  constructor(name: string = "Mock") {
+    this.name = name;
+    // Map the friendly name to a tx-id prefix. "Mock" → "mock",
+    // "Spritz" → "spritz", etc. Falls back to the lowercased name.
+    this.idPrefix = name.toLowerCase();
+  }
+  async isAvailable(): Promise<boolean> {
+    return true;
+  }
+  async executePayment(request: OffRampRequest): Promise<OffRampResult> {
+    const txId = withIdempotency(request.idempotencyKey, this.name, () =>
+      nextTxId(this.idPrefix),
+    );
+    return {
+      success: true,
+      providerName: this.name,
+      transactionId: txId,
+      requiresManualAction: false,
+    };
+  }
+}
+
+/**
  * Spritz — clean-path adapter. Always returns a fully-settled
  * success with a deterministic tx id.
+ *
+ * Cluster 7.3: this is the legacy stub. The Spritz-aware path is
+ * `createSpritzAdapter` in `spritz-client.ts`, which returns a
+ * `SpritzClientAdapter` when env vars are set and a
+ * `MockOffRampAdapter("Spritz")` when they aren't. This class
+ * stays around for unit tests and the legacy integration paths
+ * that don't go through the gateway.
  */
 export class SpritzAdapter implements IOffRampAdapter {
   readonly name = "Spritz";

@@ -167,7 +167,8 @@ async function main() {
     "title not found",
   );
 
-  // ── 3. Policy summary card has all 4 cells
+  // ── 3. Policy summary card has all 5 cells (Cluster 7.3 — the
+  // new off-ramp cell is between yield and risk)
   check(
     "policy summary card is present",
     p0Text.includes("vault-policy-summary"),
@@ -177,6 +178,12 @@ async function main() {
     "yield routing cell is present",
     p0Text.includes("vault-policy-cell-yield-routing"),
     "yield routing cell not found",
+  );
+  // Cluster 7.3 — new off-ramp cell.
+  check(
+    "off-ramp cell is present (Cluster 7.3)",
+    p0Text.includes("vault-policy-cell-off-ramp"),
+    "off-ramp cell not found",
   );
   check(
     "risk disclosure cell is present",

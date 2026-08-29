@@ -388,6 +388,13 @@ export interface OffRampAdapterStatus {
   available: boolean;
   /** Human-readable reason (e.g. "mock — always succeeds"). */
   note: string;
+  /**
+   * Cluster 7.3 — true when this adapter matches the user's
+   * currently-configured `VaultPreferences.offRampProvider`.
+   * The panel renders a `// CURRENT` label + accent border on the
+   * active row. False for the other adapters.
+   */
+  isActive: boolean;
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -416,6 +423,45 @@ export const YIELD_ROUTING_DESC: Record<YieldRoutingStrategy, string> = {
 };
 
 /**
+ * Cluster 7.3 — user-level default for the off-ramp gateway's
+ * first-choice provider. Default MOCK so a brand-new user (no
+ * preferences row yet) gets the safe path. The gateway builds its
+ * adapter chain with this provider first when the bill has no
+ * per-bill `providerPreference` override.
+ *
+ * Mirrors the yield-routing strategy shape: string union, default
+ * constant, label + desc maps, and a setter action that validates
+ * the input against the whitelist.
+ */
+export type OffRampProvider = "MOCK" | "SPRITZ" | "MONTO";
+
+/** Canonical user-facing label for each off-ramp provider. */
+export const OFFRAMP_PROVIDER_LABEL: Record<OffRampProvider, string> = {
+  MOCK: "MOCK",
+  SPRITZ: "Spritz",
+  MONTO: "Monto",
+};
+
+/** One-line description of what each provider does. The picker
+ *  renders this as the secondary line on each chip card. */
+export const OFFRAMP_PROVIDER_DESC: Record<OffRampProvider, string> = {
+  MOCK:
+    "Clean path. No external call. Use for end-to-end testing.",
+  SPRITZ:
+    "Real provider via Spritz SDK. Auto-falls-back to MOCK when credentials are missing.",
+  MONTO: "Stub provider — always succeeds. Real integration pending.",
+};
+
+/** The stable string the gateway uses to look up the adapter in its
+ *  adapter map. The map is keyed on this so the on-disk preference
+ *  (which is the union literal) maps 1:1 to the adapter name. */
+export const OFFRAMP_PROVIDER_ADAPTER_NAME: Record<OffRampProvider, string> = {
+  MOCK: "Mock",
+  SPRITZ: "Spritz",
+  MONTO: "Monto",
+};
+
+/**
  * The user's vault preferences. One row per user. Populated by
  * `getOrCreateVaultPreferences` in db.ts and surfaced on the
  * snapshot so the page can render pickers + persist without a
@@ -428,6 +474,9 @@ export interface VaultPreferences {
   /** ISO timestamp of when the user acknowledged the risk disclosure.
    *  Null = not yet acknowledged → the disclosure renders. */
   riskAcknowledgedAt: string | null;
+  /** Cluster 7.3 — user-level default for the off-ramp gateway's
+   *  first-choice provider. See `OffRampProvider` for the union. */
+  offRampProvider: OffRampProvider;
   createdAt: string;
   updatedAt: string;
 }

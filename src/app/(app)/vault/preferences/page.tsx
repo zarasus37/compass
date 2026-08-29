@@ -21,12 +21,15 @@ import { prisma } from "@/server/db";
 import { getCurrentUser } from "@/server/auth/user";
 import {
   YIELD_ROUTING_LABEL,
+  OFFRAMP_PROVIDER_LABEL,
   type YieldRoutingStrategy,
+  type OffRampProvider,
 } from "@/lib/vault/types";
 import { loadCurrentVaultSnapshot } from "@/lib/vault/server";
 import { PolicySummaryCard } from "@/components/vault/PolicySummaryCard";
 import { ScheduleSummaryCard } from "@/components/vault/ScheduleSummaryCard";
 import { YieldRoutingPicker } from "@/components/vault/YieldRoutingPicker";
+import { OffRampProviderPicker } from "@/components/vault/OffRampProviderPicker";
 import { RiskAckButton } from "@/components/vault/RiskAckButton";
 import { RevokeRiskAckButton } from "@/components/vault/RevokeRiskAckButton";
 
@@ -39,11 +42,24 @@ const VALID_STRATEGIES: YieldRoutingStrategy[] = [
   "SPLIT_BY_ENVELOPE",
 ];
 
+const VALID_OFFRAMP_PROVIDERS: OffRampProvider[] = [
+  "MOCK",
+  "SPRITZ",
+  "MONTO",
+];
+
 function asStrategy(s: string | null | undefined): YieldRoutingStrategy {
   if (s && (VALID_STRATEGIES as string[]).includes(s)) {
     return s as YieldRoutingStrategy;
   }
   return "COMPOUND";
+}
+
+function asProvider(s: string | null | undefined): OffRampProvider {
+  if (s && (VALID_OFFRAMP_PROVIDERS as string[]).includes(s)) {
+    return s as OffRampProvider;
+  }
+  return "MOCK";
 }
 
 export default async function VaultPreferencesPage() {
@@ -79,6 +95,11 @@ export default async function VaultPreferencesPage() {
   // Default strategy if the user has no row yet: COMPOUND
   // (matches the schema default and the spec).
   const currentStrategy = asStrategy(prefs?.yieldRoutingStrategy);
+  // Cluster 7.3 — default provider if the user has no row yet: MOCK
+  // (matches the schema default; the safe path).
+  const currentProvider = asProvider(
+    (prefs as { offRampProvider?: string | null } | null)?.offRampProvider,
+  );
   const riskAcknowledgedAt = prefs?.riskAcknowledgedAt
     ? prefs.riskAcknowledgedAt.toISOString()
     : null;
@@ -95,6 +116,18 @@ export default async function VaultPreferencesPage() {
     snapshotStrategy !== null
       ? asStrategy(snapshotStrategy)
       : currentStrategy;
+  // Cluster 7.3 — same snapshot-wins rule for the off-ramp
+  // provider, so the picker + the summary card always agree with
+  // what the gateway is using.
+  const snapshotProvider =
+    snapshot && snapshot.snapshot
+      ? (snapshot.snapshot.preferences as { offRampProvider?: string | null })
+          .offRampProvider
+      : null;
+  const effectiveProvider: OffRampProvider =
+    snapshotProvider !== null && snapshotProvider !== undefined
+      ? asProvider(snapshotProvider)
+      : currentProvider;
 
   return (
     <div>
@@ -124,6 +157,7 @@ export default async function VaultPreferencesPage() {
 
       <PolicySummaryCard
         yieldStrategy={effectiveStrategy}
+        offRampProvider={effectiveProvider}
         riskAcknowledgedAt={riskAcknowledgedAt}
         scheduleExists={schedule !== null}
         scheduleNextRunAt={
@@ -158,6 +192,32 @@ export default async function VaultPreferencesPage() {
           Switching strategy re-routes future yield only. Already-deployed
           principal is unaffected; in-flight yield follows the strategy
           that was active when it accrued. Settled yield is not retroactive.
+        </div>
+      </div>
+
+      <SectionHeader
+        eyebrow="// off-ramp"
+        title="Off-ramp provider"
+        em="which rail the gateway tries first when a bill settles."
+        accent="cyan"
+      />
+
+      <div
+        data-testid="vault-prefs-offramp"
+        style={{ marginBottom: 32 }}
+      >
+        <OffRampProviderPicker current={effectiveProvider} />
+        <div
+          style={{
+            fontFamily: "var(--font-sora)",
+            fontSize: 12,
+            color: "var(--ink-3)",
+            marginTop: 10,
+            lineHeight: 1.5,
+            maxWidth: 720,
+          }}
+        >
+          {`MOCK is the safe default — no external call, no real money. Picking Spritz or Monto uses the real provider; missing credentials auto-fall-back to MOCK at runtime, so the gateway stays end-to-end functional either way. The chain is ${OFFRAMP_PROVIDER_LABEL[effectiveProvider]} → other providers → Manual Push (safety).`}
         </div>
       </div>
 

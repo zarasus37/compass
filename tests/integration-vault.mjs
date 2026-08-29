@@ -2107,6 +2107,24 @@ async function main() {
   }
   check("M4 setup: a bill in EARNING is available", targetBill !== null, "no EARNING bill found");
 
+  // Cluster 7.3 — set the user's off-ramp preference to Spritz
+  // before exercising the M4 happy path. The default is MOCK (the
+  // safe path); the M4 test was written before the user-level
+  // preference existed, so it implicitly assumed "Spritz first".
+  // Setting it explicitly here keeps the test's intent intact
+  // (exercising the Spritz happy path) while the new MOCK default
+  // gets its own checks in smoke-off-ramp-picker.mjs.
+  await prisma.vaultPreferences.upsert({
+    where: { userId },
+    create: {
+      userId,
+      yieldRoutingStrategy: "COMPOUND",
+      riskAcknowledgedAt: null,
+      offRampProvider: "SPRITZ",
+    },
+    update: { offRampProvider: "SPRITZ" },
+  });
+
   // Make sure the vault is ACTIVE and the execution window is open
   // for the target bill. The seed may have set the window in the
   // past; widen it to "now → now+1d" for the test.

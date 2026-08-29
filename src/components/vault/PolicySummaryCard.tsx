@@ -1,15 +1,17 @@
 /**
- * Compass Vault — policy summary card (Cluster 7.0).
+ * Compass Vault — policy summary card (Cluster 7.0 + 7.3).
  *
- * The 4-cell grid at the top of `/vault/preferences` that
- * summarizes the user's vault policy in one place:
- *   - Yield routing strategy
- *   - Risk-disclosure state
- *   - Auto bill-pay schedule (or [—] not configured)
- *   - Vault status (LIVE / PAUSED / RECOVERY_MODE)
+ * The grid at the top of `/vault/preferences` that summarizes the
+ * user's vault policy in one place:
+ *   - Yield routing strategy        (Cluster 7.0)
+ *   - Off-ramp provider             (Cluster 7.3 — new)
+ *   - Risk-disclosure state         (Cluster 7.0)
+ *   - Auto bill-pay schedule        (Cluster 7.0)
+ *   - Vault status                  (Cluster 7.0)
  *
- * Server component (no "use client"). Reads from props passed by
- * the page; the page does the Prisma reads.
+ * 5-cell grid on desktop, 2-col on small screens. Server component
+ * (no "use client"). Reads from props passed by the page; the page
+ * does the Prisma reads.
  *
  * Terminal voice: vessel-surface bg, vessel-border, mono caps
  * labels, vessel-accent numerals. Sora body for the values.
@@ -19,13 +21,16 @@ import * as React from "react";
 import Link from "next/link";
 import {
   YIELD_ROUTING_LABEL,
+  OFFRAMP_PROVIDER_LABEL,
   type YieldRoutingStrategy,
+  type OffRampProvider,
 } from "@/lib/vault/types";
 
 type VaultStatus = "ACTIVE" | "PAUSED" | "RECOVERY_MODE";
 
 export function PolicySummaryCard({
   yieldStrategy,
+  offRampProvider,
   riskAcknowledgedAt,
   scheduleExists,
   scheduleNextRunAt,
@@ -33,6 +38,7 @@ export function PolicySummaryCard({
   vaultStatus,
 }: {
   yieldStrategy: YieldRoutingStrategy;
+  offRampProvider: OffRampProvider;
   riskAcknowledgedAt: string | null;
   scheduleExists: boolean;
   scheduleNextRunAt: string | null;
@@ -40,6 +46,7 @@ export function PolicySummaryCard({
   vaultStatus: VaultStatus;
 }) {
   const strategyLabel = YIELD_ROUTING_LABEL[yieldStrategy];
+  const providerLabel = OFFRAMP_PROVIDER_LABEL[offRampProvider];
 
   // Risk disclosure
   const riskOk = riskAcknowledgedAt !== null;
@@ -94,7 +101,7 @@ export function PolicySummaryCard({
       data-testid="vault-policy-summary"
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+        gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
         gap: 0,
         border: "1px solid var(--vessel-border)",
         background: "var(--vessel-surface)",
@@ -107,6 +114,14 @@ export function PolicySummaryCard({
         value={strategyLabel}
         sub={`// ${yieldStrategy.toLowerCase().replace(/_/g, " · ")}`}
         tone="cyan"
+      />
+      <PolicyCell
+        label="off-ramp"
+        value={providerLabel}
+        sub={`// ${offRampProvider.toLowerCase()}`}
+        tone="cyan"
+        href="#vault-prefs-offramp"
+        hrefLabel="[CONFIGURE] →"
       />
       <PolicyCell
         label="risk disclosure"
