@@ -1,14 +1,14 @@
 # Compass — Fresh-Session Handoff
 
-**Date**: 2026-08-28 23:45 CDT
-**Last commit**: `2080e1b` — *Cluster: Production deploy prep (2026-08-28) — Postgres-everywhere + deploy hardening.*
-**Predecessor commit**: `a14f19c` (tech debt cleanup) → `509505c` (Vault 4.0 M4 off-ramp gateway)
+**Date**: 2026-08-29 01:20 CDT
+**Last commit**: `e23503c` — *Cluster: Wire smoke:all to include smoke:deploy + seed-accounts.ts bugfix (2026-08-29).*
+**Predecessor commit**: `2080e1b` (Production deploy prep) → `a14f19c` (tech debt cleanup) → `509505c` (Vault 4.0 M4 off-ramp gateway)
 
 ---
 
 ## TL;DR
 
-Compass is at a clean natural breakpoint. The latest cluster (Production deploy prep) shipped Postgres-everywhere + security headers + CI + a 68-check deploy smoke. **All 25 smokes green**, `tsc` clean, dev server live.
+Compass is at a clean natural breakpoint. The last cluster (Production deploy prep) shipped Postgres-everywhere + security headers + CI + a 68-check deploy smoke; the follow-on commit (`e23503c`) wired `pnpm smoke:all` to actually run that deploy smoke, and fixed a latent `seed-accounts.ts` bug it surfaced. **All 25 smokes green via `pnpm smoke:all`**, `tsc` clean, dev server live.
 
 If you're a fresh session picking this up: read the spec, read `COORDINATION.md` end-to-end, then go. Nothing about the deploy prep is half-done.
 
@@ -18,7 +18,7 @@ If you're a fresh session picking this up: read the spec, read `COORDINATION.md`
 
 ```powershell
 # 1. Commit
-git log -1 --oneline    # should be 2080e1b
+git log -1 --oneline    # should be e23503c
 
 # 2. Dev server (Next.js, port 3000)
 netstat -ano | Select-String ":3000.*LISTENING"
@@ -92,22 +92,26 @@ If any of those are down, see "Recovery" at the bottom of this file.
 All 25 smokes must be green before any new cluster ships. Run them via `pnpm`:
 
 ```bash
-pnpm smoke              # data-layer smokes (9)
+pnpm smoke              # data-layer smokes (10 incl. auth)
 pnpm smoke:ui           # UI / page-render smokes (13)
 pnpm smoke:integration  # integration-vault (163 checks)
-pnpm smoke:deploy       # 68 deploy-readiness checks (file + live)
-pnpm smoke:all          # all of the above
+pnpm smoke:deploy       # 72 deploy-readiness checks (file + live)
+pnpm smoke:all          # all of the above (single command, since commit e23503c)
 pnpm tsc                # type check
 ```
 
-Baseline numbers:
-- 9 data-layer smokes: 6 include checks; advisor 78, onboarding-agent 108, vault 77
-- 13 UI smokes: each ~30-50 checks
+Baseline numbers (verified 2026-08-29 01:18 CDT on commit `e23503c`):
+- 10 data-layer smokes: auth, accounts-db 33, allocation-db 53, bills-db 36, envelopes-db 29, goals-db 28, insights-db 23, vault 77, onboarding-agent 108, advisor 78
+- 13 UI smokes: each 5–102 checks (top is topbar at 102)
 - integration-vault: **163** checks
-- smoke-deploy: **68** checks
+- smoke-deploy: **72** checks (was 68 at cluster ship; the env-files + db-helper-wiring block grew a few checks)
 - tsc: clean
 
-Total: ~700 checks. CI runs them in ~3-5 min on a Linux runner with a Postgres service container.
+Total: **~1,150 checks** across 25 suites. CI runs them in ~3-5 min on a Linux runner with a Postgres service container.
+
+### Recent change worth knowing about (commit `e23503c`)
+
+`pnpm smoke:all` was missing `smoke:deploy` in its chain, so the COORDINATION "All 25 smokes green" headline required running it as a separate step. That's now wired in. While verifying the patched chain, `smoke-accounts-db` exposed a latent bug in `src/lib/seed-accounts.ts`: the seeder matched rows by `source: "seed"` instead of by the canonical `ACCOUNT_SEED.id`. Onboarding-projection rows share that source, so the seeder's `findFirst` could return a projection row, see its name didn't match `ACCOUNT_SEED.name`, and `deleteMany` wipe **all** `source: "seed"` rows — including the projection rows the test had just inserted. The fix matches by id (only touches the canonical account). The previous "green" was likely a false positive when the dev server's in-memory state happened to have the canonical row at the right name. Don't remove the `id`-based filter on future re-seed work.
 
 ---
 
