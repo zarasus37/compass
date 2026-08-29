@@ -22,6 +22,7 @@ import {
   getOrCreateVaultPreferences,
   setYieldRoutingStrategy,
   acknowledgeRisk,
+  revokeRiskAcknowledgement,
   setVaultAccountStatus,
   transitionBillDb,
   recordVaultAudit,
@@ -464,6 +465,45 @@ export async function acknowledgeRiskAction(): Promise<
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[vault] acknowledgeRisk failed:", message);
+    return { ok: false, error: message };
+  }
+}
+
+/**
+ * Cluster 7.0 — Revoke the risk-disclosure acknowledgement.
+ * Sets `riskAcknowledgedAt = null` on the user's preferences row
+ * (the row is preserved, not deleted) and writes a
+ * `vault.risk_unacknowledged` audit entry. The next visit to
+ * `/vault` or `/vault/preferences` will re-render the
+ * unacknowledged disclosure until the user clicks
+ * `[OK] I understand` again.
+ *
+ * This is the manual half of the spec's "re-acknowledgment
+ * required on strategy change or new bill" requirement. A
+ * future slice can auto-trigger this from the strategy
+ * picker or the bill editor; today it's a button on the
+ * preferences page.
+ */
+export async function revokeRiskAcknowledgementAction(): Promise<
+  { ok: true } | { ok: false; error: string }
+> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  try {
+    await revokeRiskAcknowledgement(user.id);
+    await recordVaultAudit({
+      userId: user.id,
+      actionType: "vault.risk_unacknowledged",
+      payload: {},
+    });
+    return { ok: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] revokeRiskAcknowledgement failed:", message);
     return { ok: false, error: message };
   }
 }

@@ -16,6 +16,7 @@ import {
   clearVaultAction,
   setYieldRoutingAction,
   acknowledgeRiskAction,
+  revokeRiskAcknowledgementAction,
   pauseVaultAction,
   resumeVaultAction,
   transitionBillServerAction,
@@ -87,6 +88,19 @@ export async function setYieldRoutingStrategyAction(strategy: string) {
  */
 export async function acknowledgeRiskDisclosureAction() {
   return acknowledgeRiskAction();
+}
+
+/**
+ * Cluster 7.0 — Server action: revoke a previously-recorded
+ * risk-disclosure acknowledgement. Sets `riskAcknowledgedAt =
+ * null` (the row is preserved) and writes a
+ * `vault.risk_unacknowledged` audit entry. The disclosure
+ * re-renders on the next visit until the user clicks
+ * `[OK] I understand` again. Used by the
+ * `RevokeRiskAckButton` on `/vault/preferences`.
+ */
+export async function revokeRiskDisclosureAction() {
+  return revokeRiskAcknowledgementAction();
 }
 
 /**

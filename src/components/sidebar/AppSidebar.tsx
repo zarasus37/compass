@@ -33,6 +33,17 @@ interface NavItem {
   href: string;
   label: string;
   badge?: { text: string; tone: "auto" | "count" };
+  /**
+   * How the active state is computed against the current
+   * pathname. "prefix" (the default) matches when the pathname
+   * equals href OR starts with href + "/" — this lights up
+   * detail pages like /envelopes/[id] under the /envelopes
+   * sidebar item. "exact" only matches when the pathname
+   * equals href — used for /vault, which has its own sub-pages
+   * (/vault/preferences, /vault/schedule) that should light up
+   * their own sidebar items instead.
+   */
+  match?: "exact" | "prefix";
 }
 
 interface NavChapter {
@@ -58,7 +69,8 @@ const NAV: NavChapter[] = [
       { href: "/envelopes",    label: "Envelopes" },
       { href: "/allocation",   label: "Allocation", badge: { text: "AUTO", tone: "auto" } },
       { href: "/obligations",  label: "Obligations" },
-      { href: "/vault",        label: "Vault",   badge: { text: "BETA", tone: "auto" } },
+      { href: "/vault",        label: "Vault",   badge: { text: "BETA", tone: "auto" }, match: "exact" },
+      { href: "/vault/preferences", label: "Preferences" },
       { href: "/debts",        label: "Debts" },
       { href: "/holdings",     label: "Holdings" },
     ],
@@ -327,7 +339,7 @@ function NavChapterView({
         />
       )}
       {chapter.items.map((item) => {
-        const isActive = isItemActive(pathname, item.href);
+        const isActive = isItemActive(pathname, item.href, item.match);
         return (
           <Link
             key={item.href}
@@ -441,10 +453,20 @@ function NavChapterView({
 /**
  * isItemActive — match a sidebar item to the current pathname.
  * - Exact match for "/" (dashboard home).
- * - Exact + prefix match for deep routes (so /envelopes/x stays lit
- *   when the sidebar item points to /envelopes).
+ * - "exact" items: only match when the pathname equals href.
+ *   Used for /vault, which has its own sub-pages that should
+ *   light up their own sidebar items.
+ * - "prefix" items (the default): match when the pathname
+ *   equals href OR starts with href + "/" — this lights up
+ *   detail pages like /envelopes/[id] under the /envelopes
+ *   sidebar item.
  */
-function isItemActive(pathname: string, href: string): boolean {
+function isItemActive(
+  pathname: string,
+  href: string,
+  match: "exact" | "prefix" = "prefix",
+): boolean {
   if (href === "/") return pathname === "/";
+  if (match === "exact") return pathname === href;
   return pathname === href || pathname.startsWith(href + "/");
 }

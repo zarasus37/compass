@@ -143,8 +143,8 @@ export default async function VaultSchedulePage() {
           display: "grid",
           gridTemplateColumns: "1fr 1fr 1fr",
           gap: 0,
-          border: "1px solid var(--line)",
-          background: "var(--surface)",
+          border: "1px solid var(--vessel-border)",
+          background: "var(--vessel-surface)",
           marginBottom: 32,
           fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 11,
@@ -164,7 +164,7 @@ export default async function VaultSchedulePage() {
               ? `${schedule.lastRunBillsAffected} bill${schedule.lastRunBillsAffected === 1 ? "" : "s"} · ${schedule.lastRunStatus}`
               : "no runs yet"
           }
-          tone={schedule?.lastRunStatus === "ERROR" ? "warn" : "ink"}
+          tone={schedule?.lastRunStatus === "ERROR" ? "watch" : "ink"}
         />
         <StatusCell
           label="manual override"
@@ -201,23 +201,23 @@ function StatusCell({
   label: string;
   value: string;
   sub: string;
-  tone: "ok" | "warn" | "cyan" | "ink";
+  tone: "ok" | "watch" | "cyan" | "ink";
   isLast?: boolean;
   action?: React.ReactNode;
 }) {
   const color =
     tone === "ok"
       ? "var(--ok)"
-      : tone === "warn"
-        ? "var(--warn)"
+      : tone === "watch"
+        ? "var(--vessel-watch)"
         : tone === "cyan"
-          ? "var(--terminal-cyan)"
+          ? "var(--vessel-accent)"
           : "var(--ink)";
   return (
     <div
       style={{
         padding: "16px 18px",
-        borderRight: isLast ? "none" : "1px solid var(--line-soft)",
+        borderRight: isLast ? "none" : "1px solid var(--vessel-border)",
         color: "var(--ink-2)",
         letterSpacing: "0.10em",
       }}

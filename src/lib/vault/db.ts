@@ -912,6 +912,7 @@ export async function recordVaultAudit(args: {
     | "vault.adapter_fallback"
     | "vault.yield_routing_changed"
     | "vault.risk_acknowledged"
+    | "vault.risk_unacknowledged"
     | "vault.paused"
     | "vault.resumed"
     | "vault.apy_refreshed"
@@ -1001,6 +1002,30 @@ export async function acknowledgeRisk(
   const row = await prisma.vaultPreferences.update({
     where: { userId },
     data: { riskAcknowledgedAt: new Date() },
+  });
+  return toVaultPreferences(row);
+}
+
+/**
+ * Cluster 7.0 — Revoke the risk-disclosure acknowledgement.
+ * Sets `riskAcknowledgedAt = null` so the disclosure re-renders
+ * on the user's next visit. The row is preserved (not deleted)
+ * so a re-acknowledge is a single update. Idempotent: revoking
+ * when already revoked is a no-op (returns the same row).
+ *
+ * Use case: the user changed their yield-routing strategy or
+ * added a new bill, and per the spec the disclosure should
+ * re-prompt. The current UI exposes this from the
+ * `/vault/preferences` page (a "Re-acknowledge" button); a
+ * future slice can auto-trigger it on certain user events.
+ */
+export async function revokeRiskAcknowledgement(
+  userId: string,
+): Promise<VaultPreferences> {
+  await getOrCreateVaultPreferences(userId);
+  const row = await prisma.vaultPreferences.update({
+    where: { userId },
+    data: { riskAcknowledgedAt: null },
   });
   return toVaultPreferences(row);
 }

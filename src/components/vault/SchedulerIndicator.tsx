@@ -62,11 +62,11 @@ export async function SchedulerIndicator() {
 
   // Terminal-voice chip color, kept in sync with the rest of the
   // vault page's [OK] / [WARN] / [SIGIL] / [INDEXED] marker
-  // convention.
+  // convention. Cluster 7.0 re-skinned to vessel tokens.
   const statusColor = isError
-    ? "var(--over)"
+    ? "var(--vessel-over)"
     : isSkipped
-      ? "var(--warn)"
+      ? "var(--vessel-watch)"
       : isPaused
         ? "var(--ink-3)"
         : "var(--ok)";
@@ -88,8 +88,8 @@ export async function SchedulerIndicator() {
         alignItems: "center",
         gap: 16,
         padding: "10px 14px",
-        background: "var(--surface)",
-        border: "1px solid var(--line)",
+        background: "var(--vessel-surface)",
+        border: "1px solid var(--vessel-border)",
         borderLeft: `3px solid ${statusColor}`,
         marginBottom: 24,
         fontFamily: "var(--font-jetbrains), monospace",
@@ -105,7 +105,7 @@ export async function SchedulerIndicator() {
         NEXT AUTO-RUN: <strong style={{ color: "var(--ink)" }}>{nextRel}</strong>
         {nextAbs ? ` (${nextAbs})` : ""}
       </span>
-      <span style={{ color: "var(--line)" }}>·</span>
+      <span style={{ color: "var(--vessel-border)" }}>·</span>
       <span>
         LAST: <strong style={{ color: "var(--ink)" }}>{lastRel}</strong>
         {schedule.lastRunAt
@@ -113,13 +113,13 @@ export async function SchedulerIndicator() {
           : ""}
       </span>
       {isError && schedule.lastRunError ? (
-        <span style={{ color: "var(--over)" }}>· {schedule.lastRunError}</span>
+        <span style={{ color: "var(--vessel-over)" }}>· {schedule.lastRunError}</span>
       ) : null}
       <span style={{ flex: 1 }} />
       <Link
         href="/vault/schedule"
         style={{
-          color: "var(--terminal-cyan)",
+          color: "var(--vessel-accent)",
           textDecoration: "none",
           fontWeight: 700,
           fontSize: 10.5,

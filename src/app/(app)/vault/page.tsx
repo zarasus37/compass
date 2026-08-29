@@ -1,4 +1,5 @@
 import * as React from "react";
+import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { SectionHeader } from "@/components/alchemy/SectionHeader";
 import { formatMoney, formatMoneySigned } from "@/lib/money";
@@ -103,6 +104,32 @@ export default async function VaultPage() {
       {isTestnet && <TestnetBanner chainId={snap.vault.chainId} />}
 
       <RiskDisclosure acknowledged={snap.preferences.riskAcknowledgedAt !== null} />
+
+      <div
+        data-testid="vault-prefs-link-row"
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginTop: -16,
+          marginBottom: 24,
+        }}
+      >
+        <Link
+          href="/vault/preferences"
+          data-testid="vault-prefs-link"
+          style={{
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 10.5,
+            fontWeight: 700,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            color: "var(--vessel-accent)",
+            textDecoration: "none",
+          }}
+        >
+          [PREFS] See all your vault preferences →
+        </Link>
+      </div>
 
       <AlertBanner state={snap.alert} />
 
@@ -366,8 +393,8 @@ function RiskDisclosure({ acknowledged }: { acknowledged: boolean }) {
       aria-label="Vault risk disclosure"
       data-testid="vault-risk-disclosure"
       style={{
-        background: "var(--surface)",
-        border: "1px solid var(--warn)",
+        background: "var(--vessel-surface)",
+        border: "1px solid var(--vessel-watch)",
         borderRadius: 2,
         padding: "20px 24px",
         marginBottom: 32,
@@ -387,10 +414,10 @@ function RiskDisclosure({ acknowledged }: { acknowledged: boolean }) {
             fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 10,
             fontWeight: 700,
-            color: "var(--warn)",
+            color: "var(--vessel-watch)",
             letterSpacing: "0.20em",
             textTransform: "uppercase",
-            border: "1px solid var(--warn)",
+            border: "1px solid var(--vessel-watch)",
             padding: "4px 8px",
             borderRadius: 2,
             flexShrink: 0,
