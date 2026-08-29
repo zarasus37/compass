@@ -1,0 +1,129 @@
+/**
+ * Production environment validation.
+ *
+ * Cluster: Production deploy prep (2026-08-28).
+ *
+ * `validateProdEnv()` is called once at app boot when `NODE_ENV=production`.
+ * It refuses to let the app start with any of the well-known dev
+ * placeholders still in env, and fails fast on missing required keys.
+ * In dev / test (NODE_ENV ≠ "production") it's a no-op so the
+ * smoke suite can keep using the lighter local config.
+ *
+ * The reason this is its own module (and not inline in
+ * `src/lib/env/index.ts`): this file MUST NOT be imported in the
+ * dev path. Side-effecting validation at module-load is fine in
+ * prod (we want to fail boot) but would break `pnpm dev` in
+ * the common case of "I haven't filled in prod env yet."
+ *
+ * Usage in Next.js:
+ *   // instrumentation.ts (Next 13+ convention)
+ *   export async function register() {
+ *     if (process.env.NODE_ENV === "production") {
+ *       await import("@/lib/env/prod").then(m => m.validateProdEnv());
+ *     }
+ *   }
+ */
+export type ProdEnvIssue = {
+  key: string;
+  message: string;
+};
+
+const REQUIRED: Array<{ key: string; placeholder: RegExp | null; reason: string }> = [
+  {
+    key: "DATABASE_URL",
+    placeholder: /postgresql:\/\/compass:compass@/i,
+    reason:
+      "DATABASE_URL must be the production Postgres URL (not the dev Docker URL).",
+  },
+  {
+    key: "DATABASE_URL",
+    placeholder: /\?sslmode=require/,
+    reason:
+      "DATABASE_URL must include ?sslmode=require for production Postgres.",
+    // Special handling below: this is a "must include" not a "must not include".
+  },
+  {
+    key: "MAVIS_API_KEY",
+    placeholder: /^sk-api-kkrA3L7/, // the leaked dev key from .env.local
+    reason: "MAVIS_API_KEY must be a fresh production key, not the dev key.",
+  },
+  {
+    key: "VAULT_SIGNER_KEY",
+    placeholder: /^0xMOCK/i,
+    reason:
+      "VAULT_SIGNER_KEY must be a real EOA private key in production. The MOCK signer is dev-only.",
+  },
+  {
+    key: "VAULT_CHAIN_ID",
+    placeholder: null,
+    reason: "VAULT_CHAIN_ID is required (e.g. 84532 for Base Sepolia testnet).",
+  },
+];
+
+const FORBIDDEN_PROVIDERS: Array<{ key: string; value: string; reason: string }> = [
+  {
+    key: "LLM_PROVIDER",
+    value: "mock",
+    reason:
+      "LLM_PROVIDER must NOT be 'mock' in production — it would let any code path " +
+      "calling getLlmProvider() return the deterministic stub.",
+  },
+];
+
+export function validateProdEnv(): { ok: true } | { ok: false; issues: ProdEnvIssue[] } {
+  if (process.env.NODE_ENV !== "production") {
+    return { ok: true };
+  }
+
+  const issues: ProdEnvIssue[] = [];
+
+  // 1. Required keys must be present.
+  for (const { key, placeholder, reason } of REQUIRED) {
+    const v = process.env[key];
+    if (!v || v.trim() === "") {
+      issues.push({ key, message: `${key} is required. ${reason}` });
+      continue;
+    }
+    // 2. If a "must not match" placeholder is set, check it.
+    if (placeholder && placeholder.test(v)) {
+      // Special-case: sslmode=require is a "must include" (regex above
+      // is the include pattern, not exclude). Handle here.
+      if (key === "DATABASE_URL" && placeholder.source.includes("sslmode=require")) {
+        if (!placeholder.test(v)) {
+          issues.push({ key, message: reason });
+        }
+        continue;
+      }
+      // All other "placeholders" are dev values that must not appear.
+      issues.push({ key, message: reason });
+    }
+  }
+
+  // 3. Forbidden provider values.
+  for (const { key, value, reason } of FORBIDDEN_PROVIDERS) {
+    if ((process.env[key] ?? "").toLowerCase() === value.toLowerCase()) {
+      issues.push({ key, message: reason });
+    }
+  }
+
+  if (issues.length > 0) {
+    return { ok: false, issues };
+  }
+  return { ok: true };
+}
+
+/**
+ * Strict-mode boot guard. Throws if prod env is invalid. The error
+ * message lists every issue, one per line, so a misconfigured
+ * hosting provider's boot log shows all problems at once.
+ */
+export function assertProdEnv(): void {
+  const result = validateProdEnv();
+  if (!result.ok) {
+    const lines = result.issues.map((i) => `  - ${i.key}: ${i.message}`);
+    throw new Error(
+      `[prod-env] refused to start in production:\n${lines.join("\n")}\n` +
+        `Set the missing / wrong keys in your hosting provider's secret store, then redeploy.`,
+    );
+  }
+}

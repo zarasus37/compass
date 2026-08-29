@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+# Cluster: Production deploy prep (2026-08-28).
+# The smoke suite needs a Postgres. Spin up a service container
+# for it. The dev compose file uses port 5433 (because Windows has
+# native PG 18 on 5432) but on a clean Linux runner 5432 is fine —
+# the DATABASE_URL here points to the service container's port.
+#
+# The test runs `prisma db push` instead of `migrate dev` because
+# the schema lives in one file (no migration history yet) and
+# `db push` is the project's established pattern for new schema.
+#
+# LLM is set to "mock" (deterministic seed) for CI so the smoke
+# suite gets stable, predictable responses. Mavis creds are not
+# required in CI.
+
+jobs:
+  validate:
+    name: tsc + smokes
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: compass
+          POSTGRES_PASSWORD: compass
+          POSTGRES_DB: compass_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U compass -d compass_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+          --health-start-period 5s
+
+    env:
+      DATABASE_URL: "postgresql://compass:compass@localhost:5432/compass_ci"
+      LLM_PROVIDER: "mock"
+      LLM_PROVIDER_ADVISOR: "mock"
+      NODE_ENV: "development"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.5.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Push schema
+        run: pnpm db:push
+
+      - name: Type check
+        run: pnpm tsc
+
+      - name: Start dev server
+        run: |
+          pnpm dev &
+          # Wait for the server to be ready (Next prints "Ready in").
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:3000/api/health > /dev/null 2>&1; then
+              echo "dev server is up"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Run smoke suite
+        run: |
+          # data-layer smokes first (cheaper, fail-fast on schema drift)
+          pnpm smoke
+          # then the UI / page-render smokes
+          pnpm smoke:ui
+          # then the integration smoke (the M4 vault gateway one)
+          pnpm smoke:integration
+          # then the deploy-readiness smoke
+          pnpm smoke:deploy

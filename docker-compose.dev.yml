@@ -1,0 +1,56 @@
+# Compass — local development Postgres.
+#
+# Production deploy prep cluster (2026-08-28). Switched from
+# SQLite (file-based, dev-only) to Postgres-everywhere so dev
+# and prod share the same schema, the same migrations, and the
+# same query semantics. The dev DB is throwaway; production is
+# Neon/Supabase/RDS.
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up -d
+#   $env:DATABASE_URL="postgresql://compass:compass@localhost:5433/compass_dev"
+#   pnpm prisma db push
+#   pnpm dev
+#
+# Tear-down (drops the volume):
+#   docker compose -f docker-compose.dev.yml down -v
+#
+# The named volume `compass_dev_pgdata` survives `down` (no `-v`)
+# so a hot-reload of the dev server doesn't lose state. Drop it
+# explicitly when you want a fresh DB.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: compass_dev_pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: compass
+      POSTGRES_PASSWORD: compass
+      POSTGRES_DB: compass_dev
+    ports:
+      # Host port 5433 (not 5432) because PostgreSQL 18 is installed
+      # natively on this Windows host and already binds 5432. Mapping
+      # to 5432 here would silently route Compass queries to the
+      # native server instead of the Docker container. Container's
+      # internal port stays 5432.
+      - "5433:5432"
+    volumes:
+      - compass_dev_pgdata:/var/lib/postgresql/data
+      # Dev-only trust-everyone pg_hba.conf (mounted read-only).
+      # See docker/pg_hba.conf for the rationale. Production
+      # Postgres is SCRAM-SHA-256 + TLS on Neon/Supabase/RDS.
+      - ./docker/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+    healthcheck:
+      # `pg_isready` is the canonical Postgres readiness probe.
+      # Returns 0 when ready, 3 when starting, 1 on connection
+      # error. The `interval` is 5s to keep the startup snappy.
+      test: ["CMD-SHELL", "pg_isready -U compass -d compass_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+volumes:
+  compass_dev_pgdata:
+    name: compass_dev_pgdata

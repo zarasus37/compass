@@ -34,9 +34,6 @@
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { PrismaClient } from "../src/generated/prisma/client.js";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PROJECT_ROOT = path.resolve(__dirname, "..");
@@ -89,9 +86,8 @@ function extractActionId(html) {
 }
 const log = (k, v) => console.log(`[${k}] ${v}`);
 
-const prisma = new PrismaClient({
-  adapter: new PrismaBetterSqlite3({ url: path.join(PROJECT_ROOT, "dev.db") }),
-});
+import { prisma } from "./db-client.mjs";
+
 
 let pass = 0;
 let miss = 0;

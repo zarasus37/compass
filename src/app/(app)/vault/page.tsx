@@ -65,6 +65,19 @@ export default async function VaultPage() {
     return <EmptyState />;
   }
   const snap = snapshot;
+  // Cluster: Production deploy prep (2026-08-28) — testnet disclosure.
+  // The vault deploys to Base Sepolia (chainId 84532) in dev / pre-
+  // mainnet. When the active chain is a testnet, surface a clearly
+  // visible banner at the top of the page so the user (and anyone
+  // they're screen-sharing with) knows the funds are on testnet,
+  // not real USDC. Hides automatically once the chain moves to
+  // mainnet (8453).
+  const envChainId = process.env.VAULT_CHAIN_ID
+    ? parseInt(process.env.VAULT_CHAIN_ID, 10)
+    : null;
+  const isTestnet =
+    (envChainId !== null && envChainId !== 8453) ||
+    snap.vault.chainId === 84532;
   return (
     <div>
       <PageHead
@@ -85,6 +98,8 @@ export default async function VaultPage() {
           </>
         }
       />
+
+      {isTestnet && <TestnetBanner chainId={snap.vault.chainId} />}
 
       <RiskDisclosure acknowledged={snap.preferences.riskAcknowledgedAt !== null} />
 
@@ -140,7 +155,72 @@ export default async function VaultPage() {
 // Empty state — the user has no vault data yet
 // ──────────────────────────────────────────────────────────────────────
 
+// Cluster: Production deploy prep (2026-08-28) — testnet disclosure.
+// Renders a single-line banner that surfaces the active chain and
+// its mainnet/testnet classification. Hidden when the chain is
+// mainnet. The chain id is taken from the env-var (default for
+// new vaults) so the banner is correct even before the user has
+// deployed a Safe.
+function TestnetBanner({ chainId }: { chainId: number }) {
+  const known = (
+    [
+      [1, "Ethereum mainnet"],
+      [8453, "Base mainnet"],
+      [84532, "Base Sepolia (testnet)"],
+      [11155111, "Ethereum Sepolia (testnet)"],
+    ] as Array<[number, string]>
+  ).find(([id]) => id === chainId);
+  const label = known ? known[1] : `chainId ${chainId}`;
+  const isTest = known ? label.includes("testnet") : true;
+  if (!isTest) return null;
+  return (
+    <div
+      data-testid="vault-testnet-banner"
+      role="status"
+      style={{
+        background: "color-mix(in srgb, var(--terminal-amber, #C9A45C) 12%, var(--surface))",
+        border: "1px solid var(--terminal-amber, #C9A45C)",
+        borderLeft: "4px solid var(--terminal-amber, #C9A45C)",
+        borderRadius: 2,
+        padding: "10px 14px",
+        marginBottom: 24,
+        fontFamily: "var(--font-jetbrains), monospace",
+        fontSize: 12,
+        color: "var(--ink)",
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: "0.20em",
+          textTransform: "uppercase",
+          color: "var(--terminal-amber, #C9A45C)",
+          border: "1px solid var(--terminal-amber, #C9A45C)",
+          padding: "2px 6px",
+          borderRadius: 2,
+        }}
+      >
+        [WARN] Testnet
+      </span>
+      <span>
+        Vault deploys to <strong>{label}</strong>. Funds on this chain have no real-world value; switch VAULT_CHAIN_ID=8453 to target Base mainnet.
+      </span>
+    </div>
+  );
+}
+
 function EmptyState() {
+  // Testnet disclosure for the empty state — same logic as the
+  // populated page, but we don't have a vault.chainId yet, so we
+  // fall back to VAULT_CHAIN_ID env (which drives the default for
+  // new vaults).
+  const envChainId = process.env.VAULT_CHAIN_ID
+    ? parseInt(process.env.VAULT_CHAIN_ID, 10)
+    : null;
   return (
     <div>
       <PageHead
@@ -154,6 +234,9 @@ function EmptyState() {
           </>
         }
       />
+      {envChainId !== null && envChainId !== 8453 && (
+        <TestnetBanner chainId={envChainId} />
+      )}
       <RiskDisclosure acknowledged={false} />
       <section
         data-testid="vault-empty-state"

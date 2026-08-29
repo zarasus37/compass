@@ -64,16 +64,7 @@ const TEST_LLM_ENDPOINT = `${BASE}/api/dev-agent/test-llm-call`;
 // so the dev server and the test see the same file.
 import { createRequire } from "node:module";
 import path from "node:path";
-const _require = createRequire(import.meta.url);
-const _generated = _require(path.join(process.cwd(), "src/generated/prisma/client"));
-const { PrismaClient } = _generated;
-const { PrismaBetterSqlite3 } = _require(
-  path.join(process.cwd(), "node_modules/@prisma/adapter-better-sqlite3"),
-);
-const _adapter = new PrismaBetterSqlite3({
-  url: path.join(process.cwd(), "dev.db"),
-});
-const prisma = new PrismaClient({ adapter: _adapter });
+import { prisma } from "./db-client.mjs";
 
 const log = (k, v) => console.log(`[${k}] ${v}`);
 

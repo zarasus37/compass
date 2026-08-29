@@ -20,17 +20,7 @@
 import { createRequire } from "node:module";
 import { join } from "node:path";
 
-const require = createRequire(import.meta.url);
-const { PrismaClient } = require(
-  join(process.cwd(), "src/generated/prisma/client"),
-);
-const { PrismaBetterSqlite3 } = require(
-  join(process.cwd(), "node_modules/@prisma/adapter-better-sqlite3"),
-);
-const adapter = new PrismaBetterSqlite3({
-  url: join(process.cwd(), "dev.db"),
-});
-const prisma = new PrismaClient({ adapter });
+import { prisma } from "./db-client.mjs";
 
 const BASE = "http://127.0.0.1:3000";
 

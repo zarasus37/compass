@@ -50,13 +50,21 @@ export async function ensureUserEnvelopesSeeded(userId: string): Promise<void> {
   const count = await prisma.envelope.count({ where: { userId } });
   if (count > 0) return;
   await prisma.envelope.createMany({
-    data: ENVELOPES_SEED.map((e) => ({
+    data: ENVELOPES_SEED.map((e, index) => ({
       id: e.id,
       userId,
       name: e.name,
       planet: e.planet,
       currentBalance: e.currentCents,
       targetBalance: e.targetCents,
+      // Cluster: Production deploy prep (2026-08-28). Postgres returns
+      // rows with identical `sortOrder` in non-deterministic order, so
+      // we must set `sortOrder` explicitly to the array index. Without
+      // this, every page that orders by `sortOrder` (envelopes list,
+      // rebalance form, advisor reads) sees the vessels in a different
+      // order on every call. SQLite's btree storage happened to be
+      // stable for the same data; Postgres isn't.
+      sortOrder: index,
       source: "seed",
     })),
   });
@@ -75,13 +83,14 @@ export async function resetUserEnvelopesToSeed(userId: string): Promise<void> {
     await tx.auditLog.deleteMany({ where: { userId } });
     await tx.envelope.deleteMany({ where: { userId } });
     await tx.envelope.createMany({
-      data: ENVELOPES_SEED.map((e) => ({
+      data: ENVELOPES_SEED.map((e, index) => ({
         id: e.id,
         userId,
         name: e.name,
         planet: e.planet,
         currentBalance: e.currentCents,
         targetBalance: e.targetCents,
+        sortOrder: index,
         source: "seed",
       })),
     });

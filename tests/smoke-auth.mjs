@@ -13,25 +13,7 @@ import { writeFileSync, readFileSync, existsSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { createRequire } from "node:module";
 
-// Use the project's Prisma client directly to reset state.
-// The generated client is at src/generated/prisma (its package.json
-// exports "./client" → "./index.js"). We require it as a package
-// so the exports field resolves correctly. Path matches the app's
-// own dbFilePath() (prisma/dev.db relative to project root) so
-// tests and the dev server see the same file.
-const require = createRequire(import.meta.url);
-const generated = require(
-  join(process.cwd(), "src/generated/prisma/client"),
-);
-const { PrismaClient } = generated;
-const { PrismaBetterSqlite3 } = require(
-  join(process.cwd(), "node_modules/@prisma/adapter-better-sqlite3"),
-);
-const path = require("node:path");
-const adapter = new PrismaBetterSqlite3({
-  url: path.join(process.cwd(), "dev.db"),
-});
-const prisma = new PrismaClient({ adapter });
+import { prisma } from "./db-client.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 const COOKIE_JAR = join(process.cwd(), "tests", ".cookies.json");
