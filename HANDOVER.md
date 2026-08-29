@@ -1,16 +1,16 @@
 # Compass — Fresh-Session Handoff
 
-**Date**: 2026-08-29 01:20 CDT
-**Last commit**: `e23503c` — *Cluster: Wire smoke:all to include smoke:deploy + seed-accounts.ts bugfix (2026-08-29).*
-**Predecessor commit**: `2080e1b` (Production deploy prep) → `a14f19c` (tech debt cleanup) → `509505c` (Vault 4.0 M4 off-ramp gateway)
+**Date**: 2026-08-29 02:55 CDT
+**Last commit**: `62b8528` — *Cluster 6.0 — Vault scheduler (auto bill-pay) (2026-08-29).*
+**Predecessor commit**: `e23503c` (smoke:all wiring + seed-accounts.ts bugfix) → `2080e1b` (Production deploy prep) → `a14f19c` (tech debt cleanup) → `509505c` (Vault 4.0 M4 off-ramp gateway)
 
 ---
 
 ## TL;DR
 
-Compass is at a clean natural breakpoint. The last cluster (Production deploy prep) shipped Postgres-everywhere + security headers + CI + a 68-check deploy smoke; the follow-on commit (`e23503c`) wired `pnpm smoke:all` to actually run that deploy smoke, and fixed a latent `seed-accounts.ts` bug it surfaced. **All 25 smokes green via `pnpm smoke:all`**, `tsc` clean, dev server live.
+Compass is at a clean natural breakpoint. The last cluster (Vault scheduler) shipped auto bill-pay end-to-end: per-user cron, look-ahead + reserve gate, the same `executePayment` flow as a manual click, a dev process (`pnpm cron:dev`) + a Vercel cron route (`POST /api/cron/vault`), the `/vault/schedule` page, and a `SchedulerIndicator` on `/vault`. **All 26 smokes green via `pnpm smoke:all`** (10 data-layer + 13 UI + 1 integration + 1 deploy + 1 vault-scheduler = 26; ~1,250 checks), `tsc` clean, dev server live.
 
-If you're a fresh session picking this up: read the spec, read `COORDINATION.md` end-to-end, then go. Nothing about the deploy prep is half-done.
+If you're a fresh session picking this up: read the spec, read `COORDINATION.md` end-to-end, then go. Nothing about the scheduler is half-done.
 
 ---
 
@@ -18,7 +18,7 @@ If you're a fresh session picking this up: read the spec, read `COORDINATION.md`
 
 ```powershell
 # 1. Commit
-git log -1 --oneline    # should be e23503c
+git log -1 --oneline    # should be 62b8528
 
 # 2. Dev server (Next.js, port 3000)
 netstat -ano | Select-String ":3000.*LISTENING"
@@ -29,6 +29,9 @@ docker ps --filter "name=compass_dev_pg"
 # 4. Health endpoint
 curl http://127.0.0.1:3000/api/health | ConvertFrom-Json
 #   expect: status=ok, env=development, db.migrationStatus=pushed, db.ok=true
+
+# 5. (Optional) Dev scheduler (Cluster 6.0)
+#    pnpm cron:dev   # 30s poll; one log line per fire
 ```
 
 If any of those are down, see "Recovery" at the bottom of this file.
@@ -89,7 +92,7 @@ If any of those are down, see "Recovery" at the bottom of this file.
 
 ## Smoke status (the green baseline)
 
-All 25 smokes must be green before any new cluster ships. Run them via `pnpm`:
+All 26 smokes must be green before any new cluster ships. Run them via `pnpm`:
 
 ```bash
 pnpm smoke              # data-layer smokes (10 incl. auth)
@@ -100,18 +103,28 @@ pnpm smoke:all          # all of the above (single command, since commit e23503c
 pnpm tsc                # type check
 ```
 
-Baseline numbers (verified 2026-08-29 01:18 CDT on commit `e23503c`):
+Baseline numbers (verified 2026-08-29 02:50 CDT on commit `62b8528`):
 - 10 data-layer smokes: auth, accounts-db 33, allocation-db 53, bills-db 36, envelopes-db 29, goals-db 28, insights-db 23, vault 77, onboarding-agent 108, advisor 78
 - 13 UI smokes: each 5–102 checks (top is topbar at 102)
 - integration-vault: **163** checks
-- smoke-deploy: **72** checks (was 68 at cluster ship; the env-files + db-helper-wiring block grew a few checks)
+- smoke-deploy: **72** checks
+- smoke-vault-scheduler (Cluster 6.0): **55** checks
 - tsc: clean
 
-Total: **~1,150 checks** across 25 suites. CI runs them in ~3-5 min on a Linux runner with a Postgres service container.
+Total: **~1,250 checks** across 26 suites. CI runs them in ~3-5 min on a Linux runner with a Postgres service container.
 
-### Recent change worth knowing about (commit `e23503c`)
+### Dev scheduler (Cluster 6.0)
 
-`pnpm smoke:all` was missing `smoke:deploy` in its chain, so the COORDINATION "All 25 smokes green" headline required running it as a separate step. That's now wired in. While verifying the patched chain, `smoke-accounts-db` exposed a latent bug in `src/lib/seed-accounts.ts`: the seeder matched rows by `source: "seed"` instead of by the canonical `ACCOUNT_SEED.id`. Onboarding-projection rows share that source, so the seeder's `findFirst` could return a projection row, see its name didn't match `ACCOUNT_SEED.name`, and `deleteMany` wipe **all** `source: "seed"` rows — including the projection rows the test had just inserted. The fix matches by id (only touches the canonical account). The previous "green" was likely a false positive when the dev server's in-memory state happened to have the canonical row at the right name. Don't remove the `id`-based filter on future re-seed work.
+A long-running Node process polls `POST /api/cron/vault` every 30s and logs one line per fire. Start it with `pnpm cron:dev`. It auto-skips when no schedules are due, and gracefully summarizes on SIGINT. In production, the same `/api/cron/vault` endpoint is hit by Vercel cron (or any external scheduler); set `CRON_SECRET` to require bearer auth on the route.
+
+### Recent change worth knowing about (commit `62b8528`)
+
+Added the auto bill-pay scheduler. The off-ramp gateway from Cluster Vault 4.0 M4 now runs on a per-user cron. Key gotchas:
+
+- **`/api/reset-seed` does not create the `VaultAccount` row** — it's lazily created on first `/vault` visit via `getOrCreateVault`. Tests that exercise the cap check (`minReserveCents > 2× reserve`) must ensure a vault exists; otherwise the cap check sees `vault=null` and silently passes.
+- **The engine writes one `vault.scheduler_run` summary audit row per run** (status + billsAffected + error). The run history table reads these. Per-bill entries (skipped/error) are separate rows in the same actionType with a `billId` in the payload.
+- **`executionIdempotencyKey` was previously a local function in `server.ts`**; it's now exported and used by both the server action (`executeBillPaymentAction`) and the scheduler. The minute-precision key rotates fast enough that a real retry later in the day gets a fresh `PaymentAttempt` row.
+- **`toScheduledBillLocal` and `toVaultAccountLocal` in `server.ts` are now exported** — the scheduler uses them to map Prisma rows to the gateway's branded types. Single source of truth.
 
 ---
 
