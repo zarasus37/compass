@@ -1800,7 +1800,7 @@ export async function refreshAUsdcBalanceAction(): Promise<
  * dedupe, but rotates often enough that a real retry later in
  * the day gets a fresh PaymentAttempt row.
  */
-function executionIdempotencyKey(billId: string, now: Date = new Date()): string {
+export function executionIdempotencyKey(billId: string, now: Date = new Date()): string {
   const minute = Math.floor(now.getTime() / 60_000);
   return `bill:${billId}:exec:${minute}`;
 }
@@ -2083,7 +2083,7 @@ export async function confirmManualPaymentAction(
  * (camelCase vs snake_case, Date → ISO string, etc.), so we map
  * inline rather than depending on `db.ts`'s internal helpers.
  */
-function toScheduledBillLocal(row: any): ScheduledBill {
+export function toScheduledBillLocal(row: any): ScheduledBill {
   return {
     id: row.id,
     vaultId: row.vaultId,
@@ -2123,7 +2123,7 @@ function toScheduledBillLocal(row: any): ScheduledBill {
   };
 }
 
-function toVaultAccountLocal(row: any): VaultAccount {
+export function toVaultAccountLocal(row: any): VaultAccount {
   return {
     id: row.id,
     userId: row.userId,

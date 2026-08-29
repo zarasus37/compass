@@ -24,6 +24,7 @@ import { FundSafeButton } from "@/components/vault/FundSafeButton";
 import { RefreshBalanceButton } from "@/components/vault/RefreshBalanceButton";
 import { DepositButton } from "@/components/vault/DepositButton";
 import { WithdrawButton } from "@/components/vault/WithdrawButton";
+import { SchedulerIndicator } from "@/components/vault/SchedulerIndicator";
 import { isMockSafeAddress } from "@/lib/vault/safe-deploy";
 
 export const dynamic = "force-dynamic";
@@ -116,6 +117,8 @@ export default async function VaultPage() {
       />
 
       <StatusStrip snap={snap} />
+
+      <SchedulerIndicator />
 
       <BillScheduleClient
         bills={snap.bills}
