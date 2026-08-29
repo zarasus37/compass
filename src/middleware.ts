@@ -8,7 +8,9 @@
  *
  * Public routes: /login, /welcome, /api/health, /api/dev-agent,
  * /api/dev (dev-only test endpoints, themselves gated by
- * NODE_ENV=development at the route handler).
+ * NODE_ENV=development at the route handler), /api/vault/chain-config
+ * (read-only chain-config introspection, no secrets — see the
+ * endpoint's own doc for what's exposed and why).
  * Everything else: requires a cookie. If missing → redirect to /login.
  *
  * Note: we deliberately do NOT redirect from /login to / based on
@@ -22,7 +24,22 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const SESSION_COOKIE = "compass_session";
 
-const PUBLIC_PREFIXES = ["/login", "/welcome", "/api/health", "/api/dev-agent", "/api/dev", "/_next", "/favicon"];
+const PUBLIC_PREFIXES = [
+  "/login",
+  "/welcome",
+  "/api/health",
+  "/api/dev-agent",
+  "/api/dev",
+  // Cluster 6.0.1 — mainnet. Read-only chain-config endpoint.
+  // Returns canonical chainId + addresses + explorerUrl; no
+  // signer key, no RPC with API key, no DB info. Public on
+  // purpose so the smoke + ops dashboards can hit it without
+  // signing in. If we ever add secrets to this response, take
+  // it OUT of the public list immediately.
+  "/api/vault/chain-config",
+  "/_next",
+  "/favicon",
+];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some(

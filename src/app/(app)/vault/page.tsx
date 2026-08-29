@@ -623,6 +623,12 @@ function StatusStrip({
 }) {
   const { kpis, vault } = snap;
   const deployed = !isMockSafeAddress(vault.smartAccountAddress);
+  // Cluster 6.0.1 — mainnet. When the active chain is Base mainnet
+  // (chainId 8453), surface a "MAINNET" badge on the principal
+  // cell so the user has an explicit "this is real USDC" signal
+  // in the chrome. Color = gold (warning-adjacent) because real
+  // money deserves a different visual weight than testnet.
+  const isMainnet = vault.chainId === 8453;
   return (
     <div
       data-testid="vault-status-strip"
@@ -648,7 +654,12 @@ function StatusStrip({
             : `across ${snap.envelopes.length} envelopes`
         }
         tone="cyan"
-        badge={deployed ? "LIVE" : null}
+        // MAINNET (gold) takes priority over LIVE (green) when both
+        // apply so the mainnet signal is the louder one — real USDC
+        // is the more important fact than "on-chain." When on
+        // testnet the existing LIVE chip stays.
+        badge={isMainnet ? "MAINNET" : deployed ? "LIVE" : null}
+        badgeTone={isMainnet ? "gold" : "ok"}
       />
       <KpiCell
         label="reserved for bills"
@@ -696,6 +707,7 @@ function KpiCell({
   tone,
   isLast,
   badge,
+  badgeTone = "ok",
 }: {
   label: string;
   value: string;
@@ -703,8 +715,12 @@ function KpiCell({
   tone: "ok" | "warn" | "cyan" | "ink";
   isLast?: boolean;
   /** Optional small chip rendered after the value (e.g. "LIVE" for
-   *  the on-chain vault principal). Terminal voice, mono caps. */
+   *  the on-chain vault principal, "MAINNET" for chain 8453).
+   *  Terminal voice, mono caps. */
   badge?: string | null;
+  /** Badge color: `ok` (green, default — testnet/LIVE) or `gold`
+   *  (warning-adjacent — mainnet, where real USDC lives). */
+  badgeTone?: "ok" | "gold";
 }) {
   const color =
     tone === "ok"
@@ -714,6 +730,7 @@ function KpiCell({
         : tone === "cyan"
           ? "var(--terminal-cyan)"
           : "var(--ink)";
+  const badgeColor = badgeTone === "gold" ? "var(--gold)" : "var(--ok)";
   return (
     <div
       style={{
@@ -742,11 +759,12 @@ function KpiCell({
         {badge && (
           <span
             data-testid="kpi-cell-badge"
+            data-badge-tone={badgeTone}
             style={{
               fontSize: 9,
               fontWeight: 700,
-              color: "var(--ok)",
-              border: "1px solid var(--ok)",
+              color: badgeColor,
+              border: `1px solid ${badgeColor}`,
               padding: "2px 6px",
               borderRadius: 2,
               letterSpacing: "0.18em",

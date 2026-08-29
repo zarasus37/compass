@@ -2,6 +2,7 @@
  * Smoke for production deploy readiness.
  *
  * Cluster: Production deploy prep (2026-08-28).
+ * Cluster 6.0.1 — mainnet: added §13 (chain-config wiring).
  *
  * Walks the project surface and verifies every artifact needed
  * for a clean prod deploy is present and correctly wired:
@@ -17,6 +18,11 @@
  *   - Vault page contains the TestnetBanner marker
  *   - The smoke suite is wired (the shared `tests/db-client.mjs` imports
  *     the Postgres adapter, not the SQLite one)
+ *   - (Cluster 6.0.1) safe-deploy.ts has a chain table that
+ *     covers BOTH Base Sepolia (84532) and Base mainnet (8453)
+ *     with the canonical Aave + Safe addresses; getChainConfig()
+ *     no longer throws on chainId 8453; prod.ts refuses testnet
+ *     chainId in production
  *
  * Run with: pnpm smoke:deploy
  */
@@ -141,6 +147,11 @@ check(
   // DATABASE_URL rule (so we don't false-positive on comments).
   !!prod &&
     /DATABASE_URL[\s\S]{0,400}compass:compass@/i.test(prod),
+);
+check(
+  // Cluster 6.0.1 — mainnet.
+  "prod.ts refuses VAULT_CHAIN_ID=84532 (testnet) in production",
+  !!prod && /VAULT_CHAIN_ID[\s\S]{0,400}84532/i.test(prod),
 );
 
 // ── 6. /api/health shape ─────────────────────────────────────────
@@ -291,6 +302,154 @@ try {
   }
 } catch (e) {
   console.log(`[SKIP] GET /api/health not reachable: ${e.message}`);
+}
+
+// ── 13. Cluster 6.0.1 — Vault mainnet wiring ─────────────────────
+//
+// Verifies the chain table in safe-deploy.ts + aave.ts has Base
+// Sepolia (84532) AND Base mainnet (8453) with the canonical
+// Aave + Safe + USDC addresses. Also checks the new
+// /api/vault/chain-config endpoint exists and the
+// .env.production.example documents the mainnet env block.
+const safeDeploy = read("src/lib/vault/safe-deploy.ts");
+check(
+  "safe-deploy.ts has a CHAIN_TABLE (cluster 6.0.1)",
+  !!safeDeploy && /CHAIN_TABLE/.test(safeDeploy),
+);
+check(
+  "safe-deploy.ts CHAIN_TABLE includes Base Sepolia (84532)",
+  !!safeDeploy && /\[baseSepolia\.id\]\s*:/.test(safeDeploy),
+);
+check(
+  "safe-deploy.ts CHAIN_TABLE includes Base mainnet (8453)",
+  !!safeDeploy && /\[base\.id\]\s*:/.test(safeDeploy),
+);
+check(
+  // The canonical v1.3.0 Safe singleton on Base mainnet. Source:
+  // safe-global/safe-deployments per-chain v1.3.0 file.
+  "safe-deploy.ts has the Base mainnet Safe singleton (0x69f4D1788e39c87893C980c06EdF4b7f686e2938)",
+  !!safeDeploy &&
+    /0x69f4D1788e39c87893C980c06EdF4b7f686e2938/i.test(safeDeploy),
+);
+check(
+  // Circle USDC on Base mainnet.
+  "safe-deploy.ts has the Base mainnet Circle USDC (0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913)",
+  !!safeDeploy &&
+    /0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913/i.test(safeDeploy),
+);
+check(
+  "safe-deploy.ts getChainConfig() no longer hard-requires 84532",
+  // The old check was `if (chainId !== baseSepolia.id) throw ...`;
+  // the new code looks up the chain in CHAIN_TABLE.
+  !!safeDeploy && !/chainId\s*!==\s*baseSepolia\.id/.test(safeDeploy),
+);
+check(
+  "ChainConfig has the new explorerUrl field",
+  !!safeDeploy && /explorerUrl\s*:/.test(safeDeploy),
+);
+
+const aave = read("src/lib/vault/aave.ts");
+check(
+  "aave.ts has an AAVE_CHAIN_TABLE (cluster 6.0.1)",
+  !!aave && /AAVE_CHAIN_TABLE/.test(aave),
+);
+check(
+  // Aave V3 Pool on Base mainnet. Source: bgd-labs/aave-address-book.
+  "aave.ts has the Base mainnet Aave V3 Pool (0xa238dd80c259a72e81d7e4664a9801593f98d1c5)",
+  !!aave && /0xa238dd80c259a72e81d7e4664a9801593f98d1c5/i.test(aave),
+);
+
+const chainConfigRoute = read("src/app/api/vault/chain-config/route.ts");
+check(
+  "/api/vault/chain-config route exists (cluster 6.0.1)",
+  !!chainConfigRoute,
+);
+check(
+  "/api/vault/chain-config returns chainId + addresses + explorerUrl",
+  !!chainConfigRoute &&
+    /chainId/.test(chainConfigRoute) &&
+    /addresses/.test(chainConfigRoute) &&
+    /explorerUrl/.test(chainConfigRoute),
+);
+const middleware = read("src/middleware.ts");
+check(
+  // The endpoint is public on purpose (no secrets in the response);
+  // the middleware must let unauthenticated traffic through or the
+  // smoke can't hit it. If we ever add secrets to the response,
+  // remove this public-list entry.
+  "middleware.ts whitelists /api/vault/chain-config as public",
+  !!middleware && /\/api\/vault\/chain-config/.test(middleware),
+);
+
+// (vaultPage was already read in §9 above; reuse it for the
+//  Cluster 6.0.1 MAINNET-chip check below.)
+check(
+  // Cluster 6.0.1: a gold "MAINNET" chip on the principal KPI cell
+  // when the active chain is 8453.
+  "vault StatusStrip surfaces a MAINNET chip on chainId 8453",
+  !!vaultPage && /MAINNET/.test(vaultPage) && /chainId\s*===\s*8453/.test(vaultPage),
+);
+
+check(
+  ".env.production.example documents the Base mainnet block (VAULT_CHAIN_ID=8453)",
+  !!envProd && /VAULT_CHAIN_ID\s*=\s*"8453"/.test(envProd),
+);
+check(
+  ".env.production.example documents the mainnet Aave Pool address",
+  !!envProd && /0xa238dd80c259a72e81d7e4664a9801593f98d1c5/i.test(envProd),
+);
+check(
+  ".env.production.example documents the mainnet Safe singleton",
+  !!envProd && /0x69f4D1788e39c87893C980c06EdF4b7f686e2938/i.test(envProd),
+);
+
+// ── 14. Live /api/vault/chain-config check (if dev server is up) ─
+try {
+  const r = await fetch("http://127.0.0.1:3000/api/vault/chain-config", {
+    signal: AbortSignal.timeout(5000),
+  });
+  if (r.status === 200) {
+    const body = await r.json();
+    check(
+      "GET /api/vault/chain-config returns chainId",
+      typeof body.chainId === "number",
+      `chainId=${body.chainId}`,
+    );
+    check(
+      "GET /api/vault/chain-config returns chainName",
+      typeof body.chainName === "string" && body.chainName.length > 0,
+      `chainName=${body.chainName}`,
+    );
+    check(
+      "GET /api/vault/chain-config returns addresses.safeSingleton",
+      typeof body.addresses?.safeSingleton === "string" &&
+        /^0x[0-9a-fA-F]{40}$/.test(body.addresses.safeSingleton),
+      `safeSingleton=${body.addresses?.safeSingleton}`,
+    );
+    check(
+      "GET /api/vault/chain-config returns addresses.usdc",
+      typeof body.addresses?.usdc === "string" &&
+        /^0x[0-9a-fA-F]{40}$/.test(body.addresses.usdc),
+      `usdc=${body.addresses?.usdc}`,
+    );
+    check(
+      "GET /api/vault/chain-config returns addresses.aavePool",
+      typeof body.addresses?.aavePool === "string" &&
+        /^0x[0-9a-fA-F]{40}$/.test(body.addresses.aavePool),
+      `aavePool=${body.addresses?.aavePool}`,
+    );
+    check(
+      "GET /api/vault/chain-config returns explorerUrl",
+      typeof body.explorerUrl === "string" && body.explorerUrl.startsWith("https://"),
+      `explorerUrl=${body.explorerUrl}`,
+    );
+  } else {
+    console.log(
+      `[SKIP] GET /api/vault/chain-config returned ${r.status} (dev server may be down)`,
+    );
+  }
+} catch (e) {
+  console.log(`[SKIP] GET /api/vault/chain-config not reachable: ${e.message}`);
 }
 
 console.log();

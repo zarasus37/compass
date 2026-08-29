@@ -1,14 +1,19 @@
 /**
- * Compass Vault — Safe deploy (Cluster Vault 4.0, M1).
+ * Compass Vault — Safe deploy (Cluster Vault 4.0, M1; Cluster 6.0.1 — mainnet).
  *
  * Wraps viem + @safe-global/protocol-kit v8 behind a small,
  * server-only surface. The page calls this via `deploySafeAction`;
  * the [DEPLOY] button is the only user-facing entry point.
  *
- * Chain: Base Sepolia (chainId 84532) by default. The RPC URL
- * + the Safe singleton address are env-configurable so the
- * same code path can target other testnets (or mainnet)
- * without touching the lib.
+ * Chain: resolves from a small `CHAIN_TABLE` indexed by chainId.
+ * Base Sepolia (84532) is the testnet default; Base mainnet (8453)
+ * is the production target (Cluster 6.0.1). The RPC URL, Safe
+ * singleton address, and Circle USDC address are env-overridable
+ * per chain — the table holds the canonical defaults, env wins.
+ *
+ * Adding a new chain: drop an entry in `CHAIN_TABLE` (chain +
+ * Safe singleton + Circle USDC + explorer URL + RPC default).
+ * Nothing else in the lib needs to know which chain is active.
  *
  * Protocol Kit v8 API surface (different from v6):
  *   - `SafeProvider` is a constructor (not a static .init).
@@ -70,7 +75,7 @@ import {
   type WalletClient,
 } from "viem";
 import { privateKeyToAccount, type Account } from "viem/accounts";
-import { baseSepolia, type Chain } from "viem/chains";
+import { base, baseSepolia, type Chain } from "viem/chains";
 import { prisma } from "@/server/db";
 
 /** The literal placeholder address used by the Phase 1/2
@@ -79,15 +84,63 @@ import { prisma } from "@/server/db";
 export const MOCK_SAFE_ADDRESS =
   "0xMOCK0000000000000000000000000000000000DEAD";
 
-/** Safe singleton address on Base Sepolia (v1.3.0). */
-const DEFAULT_SAFE_SINGLETON_BASE_SEPOLIA =
-  "0xfb1bffC9d739B8D520DaF37dF6669fE5932EF9Aa" as const;
+/** Per-chain canonical config (Cluster 6.0.1 — mainnet).
+ *
+ *  Each entry is the *defaults* — env vars override at lookup
+ *  time. The table is the source of truth for "which chains
+ *  are wired" and the order/format is mirrored in
+ *  `getAaveChainConfig()` in `aave.ts` so the two stay in sync.
+ *
+ *  Addresses are cross-referenced against:
+ *    - Safe v1.3.0 singleton: safe-deployments (safe-global/
+ *      safe-deployments) per-chain file + basescan
+ *    - USDC: Circle's official per-chain USDC contract address
+ *      (USDC.e is a different token; we deliberately use native
+ *      USDC for Aave's main market)
+ *
+ *  `explorerUrl` is the per-chain block explorer (no API key
+ *  needed for the read-only Safe-deployed chip on /vault). */
+const CHAIN_TABLE: Record<
+  number,
+  {
+    chain: Chain;
+    rpcUrlDefault: string;
+    safeSingletonAddress: Address;
+    usdcAddress: Address;
+    explorerUrl: string;
+  }
+> = {
+  [baseSepolia.id]: {
+    chain: baseSepolia,
+    rpcUrlDefault: "https://sepolia.base.org",
+    // Safe singleton v1.3.0 (canonical for Base Sepolia).
+    safeSingletonAddress: "0xfb1bffC9d739B8D520DaF37dF6669fE5932EF9Aa",
+    // Circle testnet USDC (faucet, 6 decimals).
+    usdcAddress: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    explorerUrl: "https://sepolia.basescan.org",
+  },
+  [base.id]: {
+    chain: base,
+    rpcUrlDefault: "https://mainnet.base.org",
+    // Safe singleton v1.3.0 (canonical for Base mainnet, from
+    // safe-deployments/src/assets/v1.3.0/safe_singleton_addresses.json).
+    safeSingletonAddress: "0x69f4D1788e39c87893C980c06EdF4b7f686e2938",
+    // Circle USDC on Base mainnet (NOT USDC.e — Aave V3's USDC
+    // market on Base uses this asset, not the bridged variant).
+    usdcAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    explorerUrl: "https://basescan.org",
+  },
+};
 
-/** USDC contract on Base Sepolia (Circle's official
- *  testnet USDC, 6 decimals). Defined here so M2 doesn't
- *  redeploy. */
-const DEFAULT_USDC_BASE_SEPOLIA =
-  "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as const;
+/** Resolve the chain id from env, defaulting to testnet. */
+function resolveChainId(): number {
+  const raw = process.env.VAULT_CHAIN_ID || "84532";
+  const chainId = parseInt(raw, 10);
+  if (!Number.isFinite(chainId)) {
+    throw new Error(`VAULT_CHAIN_ID is not a number: ${raw}`);
+  }
+  return chainId;
+}
 
 /** The Safe version we deploy against. v1.3.0 is the
  *  canonical default for Base Sepolia (matches the env
@@ -112,42 +165,54 @@ export type ChainConfig = {
   chainId: number;
   safeSingletonAddress: Address;
   usdcAddress: Address;
+  /** Block explorer base URL (no API key). Used by the
+   *  Safe-deployed chip on /vault to link to the Safe's address
+   *  page. */
+  explorerUrl: string;
 };
 
-/** Read the chain config from env. Throws on missing or
- *  invalid values. */
+/** Read the chain config from env. Throws on:
+ *  - missing/invalid `VAULT_CHAIN_ID`
+ *  - chainId not in `CHAIN_TABLE` (only Base Sepolia + Base
+ *    mainnet are wired)
+ *  - malformed `VAULT_SAFE_SINGLETON_ADDRESS` /
+ *    `VAULT_USDC_ADDRESS` overrides
+ *
+ *  Env vars (optional) override the per-chain table defaults:
+ *    - `VAULT_CHAIN_RPC_URL`         (e.g. Alchemy/Infura endpoint)
+ *    - `VAULT_SAFE_SINGLETON_ADDRESS` (the Safe singleton to deploy against)
+ *    - `VAULT_USDC_ADDRESS`           (the Circle USDC contract)
+ */
 export function getChainConfig(): ChainConfig {
-  const rpcUrl =
-    process.env.VAULT_CHAIN_RPC_URL || "https://sepolia.base.org";
-  const rawChainId = process.env.VAULT_CHAIN_ID || "84532";
-  const chainId = parseInt(rawChainId, 10);
-  if (!Number.isFinite(chainId)) {
-    throw new Error(`VAULT_CHAIN_ID is not a number: ${rawChainId}`);
-  }
-  if (chainId !== baseSepolia.id) {
+  const chainId = resolveChainId();
+  const entry = CHAIN_TABLE[chainId];
+  if (!entry) {
+    const supported = Object.keys(CHAIN_TABLE).join(", ");
     throw new Error(
-      `unsupported chainId ${chainId}; only Base Sepolia (${baseSepolia.id}) is wired`,
+      `unsupported chainId ${chainId}; wired chains: [${supported}]. ` +
+        `Add an entry to CHAIN_TABLE in src/lib/vault/safe-deploy.ts to enable.`,
     );
   }
+  const rpcUrl = process.env.VAULT_CHAIN_RPC_URL || entry.rpcUrlDefault;
   const safeSingletonAddress = getAddress(
-    process.env.VAULT_SAFE_SINGLETON_ADDRESS ||
-      DEFAULT_SAFE_SINGLETON_BASE_SEPOLIA,
+    process.env.VAULT_SAFE_SINGLETON_ADDRESS || entry.safeSingletonAddress,
   );
   if (!isAddress(safeSingletonAddress)) {
     throw new Error("VAULT_SAFE_SINGLETON_ADDRESS is not a valid address");
   }
   const usdcAddress = getAddress(
-    process.env.VAULT_USDC_ADDRESS || DEFAULT_USDC_BASE_SEPOLIA,
+    process.env.VAULT_USDC_ADDRESS || entry.usdcAddress,
   );
   if (!isAddress(usdcAddress)) {
     throw new Error("VAULT_USDC_ADDRESS is not a valid address");
   }
   return {
-    chain: baseSepolia,
+    chain: entry.chain,
     rpcUrl,
     chainId,
     safeSingletonAddress,
     usdcAddress,
+    explorerUrl: entry.explorerUrl,
   };
 }
 

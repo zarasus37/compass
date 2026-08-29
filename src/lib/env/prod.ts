@@ -56,7 +56,7 @@ const REQUIRED: Array<{ key: string; placeholder: RegExp | null; reason: string 
   {
     key: "VAULT_CHAIN_ID",
     placeholder: null,
-    reason: "VAULT_CHAIN_ID is required (e.g. 84532 for Base Sepolia testnet).",
+    reason: "VAULT_CHAIN_ID is required (e.g. 8453 for Base mainnet, 84532 for Base Sepolia testnet).",
   },
 ];
 
@@ -67,6 +67,23 @@ const FORBIDDEN_PROVIDERS: Array<{ key: string; value: string; reason: string }>
     reason:
       "LLM_PROVIDER must NOT be 'mock' in production — it would let any code path " +
       "calling getLlmProvider() return the deterministic stub.",
+  },
+];
+
+/** Cluster 6.0.1 — production must target Base mainnet (8453), not
+ *  Base Sepolia (84532). The chain table in safe-deploy.ts has
+ *  both wired, but the prod validator refuses to start with a
+ *  testnet chainId. The check is a no-op in dev/test (where the
+ *  testnet is the right target). */
+const FORBIDDEN_IN_PROD: Array<{ key: string; test: (v: string) => boolean; reason: string }> = [
+  {
+    key: "VAULT_CHAIN_ID",
+    test: (v) => v.trim() === "84532",
+    reason:
+      "VAULT_CHAIN_ID=84532 (Base Sepolia testnet) is forbidden in production. " +
+      "Set VAULT_CHAIN_ID=8453 for Base mainnet. " +
+      "Real USDC on a testnet is a misconfiguration; the deploy will succeed " +
+      "but every bill / deposit is valueless.",
   },
 ];
 
@@ -102,6 +119,17 @@ export function validateProdEnv(): { ok: true } | { ok: false; issues: ProdEnvIs
   // 3. Forbidden provider values.
   for (const { key, value, reason } of FORBIDDEN_PROVIDERS) {
     if ((process.env[key] ?? "").toLowerCase() === value.toLowerCase()) {
+      issues.push({ key, message: reason });
+    }
+  }
+
+  // 4. Forbidden *values* in production (Cluster 6.0.1) — e.g.
+  // testnet chainId sneaking into a prod deploy. These checks run
+  // AFTER the REQUIRED check above (so `VAULT_CHAIN_ID` is known
+  // to be present) and BEFORE we report `ok: true`.
+  for (const { key, test, reason } of FORBIDDEN_IN_PROD) {
+    const v = process.env[key];
+    if (v && test(v)) {
       issues.push({ key, message: reason });
     }
   }

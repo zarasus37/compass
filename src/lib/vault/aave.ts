@@ -1,9 +1,10 @@
 /**
- * Compass Vault — Aave V3 on Base Sepolia (Cluster Vault 4.0, M3).
+ * Compass Vault — Aave V3 on Base Sepolia / Base mainnet
+ * (Cluster Vault 4.0, M3; Cluster 6.0.1 — mainnet).
  *
  * The yield strategy. The Safe deposits USDC into Aave V3's USDC
- * reserve on Base Sepolia and receives interest-bearing aUSDC. The
- * M3 surface is:
+ * reserve on the active chain and receives interest-bearing aUSDC.
+ * The M3 surface is:
  *
  *   1. `getReserveApy()` — read the on-chain currentLiquidityRate
  *      from the Aave V3 Pool's `getReserveData(asset)` and convert
@@ -69,13 +70,14 @@ import "server-only";
 import {
   encodeFunctionData,
   getAddress,
+  isAddress,
   type Address,
   type Hex,
   type PublicClient,
   type WalletClient,
 } from "viem";
 import { privateKeyToAccount, type Account } from "viem/accounts";
-import { baseSepolia } from "viem/chains";
+import { base, baseSepolia } from "viem/chains";
 import Safe, { SafeProvider } from "@safe-global/protocol-kit";
 import { prisma } from "@/server/db";
 import {
@@ -98,17 +100,47 @@ import {
 // Aave V3 chain config
 // ──────────────────────────────────────────────────────────────────────
 
-/** Aave V3 Pool on Base Sepolia (chain 84532). Confirmed via
- *  Coinbase's CDP docs and the bgd-labs/aave-address-book. */
-const DEFAULT_AAVE_POOL_BASE_SEPOLIA =
-  "0x8bAB6d1b75f19e9eD9fCe8b9BD338844fF79aE27" as const;
-
-/** Aave's faucet USDC on Base Sepolia. Distinct from Circle's
- *  USDC at VAULT_USDC_ADDRESS; the Aave Pool only accepts this
- *  asset. Minted via https://app.aave.com/faucet/ (select
- *  Base Sepolia). */
-const DEFAULT_AAVE_USDC_BASE_SEPOLIA =
-  "0xba50Cd2A20f6DA35D788639E581bca8d0B5d4D5f" as const;
+/** Per-chain Aave V3 addresses (Cluster 6.0.1 — mainnet).
+ *
+ *  The Pool address is *per chain* and comes from
+ *  bgd-labs/aave-address-book. The USDC address on mainnet is
+ *  the same Circle USDC that `safe-deploy.ts` defaults to
+ *  (Aave V3's main market on Base uses the native Circle USDC,
+ *  not USDC.e).
+ *
+ *  On Base Sepolia, the Aave market historically used Aave's
+ *  faucet USDC (a separate mint from Circle's testnet USDC).
+ *  Testers mint from https://app.aave.com/faucet/.
+ *
+ *  The aUSDC address is **NOT** in this table — it is resolved
+ *  dynamically via `Pool.getReserveData(usdc).aTokenAddress`
+ *  so the value stays correct if Aave ever migrates the market
+ *  to a new implementation. */
+const AAVE_CHAIN_TABLE: Record<
+  number,
+  {
+    poolAddress: Address;
+    usdcAddress: Address;
+  }
+> = {
+  [baseSepolia.id]: {
+    // Aave V3 Pool on Base Sepolia (chain 84532).
+    poolAddress: "0x8bAB6d1b75f19e9eD9fCe8b9BD338844fF79aE27",
+    // Aave's faucet USDC on Base Sepolia (distinct from Circle's
+    // testnet USDC at VAULT_USDC_ADDRESS; the Aave Pool only
+    // accepts this asset on testnet).
+    usdcAddress: "0xba50Cd2A20f6DA35D788639E581bca8d0B5d4D5f",
+  },
+  [base.id]: {
+    // Aave V3 Pool on Base mainnet (chain 8453). Cross-checked
+    // against the bgd-labs/aave-address-book
+    // (src/ts/AaveV3Base.ts) and basescan.
+    poolAddress: "0xa238dd80c259a72e81d7e4664a9801593f98d1c5",
+    // Circle USDC on Base mainnet (same asset safe-deploy.ts
+    // defaults to).
+    usdcAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  },
+};
 
 export type AaveChainConfig = {
   chainId: number;
@@ -116,23 +148,38 @@ export type AaveChainConfig = {
   usdcAddress: Address;
 };
 
-/** Read the Aave chain config from env. Falls back to the
- *  Base Sepolia defaults if not set. Throws on invalid
- *  addresses. The `rpcUrl` lives on the base `ChainConfig`
- *  (read via `getChainConfig()`); the Aave config is just the
- *  Aave-specific contract addresses. */
+/** Read the Aave chain config. Throws on:
+ *  - chainId not in `AAVE_CHAIN_TABLE` (the parent
+ *    `getChainConfig()` already validates this, so the only
+ *    way to hit this branch is if the two tables drift — a
+ *    good fail-loud signal)
+ *  - malformed `VAULT_AAVE_POOL_ADDRESS` / `VAULT_AAVE_USDC_ADDRESS`
+ *    env overrides
+ *
+ *  The `rpcUrl` lives on the parent `ChainConfig` (read via
+ *  `getChainConfig()`); the Aave config is just the Aave-specific
+ *  contract addresses.
+ */
 export function getAaveChainConfig(): AaveChainConfig {
   const base = getChainConfig();
+  const entry = AAVE_CHAIN_TABLE[base.chainId];
+  if (!entry) {
+    const supported = Object.keys(AAVE_CHAIN_TABLE).join(", ");
+    throw new Error(
+      `AAVE_CHAIN_TABLE has no entry for chainId ${base.chainId}; ` +
+        `supported: [${supported}]. Add a row to keep AAVE_CHAIN_TABLE in sync with CHAIN_TABLE in safe-deploy.ts.`,
+    );
+  }
   const poolAddress = getAddress(
-    process.env.VAULT_AAVE_POOL_ADDRESS || DEFAULT_AAVE_POOL_BASE_SEPOLIA,
+    process.env.VAULT_AAVE_POOL_ADDRESS || entry.poolAddress,
   );
-  if (!poolAddress) {
+  if (!isAddress(poolAddress)) {
     throw new Error("VAULT_AAVE_POOL_ADDRESS is not a valid address");
   }
   const usdcAddress = getAddress(
-    process.env.VAULT_AAVE_USDC_ADDRESS || DEFAULT_AAVE_USDC_BASE_SEPOLIA,
+    process.env.VAULT_AAVE_USDC_ADDRESS || entry.usdcAddress,
   );
-  if (!usdcAddress) {
+  if (!isAddress(usdcAddress)) {
     throw new Error("VAULT_AAVE_USDC_ADDRESS is not a valid address");
   }
   return {
