@@ -1,16 +1,26 @@
 # Compass — Fresh-Session Handoff
 
-**Date**: 2026-08-29 02:55 CDT
-**Last commit**: `62b8528` — *Cluster 6.0 — Vault scheduler (auto bill-pay) (2026-08-29).*
-**Predecessor commit**: `e23503c` (smoke:all wiring + seed-accounts.ts bugfix) → `2080e1b` (Production deploy prep) → `a14f19c` (tech debt cleanup) → `509505c` (Vault 4.0 M4 off-ramp gateway)
+**Date**: 2026-08-29 03:15 CDT
+**Last commit**: `37dc04b` — *Cluster 6.0.1 — Vault mainnet (Base 8453) (2026-08-29).*
+**Predecessor commit**: `6393645` (spec) → `2f06d0b` (Cluster 6.0 docs) → `62b8528` (Cluster 6.0 — Vault scheduler) → `e23503c` (smoke:all wiring)
 
 ---
 
 ## TL;DR
 
-Compass is at a clean natural breakpoint. The last cluster (Vault scheduler) shipped auto bill-pay end-to-end: per-user cron, look-ahead + reserve gate, the same `executePayment` flow as a manual click, a dev process (`pnpm cron:dev`) + a Vercel cron route (`POST /api/cron/vault`), the `/vault/schedule` page, and a `SchedulerIndicator` on `/vault`. **All 26 smokes green via `pnpm smoke:all`** (10 data-layer + 13 UI + 1 integration + 1 deploy + 1 vault-scheduler = 26; ~1,250 checks), `tsc` clean, dev server live.
+Compass is at a clean natural breakpoint. The last cluster (6.0.1 — Vault mainnet) wired the existing Safe-deploy + Aave V3 supply/withdraw flow to Base mainnet by swapping the hardcoded `baseSepolia.id` check in `safe-deploy.ts` for a `CHAIN_TABLE` indexed by chainId, mirrored as `AAVE_CHAIN_TABLE` in `aave.ts`. Canonical mainnet addresses cross-referenced against the Aave address book + safe-deployments. New read-only `GET /api/vault/chain-config` endpoint returns the resolved config. `/vault` StatusStrip surfaces a gold `MAINNET` chip on chainId 8453. `prod.ts` refuses to start in production with the testnet chainId. **All 26 smokes green via `pnpm smoke:all`** (1 auth + 10 data-layer + 13 UI + 1 integration-vault + 1 deploy = 26; ~1,300 checks; smoke-deploy went from 72 to 95 checks), `tsc` clean, dev server live on testnet default.
 
-If you're a fresh session picking this up: read the spec, read `COORDINATION.md` end-to-end, then go. Nothing about the scheduler is half-done.
+If you're a fresh session picking this up: read the spec, read `COORDINATION.md` end-to-end, then go. Nothing about the mainnet wiring is half-done — but **no real mainnet deploy was performed** in this cluster (no funded deployer EOA). The wiring is verified; a real deploy remains a manual gate xKryptic holds.
+
+---
+
+## Recent change worth knowing about (commit `37dc04b`)
+
+- **The chain table is the only place to add new chains.** `src/lib/vault/safe-deploy.ts:CHAIN_TABLE` and `src/lib/vault/aave.ts:AAVE_CHAIN_TABLE` are the source of truth for "which chains are wired." Add a row to both, and every deploy/supply/withdraw flow picks it up. The two tables share a `chainId` key — keep them in sync.
+- **`aUSDC is NOT in the table** — it is resolved dynamically via `Pool.getReserveData(asset).aTokenAddress`. This means a future Aave market upgrade (e.g. a new Pool implementation) keeps the value correct without a code change. The trade-off is the dynamic read needs a working RPC.
+- **`/api/vault/chain-config` is intentionally public.** No secrets in the response (no RPC URL with API key, no signer key, no DB info). The smoke hits it to verify wiring without importing `.ts` from `.mjs`. If you ever add secrets to the response, **remove the `/api/vault/chain-config` entry from `PUBLIC_PREFIXES` in `src/middleware.ts`** immediately. The smoke-deploy check guards against accidental removal.
+- **`prod.ts` refuses `VAULT_CHAIN_ID=84532` in production.** A misconfigured prod deploy with the testnet chainId would otherwise succeed (deploy goes through, supply goes through) but every transaction touches valueless USDC. The check is a one-line addition to `FORBIDDEN_IN_PROD`; add the same shape for future prod-only forbiddens.
+- **Pre-existing inconsistency noted (not in scope of this cluster):** `.env.production.example` documents `VAULT_SIGNER_KEY` (the name `prod.ts` checks), but the actual deploy code in `safe-deploy.ts` reads `VAULT_SAFE_SIGNER_PRIVATE_KEY`. A production deploy using the example as-is will never get a usable signer. This is a follow-on to fix in a "prod-env-var-naming-consistency" cluster.
 
 ---
 
@@ -95,23 +105,22 @@ If any of those are down, see "Recovery" at the bottom of this file.
 All 26 smokes must be green before any new cluster ships. Run them via `pnpm`:
 
 ```bash
-pnpm smoke              # data-layer smokes (10 incl. auth)
+pnpm smoke              # data-layer smokes (11 incl. auth)
 pnpm smoke:ui           # UI / page-render smokes (13)
 pnpm smoke:integration  # integration-vault (163 checks)
-pnpm smoke:deploy       # 72 deploy-readiness checks (file + live)
+pnpm smoke:deploy       # 95 deploy-readiness checks (file + live)
 pnpm smoke:all          # all of the above (single command, since commit e23503c)
 pnpm tsc                # type check
 ```
 
-Baseline numbers (verified 2026-08-29 02:50 CDT on commit `62b8528`):
-- 10 data-layer smokes: auth, accounts-db 33, allocation-db 53, bills-db 36, envelopes-db 29, goals-db 28, insights-db 23, vault 77, onboarding-agent 108, advisor 78
+Baseline numbers (verified 2026-08-29 03:15 CDT on commit `37dc04b`):
+- 11 data-layer smokes: auth, accounts-db 33, allocation-db 53, bills-db 36, envelopes-db 29, goals-db 28, insights-db 23, vault-scheduler 55, vault 77, onboarding-agent 108, advisor 78
 - 13 UI smokes: each 5–102 checks (top is topbar at 102)
 - integration-vault: **163** checks
-- smoke-deploy: **72** checks
-- smoke-vault-scheduler (Cluster 6.0): **55** checks
+- smoke-deploy: **95** checks (was 72; Cluster 6.0.1 added 12 mainnet-wiring checks + 11 live endpoint checks)
 - tsc: clean
 
-Total: **~1,250 checks** across 26 suites. CI runs them in ~3-5 min on a Linux runner with a Postgres service container.
+Total: **~1,300 checks** across 26 suites. CI runs them in ~3-5 min on a Linux runner with a Postgres service container.
 
 ### Dev scheduler (Cluster 6.0)
 
@@ -158,10 +167,13 @@ If `pnpm dev` is killed by the bash watchdog after 30 min, the underlying Next.j
 
 These are follow-on clusters the user might want next:
 
-- **Cron/automation for vault bill-pay** — the gateway is in place (commit `509505c` + this cluster's off-ramp), but there's no scheduler yet. `OffRampGateway` is invoked manually via "Execute now" buttons on `/vault`.
-- **Mainnet Vault (chainId 8453)** — wiring is in place (just set `VAULT_CHAIN_ID=8453` and the banner auto-hides) but no real protocol-kit deploy path for mainnet yet.
-- **Prisma migration history** — currently the schema is pushed via `prisma db push`. Production should run `prisma migrate dev` once to seed `_prisma_migrations` so the health endpoint can report `migrationStatus: current` instead of `pushed`.
+- **Real mainnet deploy** — Cluster 6.0.1 wired mainnet; the chain table, the addresses, the env block, the prod check, the API endpoint, the smoke are all green. But no real mainnet deploy was performed. The deployer EOA needs real ETH on Base; xKryptic creates + funds it. Cluster 6.0.2 ("Forked-mainnet deploy test") would add a `anvil --fork-base` or Tenderly integration so the full deploy + supply + withdraw flow can be exercised end-to-end without spending real ETH.
+- **Multi-sig / threshold changes** — current spec is a 1-of-1 Safe. Multi-sig is a future cluster.
+- **Other chains** (Optimism, Arbitrum, Polygon) — the chain table is a clean place to add more. Deferred to a "Multi-chain vault" cluster.
 - **Real off-ramp adapters** (Spritz, Monto) — currently stubbed. The gateway is provider-agnostic; the swap is a 1-file change in `src/lib/vault/adapters.ts`.
+- **Dynamic Pool address resolution** — currently the Aave V3 Pool address is hardcoded per chain. Cluster 6.0.2 (forked-mainnet) should resolve dynamically via `PoolAddressesProvider.getPool()` so an Aave upgrade doesn't need a code change. Risk: one extra RPC call on first supply.
+- **Prod-env var naming consistency** — `.env.production.example` uses `VAULT_SIGNER_KEY` (the name `prod.ts` checks), but `safe-deploy.ts` actually reads `VAULT_SAFE_SIGNER_PRIVATE_KEY`. A prod deploy using the example as-is will never get a usable signer. Trivial fix (alias or rename), but it changes every smoke + every deploy script.
+- **Prisma migration history** — currently the schema is pushed via `prisma db push`. Production should run `prisma migrate dev` once to seed `_prisma_migrations` so the health endpoint can report `migrationStatus: current` instead of `pushed`.
 - **Vault prefs UX** — yield-routing picker + risk-ack are DB-backed; UI for editing the strategy description / rebalance cadence is still light.
 
 ---
