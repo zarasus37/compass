@@ -128,6 +128,24 @@ Total: **~1,300 checks** across 26 suites. CI runs them in ~3-5 min on a Linux r
 
 A long-running Node process polls `POST /api/cron/vault` every 30s and logs one line per fire. Start it with `pnpm cron:dev`. It auto-skips when no schedules are due, and gracefully summarizes on SIGINT. In production, the same `/api/cron/vault` endpoint is hit by Vercel cron (or any external scheduler); set `CRON_SECRET` to require bearer auth on the route.
 
+## Next cluster (recommended for the next session)
+
+xKryptic's call at the end of session 2026-08-29: **Real off-ramp adapters (visible UI)**. Spec the cluster fresh — the off-ramp gateway is in `src/lib/vault/adapters.ts` (currently MOCK + Spritz + Monto stubs per Cluster Vault 4.0 M4). The new cluster's scope should be:
+
+- Wire one or both stubs to a real (or testnet-real) provider. Start with **Spritz** (the spec calls it the primary USDC→fiat rail) — the API is well-documented and has a sandbox tier.
+- Add an off-ramp-picker UI in `/vault/preferences` (or a new `/vault/off-ramp` page) so the user can see which provider will execute a bill payment. Per the spec, the picker is a single-select with the MOCK + Spritz + Monto options.
+- The picker state lives in `VaultPreferences` (a new `offRampProvider` field on the existing row). No new table.
+- The OffRampGateway in `src/lib/vault/gateway.ts` should already accept the provider as a parameter; if not, make that the first sub-task.
+- The visible-UI half: the picker, the MOCK vs Spritz vs Monto chips, the "currently configured" indicator on the main `/vault` page.
+- New smoke: verify the picker renders, the chips have the right labels, the MOCK fallback works when Spritz credentials are missing, and the gateway chooses the right adapter based on the user's preference.
+
+The M4 commit (Cluster Vault 4.0 M4) shipped the off-ramp gateway with a stub adapter chain. The new cluster closes the loop: the user picks a real provider, the system uses it. The HANDOVER "What was NOT done" list still has the Spritz + Monto real-API adapters as a future cluster — this is it.
+
+**Out of scope (deferred):**
+- Real fiat bank-account linking (the off-ramp delivers USDC to a wallet; the user is responsible for off-ramping to a bank themselves in v1).
+- Multi-rail failover (a single bill can use one provider; chained providers are a future cluster).
+- Refund / dispute flow if a real adapter's API call fails post-funding (the existing MOCK adapter's error path is the contract; a real adapter just maps the same error states).
+
 ### Recent change worth knowing about (commit `62b8528`)
 
 Added the auto bill-pay scheduler. The off-ramp gateway from Cluster Vault 4.0 M4 now runs on a per-user cron. Key gotchas:
