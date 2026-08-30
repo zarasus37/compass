@@ -940,7 +940,15 @@ export async function recordVaultAudit(args: {
     // change. Audit row written from `setOffRampProviderAction`
     // with `{ from, to }` payload so the future audit-log page
     // can show the provider history.
-    | "vault.off_ramp_provider_changed";
+    | "vault.off_ramp_provider_changed"
+    // Cluster 7.4 — meta event written by `/vault/audit` on
+    // every render. The audit log is auditable itself, so the
+    // user can see "I opened the audit log at 2:14pm" in the
+    // event stream. Payload: `{ filter: { type, prefix, q, take }
+    // | null, at: ISO }`. The page writes the row AFTER its
+    // read so this visit's table doesn't show it; the next
+    // visit will.
+    | "vault.audit_log_viewed";
   payload: unknown;
 }): Promise<void> {
   await prisma.auditLog.create({

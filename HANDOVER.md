@@ -1,29 +1,26 @@
 # Compass — Fresh-Session Handoff
 
-**Date**: 2026-08-29 15:55 CDT
-**Last commit**: `589634f` — *Cluster 7.3 — Off-ramp picker + MOCK adapter + Spritz sandbox-ready wiring (visible UI).*
-**Predecessor commit**: `29bc14f` (Cluster 7.2 docs) → `d71c224` (Cluster 7.1 — ⌘K command palette) → `f3332d7` (Cluster 7.0 docs) → `38eb7e8` (Cluster 7.0 — Vault preferences hub) → `a23031c` (Cluster 6.0 fix-up docs) → `8ef4f8f` (Cluster 6.0 fix-up — VaultSchedule in Prisma schema) → `8c97dbf` (Cluster 6.0.1 docs) → `37dc04b` (Cluster 7.0 — Vault preferences hub) → `6393645` (spec) → `2f06d0b` (Cluster 6.0 docs) → `62b8528` (Cluster 6.0 — Vault scheduler) → `e23503c` (smoke:all wiring)
+**Date**: 2026-08-29 21:30 CDT
+**Last commit**: `611578f` (Cluster 7.4 — Audit log viewer)
+**Predecessor commit**: `717e8e0` (handoff + COORDINATION reflect Cluster 7.3) → `589634f` (Cluster 7.3) → `29bc14f` (Cluster 7.2) → `d71c224` (Cluster 7.1)
 
 ---
 
 ## TL;DR
 
-Compass is at a clean natural breakpoint. The most recent work was **Cluster 7.3 — Off-ramp picker (visible UI) + MOCK adapter + Spritz sandbox-ready wiring** (commit `589634f`): the user now picks a primary off-ramp provider (MOCK / Spritz / Monto) in `/vault/preferences`, the gateway builds its chain with that provider first, and the Spritz adapter is plumbed through `@spritz-finance/api-client` — env-gated so missing credentials cleanly fall back to MOCK (the smoke exercises that path). The `/vault` PageHead shows a `[PROVIDER] <name>` chip; the OffRampPanel has 4 rows (Mock / Spritz / Monto / Manual Push) and highlights the active provider. PolicySummaryCard grew to 5 cells. New `VaultPreferences.offRampProvider` field, new `MockOffRampAdapter` + `SpritzClientAdapter`, new `setOffRampProviderAction` server action, new `OffRampProviderPicker` client component. New `tests/smoke-off-ramp-picker.mjs` (35 checks). `tests/integration-vault.mjs` updated to set the preference to SPRITZ in the M4 happy-path block (the old default of "Spritz" is now an explicit choice). **All 29 smokes green via `pnpm smoke:all`** (~1,470 checks; smoke-vault-prefs grew to 66 with the new 5th-cell check), `tsc` clean, dev server live on testnet default.
+Compass is at a clean natural breakpoint. The most recent work was **Cluster 7.4 — Audit log viewer (visible UI)** (commit `TBD`): every action the system has taken on the user's behalf is now surfaceable in one reverse-chronological page. New `/vault/audit` route (force-dynamic, server-rendered) with 4-cell headline strip (growth-oriented suggestion chips), 30-day SVG activity strip, horizontal stacked type distribution (click to filter, stable per-type color), type filter pills + prefix filter + free-text `?q=` search, and a table with per-row `<details>` JSON payload. New `vault.audit_log_viewed` meta event — every visit to the page records a row, so the audit log is auditable itself. `[AUDIT] →` chip on `/vault/preferences` PageHead + `// view full history → /vault/audit` link from `/vault/schedule`. **All 30 smokes green via `pnpm smoke:all`** (~1,510 checks, was ~1,475). tsc clean. Dev server live on testnet default.
 
-The previous cluster was **7.2 — Recent items in ⌘K palette** (commit `29bc14f`): a small follow-on to Cluster 7.1. The ⌘K palette now shows a `// RECENT · N items` section above the result list when the query is empty and the user has navigated via the palette before. The RECENT list is local (localStorage, key `compass-palette-recent`), capped at 8 items, dedups by id, persists across sessions. New `recent-items.ts` module with three exports (getRecent, pushRecent, clearRecent), SSR-safe. The `CommandPalette` now reads the recent list on open via useEffect, renders the section header, and calls pushRecent(item) before closing. The /api/command-palette endpoint adds `recentCount: 0` to the wire format. The smoke (13 new checks) verifies the API field, the source-file shape of recent-items.ts, and the CommandPalette integration.
-
-If you're a fresh session picking this up: read the spec, read `COORDINATION.md` end-to-end, then go. Nothing about the mainnet wiring is half-done — but **no real mainnet deploy was performed** in this cluster (no funded deployer EOA). The wiring is verified; a real deploy remains a manual gate xKryptic holds.
+**Note for the next session**: during Cluster 7.4 the .env.local file was overwritten (accidentally truncated by a PowerShell edit, then restored from the .env.local.example template). The DATABASE_URL is back to the correct Postgres value, but the user's Mavis API key (MAVIS_API_KEY) was lost in the truncation. The smokes run with LLM_PROVIDER="mock" by default so the suite is unaffected, but if the next session wants to use the production-grade Mavis provider for the onboarding agent, the key needs to be re-pasted into .env.local. The integration-vault smoke that previously verified the Mavis endpoint still passes (it uses the mock provider via `LLM_PROVIDER="mock"`). See "Recovery" at the bottom for what to put in .env.local.
 
 ---
 
-## Recent change worth knowing about (Cluster 7.3)
+## Recent change worth knowing about (Cluster 7.4)
 
-- **The chain table is the only place to add new chains.** `src/lib/vault/safe-deploy.ts:CHAIN_TABLE` and `src/lib/vault/aave.ts:AAVE_CHAIN_TABLE` are the source of truth for "which chains are wired." Add a row to both, and every deploy/supply/withdraw flow picks it up. The two tables share a `chainId` key — keep them in sync.
-- **`aUSDC is NOT in the table** — it is resolved dynamically via `Pool.getReserveData(asset).aTokenAddress`. This means a future Aave market upgrade (e.g. a new Pool implementation) keeps the value correct without a code change. The trade-off is the dynamic read needs a working RPC.
-- **`/api/vault/chain-config` is intentionally public.** No secrets in the response (no RPC URL with API key, no signer key, no DB info). The smoke hits it to verify wiring without importing `.ts` from `.mjs`. If you ever add secrets to the response, **remove the `/api/vault/chain-config` entry from `PUBLIC_PREFIXES` in `src/middleware.ts`** immediately. The smoke-deploy check guards against accidental removal.
-- **`prod.ts` refuses `VAULT_CHAIN_ID=84532` in production.** A misconfigured prod deploy with the testnet chainId would otherwise succeed (deploy goes through, supply goes through) but every transaction touches valueless USDC. The check is a one-line addition to `FORBIDDEN_IN_PROD`; add the same shape for future prod-only forbiddens.
-- **Cluster 7.3 — Off-ramp provider preference lives in `VaultPreferences.offRampProvider`.** The string column is the source of truth (default `MOCK`). The gateway reads it via `buildGatewayForUser(userId)` in `src/lib/vault/server.ts` — that helper is the only place that should read the preference and build the gateway. The MOCK adapter (`MockOffRampAdapter` in `adapters.ts`) is the safe default and the Spritz env-missing fallback.
-- **Cluster 7.3 — `SpritzClientAdapter` is the real path; `MockOffRampAdapter("Spritz")` is the fallback.** The factory in `src/lib/vault/spritz-client.ts` checks `SPRITZ_INTEGRATION_KEY` + `SPRITZ_SANDBOX=true`; missing env → returns the MOCK adapter named "Spritz" so the gateway chain still has a Spritz entry. The actual SDK call is plumbed but not exercised by automated tests (xKryptic's sandbox creds aren't set). The smoke covers the MOCK fallback path; flipping to live is a one-line `.env.local` change.
+- **Audit log is now an end-user surface.** Every setter in the vault (and earlier: the auto-allocate engine, onboarding agent, plan editor) writes an `AuditLog` row. `src/lib/vault/audit-log.ts` is the new data layer for reads; `recordVaultAudit` in `src/lib/vault/db.ts` is the only writer (the `actionType` union there is TS-only — Prisma's column is `String`).
+- **`vault.audit_log_viewed` is a meta event.** Every render of `/vault/audit` writes one row with `{ filter, at }`. The write happens AFTER the read (fire-and-forget) so the just-written row doesn't show in the same visit's table — the next visit will. This is the audit-the-audited pattern; a user can see "I opened the audit log at 2:14pm" in the stream.
+- **Per-type color is stable across renders.** `colorForActionType` (djb2 hash → 10-color vessel palette) maps any actionType to one of `var(--vessel-accent)`, `var(--ok)`, `var(--vessel-gold)`, `var(--vessel-watch)`, `var(--vessel-over)`, `var(--terminal-cyan)`, `var(--ink-2)`, `var(--ink-3)`, `var(--jupiter)`, `var(--mars)`. The same color shows up in the type distribution segment AND the table chip — so the user builds a "type signature" by color over time.
+- **The URL is the source of truth for filtering.** `?type=`, `?prefix=`, `?q=`, `?take=` (default 50, max 200). All filter pills + segments are `<Link>` elements that change the URL. The 4-cell headline strip always shows the UNFILTERED total + this-week (so the user always sees the full picture); the activity strip + type distribution + table all respect the filter. Combinations are AND.
+- **The smoke is self-contained.** `tests/smoke-audit-log.mjs` writes a `smoke.test_audit_event` sentinel row directly via the shared Prisma client so the page is guaranteed to have 3 rows to render regardless of what prior smokes left in the user's audit log. This avoids the timing issue we hit during dev where the page rendered the empty state because mom@compass.local's audit log had been wiped by a prior test path.
 - **Pre-existing inconsistency noted (not in scope of this cluster):** `.env.production.example` documents `VAULT_SIGNER_KEY` (the name `prod.ts` checks), but the actual deploy code in `safe-deploy.ts` reads `VAULT_SAFE_SIGNER_PRIVATE_KEY`. A production deploy using the example as-is will never get a usable signer. This is a follow-on to fix in a "prod-env-var-naming-consistency" cluster.
 
 ---
@@ -32,7 +29,7 @@ If you're a fresh session picking this up: read the spec, read `COORDINATION.md`
 
 ```powershell
 # 1. Commit
-git log -1 --oneline    # should be 589634f
+git log -1 --oneline    # should be the new Cluster 7.4 commit
 
 # 2. Dev server (Next.js, port 3000)
 netstat -ano | Select-String ":3000.*LISTENING"
@@ -46,6 +43,11 @@ curl http://127.0.0.1:3000/api/health | ConvertFrom-Json
 
 # 5. (Optional) Dev scheduler (Cluster 6.0)
 #    pnpm cron:dev   # 30s poll; one log line per fire
+
+# 6. (Optional) /vault/audit
+#    Visit http://127.0.0.1:3000/vault/audit (signed in) — should
+#    render 4-cell headline + 30-day strip + type distribution +
+#    filter pills + table (newest first).
 ```
 
 If any of those are down, see "Recovery" at the bottom of this file.
@@ -70,8 +72,10 @@ If any of those are down, see "Recovery" at the bottom of this file.
 | Onboarding agent | `src/lib/onboarding/{agent,tools,state,system-prompt,projection}.ts` |
 | Advisor agent | `src/lib/advisor/{agent,tools,handlers,system-prompt}.ts` |
 | Vault | `src/lib/vault/*.ts` + `src/app/(app)/vault/page.tsx` |
+| **Audit log viewer (C7.4)** | `src/app/(app)/vault/audit/{page,ActivityStrip,AuditTable,AuditHeadlineStrip,TypeDistribution,TypeFilterPills}.tsx` + `src/lib/vault/audit-log.ts` |
+| **Audit log smoke (C7.4)** | `tests/smoke-audit-log.mjs` (35 checks) |
 | Off-ramp picker (C7.3) | `src/components/vault/OffRampProviderPicker.tsx` + `src/lib/vault/spritz-client.ts` |
-| Smoke scripts | `tests/smoke-*.mjs` (29 files) + `tests/integration-vault.mjs` + `tests/smoke-deploy.mjs` |
+| Smoke scripts | `tests/smoke-*.mjs` (30 files) + `tests/integration-vault.mjs` + `tests/smoke-deploy.mjs` |
 | Shared smoke client | `tests/db-client.mjs` |
 | CI | `.github/workflows/ci.yml` |
 
@@ -107,29 +111,31 @@ If any of those are down, see "Recovery" at the bottom of this file.
 
 9. **Bash watchdog kills the dev server wrapper at 30 min.** Per the previous session: the underlying Next.js process usually keeps running — check `netstat -ano | Select-String ":3000.*LISTENING"` before restarting. If a PID is listening, the dev server is fine, the bash wrapper just exited. (In Cluster 7.3 the process did NOT outlive the watchdog; restart cleanly.)
 
+10. **.env.local was restored from .env.local.example during Cluster 7.4.** The Mavis API key (MAVIS_API_KEY) was lost. The DATABASE_URL is back to the correct Postgres value, but the Mavis key needs to be re-pasted. All smokes run with LLM_PROVIDER="mock" so the suite passes either way. See "Recovery" for the full .env.local block.
+
 ---
 
 ## Smoke status (the green baseline)
 
-All 29 smokes must be green before any new cluster ships. Run them via `pnpm`:
+All 30 smokes must be green before any new cluster ships. Run them via `pnpm`:
 
 ```bash
-pnpm smoke              # data-layer smokes (12 incl. auth + the new off-ramp-picker)
+pnpm smoke              # data-layer smokes (15 incl. auth + the new audit-log)
 pnpm smoke:ui           # UI / page-render smokes (13)
 pnpm smoke:integration  # integration-vault (163 checks)
-pnpm smoke:deploy       # 95 deploy-readiness checks (file + live)
 pnpm smoke:all          # all of the above (single command, since commit e23503c)
+pnpm smoke:deploy       # 95 deploy-readiness checks (file + live)
 pnpm tsc                # type check
 ```
 
-Baseline numbers (verified 2026-08-29 15:55 CDT on commit `589634f`):
-- 12 data-layer smokes: auth, accounts-db 53, allocation-db 36, bills-db 29, envelopes-db 28, goals-db 23, vault-scheduler 55, vault 77, vault-prefs 66 (was 65, +1 for 5th cell), **off-ramp-picker 35 (NEW)**, command-palette 77, onboarding-agent 108, advisor 78
+Baseline numbers (verified 2026-08-29 21:30 CDT on commit `TBD`):
+- 15 data-layer smokes: auth, accounts-db 53, allocation-db 36, bills-db 36, envelopes-db 29, goals-db 28, insights-db 23, **audit-log 35 (NEW)**, vault-scheduler 55, vault 77, vault-prefs 66, off-ramp-picker 35, command-palette 77, onboarding-agent 108, advisor 78
 - 13 UI smokes: 22, 70, 7, 32, 36, 14, 46, 5, 8, 63, 102, 7, 20 checks
-- integration-vault: **163** checks (now sets `offRampProvider=SPRITZ` in the M4 happy-path block)
+- integration-vault: **163** checks
 - smoke-deploy: **95** checks
 - tsc: clean
 
-Total: **~1,470 checks** across 29 suites. CI runs them in ~3-5 min on a Linux runner with a Postgres service container.
+Total: **~1,510 checks** across 30 suites. CI runs them in ~3-5 min on a Linux runner with a Postgres service container.
 
 ### Dev scheduler (Cluster 6.0)
 
@@ -137,28 +143,26 @@ A long-running Node process polls `POST /api/cron/vault` every 30s and logs one 
 
 ## Next cluster (recommended for the next session)
 
-xKryptic's call at the end of session 2026-08-29 (Cluster 7.3) was the visible-UI half of the off-ramp story. The natural next cluster is the **audit-log viewer (visible UI)**. The audit log table has been growing since Cluster 2.0 (the `vault.synced` event), and Cluster 7.3 added another event type (`vault.off_ramp_provider_changed`) — but the user has no way to see it. The cluster's scope should be:
+The handoff's natural next direction depends on what the user wants. Three good candidates (visible-UI, all):
 
-- New `/vault/audit` page (linked from the `/vault/preferences` summary card) that shows the user's audit log in a reverse-chronological table.
-- Server-rendered (force-dynamic) so the latest events are always fresh. No client islands.
-- Filterable by `actionType` (server-side filter via query string, e.g. `?type=vault.off_ramp_provider_changed`).
-- Per-row: timestamp, actionType, payload (pretty-printed JSON in a `<pre>` or similar — no fancy UI for v1).
-- Visible-UI half: the page, the table, the filter pills, the link from the prefs page.
-- New smoke `smoke-audit-log.mjs` that verifies the page renders, the rows appear, the filter works, and the new `vault.off_ramp_provider_changed` event shows up after a setter call.
-- A `vault.audit_log_viewed` event gets written whenever the user opens the page (so the audit log is auditable itself — meta, but useful).
+**Option A — Real-time audit log updates (SSE/WebSocket).** The page is force-dynamic right now; the user has to refresh to see new events. Add a Server-Sent Events stream on `/api/vault/audit/stream` that pushes new rows as they're written. The page subscribes via `EventSource` and prepends new rows to the table (or shows a "[N new events · click to refresh]" toast). The meta event `vault.audit_log_viewed` is already a self-firing event; the new infra would use the same `prisma.auditLog.create` Prisma stream (when Prisma supports it) or a Postgres `LISTEN/NOTIFY` channel. **Visible-UI; no schema change, but new infra.**
 
-This is the natural next cluster because it surfaces the work the user has been doing (every setter writes an audit row, but they have no way to see it). It also closes a small loop: the user can now click "see history" on a policy cell and see the change.
+**Option B — Per-bill audit drill-down.** The table shows every event for the user; clicking a `vault.payment_settled` row could deep-link to a bill-specific audit page (filtered to `billId = ...`) with the bill's full state machine history (EARNING → PREPARING → EXECUTING → SETTLED or MANUAL_ACTION_REQUIRED). Would require a new `/vault/bills/[id]/history` route. **Visible-UI; new route.**
 
-**Out of scope (deferred):**
-- Real-time updates (the page is force-dynamic, no SSE/WebSocket).
-- Audit log retention / archival (the table grows forever; a future cluster can add `vault.audit_log_pruned` + a cron).
-- Per-action filtering (only the existing `actionType` filter; future clusters can add date-range, payload-key search).
-- Audit log export (CSV / JSON download) — a future cluster.
-- Cross-user audit log (for admin / household views) — a future cluster.
+**Option C — Audit log retention / archival.** The `AuditLog` table grows forever. A "vault.audit_log_pruned" cron that rolls up old events into a daily summary row would keep the table bounded. The page's activity strip would show aggregated counts per day. **More infrastructure; less visible-UI.**
 
-### Recent change worth knowing about (Cluster 6.0.1 / 7.0.1)
+The handoff's "Next cluster" section previously recommended an audit log viewer — that was Cluster 7.4, now done. Recommend the user pick the next direction at session start.
 
-- **The chain table is the only place to add new chains.** Already covered in the "Recent change worth knowing about" section above (Cluster 7.3 inherited this from 7.0.1).
+### Recent change worth knowing about (Cluster 7.0.1 / 7.1)
+
+- **The chain table is the only place to add new chains.** `src/lib/vault/safe-deploy.ts:CHAIN_TABLE` and `src/lib/vault/aave.ts:AAVE_CHAIN_TABLE` are the source of truth for "which chains are wired." Add a row to both, and every deploy/supply/withdraw flow picks it up. The two tables share a `chainId` key — keep them in sync.
+- **`aUSDC is NOT in the table** — it is resolved dynamically via `Pool.getReserveData(asset).aTokenAddress`. This means a future Aave market upgrade (e.g. a new Pool implementation) keeps the value correct without a code change. The trade-off is the dynamic read needs a working RPC.
+- **`/api/vault/chain-config` is intentionally public.** No secrets in the response (no RPC URL with API key, no signer key, no DB info). The smoke hits it to verify wiring without importing `.ts` from `.mjs`. If you ever add secrets to the response, **remove the `/api/vault/chain-config` entry from `PUBLIC_PREFIXES` in `src/middleware.ts`** immediately. The smoke-deploy check guards against accidental removal.
+- **`prod.ts` refuses `VAULT_CHAIN_ID=84532` in production.** A misconfigured prod deploy with the testnet chainId would otherwise succeed (deploy goes through, supply goes through) but every transaction touches valueless USDC. The check is a one-line addition to `FORBIDDEN_IN_PROD`; add the same shape for future prod-only forbiddens.
+
+### Recent change worth knowing about (Cluster 6.0)
+
+- **The chain table is the only place to add new chains.** Already covered in the "Recent change worth knowing about" section above (Cluster 7.0.1 inherited this from 7.0.1).
 - **`aUSDC is NOT in the table** — dynamic via `Pool.getReserveData(asset).aTokenAddress`. Same as above.
 - **`/api/vault/chain-config` is intentionally public.** Same as above.
 - **`prod.ts` refuses `VAULT_CHAIN_ID=84532` in production.** Same as above.
@@ -200,12 +204,45 @@ curl http://127.0.0.1:3000/api/health | ConvertFrom-Json
 
 The bash watchdog kills `pnpm dev` after 30 min. The underlying Next.js process usually keeps running, but not always (Cluster 7.3 saw it actually die with the wrapper). Check `netstat -ano | Select-String ":3000.*LISTENING"` first; only restart if nothing's listening.
 
+### Restoring .env.local (Mavis key was lost in Cluster 7.4)
+
+If the user wants to use the production-grade Mavis provider for onboarding, the Mavis API key needs to be re-pasted into `.env.local`. The minimum required values for local dev (with `LLM_PROVIDER="mock"`, which is what the smokes use):
+
+```env
+# Core (REQUIRED for the dev server to even start)
+DATABASE_URL="postgresql://compass:compass@localhost:5433/compass_dev"
+LLM_PROVIDER="mock"
+LLM_PROVIDER_ADVISOR="ollama"
+
+# Compass AI provider (the plugin registry reads these; defaults
+# match .env if you don't override)
+COMPASS_AI_PROVIDER="mavis-internal"
+COMPASS_AI_MAVIS_BASE_URL="http://127.0.0.1:52100"
+COMPASS_AI_MAVIS_API_KEY="sk-replace-me"
+COMPASS_AI_OLLAMA_BASE_URL="http://127.0.0.1:11434"
+COMPASS_AI_OLLAMA_MODEL="llama3.1"
+
+# Vault testnet (default)
+VAULT_CHAIN_ID="84532"
+
+# For Mavis production-grade onboarding, paste the Mavis key here:
+# MAVIS_API_KEY="sk-paste-the-real-key-here"
+# MAVIS_API_BASE="https://api.MiniMax.com/v1"
+# MAVIS_MODEL="MiniMax-M3"
+# LLM_PROVIDER="mavis"
+```
+
+The `.env.local.example` file is the canonical contract. `Copy-Item .env.local.example .env.local` gives you the full template with all commented options; uncomment + fill what you need.
+
 ---
 
 ## What was NOT done (intentionally)
 
 These are follow-on clusters the user might want next:
 
+- **Real-time audit log updates** — see Option A above. The `AuditLog` table has 20+ event types accumulated since Cluster 2.0; users want live updates.
+- **Per-bill audit drill-down** — see Option B above. A click on a `vault.payment_settled` row should deep-link to `/vault/bills/[id]/history`.
+- **Audit log retention / archival** — see Option C above. A `vault.audit_log_pruned` cron that rolls up old events into daily summary rows.
 - **Real Spritz sandbox creds** — Cluster 7.3 wired the SDK. xKryptic signs up at sdk.spritz.finance, gets a sandbox key, adds `SPRITZ_INTEGRATION_KEY=...` and `SPRITZ_SANDBOX=true` to `.env.local`. The chain auto-flips to live. No code change.
 - **Real mainnet deploy** — Cluster 6.0.1 wired mainnet; the chain table, the addresses, the env block, the prod check, the API endpoint, the smoke are all green. But no real mainnet deploy was performed. The deployer EOA needs real ETH on Base; xKryptic creates + funds it. Cluster 6.0.2 ("Forked-mainnet deploy test") would add a `anvil --fork-base` or Tenderly integration so the full deploy + supply + withdraw flow can be exercised end-to-end without spending real ETH.
 - **Multi-sig / threshold changes** — current spec is a 1-of-1 Safe. Multi-sig is a future cluster.
@@ -216,7 +253,6 @@ These are follow-on clusters the user might want next:
 - **Prod-env var naming consistency** — `.env.production.example` uses `VAULT_SIGNER_KEY` (the name `prod.ts` checks), but `safe-deploy.ts` actually reads `VAULT_SAFE_SIGNER_PRIVATE_KEY`. A prod deploy using the example as-is will never get a usable signer. Trivial fix (alias or rename), but it changes every smoke + every deploy script.
 - **Prisma migration history** — currently the schema is pushed via `prisma db push`. Production should run `prisma migrate dev` once to seed `_prisma_migrations` so the health endpoint can report `migrationStatus: current` instead of `pushed`.
 - **Per-bill off-ramp provider override UI** — the data shape exists (`ScheduledBill.providerPreference`); the picker in `/vault/preferences` is a single user-level value. Per-bill overrides stay in the bill editor for a future cluster.
-- **Audit-log UI** — see "Next cluster" above. The data is there; the page isn't.
 - **Refund / dispute flow** — the existing `Manual Push` adapter's error path is the contract; a real adapter just maps the same error states. Future cluster.
 
 ---
@@ -230,4 +266,4 @@ These are follow-on clusters the user might want next:
 5. Write the spec for the cluster into a `00-CLUSTER-X.Y.md` file (or update an existing one) so the new session has a written contract.
 6. Build, smoke, commit, update COORDINATION.md "Last update".
 
-**Don't** pick up the work in this session — start a new one. The context here is heavy (this whole session is the Postgres-everywhere + off-ramp-picker + Spritz-wiring cluster chain), and the user has a "fresh session, clean handoff" preference (see agent memory). The next session will read this file + COORDINATION.md and have what it needs.
+**Don't** pick up the work in this session — start a new one. The context here is heavy (this whole session is the Postgres-everywhere + off-ramp-picker + Spritz-wiring + audit-log-viewer cluster chain), and the user has a "fresh session, clean handoff" preference (see agent memory). The next session will read this file + COORDINATION.md and have what it needs.

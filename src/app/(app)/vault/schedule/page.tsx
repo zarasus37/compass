@@ -11,6 +11,7 @@
  * POST /api/vault/schedule via fetch.
  */
 import * as React from "react";
+import Link from "next/link";
 
 import { PageHead } from "@/components/alchemy/PageHead";
 import { SectionHeader } from "@/components/alchemy/SectionHeader";
@@ -185,6 +186,34 @@ export default async function VaultSchedulePage() {
 
       <div data-testid="vault-schedule-history" style={{ marginBottom: 32 }}>
         <RunHistoryTable initialRuns={runHistory} />
+      </div>
+
+      {/* Cluster 7.4 — link to the full audit log viewer. The
+          scheduler run history is the most-clicked subset; the
+          audit page shows every event type. */}
+      <div
+        style={{
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 10,
+          color: "var(--ink-3)",
+          textTransform: "uppercase",
+          letterSpacing: "0.18em",
+          marginTop: -16,
+          marginBottom: 32,
+        }}
+      >
+        // view full history →{" "}
+        <Link
+          href="/vault/audit?type=vault.scheduler_run"
+          data-testid="vault-schedule-full-history-link"
+          style={{
+            color: "var(--vessel-accent)",
+            textDecoration: "none",
+            fontWeight: 700,
+          }}
+        >
+          /vault/audit
+        </Link>
       </div>
     </div>
   );

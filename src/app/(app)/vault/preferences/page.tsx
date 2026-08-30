@@ -14,6 +14,7 @@
  * server actions).
  */
 import * as React from "react";
+import Link from "next/link";
 
 import { PageHead } from "@/components/alchemy/PageHead";
 import { SectionHeader } from "@/components/alchemy/SectionHeader";
@@ -136,6 +137,29 @@ export default async function VaultPreferencesPage() {
         title="Vault preferences"
         em="your policy, in one place."
         accent="cyan"
+        actions={
+          // Cluster 7.4 — link to the new audit log viewer.
+          // Mirrors the [PROVIDER] chip pattern on /vault.
+          <Link
+            href="/vault/audit"
+            data-testid="vault-prefs-audit-link"
+            style={{
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: "var(--vessel-accent)",
+              textDecoration: "none",
+              border: "1px solid var(--vessel-accent)",
+              padding: "5px 10px",
+              borderRadius: 2,
+              background: "rgba(168, 85, 247, 0.10)",
+            }}
+          >
+            [AUDIT] →
+          </Link>
+        }
         explanation={
           <>
             Everything you can tune about how your vault runs, consolidated in one
@@ -143,7 +167,14 @@ export default async function VaultPreferencesPage() {
             settlement. The risk disclosure is a one-time read; you can re-prompt
             it any time. The auto bill-pay schedule is what the cron actually
             fires. Pause the vault to suspend every scheduled run without
-            deleting the schedule.
+            deleting the schedule. The{" "}
+            <Link
+              href="/vault/audit"
+              style={{ color: "var(--vessel-accent)", textDecoration: "underline" }}
+            >
+              audit log
+            </Link>{" "}
+            captures every change.
           </>
         }
       />
