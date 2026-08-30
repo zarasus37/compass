@@ -38,30 +38,40 @@ import "server-only";
 import { prisma } from "@/server/db";
 import { recordVaultAudit } from "./db";
 import type { ScheduledBill, BillStatus, EnvelopeCategory } from "./types";
+// Cluster 7.6 — re-export the shared types + pure helpers so
+// existing server-side imports (e.g. `import { colorForActionType
+// } from "@/lib/vault/audit-log"`) keep working. The actual
+// implementations now live in `audit-log-shared.ts` so the new
+// client wrappers (LiveAuditTable, LiveBillEventTable) can import
+// the same helpers without dragging in `server-only`.
+import {
+  payloadMentionsBillId,
+  rowMatchesAuditFilter,
+} from "./audit-log-shared";
+import type {
+  AuditLogFilter,
+  AuditLogRow,
+  BillHistoryFilter,
+} from "./audit-log-shared";
+export type {
+  AuditLogFilter,
+  AuditLogRow,
+  BillHistoryFilter,
+} from "./audit-log-shared";
+export {
+  auditLogFilterToQuery,
+  billHistoryFilterToQuery,
+  billHistoryHrefForAuditRow,
+  colorForActionType,
+  parseAuditLogFilter,
+  parseBillHistoryFilter,
+  payloadMentionsBillId,
+  rowMatchesAuditFilter,
+} from "./audit-log-shared";
 
 // ──────────────────────────────────────────────────────────────────────
 // Public types
 // ──────────────────────────────────────────────────────────────────────
-
-export type AuditLogFilter = {
-  /** Exact actionType match (e.g. "vault.synced"). */
-  type?: string;
-  /** Prefix match (e.g. "vault." or "auto_"). Case-sensitive. */
-  prefix?: string;
-  /** Substring search on actionType (case-insensitive contains). */
-  q?: string;
-  /** Max rows to return. Default 50, max 200. */
-  take?: number;
-};
-
-export type AuditLogRow = {
-  id: string;
-  actionType: string;
-  /** Parsed JSON payload. Empty object on parse failure. */
-  payload: Record<string, unknown>;
-  aiTierAtTime: number;
-  createdAtIso: string;
-};
 
 export type AuditLogActivityDay = {
   /** YYYY-MM-DD in the user's local timezone. */
@@ -89,43 +99,13 @@ export type AuditLogSummary = {
 
 // ──────────────────────────────────────────────────────────────────────
 // Filter parsing (URL → AuditLogFilter)
+//
+// Moved to `audit-log-shared.ts` (Cluster 7.6) so client
+// wrappers can use the same logic without pulling in the
+// `server-only` `audit-log.ts` module. The re-exports at the
+// top of this file preserve the existing import surface for
+// server-side callers.
 // ──────────────────────────────────────────────────────────────────────
-
-/**
- * Build an `AuditLogFilter` from a Next.js `searchParams` object.
- * Strings only; missing/empty values are dropped. `take` is
- * clamped to [10, 200] with a default of 50.
- */
-export function parseAuditLogFilter(
-  sp: Record<string, string | string[] | undefined> | undefined,
-): AuditLogFilter {
-  if (!sp) return { take: 50 };
-  const get = (k: string): string | undefined => {
-    const v = sp[k];
-    if (Array.isArray(v)) return v[0];
-    return typeof v === "string" && v.length > 0 ? v : undefined;
-  };
-  const takeRaw = get("take");
-  const takeNum = takeRaw ? Number.parseInt(takeRaw, 10) : NaN;
-  const take = Number.isFinite(takeNum) ? Math.min(200, Math.max(10, takeNum)) : 50;
-  return {
-    type: get("type"),
-    prefix: get("prefix"),
-    q: get("q"),
-    take,
-  };
-}
-
-/** Serialize a filter back to a URL query string (preserves the contract). */
-export function auditLogFilterToQuery(f: AuditLogFilter): string {
-  const params = new URLSearchParams();
-  if (f.type) params.set("type", f.type);
-  if (f.prefix) params.set("prefix", f.prefix);
-  if (f.q) params.set("q", f.q);
-  if (f.take && f.take !== 50) params.set("take", String(f.take));
-  const s = params.toString();
-  return s ? `?${s}` : "";
-}
 
 // ──────────────────────────────────────────────────────────────────────
 // Reads
@@ -376,47 +356,11 @@ export async function recordAuditLogViewed(args: {
 
 // ──────────────────────────────────────────────────────────────────────
 // Color map (stable per actionType)
+//
+// Moved to `audit-log-shared.ts` (Cluster 7.6). Re-exported at
+// the top of this file for backward compat with existing
+// server-side imports.
 // ──────────────────────────────────────────────────────────────────────
-
-/**
- * Palette for the type distribution + table chips. 10 distinct
- * terminal colors; types beyond the 10th reuse the palette by
- * index, so the distribution is always colorful regardless of
- * how many types the user has.
- *
- * Order is by visual weight (vessel-accent first because it's
- * the primary signal).
- */
-const TYPE_PALETTE = [
-  "var(--vessel-accent)",   // 0: cyan
-  "var(--ok)",              // 1: green
-  "var(--vessel-gold)",     // 2: gold
-  "var(--vessel-watch)",    // 3: orange
-  "var(--vessel-over)",     // 4: red
-  "var(--terminal-cyan)",   // 5: terminal-cyan
-  "var(--ink-2)",           // 6: ink-2 (neutral mid)
-  "var(--ink-3)",           // 7: ink-3 (neutral dim)
-  "var(--jupiter)",         // 8: jupiter purple
-  "var(--mars)",            // 9: mars red-orange
-] as const;
-
-/**
- * Deterministic hash → index in the palette. Same input always
- * returns the same color (so the table chip + the type
- * distribution segment match for the same type). djb2 variant.
- */
-function typeColorIndex(t: string): number {
-  let h = 5381;
-  for (let i = 0; i < t.length; i += 1) {
-    h = ((h << 5) + h + t.charCodeAt(i)) >>> 0;
-  }
-  return h % TYPE_PALETTE.length;
-}
-
-/** Get the color for a given actionType. Stable across renders. */
-export function colorForActionType(t: string): string {
-  return TYPE_PALETTE[typeColorIndex(t)] ?? TYPE_PALETTE[0];
-}
 
 // ──────────────────────────────────────────────────────────────────────
 // Internal helpers
@@ -471,44 +415,26 @@ const BILL_AUDITABLE_ACTION_TYPES = [
   "vault.yield_routed",
 ] as const;
 
-/** Per-bill filter — extends the 7.4 contract; no prefix / q. */
-export type BillHistoryFilter = {
-  /** Exact actionType match (e.g. "vault.bill_state_changed"). */
-  type?: string;
-  /** Max rows to return. Default 50, max 200. */
-  take?: number;
-};
-
-/**
- * Build a `BillHistoryFilter` from a Next.js `searchParams` object.
- * Strings only; missing/empty values are dropped. `take` is
- * clamped to [10, 200] with a default of 50.
- */
-export function parseBillHistoryFilter(
-  sp: Record<string, string | string[] | undefined> | undefined,
-): BillHistoryFilter {
-  if (!sp) return { take: 50 };
-  const get = (k: string): string | undefined => {
-    const v = sp[k];
-    if (Array.isArray(v)) return v[0];
-    return typeof v === "string" && v.length > 0 ? v : undefined;
-  };
-  const takeRaw = get("take");
-  const takeNum = takeRaw ? Number.parseInt(takeRaw, 10) : NaN;
-  const take = Number.isFinite(takeNum) ? Math.min(200, Math.max(10, takeNum)) : 50;
-  return {
-    type: get("type"),
-    take,
-  };
-}
-
-/** Serialize a bill-history filter back to a URL query string. */
-export function billHistoryFilterToQuery(f: BillHistoryFilter): string {
-  const params = new URLSearchParams();
-  if (f.type) params.set("type", f.type);
-  if (f.take && f.take !== 50) params.set("take", String(f.take));
-  const s = params.toString();
-  return s ? `?${s}` : "";
+/** True if the payload's JSON carries the given billId — either
+ *  as `payload.billId` (most event types) or inside the
+ *  `payload.billsCredited` array (vault.yield_routed).
+ *
+ *  Takes the raw Prisma string (Prisma's `AuditLog.payload` is
+ *  a JSON-as-string column) and delegates to the shared
+ *  `payloadMentionsBillId` after parsing. The shared helper
+ *  itself lives in `audit-log-shared.ts` so client wrappers can
+ *  apply the same predicate without pulling in `server-only`. */
+function payloadMentionsBill(
+  rawPayload: string,
+  billId: string,
+): boolean {
+  let p: Record<string, unknown>;
+  try {
+    p = JSON.parse(rawPayload);
+  } catch {
+    return false;
+  }
+  return payloadMentionsBillId(p) === billId;
 }
 
 export type BillWithEnvelope = {
@@ -709,64 +635,6 @@ export async function recordBillHistoryViewed(args: {
       at: new Date().toISOString(),
     },
   });
-}
-
-/** Build a `/vault/bills/<id>/history?type=...` deep-link from a
- *  row's payload, when the payload carries a billId. Used by
- *  the AuditTable row to deep-link into this page. Returns null
- *  when the row has no billId (so the caller can render the
- *  cell without a link). */
-export function billHistoryHrefForAuditRow(payload: Record<string, unknown>): string | null {
-  const billId = payloadMentionsBillId(payload);
-  if (!billId) return null;
-  const t = typeof payload.actionType === "string" ? (payload.actionType as string) : null;
-  // Most rows should NOT inherit the audit row's type as the
-  // bill-history filter (e.g. a "vault.funded" row would
-  // naturally filter to funded, but the user wants to see the
-  // bill's full history). Exception: when the row's payload
-  // actionType is "vault.bill_state_changed" or a payment
-  // outcome, the type is a meaningful starting filter.
-  const preserveType =
-    t === "vault.bill_state_changed" ||
-    t === "vault.payment_settled" ||
-    t === "vault.payment_failed" ||
-    t === "vault.payment_attempted" ||
-    t === "vault.scheduler_run";
-  const qs = preserveType ? `?type=${encodeURIComponent(t!)}` : "";
-  return `/vault/bills/${encodeURIComponent(billId)}/history${qs}`;
-}
-
-// ──────────────────────────────────────────────────────────────────────
-// Internal helpers (Cluster 7.5)
-// ──────────────────────────────────────────────────────────────────────
-
-/** True if the payload's JSON carries the given billId — either
- *  as `payload.billId` (most event types) or inside the
- *  `payload.billsCredited` array (vault.yield_routed). */
-function payloadMentionsBill(
-  rawPayload: string,
-  billId: string,
-): boolean {
-  let p: Record<string, unknown>;
-  try {
-    p = JSON.parse(rawPayload);
-  } catch {
-    return false;
-  }
-  return payloadMentionsBillId(p) === billId;
-}
-
-/** Extract a billId from a parsed payload, or null. */
-function payloadMentionsBillId(
-  p: Record<string, unknown>,
-): string | null {
-  if (typeof p.billId === "string") return p.billId;
-  if (Array.isArray(p.billsCredited)) {
-    for (const id of p.billsCredited) {
-      if (typeof id === "string") return id;
-    }
-  }
-  return null;
 }
 
 /** Local mapper for the AuditLog row → AuditLogRow domain shape.

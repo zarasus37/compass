@@ -45,7 +45,7 @@ import { AuditHeadlineStrip } from "./AuditHeadlineStrip";
 import { ActivityStrip } from "./ActivityStrip";
 import { TypeDistribution } from "./TypeDistribution";
 import { TypeFilterPills } from "./TypeFilterPills";
-import { AuditTable } from "./AuditTable";
+import { LiveAuditTable } from "./LiveAuditTable";
 
 export const dynamic = "force-dynamic";
 
@@ -174,8 +174,8 @@ export default async function VaultAuditPage({
             accent="cyan"
           />
 
-          <AuditTable
-            rows={tableRows}
+          <LiveAuditTable
+            initialRows={tableRows}
             take={filter.take ?? 50}
             filter={{
               type: filter.type,

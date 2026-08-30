@@ -29,6 +29,7 @@
 
 import "server-only";
 import { prisma } from "@/server/db";
+import { publishAuditEvent } from "./audit-bus";
 import type {
   VaultAccount,
   VaultEnvelope,
@@ -960,12 +961,27 @@ export async function recordVaultAudit(args: {
     | "vault.bill_history_viewed";
   payload: unknown;
 }): Promise<void> {
-  await prisma.auditLog.create({
+  const row = await prisma.auditLog.create({
     data: {
       userId: args.userId,
       actionType: args.actionType,
       payload: JSON.stringify(args.payload ?? {}),
     },
+  });
+  // Cluster 7.6 — fan out to the audit event bus. The single
+  // point of broadcast; every audit writer in the system calls
+  // `recordVaultAudit`, so emitting here covers all of them.
+  // The publish is sync + best-effort; a failed subscriber
+  // doesn't poison the writer (the bus swallows listener
+  // errors). The row is already in the DB; a missed live push
+  // is reconciled on the next page render.
+  publishAuditEvent({
+    id: row.id,
+    userId: row.userId,
+    actionType: row.actionType,
+    payload: row.payload,
+    aiTierAtTime: row.aiTierAtTime,
+    createdAt: row.createdAt,
   });
 }
 

@@ -46,6 +46,7 @@ import { BillHeader } from "./BillHeader";
 import { BillSummaryStrip } from "./BillSummaryStrip";
 import { BillTimeline } from "./BillTimeline";
 import { BillEventTable } from "./BillEventTable";
+import { LiveBillEventTable } from "./LiveBillEventTable";
 
 export const dynamic = "force-dynamic";
 
@@ -207,8 +208,9 @@ export default async function BillHistoryPage({
         accent="cyan"
       />
 
-      <BillEventTable
-        rows={tableRows}
+      <LiveBillEventTable
+        billId={billId}
+        initialRows={tableRows}
         take={filter.take ?? 50}
         filter={{ type: filter.type }}
         hasMore={hasMore}

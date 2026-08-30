@@ -2479,7 +2479,11 @@ async function main() {
       histHtml.includes('data-testid="vault-bill-history-header"') &&
         histHtml.includes('data-testid="vault-bill-summary-strip"') &&
         histHtml.includes('data-testid="vault-bill-timeline"') &&
-        (histHtml.includes('data-testid="vault-bill-history-table"') ||
+        // Cluster 7.6: LiveBillEventTable uses
+        // "vault-bill-history-table-live"; accept the legacy
+        // testid for back-compat.
+        (histHtml.includes('data-testid="vault-bill-history-table-live"') ||
+          histHtml.includes('data-testid="vault-bill-history-table"') ||
           histHtml.includes('data-testid="vault-bill-history-table-empty"')),
     );
     // Check the table actually renders the sentinel event chips.
@@ -2549,6 +2553,122 @@ async function main() {
     );
   } else {
     log("M5", "skipped (no executed bill from M4 to test against)");
+  }
+
+  // ── Phase 4.0 M6 — Real-time audit log updates (SSE) (Cluster 7.6) ────
+  // The /api/vault/audit/stream SSE endpoint subscribes to the
+  // in-process audit bus. The audit log page and the per-bill
+  // history page use `useAuditStream` (a client hook) to
+  // prepend new rows in real time. This phase verifies the
+  // wiring: the route exists, returns the right Content-Type,
+  // the live wrappers exist as client components, and the
+  // package.json smoke script includes the dedicated SSE smoke.
+  // The deep end-to-end checks (write → bus → SSE → client)
+  // live in `tests/smoke-sse-audit-log.mjs` because they need
+  // a long-lived connection.
+  {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const routeSrc = readFileSync(
+      join(PROJECT_ROOT, "src/app/api/vault/audit/stream/route.ts"),
+      "utf8",
+    );
+    check(
+      "M6: /api/vault/audit/stream route exists",
+      routeSrc.includes("export async function GET"),
+    );
+    check(
+      "M6: stream route returns text/event-stream",
+      routeSrc.includes("text/event-stream"),
+    );
+    check(
+      "M6: stream route sends a : heartbeat comment",
+      routeSrc.includes("heartbeat"),
+    );
+    check(
+      "M6: stream route filters by billId when present",
+      routeSrc.includes("payloadMentionsBill"),
+    );
+
+    // The live wrappers exist as client components.
+    const liveAuditSrc = readFileSync(
+      join(PROJECT_ROOT, "src/app/(app)/vault/audit/LiveAuditTable.tsx"),
+      "utf8",
+    );
+    const liveBillSrc = readFileSync(
+      join(PROJECT_ROOT, "src/app/(app)/vault/bills/[id]/history/LiveBillEventTable.tsx"),
+      "utf8",
+    );
+    check(
+      "M6: LiveAuditTable is a client component",
+      /["']use client["']/.test(liveAuditSrc),
+    );
+    check(
+      "M6: LiveBillEventTable is a client component",
+      /["']use client["']/.test(liveBillSrc),
+    );
+    check(
+      "M6: LiveAuditTable suppresses vault.audit_log_viewed (self-feedback guard)",
+      liveAuditSrc.includes("vault.audit_log_viewed"),
+    );
+    check(
+      "M6: LiveBillEventTable suppresses vault.bill_history_viewed (self-feedback guard)",
+      liveBillSrc.includes("vault.bill_history_viewed"),
+    );
+
+    // The /vault/audit page now uses LiveAuditTable.
+    const auditPageSrc = readFileSync(
+      join(PROJECT_ROOT, "src/app/(app)/vault/audit/page.tsx"),
+      "utf8",
+    );
+    check(
+      "M6: /vault/audit page renders LiveAuditTable",
+      auditPageSrc.includes("LiveAuditTable"),
+    );
+    // The /vault/bills/[id]/history page now uses LiveBillEventTable.
+    const histPageSrc = readFileSync(
+      join(PROJECT_ROOT, "src/app/(app)/vault/bills/[id]/history/page.tsx"),
+      "utf8",
+    );
+    check(
+      "M6: /vault/bills/[id]/history page renders LiveBillEventTable",
+      histPageSrc.includes("LiveBillEventTable"),
+    );
+
+    // The package.json smoke script wires up the SSE smoke.
+    const pkg = JSON.parse(
+      readFileSync(join(PROJECT_ROOT, "package.json"), "utf8"),
+    );
+    check(
+      "M6: package.json smoke script includes smoke-sse-audit-log.mjs",
+      (pkg.scripts.smoke ?? "").includes("smoke-sse-audit-log.mjs"),
+    );
+
+    // Quick wire check: an authenticated HEAD on the stream
+    // endpoint returns 200 (the route is registered + authed).
+    // The stream itself is text/event-stream; we don't need to
+    // drain it here — the dedicated SSE smoke does the
+    // end-to-end.
+    const sseHeaders = new Headers();
+    applyCookies(sseHeaders);
+    const sseHead = await fetch(BASE + "/api/vault/audit/stream", {
+      headers: sseHeaders,
+    });
+    check(
+      "M6: /api/vault/audit/stream is registered (returns 200)",
+      sseHead.status === 200,
+      `status=${sseHead.status}`,
+    );
+    check(
+      "M6: /api/vault/audit/stream sets text/event-stream Content-Type",
+      (sseHead.headers.get("content-type") ?? "").includes(
+        "text/event-stream",
+      ),
+    );
+    // Drain the body to release the connection.
+    try {
+      await sseHead.body?.cancel();
+    } catch {}
   }
 
   // ── Final summary ─────────────────────────────────────────────

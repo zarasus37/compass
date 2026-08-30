@@ -60,6 +60,7 @@ logs
 # session artifacts. Patterns are explicit (not `_*` alone) so a real
 # file like `dashboard.tsx` is never accidentally caught.
 _trash_*
+_trash-*
 _*.cjs
 _*.mjs
 _*.html

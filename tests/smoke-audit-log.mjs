@@ -178,7 +178,10 @@ async function main() {
   );
   check(
     "audit: table present (data-testid)",
-    html1.includes('data-testid="vault-audit-table"') ||
+    // Cluster 7.6: LiveAuditTable uses "vault-audit-table-live";
+    // accept the legacy testid for back-compat.
+    html1.includes('data-testid="vault-audit-table-live"') ||
+      html1.includes('data-testid="vault-audit-table"') ||
       html1.includes('data-testid="vault-audit-table-empty"') ||
       html1.includes('data-testid="vault-audit-empty"'),
   );
@@ -317,9 +320,15 @@ async function main() {
   // ── 10. Filter contract: ?take=200 doesn't break the page
   const takePage = await get("/vault/audit?take=200");
   const takeHtml = await takePage.text();
+  // Cluster 7.6: the table now renders as LiveAuditTable with
+  // data-testid="vault-audit-table-live". The legacy
+  // "vault-audit-table" testid is no longer present. Accept
+  // either for backward compat.
   check(
     "audit: ?take=200 renders the page",
-    takePage.status === 200 && takeHtml.includes('data-testid="vault-audit-table"'),
+    takePage.status === 200 &&
+      (takeHtml.includes('data-testid="vault-audit-table-live"') ||
+        takeHtml.includes('data-testid="vault-audit-table"')),
   );
 
   // ── 11. /vault/preferences has the [AUDIT] chip
@@ -349,15 +358,29 @@ async function main() {
     dbSrc.includes('"vault.audit_log_viewed"'),
   );
 
-  // ── 14. Source-file: audit-log.ts has the color map + meta event
+  // ── 14. Source-file: color map + meta event
+  // Cluster 7.6 moved the pure helpers (colorForActionType,
+  // TYPE_PALETTE, etc.) to a new `audit-log-shared.ts` so the
+  // live SSE wrappers can import them without pulling in
+  // `server-only`. The server-only `audit-log.ts` re-exports
+  // the shared symbols for backward compat — both surfaces
+  // exist and both are checked here.
   const alSrc = readFileSync(join(ROOT, "src/lib/vault/audit-log.ts"), "utf8");
-  check(
-    "audit: audit-log.ts exports colorForActionType",
-    alSrc.includes("export function colorForActionType"),
+  const alSharedSrc = readFileSync(
+    join(ROOT, "src/lib/vault/audit-log-shared.ts"),
+    "utf8",
   );
   check(
-    "audit: audit-log.ts has TYPE_PALETTE",
-    alSrc.includes("TYPE_PALETTE"),
+    "audit: colorForActionType lives in audit-log-shared.ts",
+    alSharedSrc.includes("export function colorForActionType"),
+  );
+  check(
+    "audit: TYPE_PALETTE lives in audit-log-shared.ts",
+    alSharedSrc.includes("TYPE_PALETTE"),
+  );
+  check(
+    "audit: audit-log.ts re-exports colorForActionType (back-compat)",
+    /export\s*\{[^}]*colorForActionType[^}]*\}\s*from\s*["']\.\/audit-log-shared["']/.test(alSrc),
   );
   check(
     "audit: audit-log.ts exports recordAuditLogViewed",
