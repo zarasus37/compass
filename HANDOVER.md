@@ -3,12 +3,13 @@
 **Date**: 2026-08-29 21:30 CDT
 **Last commit**: `ee405f8` (Cluster 7.4 — Audit log viewer)
 **Predecessor commit**: `717e8e0` (handoff + COORDINATION reflect Cluster 7.3) → `589634f` (Cluster 7.3) → `29bc14f` (Cluster 7.2) → `d71c224` (Cluster 7.1)
+**🎯 NEXT CLUSTER (locked in)**: **Cluster 7.5 — Per-bill audit drill-down** (visible UI). See "Next cluster" below for the full spec sketch.
 
 ---
 
 ## TL;DR
 
-Compass is at a clean natural breakpoint. The most recent work was **Cluster 7.4 — Audit log viewer (visible UI)** (commit `TBD`): every action the system has taken on the user's behalf is now surfaceable in one reverse-chronological page. New `/vault/audit` route (force-dynamic, server-rendered) with 4-cell headline strip (growth-oriented suggestion chips), 30-day SVG activity strip, horizontal stacked type distribution (click to filter, stable per-type color), type filter pills + prefix filter + free-text `?q=` search, and a table with per-row `<details>` JSON payload. New `vault.audit_log_viewed` meta event — every visit to the page records a row, so the audit log is auditable itself. `[AUDIT] →` chip on `/vault/preferences` PageHead + `// view full history → /vault/audit` link from `/vault/schedule`. **All 30 smokes green via `pnpm smoke:all`** (~1,510 checks, was ~1,475). tsc clean. Dev server live on testnet default.
+Compass is at a clean natural breakpoint. The most recent work was **Cluster 7.4 — Audit log viewer (visible UI)** (commit `ee405f8`): every action the system has taken on the user's behalf is now surfaceable in one reverse-chronological page. New `/vault/audit` route (force-dynamic, server-rendered) with 4-cell headline strip (growth-oriented suggestion chips), 30-day SVG activity strip, horizontal stacked type distribution (click to filter, stable per-type color), type filter pills + prefix filter + free-text `?q=` search, and a table with per-row `<details>` JSON payload. New `vault.audit_log_viewed` meta event — every visit to the page records a row, so the audit log is auditable itself. `[AUDIT] →` chip on `/vault/preferences` PageHead + `// view full history → /vault/audit` link from `/vault/schedule`. **All 30 smokes green via `pnpm smoke:all`** (~1,510 checks, was ~1,475). tsc clean. Dev server live on testnet default.
 
 **Note for the next session**: during Cluster 7.4 the .env.local file was overwritten (accidentally truncated by a PowerShell edit, then restored from the .env.local.example template). The DATABASE_URL is back to the correct Postgres value, but the user's Mavis API key (MAVIS_API_KEY) was lost in the truncation. The smokes run with LLM_PROVIDER="mock" by default so the suite is unaffected, but if the next session wants to use the production-grade Mavis provider for the onboarding agent, the key needs to be re-pasted into .env.local. The integration-vault smoke that previously verified the Mavis endpoint still passes (it uses the mock provider via `LLM_PROVIDER="mock"`). See "Recovery" at the bottom for what to put in .env.local.
 
@@ -141,17 +142,59 @@ Total: **~1,510 checks** across 30 suites. CI runs them in ~3-5 min on a Linux r
 
 A long-running Node process polls `POST /api/cron/vault` every 30s and logs one line per fire. Start it with `pnpm cron:dev`. It auto-skips when no schedules are due, and gracefully summarizes on SIGINT. In production, the same `/api/cron/vault` endpoint is hit by Vercel cron (or any external scheduler); set `CRON_SECRET` to require bearer auth on the route.
 
-## Next cluster (recommended for the next session)
+## Next cluster (LOCKED IN — start here)
 
-The handoff's natural next direction depends on what the user wants. Three good candidates (visible-UI, all):
+**Cluster 7.5 — Per-bill audit drill-down (visible UI).** Decided 2026-08-29 21:55 CDT.
 
-**Option A — Real-time audit log updates (SSE/WebSocket).** The page is force-dynamic right now; the user has to refresh to see new events. Add a Server-Sent Events stream on `/api/vault/audit/stream` that pushes new rows as they're written. The page subscribes via `EventSource` and prepends new rows to the table (or shows a "[N new events · click to refresh]" toast). The meta event `vault.audit_log_viewed` is already a self-firing event; the new infra would use the same `prisma.auditLog.create` Prisma stream (when Prisma supports it) or a Postgres `LISTEN/NOTIFY` channel. **Visible-UI; no schema change, but new infra.**
+### What
 
-**Option B — Per-bill audit drill-down.** The table shows every event for the user; clicking a `vault.payment_settled` row could deep-link to a bill-specific audit page (filtered to `billId = ...`) with the bill's full state machine history (EARNING → PREPARING → EXECUTING → SETTLED or MANUAL_ACTION_REQUIRED). Would require a new `/vault/bills/[id]/history` route. **Visible-UI; new route.**
+New `/vault/bills/[id]/history` route (force-dynamic, server-rendered) that shows one bill's full state machine event stream. Mirrors the `/vault/audit` pattern from Cluster 7.4 but scoped to a single bill.
 
-**Option C — Audit log retention / archival.** The `AuditLog` table grows forever. A "vault.audit_log_pruned" cron that rolls up old events into a daily summary row would keep the table bounded. The page's activity strip would show aggregated counts per day. **More infrastructure; less visible-UI.**
+### Why
 
-The handoff's "Next cluster" section previously recommended an audit log viewer — that was Cluster 7.4, now done. Recommend the user pick the next direction at session start.
+The `/vault/audit` page (7.4) shows every event for the user, but when a `vault.payment_settled` or `vault.bill_state_changed` row catches the user's eye, they have no way to see "everything that ever happened to this bill." A click on a bill-scoped row should deep-link to this page. The data shape already exists — every bill event writes `billId` into the audit payload, and the URL contract from 7.4 (`?type=&billId=`) extends naturally.
+
+### Scope (sketch — flesh out into `00-CLUSTER-7.5-...md` before coding)
+
+- **New route** `src/app/(app)/vault/bills/[id]/history/page.tsx` (force-dynamic, awaits `searchParams` for `?type=` and `?take=`)
+- **New data helpers** in `src/lib/vault/audit-log.ts`:
+  - `getBillAuditLog(billId, filter)` — rows for this bill + the bill's full snapshot (name, amount, current state, payment history)
+  - `getBillAuditSummary(billId)` — totals + timeline
+- **New components** under `src/app/(app)/vault/bills/[id]/history/`:
+  - `BillHeader.tsx` — bill name, amount, current state badge, vessel affiliation
+  - `BillTimeline.tsx` — state-machine timeline (EARNING → PREPARING → EXECUTING → SETTLED or MANUAL_ACTION_REQUIRED), with the audit events as the timeline entries
+  - `BillEventTable.tsx` — same shape as `AuditTable.tsx` but scoped to this bill
+  - `BillSummaryStrip.tsx` — 4-cell strip (total events for this bill / last activity / most active action / quiet?) with growth-oriented suggestion chips per the 2026-08-24 directive
+- **Link from `/vault/audit` table** — when a row's `payload.billId` is set, the row's `// when` cell becomes a link to `/vault/bills/[id]/history`. The `vault.scheduler_run` rows with `billId` should also link.
+- **Link from `/vault` bill schedule** — each bill row's name becomes a link to its history. (The `vault/schedule` page's `RunHistoryTable` is a different concern — it's the cron-level history.)
+- **New event type** `vault.bill_history_viewed` — meta event written on every render of the bill history page, following the `vault.audit_log_viewed` precedent.
+- **New smoke** `tests/smoke-bill-history.mjs` — ~30-40 checks. Write a sentinel bill + sentinel events directly via the shared Prisma client so the page is guaranteed to have data to render (same self-contained pattern as `smoke-audit-log.mjs`).
+- **Update `package.json` smoke script** to include the new smoke (31st data-layer suite).
+- **Update `tests/integration-vault.mjs`** with a "Phase 4.0 M5 — Bill audit drill-down" section that exercises the new page end-to-end against the existing M4 fixtures.
+
+### Out of scope (deferred)
+
+- Real-time updates on the bill history page (Option A from the previous handoff)
+- Per-bill filterable activity strip (not needed — the bill's event count is bounded)
+- Bill-level export (CSV / JSON) — same as the audit-log export deferral
+- Cross-bill history view (multiple bills in one timeline) — future cluster
+
+### Pre-existing pattern notes (do not re-litigate)
+
+- The `vault.audit_log_viewed` meta event (7.4) is the model for the new `vault.bill_history_viewed` event — fire-and-forget AFTER the read, so the just-written event doesn't show in the same visit's table.
+- The bill state machine in `src/lib/vault/state-machine.ts` (the pure 13-state machine) is the source of truth for valid transitions. The history page's timeline should use the same state labels, colors, and `[OK]/[WARN]/[SIGIL]` markers.
+- The bill's row in `VaultAccount.vaultEnvelope.bills[]` is the same source the bill schedule table reads. The history page reads from the same source for the header.
+- The per-bill audit log query is `prisma.auditLog.findMany({ where: { userId, payload: { path: ['billId'], equals: billId } } })` — Prisma's JSON path filter on the `payload` String column. The audit-log data layer should expose a typed wrapper for this.
+
+### Why B (vs A and C)
+
+Per the user's standing preferences (visible UI matters more than invisible architecture, visual-first for data display), Option B is the highest visible-UI payoff. Option A (real-time SSE updates) is the runner-up; Option C (retention cron) is lowest priority.
+
+### Other candidates (still good, lower priority)
+
+**Option A — Real-time audit log updates (SSE/WebSocket).** Add `/api/vault/audit/stream` that pushes new rows as they're written. The page subscribes via `EventSource` and prepends new rows to the table. **Visible-UI; no schema change, but new infra.**
+
+**Option C — Audit log retention / archival.** A "vault.audit_log_pruned" cron that rolls up old events into daily summary rows. The activity strip would show aggregated counts per day. **More infrastructure; less visible-UI.**
 
 ### Recent change worth knowing about (Cluster 7.0.1 / 7.1)
 
