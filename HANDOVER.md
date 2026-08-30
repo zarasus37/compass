@@ -1,15 +1,15 @@
 # Compass — Fresh-Session Handoff
 
-**Date**: 2026-08-30 05:35 CDT
-**Last commit**: Cluster 7.6 (Real-time audit log updates via SSE) — committed on top of `f980240` (session-scratch cleanup) → `eb7c1f9` (Cluster 7.5) → `ed4129b` (handoff + COORDINATION reflect Cluster 7.4)
-**Predecessor commit**: `f980240` (session-scratch cleanup) → `eb7c1f9` (Cluster 7.5) → `ed4129b` (handoff + COORDINATION reflect Cluster 7.4) → `ee405f8` (Cluster 7.4)
+**Date**: 2026-08-30 07:35 CDT
+**Last commit**: Cluster 7.7 (Date range filter on `/vault/audit`) — committed on top of `3af7566` (Cluster 7.6) → `f980240` (session-scratch cleanup) → `eb7c1f9` (Cluster 7.5) → `ed4129b` (handoff + COORDINATION reflect Cluster 7.4)
+**Predecessor commit**: `3af7566` (Cluster 7.6) → `f980240` (session-scratch cleanup) → `eb7c1f9` (Cluster 7.5) → `ed4129b` (handoff + COORDINATION reflect Cluster 7.4) → `ee405f8` (Cluster 7.4)
 **🎯 NEXT CLUSTER (TBD — pick from candidates below)**: see "Next cluster" for the menu.
 
 ---
 
 ## TL;DR
 
-Compass is at a clean natural breakpoint. The most recent work was **Cluster 7.6 — Real-time audit log updates (SSE)**: the `/vault/audit` page and the per-bill `/vault/bills/[id]/history` page now surface new audit log rows in real time via Server-Sent Events. New `GET /api/vault/audit/stream` route returns `text/event-stream`; the audit-log writer in `recordVaultAudit` publishes to a process-local `EventEmitter` (pinned to `globalThis`), and the route subscribes + filters by `userId` (and optionally by `?billId=` for the history page) and forwards every new event to its open connections. New `useAuditStream` client hook (EventSource + auto-reconnect + `ignoreActionTypes` for the page's own write-after-read meta event) is wrapped by `LiveAuditTable` (on `/vault/audit`) and `LiveBillEventTable` (on `/vault/bills/[id]/history`). Both live wrappers preserve the server-rendered initial rows, prepend streamed rows that pass the page's filter, and cap the list at `take`. Self-feedback guard: the audit page ignores `vault.audit_log_viewed` (its own meta event); the bill history page ignores `vault.bill_history_viewed` + `vault.audit_log_viewed`. New dev-only `POST /api/dev/audit-log-write` endpoint (gated by `NODE_ENV !== "production"`, actionType must start with `smoke.*`) so the smoke can fire the bus from outside the dev server's process. Extracted `src/lib/vault/audit-log-shared.ts` (pure types + helpers — `colorForActionType`, `billHistoryHrefForAuditRow`, `parseAuditLogFilter`, `AuditLogFilter`, `AuditLogRow`, `BillHistoryFilter`); `audit-log.ts` re-exports for back-compat. Extracted `AuditTableView` + `BillEventTableView` so the server `AuditTable` and the client `LiveAuditTable` share one source of truth for the row JSX. New smoke `tests/smoke-sse-audit-log.mjs` (30 checks, self-contained via the dev endpoint). New "Phase 4.0 M6 — Real-time audit log updates (SSE)" section in `tests/integration-vault.mjs` (13 new checks, integration total now 183). All 17 data-layer smokes + 13 UI smokes + integration + deploy = **31 suites, ~1,522 checks, ALL GREEN**. tsc clean. Dev server live on testnet default.
+Compass is at a clean natural breakpoint. The most recent work was **Cluster 7.7 — Date range filter on `/vault/audit`**: the audit-log page now has a row of 5 preset chips (Last 24h / 7d / 30d / 90d / All time) that scope the entire page to a date window via `?from=YYYY-MM-DD&to=YYYY-MM-DD`. New `DateRangeBar` component (server-rendered, chips are plain `<Link>`s that merge the new range with the rest of the page's filter). `AuditLogFilter` extended with `from` / `to` strings; `parseAuditLogFilter` validates YYYY-MM-DD dates (silently drops malformed values, drops `to` when `from > to`); `whereFromFilter` in the server-only module adds `createdAt: { gte: from, lt: to + 1 day }` at the DB layer; `rowMatchesAuditFilter` (the predicate the live wrapper uses) was extended to gate on the date range — so the C7.6 SSE live-update wiring filters streamed rows through the same predicate with no new code. The 30-day activity strip dims out-of-range bars to 30% opacity (each bar gets a `data-in-range` testid); the section header flips from "Last 30 days" to "Last 30 days (range dimmed)" when a range is active. The 4-cell headline strip stays UNFILTERED (per the 7.4 contract). New preset constant `DATE_RANGE_PRESETS` + helpers `dateRangeForPreset`, `parseYmdDate`, `toYmd`, `hasDateRange`. New `tests/smoke-audit-log.mjs` checks (24 new — 64 total, up from 36) cover chip rendering, href correctness, range + type composition, range dimming, CLEAR chip, malformed dates, `from > to` forgiveness. All 17 data-layer smokes + 13 UI smokes + integration + deploy = **31 suites, ~1,546 checks, ALL GREEN**. tsc clean. Dev server live on testnet default.
 
 **Note for the next session**: during Cluster 7.4 the .env.local file was overwritten (accidentally truncated by a PowerShell edit, then restored from the .env.local.example template). The DATABASE_URL is back to the correct Postgres value, but the user's Mavis API key (MAVIS_API_KEY) was lost in the truncation. The smokes run with LLM_PROVIDER="mock" by default so the suite is unaffected, but if the next session wants to use the production-grade Mavis provider for the onboarding agent, the key needs to be re-pasted into .env.local. The integration-vault smoke that previously verified the Mavis endpoint still passes (it uses the mock provider via `LLM_PROVIDER="mock"`). See "Recovery" at the bottom for what to put in .env.local.
 
@@ -38,6 +38,16 @@ Compass is at a clean natural breakpoint. The most recent work was **Cluster 7.6
 - **Heartbeat every 15s by default; smoke overrides to 300ms via `X-Compass-Test-Heartbeat-Ms`.** The route writes a `: heartbeat\n\n` SSE comment on the configured interval to keep proxies from dropping the long-lived connection. The smoke sets the header to 500ms to verify the heartbeat path quickly.
 - **No `Last-Event-ID` resume support.** A disconnect just starts streaming from "now"; events during the disconnect window are missed. The user can refresh to reconcile. Acceptable for an audit log viewer; documented in the spec as a future cluster (Postgres `LISTEN`-backed bus + reconnect state).
 - **The dev server's `middleware` file convention is deprecated in favor of `proxy`.** Next.js 16 prints a warning on every server action. Pre-existing (Cluster 6.0.1 set it up); not a 7.6 regression. Migration is `npx @next/codemod@canary middleware-to-proxy .` — left for a follow-on cluster.
+
+## Recent change worth knowing about (Cluster 7.7)
+
+- **`?from=YYYY-MM-DD&to=YYYY-MM-DD` is the new URL contract for date scoping.** `from` is INCLUSIVE; `to` is INCLUSIVE (the SQL upper bound is `to + 1 day` exclusive, so a `?to=2026-08-30` filter still includes rows that landed at 23:59:59 on Aug 30). Combinations with `?type=`, `?prefix=`, `?q=`, `?take=` are AND. The 4-cell headline strip stays UNFILTERED (per the 7.4 contract — the date filter is a "view", not a restriction on the ground truth).
+- **Malformed `?from=` / `?to=` are silently dropped** (per the 7.4 contract — invalid filter values are forgiven, not 400'd). `from > to` drops `to` (more useful than silently returning 0 rows). Empty string is also dropped.
+- **5 preset chips** (Last 24h / 7d / 30d / 90d / All time) render as `<Link>` elements. The chip's href merges the new range with the rest of the page's filter via `auditLogFilterToQuery` — so clicking "Last 7 days" while `?type=vault.payment_settled` is active produces `?type=vault.payment_settled&from=<today-7>&to=<today>`. The "All time" chip removes BOTH date params (full unfiltered view).
+- **The 30-day activity strip dims out-of-range bars to 30% opacity** so the user sees both the recent shape AND the highlighted window. Bars on the range boundary are still full opacity. The section header flips from "Last 30 days" to "Last 30 days (range dimmed)" when a range is active. The strip's underlying data is unchanged (always the last 30 days of activity); the dimming is visual.
+- **The SSE live wrapper (C7.6) automatically respects the date filter.** `rowMatchesAuditFilter` (the predicate the `LiveAuditTable` hook calls on every streamed row) was extended to gate on `filter.from` / `filter.to`. A row that lands outside the active range is dropped before prepending — the user sees only in-range rows stream in. The C7.6 bus + hook + SSE route are unchanged; only the predicate gained two more conditions.
+- **The "self-feedback guard" for the audit page's `vault.audit_log_viewed` meta event still wins over the date filter.** The hook drops the meta event on `actionType` alone; the date check is downstream of that. The meta event always lands "now", so the date check would pass — but the hook drops it earlier.
+- **Why no date filter on the bill history page?** The bill's event set is bounded (~10s of rows per bill). A date filter there would rarely change the result; the page is already focused on one bill. The bill history URL contract remains `?type=<actionType>&take=<n>`. If a future cluster wants date scoping there, the same `?from=` / `?to=` URL contract applies — just extend `BillHistoryFilter` + `parseBillHistoryFilter`.
 
 ## Recent change worth knowing about (Cluster 7.4)
 
@@ -113,6 +123,8 @@ If any of those are down, see "Recovery" at the bottom of this file.
 | **Bill history smoke (C7.5)** | `tests/smoke-bill-history.mjs` (48 checks) |
 | **Real-time audit log updates (C7.6)** | `src/app/api/vault/audit/stream/route.ts` (SSE) + `src/lib/vault/audit-bus.ts` (process-local `EventEmitter` pinned to `globalThis`) + `src/lib/vault/use-audit-stream.ts` (client hook) + `src/lib/vault/audit-log-shared.ts` (extracted pure types + helpers) + `src/app/api/dev/audit-log-write/route.ts` (dev-only test endpoint) |
 | **SSE audit log smoke (C7.6)** | `tests/smoke-sse-audit-log.mjs` (30 checks) |
+| **Date range filter (C7.7)** | `src/app/(app)/vault/audit/DateRangeBar.tsx` (preset chips + active-range badge) + `src/lib/vault/audit-log-shared.ts` (extends `AuditLogFilter` with `from` / `to`; adds `DATE_RANGE_PRESETS`, `dateRangeForPreset`, `parseYmdDate`, `toYmd`, `hasDateRange`) + `src/lib/vault/audit-log.ts` (`whereFromFilter` adds `createdAt: { gte, lt }` when set) + `src/app/(app)/vault/audit/ActivityStrip.tsx` (dims out-of-range bars to 30% opacity via new `rangeFrom` / `rangeTo` props) |
+| **Date range filter (C7.7)** | `src/app/(app)/vault/audit/DateRangeBar.tsx` (preset chips + active-range badge) + `src/lib/vault/audit-log-shared.ts` (extends `AuditLogFilter` with `from` / `to`; adds `DATE_RANGE_PRESETS`, `dateRangeForPreset`, `parseYmdDate`, `toYmd`, `hasDateRange`) + `src/lib/vault/audit-log.ts` (`whereFromFilter` adds `createdAt: { gte, lt }` when set) + `src/app/(app)/vault/audit/ActivityStrip.tsx` (dims out-of-range bars to 30% opacity via new `rangeFrom` / `rangeTo` props) |
 | Off-ramp picker (C7.3) | `src/components/vault/OffRampProviderPicker.tsx` + `src/lib/vault/spritz-client.ts` |
 | Smoke scripts | `tests/smoke-*.mjs` (31 files) + `tests/integration-vault.mjs` (now includes M5 phase) + `tests/smoke-deploy.mjs` |
 | Shared smoke client | `tests/db-client.mjs` |
@@ -167,13 +179,13 @@ pnpm smoke:deploy       # 95 deploy-readiness checks (file + live)
 pnpm tsc                # type check
 ```
 
-Baseline numbers (verified 2026-08-30 05:35 CDT on Cluster 7.6):
-- 17 data-layer smokes: auth 33, accounts-db 53, allocation-db 36, bills-db (n/a — was 36, refactored to live reads in 7.4), envelopes-db 29, goals-db 28, insights-db 23, vault-scheduler 55, vault 77, vault-prefs 66, off-ramp-picker 35, command-palette 77, onboarding-agent 108, advisor 78, audit-log **36 (+1)**, bill-history **48 (+2)**, **sse-audit-log 30 (NEW)**
+Baseline numbers (verified 2026-08-30 07:35 CDT on Cluster 7.7):
+- 17 data-layer smokes: auth 33, accounts-db 53, allocation-db 36, bills-db (n/a — was 36, refactored to live reads in 7.4), envelopes-db 29, goals-db 28, insights-db 23, vault-scheduler 55, vault 77, vault-prefs 66, off-ramp-picker 35, command-palette 77, onboarding-agent 108, advisor 78, audit-log **64 (+28)**, bill-history 48, sse-audit-log 30
 - 13 UI smokes: 22, 70, 7, 32, 36, 14, 46, 5, 8, 63, 102, 7, 20 checks
-- integration-vault: **183** checks (was 170, +13 from M6)
-- smoke-deploy: **95** checks
+- integration-vault: 183 checks
+- smoke-deploy: 95 checks
 - tsc: clean
-- Total: **~1,522 checks** across 31 suites
+- Total: **~1,546 checks** across 31 suites
 
 Total: **~1,494 checks** across 31 suites. CI runs them in ~3-5 min on a Linux runner with a Postgres service container.
 
@@ -183,14 +195,41 @@ A long-running Node process polls `POST /api/cron/vault` every 30s and logs one 
 
 ## Next cluster (TBD — pick from candidates below)
 
-Cluster 7.6 (real-time audit log updates via SSE) shipped 2026-08-30. The handoff is open-ended; pick from the candidates below based on what the user asks for or what's highest-value next.
+Cluster 7.7 (date range filter on `/vault/audit`) shipped 2026-08-30. The handoff is open-ended; pick from the candidates below based on what the user asks for or what's highest-value next.
 
-### Recommended: Date range filter on `/vault/audit` — visible UI, small surface, no infra
+### Recommended: Audit log retention / archival — visible UI (rolled-up activity strip), moderate infra
 
-**Cluster 7.7 candidate — `?from=YYYY-MM-DD&to=YYYY-MM-DD` URL filter on the audit log.** Adds scoping to the last week / month / year. Server-side filter (same pattern as `?type=` and `?prefix=`), narrow to the activity strip + type distribution + table (the 4-cell headline stays unfiltered, per the 7.4 contract). Visible-UI; small surface area; the SSE live-update wiring from 7.6 already filters streamed rows through the same predicate, so the live behavior is automatic.
+**Cluster 7.8 candidate — `vault.audit_log_pruned` cron that rolls up old events into daily summary rows.** A nightly job that aggregates `AuditLog` rows older than 90 days into a new `AuditLogDailyRollup` table (one row per `userId` + `dateKey` + `actionType` with `count` + `failedCount`). The 30-day activity strip on `/vault/audit` would then aggregate from both sources (recent: live rows; older: rollup rows). Visible-UI (the activity strip shows MORE history without slowing down); moderate infra (new table + new cron). Pairs naturally with the C7.7 date filter: "last 90 days" = live rows; "last 365 days" = live + rollup; "all time" = live + rollup (older).
 
-- Per the "visible UI matters more than invisible architecture" preference (xKryptic, 2026-08-22), this is the highest visible-UI payoff for the next cluster.
-- Pairs naturally with a future audit-log retention cluster (Candidate B below) — the retention cron rolls up old events into daily summary rows; the date-range filter scopes to a specific window. Ship the filter first, retention second.
+- **Visible UI**: the 30-day strip extends backwards in time as rollup data accumulates. The 4-cell headline can also grow a "this quarter" + "this year" pair.
+- **Pairs with the C7.7 date filter**: the filter predicate doesn't change; the data layer's `getAuditLogActivity` reads from both sources.
+- **Prework**: the date-range filter (C7.7) is the precondition — once the user can scope to a specific window, "give me last year's activity" is a natural follow-on.
+
+### Other candidates (still good, lower priority)
+
+**Cluster 7.8 candidate B — Real-time live activity ticker in the sidebar.** The C7.6 SSE stream can power a small "live events" indicator in the sidebar (e.g. last 3 events with their actionType + timestamp). The same bus + hook; new client component. Pairs with the C7.6 SSE work.
+
+**Cluster 7.8 candidate C — Prod-env var naming consistency.** `.env.production.example` uses `VAULT_SIGNER_KEY` (the name `prod.ts` checks) but `safe-deploy.ts` actually reads `VAULT_SAFE_SIGNER_PRIVATE_KEY`. A prod deploy using the example as-is will never get a usable signer. Trivial fix (alias or rename), but it changes every smoke + every deploy script. **Invisible infra; 30 min of work + smoke updates.**
+
+**Cluster 7.8 candidate D — Real Spritz sandbox creds.** xKryptic signs up at sdk.spritz.finance, gets a sandbox key, adds `SPRITZ_INTEGRATION_KEY=...` and `SPRITZ_SANDBOX=true` to `.env.local`. The chain auto-flips to live. **No code change.** Not really a "cluster" — just a config gate. Might be combined with a real-mainnet-deploy cluster.
+
+**Cluster 7.8 candidate E — Real mainnet deploy.** Cluster 6.0.1 wired mainnet; the chain table, the addresses, the env block, the prod check, the API endpoint, the smoke are all green. But no real mainnet deploy was performed. The deployer EOA needs real ETH on Base; xKryptic creates + funds it. Cluster 6.0.2 ("Forked-mainnet deploy test") would add a `anvil --fork-base` or Tenderly integration so the full deploy + supply + withdraw flow can be exercised end-to-end without spending real ETH.
+
+**Cluster 7.8 candidate F — Per-bill off-ramp provider override UI.** The data shape exists (`ScheduledBill.providerPreference`); the picker in `/vault/preferences` is a single user-level value. Per-bill overrides stay in the bill editor for a future cluster.
+
+**Cluster 7.8 candidate G — Refund / dispute flow.** The existing `Manual Push` adapter's error path is the contract; a real adapter just maps the same error states.
+
+**Cluster 7.8 candidate H — Multi-sig / threshold changes.** Current spec is a 1-of-1 Safe. Multi-sig is a future cluster.
+
+**Cluster 7.8 candidate I — Other chains (Optimism, Arbitrum, Polygon).** The chain table is a clean place to add more. Deferred to a "Multi-chain vault" cluster.
+
+**Cluster 7.8 candidate J — Real Monto adapter.** Cluster 7.3 wired Spritz; Monto stays a stub. The gateway is provider-agnostic; the swap is a 1-file change in `src/lib/vault/spritz-client.ts` (rename to `off-ramp-client.ts`, add the Monto SDK).
+
+**Cluster 7.8 candidate K — Real fiat bank-account linking.** The off-ramp delivers USDC to the wallet; the user is responsible for off-ramping to a bank themselves in v1. A future cluster can integrate Plaid + the Spritz bank-account-link flow.
+
+**Cluster 7.8 candidate L — Dynamic Pool address resolution.** Currently the Aave V3 Pool address is hardcoded per chain. Cluster 6.0.2 (forked-mainnet) should resolve dynamically via `PoolAddressesProvider.getPool()` so an Aave upgrade doesn't need a code change.
+
+**Cluster 7.8 candidate M — Prisma migration history.** Currently the schema is pushed via `prisma db push`. Production should run `prisma migrate dev` once to seed `_prisma_migrations` so the health endpoint can report `migrationStatus: current` instead of `pushed`.
 - The same SSE stream can power a future "live activity ticker" in the sidebar.
 
 ### Other candidates (still good, lower priority)
@@ -306,7 +345,8 @@ The `.env.local.example` file is the canonical contract. `Copy-Item .env.local.e
 
 These are follow-on clusters the user might want next:
 
-- ~~**Real-time audit log updates** — see Option A in the candidates above. The `AuditLog` table has 20+ event types accumulated since Cluster 2.0; users want live updates. The `/vault/bills/[id]/history` page (7.5) can subscribe to the same SSE stream filtered by `payload.billId`.~~ **SHIPPED 2026-08-30 (Cluster 7.6).** The `?from=YYYY-MM-DD&to=YYYY-MM-DD` date range filter (Cluster 7.7 candidate A above) is the natural next visible-UI add.
+- ~~**Real-time audit log updates** — see Option A in the candidates above. The `AuditLog` table has 20+ event types accumulated since Cluster 2.0; users want live updates. The `/vault/bills/[id]/history` page (7.5) can subscribe to the same SSE stream filtered by `payload.billId`.~~ **SHIPPED 2026-08-30 (Cluster 7.6).**
+- ~~**Date range filter on `/vault/audit`** — `?from=YYYY-MM-DD&to=YYYY-MM-DD`. The activity strip + type distribution + table respect the filter; the 4-cell headline stays unfiltered. Live SSE rows pass through the same predicate.~~ **SHIPPED 2026-08-30 (Cluster 7.7).** Audit log retention (Cluster 7.8 candidate above) is the natural next add — it pairs with the date filter to show MORE history (live + rolled-up summary rows) in the same 30-day activity strip.
 - ~~**Per-bill audit drill-down** — see Option B above. A click on a `vault.payment_settled` row should deep-link to `/vault/bills/[id]/history`.~~ **SHIPPED 2026-08-30 (Cluster 7.5).**
 - **Audit log retention / archival** — see Option C in the candidates above. A `vault.audit_log_pruned` cron that rolls up old events into daily summary rows.
 - **Real Spritz sandbox creds** — Cluster 7.3 wired the SDK. xKryptic signs up at sdk.spritz.finance, gets a sandbox key, adds `SPRITZ_INTEGRATION_KEY=...` and `SPRITZ_SANDBOX=true` to `.env.local`. The chain auto-flips to live. No code change.

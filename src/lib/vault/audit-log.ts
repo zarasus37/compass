@@ -59,14 +59,19 @@ export type {
   BillHistoryFilter,
 } from "./audit-log-shared";
 export {
+  DATE_RANGE_PRESETS,
   auditLogFilterToQuery,
   billHistoryFilterToQuery,
   billHistoryHrefForAuditRow,
   colorForActionType,
+  dateRangeForPreset,
+  hasDateRange,
   parseAuditLogFilter,
   parseBillHistoryFilter,
+  parseYmdDate,
   payloadMentionsBillId,
   rowMatchesAuditFilter,
+  toYmd,
 } from "./audit-log-shared";
 
 // ──────────────────────────────────────────────────────────────────────
@@ -111,7 +116,12 @@ export type AuditLogSummary = {
 // Reads
 // ──────────────────────────────────────────────────────────────────────
 
-/** Build a Prisma `where` clause from a filter. */
+/** Build a Prisma `where` clause from a filter.
+ *  Cluster 7.7 — added date range (`from` / `to`, both
+ *  `YYYY-MM-DD` inclusive). The `to` upper bound is `to + 1
+ *  day` exclusive, so a `?to=2026-08-30` filter still
+ *  includes rows that landed at 23:59:59 on Aug 30 (a full
+ *  day of events on the named day). */
 function whereFromFilter(userId: string, f: AuditLogFilter) {
   const where: Record<string, unknown> = { userId };
   if (f.type) {
@@ -120,6 +130,26 @@ function whereFromFilter(userId: string, f: AuditLogFilter) {
     where.actionType = { startsWith: f.prefix };
   } else if (f.q) {
     where.actionType = { contains: f.q, mode: "insensitive" };
+  }
+  // Date range. The strings are YYYY-MM-DD (local). We compare
+  // against the UTC `createdAt`; the small day-boundary drift
+  // (a local day in some timezone might span 2 UTC days) is
+  // acceptable for a UI filter — the precision is "within a
+  // day", not "within a second".
+  if (f.from || f.to) {
+    const createdAt: Record<string, Date> = {};
+    if (f.from) {
+      // `from` inclusive: createdAt >= from 00:00 local
+      const fromDate = new Date(`${f.from}T00:00:00`);
+      createdAt.gte = fromDate;
+    }
+    if (f.to) {
+      // `to` inclusive: createdAt < (to + 1 day) 00:00 local
+      const toDate = new Date(`${f.to}T00:00:00`);
+      toDate.setDate(toDate.getDate() + 1);
+      createdAt.lt = toDate;
+    }
+    where.createdAt = createdAt;
   }
   return where;
 }

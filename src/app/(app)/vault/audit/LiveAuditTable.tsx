@@ -47,7 +47,13 @@ export function LiveAuditTable({
 }: {
   initialRows: AuditLogRow[];
   take: number;
-  filter: { type?: string; prefix?: string; q?: string };
+  filter: {
+    type?: string;
+    prefix?: string;
+    q?: string;
+    from?: string;
+    to?: string;
+  };
   hasMore: boolean;
 }) {
   // Rows that have streamed in since the initial render. We

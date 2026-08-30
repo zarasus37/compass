@@ -14,6 +14,13 @@
  *
  * Hover any bar: native <title> tooltip with date + count +
  * failure count.
+ *
+ * Cluster 7.7 — when `rangeFrom` / `rangeTo` are set (the page
+ * has a date-range filter active), bars OUTSIDE the range are
+ * dimmed to ~30% opacity. The user can still see the 30-day
+ * shape but the in-range window is highlighted. Bars on the
+ * boundary are still full-opacity so the visual cutoff is
+ * obvious.
  */
 import * as React from "react";
 import type { AuditLogActivityDay } from "@/lib/vault/audit-log";
@@ -31,9 +38,15 @@ const BOTTOM_PAD = 8;
 export function ActivityStrip({
   days,
   now = new Date(),
+  rangeFrom,
+  rangeTo,
 }: {
   days: AuditLogActivityDay[];
   now?: Date;
+  /** Cluster 7.7 — when set, bars before this date (YYYY-MM-DD) are dimmed. */
+  rangeFrom?: string;
+  /** Cluster 7.7 — when set, bars after this date (YYYY-MM-DD) are dimmed. */
+  rangeTo?: string;
 }) {
   if (days.length !== COLS) {
     // Defensive: the data layer always returns 30. If a future
@@ -56,6 +69,10 @@ export function ActivityStrip({
   const isEmpty = totalInPeriod === 0;
   const firstKey = days[0]?.dateKey;
   const lastKey = days[days.length - 1]?.dateKey;
+  // Cluster 7.7 — `rangeActive` is true when at least one of
+  // rangeFrom/rangeTo is set. We use it to render a small
+  // "range active" label in the strip's header.
+  const rangeActive = Boolean(rangeFrom || rangeTo);
 
   return (
     <div
@@ -74,6 +91,7 @@ export function ActivityStrip({
           alignItems: "baseline",
           justifyContent: "space-between",
           marginBottom: 10,
+          gap: 12,
         }}
       >
         <div
@@ -86,9 +104,10 @@ export function ActivityStrip({
             letterSpacing: "0.18em",
           }}
         >
-          // 30-day shape
+          {rangeActive ? "// 30-day shape (range active)" : "// 30-day shape"}
         </div>
         <div
+          data-testid="vault-audit-activity-summary"
           style={{
             fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 10,
@@ -123,6 +142,15 @@ export function ActivityStrip({
           const x = i * (BAR_WIDTH + COL_GAP);
           const isToday = d.dateKey === todayKey;
           const hasFailed = d.failedCount > 0;
+          // Cluster 7.7 — is this bar inside the active range?
+          // Empty bars + out-of-range bars get dimmed. The
+          // opacity attribute is supported on every SVG shape
+          // we render (rect, line, text).
+          const inRange =
+            !rangeActive ||
+            ((!rangeFrom || d.dateKey >= rangeFrom) &&
+              (!rangeTo || d.dateKey <= rangeTo));
+          const dimOpacity = rangeActive && !inRange ? 0.3 : 1;
           const color = isToday
             ? "var(--vessel-gold)"
             : hasFailed
@@ -136,7 +164,11 @@ export function ActivityStrip({
           const y = TOP_PAD + MAX_BAR_HEIGHT - h;
           const labelY = y - 4;
           return (
-            <g key={d.dateKey || `empty-${i}`}>
+            <g
+              key={d.dateKey || `empty-${i}`}
+              data-testid={`vault-audit-activity-bar-${d.dateKey || `empty-${i}`}`}
+              data-in-range={inRange ? "true" : "false"}
+            >
               {/* Empty-day stub: dashed */}
               {d.count === 0 ? (
                 <line
@@ -147,6 +179,7 @@ export function ActivityStrip({
                   stroke="var(--vessel-border)"
                   strokeWidth={1}
                   strokeDasharray="2 2"
+                  opacity={dimOpacity}
                 />
               ) : (
                 <rect
@@ -156,6 +189,7 @@ export function ActivityStrip({
                   height={h}
                   fill={color}
                   rx={1}
+                  opacity={dimOpacity}
                 />
               )}
               {/* Today tick (gold) */}
@@ -167,6 +201,7 @@ export function ActivityStrip({
                   y2={TOP_PAD + MAX_BAR_HEIGHT + BOTTOM_PAD}
                   stroke="var(--vessel-gold)"
                   strokeWidth={1.5}
+                  opacity={dimOpacity}
                 />
               ) : null}
               {/* Day-of-month label (every 5th + today) */}
@@ -178,6 +213,7 @@ export function ActivityStrip({
                   fontFamily="var(--font-jetbrains), monospace"
                   fontSize={8}
                   fill={isToday ? "var(--vessel-gold)" : "var(--ink-3)"}
+                  opacity={dimOpacity}
                 >
                   {d.dateKey.slice(8)}
                 </text>
@@ -189,7 +225,7 @@ export function ActivityStrip({
                       d.failedCount > 0
                         ? ` · ${d.failedCount} failed`
                         : ""
-                    }`
+                    }${!inRange ? " · out of range" : ""}`
                   : "no data"}
               </title>
             </g>

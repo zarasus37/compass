@@ -1,5 +1,5 @@
 /**
- * /vault/audit — Cluster 7.4.
+ * /vault/audit — Cluster 7.4 + 7.7.
  *
  * The audit-log viewer. Surfaces every action the system has
  * taken on the user's behalf in one reverse-chronological
@@ -8,17 +8,20 @@
  *
  * Page sections:
  *   1. PageHead (eyebrow + title + em + explanation)
- *   2. AuditHeadlineStrip (4 cells, unfiltered totals)
- *   3. ActivityStrip (30-day SVG bar chart, visual-first)
- *   4. TypeDistribution (horizontal stacked bar, click to filter)
- *   5. TypeFilterPills (type pills + prefix filter + free-text q)
- *   6. AuditTable (the table; details payload per row)
+ *   2. DateRangeBar (C7.7 — preset chips: 24h / 7d / 30d / 90d / all)
+ *   3. AuditHeadlineStrip (4 cells, unfiltered totals)
+ *   4. ActivityStrip (30-day SVG bar chart, visual-first)
+ *   5. TypeDistribution (horizontal stacked bar, click to filter)
+ *   6. TypeFilterPills (type pills + prefix filter + free-text q)
+ *   7. AuditTable (the table; details payload per row)
  *
  * URL contract (server-side filter, query string):
- *   - ?type=<exactActionType>     → filter.type
+ *   - ?type=<exactActionType>      → filter.type
  *   - ?prefix=<vault|auto|plan|...> → filter.prefix
- *   - ?q=<substring>               → filter.q
- *   - ?take=<n>                    → filter.take (default 50, max 200)
+ *   - ?q=<substring>                → filter.q
+ *   - ?from=YYYY-MM-DD              → filter.from (C7.7)
+ *   - ?to=YYYY-MM-DD                → filter.to (C7.7, inclusive)
+ *   - ?take=<n>                     → filter.take (default 50, max 200)
  *   Combinations are AND.
  *
  * Meta event: writes a `vault.audit_log_viewed` row AFTER the
@@ -38,6 +41,7 @@ import {
   getAuditLogSummary,
   getDistinctActionTypes,
   getAuditLogPrefixes,
+  hasDateRange,
   parseAuditLogFilter,
   recordAuditLogViewed,
 } from "@/lib/vault/audit-log";
@@ -45,6 +49,7 @@ import { AuditHeadlineStrip } from "./AuditHeadlineStrip";
 import { ActivityStrip } from "./ActivityStrip";
 import { TypeDistribution } from "./TypeDistribution";
 import { TypeFilterPills } from "./TypeFilterPills";
+import { DateRangeBar } from "./DateRangeBar";
 import { LiveAuditTable } from "./LiveAuditTable";
 
 export const dynamic = "force-dynamic";
@@ -77,6 +82,15 @@ export default async function VaultAuditPage({
   // are unfiltered; the activity strip + table respect the
   // filter. Prefixes are unfiltered (used to render the prefix
   // row, which only shows prefixes that exist in the data).
+  //
+  // Cluster 7.7 — the date range filter is also applied at
+  // the DB layer (getAuditLog respects it). The 30-day
+  // activity strip is the user's "view of recent activity"
+  // and stays fixed-width; when a date range is active, the
+  // strip's bars that fall OUTSIDE the range are visually
+  // dimmed (handled by ActivityStrip's data shape — we pass
+  // the unfiltered 30-day window and the bar component does
+  // the rest).
   const [
     summary,
     allTypes,
@@ -100,6 +114,7 @@ export default async function VaultAuditPage({
   // Quick sanity: is there data at all?
   const hasData = summary.totalEvents > 0;
   const hasMore = tableRows.length === filter.take;
+  const dateRangeActive = hasDateRange(filter);
 
   return (
     <div>
@@ -113,8 +128,8 @@ export default async function VaultAuditPage({
             Every change the system makes — yield routing, off-ramp provider, risk
             acknowledgment, deploys, funding, supply, withdraw, payments, scheduler
             runs — is recorded with a timestamp and a JSON payload. The list is
-            reverse-chronological, filterable by action type, and audit-the-audited
-            (your visit to this page is itself an event).
+            reverse-chronological, filterable by action type and date range, and
+            audit-the-audited (your visit to this page is itself an event).
           </>
         }
       />
@@ -123,6 +138,12 @@ export default async function VaultAuditPage({
         <EmptyState />
       ) : (
         <>
+          {/* Cluster 7.7 — date range filter (presets 24h / 7d / 30d
+              / 90d / all time). The page is server-rendered, so
+              the bar takes the current filter for href merging +
+              active-state highlighting. */}
+          <DateRangeBar filter={filter} now={new Date()} />
+
           <SectionHeader
             eyebrow="// summary"
             title="The shape of your system"
@@ -137,12 +158,19 @@ export default async function VaultAuditPage({
 
           <SectionHeader
             eyebrow="// activity"
-            title="Last 30 days"
+            title={dateRangeActive ? "Last 30 days (range dimmed)" : "Last 30 days"}
             em="one bar per day. hover for the breakdown."
             accent="cyan"
           />
 
-          <ActivityStrip days={activityStrip} />
+          <ActivityStrip
+            days={activityStrip}
+            // Cluster 7.7 — when a range is active, dim the bars
+            // that fall outside the window. The smoke verifies
+            // the dimming via the activity bar's opacity.
+            rangeFrom={filter.from}
+            rangeTo={filter.to}
+          />
 
           <SectionHeader
             eyebrow="// type distribution"
@@ -181,6 +209,8 @@ export default async function VaultAuditPage({
               type: filter.type,
               prefix: filter.prefix,
               q: filter.q,
+              from: filter.from,
+              to: filter.to,
             }}
             hasMore={hasMore}
           />

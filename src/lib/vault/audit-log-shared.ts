@@ -35,6 +35,14 @@ export type AuditLogFilter = {
   prefix?: string;
   /** Substring search on actionType (case-insensitive contains). */
   q?: string;
+  /** Inclusive lower-bound date (YYYY-MM-DD, local). When set,
+   *  only events with `createdAt >= from` are returned. */
+  from?: string;
+  /** Inclusive upper-bound date (YYYY-MM-DD, local). When set,
+   *  only events with `createdAt <= to + 1 day` are returned
+   *  (the SQL range is exclusive on the upper end, so we add
+   *  one day to make `to` inclusive of the named day). */
+  to?: string;
   /** Max rows to return. Default 50, max 200. */
   take?: number;
 };
@@ -51,9 +59,39 @@ export type BillHistoryFilter = {
 // ──────────────────────────────────────────────────────────────────────
 
 /**
+ * Validate a `YYYY-MM-DD` date string. Returns the string when
+ * it's a valid date in the calendar, `null` otherwise. The
+ * smoke + the parser use this to silently drop malformed
+ * `?from=` / `?to=` values rather than 400 the page.
+ */
+export function parseYmdDate(raw: string | undefined | null): string | null {
+  if (!raw) return null;
+  // Strict format check: YYYY-MM-DD, 10 chars.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  const [y, m, d] = raw.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  // Round-trip through Date to reject impossible dates
+  // (e.g. 2026-02-31 → 2026-03-03 in JS Date, so the
+  // round-trip would change the string).
+  const dt = new Date(`${raw}T00:00:00`);
+  if (
+    Number.isNaN(dt.getTime()) ||
+    dt.getFullYear() !== y ||
+    dt.getMonth() + 1 !== m ||
+    dt.getDate() !== d
+  ) {
+    return null;
+  }
+  return raw;
+}
+
+/**
  * Build an `AuditLogFilter` from a Next.js `searchParams` object.
  * Strings only; missing/empty values are dropped. `take` is
- * clamped to [10, 200] with a default of 50.
+ * clamped to [10, 200] with a default of 50. `from` and `to`
+ * are validated as `YYYY-MM-DD`; malformed values are silently
+ * dropped (per the 7.4 contract — the URL is the source of
+ * truth, but invalid values are forgiven).
  */
 export function parseAuditLogFilter(
   sp: Record<string, string | string[] | undefined> | undefined,
@@ -67,10 +105,19 @@ export function parseAuditLogFilter(
   const takeRaw = get("take");
   const takeNum = takeRaw ? Number.parseInt(takeRaw, 10) : NaN;
   const take = Number.isFinite(takeNum) ? Math.min(200, Math.max(10, takeNum)) : 50;
+  // Validate dates; if `from > to`, drop `to` so the range is
+  // "from and after" (more useful than silently returning 0).
+  let from = parseYmdDate(get("from"));
+  let to = parseYmdDate(get("to"));
+  if (from && to && from > to) {
+    to = null;
+  }
   return {
     type: get("type"),
     prefix: get("prefix"),
     q: get("q"),
+    from: from ?? undefined,
+    to: to ?? undefined,
     take,
   };
 }
@@ -81,9 +128,79 @@ export function auditLogFilterToQuery(f: AuditLogFilter): string {
   if (f.type) params.set("type", f.type);
   if (f.prefix) params.set("prefix", f.prefix);
   if (f.q) params.set("q", f.q);
+  if (f.from) params.set("from", f.from);
+  if (f.to) params.set("to", f.to);
   if (f.take && f.take !== 50) params.set("take", String(f.take));
   const s = params.toString();
   return s ? `?${s}` : "";
+}
+
+/**
+ * The fixed preset chips the DateRangeBar offers. Each preset
+ * maps to a `{ from, to }` window relative to `now` (a parameter
+ * so the smoke can pin a date). `to` defaults to the current
+ * day; the rendered chip's href uses `auditLogFilterToQuery`
+ * merged with the rest of the page's filter.
+ *
+ * Cluster 7.7 — date range filter. The 30-day window matches the
+ * existing unfiltered `getAuditLogActivity` default, so the
+ * default page state shows the same 30 bars before AND after
+ * the date range filter ships.
+ */
+export type DateRangePresetId = "24h" | "7d" | "30d" | "90d" | "all";
+
+export const DATE_RANGE_PRESETS: ReadonlyArray<{
+  id: DateRangePresetId;
+  label: string;
+  /** Days back from `now` (rounded to start-of-day). 0 = today only. */
+  daysBack: number;
+}> = [
+  { id: "24h", label: "Last 24 hours", daysBack: 1 },
+  { id: "7d", label: "Last 7 days", daysBack: 7 },
+  { id: "30d", label: "Last 30 days", daysBack: 30 },
+  { id: "90d", label: "Last 90 days", daysBack: 90 },
+  { id: "all", label: "All time", daysBack: -1 },
+];
+
+/** Format a Date as local `YYYY-MM-DD`. */
+export function toYmd(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * Compute the `{ from, to }` window for a preset, relative to
+ * `now`. `to` is always today. `from` is `to - daysBack` (or
+ * undefined when `daysBack === -1` → "all time", which
+ * intentionally removes the date filter entirely).
+ */
+export function dateRangeForPreset(
+  preset: DateRangePresetId,
+  now: Date = new Date(),
+): { from?: string; to?: string } {
+  const spec = DATE_RANGE_PRESETS.find((p) => p.id === preset);
+  if (!spec) return {};
+  // "All time" — no filter. The chip clears the date range
+  // entirely, so the page returns to the unfiltered default.
+  if (spec.daysBack < 0) return {};
+  const to = toYmd(now);
+  // Anchor `from` to the start of the day, `daysBack` days back.
+  // The "24h" preset uses daysBack=1, which gives "from = today
+  // midnight, to = today". That's a one-day window — effectively
+  // "the last 24 hours from now-midnight". Good enough for a
+  // visual filter; the precise "last 24 hours" would need a
+  // time-of-day component which the URL contract doesn't carry.
+  const fromDate = new Date(now);
+  fromDate.setHours(0, 0, 0, 0);
+  fromDate.setDate(fromDate.getDate() - spec.daysBack);
+  return { from: toYmd(fromDate), to };
+}
+
+/** True when the filter has a date range set. */
+export function hasDateRange(f: AuditLogFilter): boolean {
+  return Boolean(f.from || f.to);
 }
 
 /**
@@ -219,14 +336,35 @@ export function billHistoryHrefForAuditRow(
  * page's current filter (the server already does this on the
  * initial read, but a streamed row that arrives after a filter
  * change needs the same gate on the client).
+ *
+ * Cluster 7.7 — also gates on the date range. The `from` /
+ * `to` strings are `YYYY-MM-DD`; we compare against the row's
+ * `createdAtIso` (a UTC ISO string). The server applies the
+ * same window at the DB layer; the client-side check is
+ * defense-in-depth for streamed rows.
  */
 export function rowMatchesAuditFilter(
-  row: { actionType: string },
-  filter: { type?: string; prefix?: string; q?: string },
+  row: { actionType: string; createdAtIso?: string },
+  filter: {
+    type?: string;
+    prefix?: string;
+    q?: string;
+    from?: string;
+    to?: string;
+  },
 ): boolean {
-  if (filter.type) return row.actionType === filter.type;
-  if (filter.prefix) return row.actionType.startsWith(filter.prefix);
-  if (filter.q)
-    return row.actionType.toLowerCase().includes(filter.q.toLowerCase());
+  if (filter.type && row.actionType !== filter.type) return false;
+  if (filter.prefix && !row.actionType.startsWith(filter.prefix)) return false;
+  if (
+    filter.q &&
+    !row.actionType.toLowerCase().includes(filter.q.toLowerCase())
+  ) {
+    return false;
+  }
+  if (row.createdAtIso) {
+    const rowDate = row.createdAtIso.slice(0, 10); // YYYY-MM-DD
+    if (filter.from && rowDate < filter.from) return false;
+    if (filter.to && rowDate > filter.to) return false;
+  }
   return true;
 }

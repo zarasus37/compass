@@ -442,6 +442,292 @@ async function main() {
     existsSync(join(ROOT, "src/app/(app)/vault/audit/page.tsx")),
   );
 
+  // ── 21. Cluster 7.7 — date range filter ─────────────────────
+  // The DateRangeBar renders 5 preset chips. The 5 chips
+  // should be present on the unfiltered page; the [CLEAR]
+  // chip is NOT (no range active).
+  const presetChips = [
+    "vault-audit-range-24h",
+    "vault-audit-range-7d",
+    "vault-audit-range-30d",
+    "vault-audit-range-90d",
+    "vault-audit-range-all",
+  ];
+  for (const id of presetChips) {
+    check(
+      `audit: DateRangeBar renders the ${id} chip`,
+      html1.includes(`data-testid="${id}"`),
+    );
+  }
+  check(
+    "audit: [CLEAR] chip NOT rendered when no range active",
+    !html1.includes('data-testid="vault-audit-range-clear"'),
+  );
+
+  // ── 22. The "Last 7 days" chip's href sets from + to
+  // 7 days back. The href is a Link to /vault/audit?from=...&to=...
+  // The HTML is encoded; `&amp;` separates the params. We
+  // extract the href directly from the 7d <a> tag, then
+  // decode the &amp; for parsing.
+  const sevenDayMatch = html1.match(
+    /<a[^>]*data-testid="vault-audit-range-7d"[^>]*href="([^"]+)"/,
+  );
+  check(
+    "audit: 7d chip href captured",
+    Boolean(sevenDayMatch),
+    `match=${sevenDayMatch ? sevenDayMatch[1] : "none"}`,
+  );
+  if (sevenDayMatch) {
+    const rawHref = sevenDayMatch[1].replace(/&amp;/g, "&");
+    const url = new URL(rawHref, "http://x");
+    const today = new Date();
+    const todayYmd = (() => {
+      const y = today.getFullYear();
+      const m = String(today.getMonth() + 1).padStart(2, "0");
+      const d = String(today.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    })();
+    const sevenAgo = new Date(today);
+    sevenAgo.setDate(sevenAgo.getDate() - 7);
+    const sevenAgoYmd = (() => {
+      const y = sevenAgo.getFullYear();
+      const m = String(sevenAgo.getMonth() + 1).padStart(2, "0");
+      const d = String(sevenAgo.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    })();
+    check(
+      "audit: 7d chip's to matches today",
+      url.searchParams.get("to") === todayYmd,
+      `to=${url.searchParams.get("to")} expected=${todayYmd}`,
+    );
+    check(
+      "audit: 7d chip's from is today-7",
+      url.searchParams.get("from") === sevenAgoYmd,
+      `from=${url.searchParams.get("from")} expected=${sevenAgoYmd}`,
+    );
+  }
+
+  // ── 23. ?from=YYYY-MM-DD narrows the table.
+  // We know a sentinel row exists (smoke.test_audit_event).
+  // Pick the row's date and verify `?from=<rowDate>` includes
+  // it; `?from=<rowDate + 1 day>` excludes it.
+  const sentinelRow = await prisma.auditLog.findFirst({
+    where: { userId, actionType: "smoke.test_audit_event" },
+    orderBy: { createdAt: "desc" },
+  });
+  if (sentinelRow) {
+    const rowDate = sentinelRow.createdAt.toISOString().slice(0, 10);
+    const nextDay = new Date(sentinelRow.createdAt);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const nextDayYmd = nextDay.toISOString().slice(0, 10);
+
+    const fromPage = await get(`/vault/audit?from=${rowDate}`);
+    const fromHtml = await fromPage.text();
+    const fromRows = (
+      fromHtml.match(/data-testid="vault-audit-row"/g) ?? []
+    ).length;
+    check(
+      "audit: ?from=<rowDate> includes the sentinel row",
+      fromRows >= 1,
+      `from=${rowDate} rows=${fromRows}`,
+    );
+
+    const afterPage = await get(`/vault/audit?from=${nextDayYmd}`);
+    const afterHtml = await afterPage.text();
+    const afterRows = (
+      afterHtml.match(/data-testid="vault-audit-row"/g) ?? []
+    ).length;
+    check(
+      "audit: ?from=<rowDate+1> excludes the sentinel row",
+      afterRows === 0,
+      `from=${nextDayYmd} rows=${afterRows}`,
+    );
+
+    // ── 24. ?from + ?type composes (AND).
+    const composedPage = await get(
+      `/vault/audit?type=smoke.test_audit_event&from=${rowDate}`,
+    );
+    const composedHtml = await composedPage.text();
+    const composedRows = (
+      composedHtml.match(/data-testid="vault-audit-row"/g) ?? []
+    ).length;
+    check(
+      "audit: ?from + ?type composes (AND)",
+      composedRows >= 1,
+      `composed rows=${composedRows}`,
+    );
+    const composedNoMatchPage = await get(
+      `/vault/audit?type=vault.never_matches_anything&from=${rowDate}`,
+    );
+    const composedNoMatchHtml = await composedNoMatchPage.text();
+    const composedNoMatchRows = (
+      composedNoMatchHtml.match(/data-testid="vault-audit-row"/g) ?? []
+    ).length;
+    check(
+      "audit: ?from + ?type narrows to the intersection (zero rows when type never matches)",
+      composedNoMatchRows === 0,
+      `intersection rows=${composedNoMatchRows}`,
+    );
+
+    // ── 24b. ?to=YYYY-MM-DD narrows the table too.
+    // The sentinel is at rowDate. The "inclusive" check: the
+    // sentinel's row should be present when ?to=<rowDate>.
+    // We assert via the table containing the sentinel's
+    // actionType text (not via row count, since there are
+    // other older rows that legitimately pass the filter).
+    const toPage = await get(`/vault/audit?to=${rowDate}`);
+    const toHtml = await toPage.text();
+    check(
+      "audit: ?to=<rowDate> includes the sentinel row (inclusive upper bound)",
+      toHtml.includes("smoke.test_audit_event"),
+      `to=${rowDate}`,
+    );
+  }
+
+  // ── 25. When a range is active, the page renders the
+  // CLEAR chip + the active-range badge. We use a NARROW
+  // range here (last 5 days) so the dimming check below
+  // has some out-of-range bars to find.
+  const today = new Date();
+  const todayYmd = (() => {
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, "0");
+    const d = String(today.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  })();
+  const fiveAgo = new Date(today);
+  fiveAgo.setDate(fiveAgo.getDate() - 5);
+  const fiveAgoYmd = (() => {
+    const y = fiveAgo.getFullYear();
+    const m = String(fiveAgo.getMonth() + 1).padStart(2, "0");
+    const d = String(fiveAgo.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  })();
+  const rangePage = await get(
+    `/vault/audit?from=${fiveAgoYmd}&to=${todayYmd}`,
+  );
+  const rangeHtml = await rangePage.text();
+  check(
+    "audit: active range renders [CLEAR] chip",
+    rangeHtml.includes('data-testid="vault-audit-range-clear"'),
+  );
+  check(
+    "audit: active range renders the active-range badge",
+    rangeHtml.includes('data-testid="vault-audit-range-active"') &&
+      rangeHtml.includes(fiveAgoYmd) &&
+      rangeHtml.includes(todayYmd),
+  );
+  // Extract the CLEAR chip's href. The chip is an <a> with
+  // data-testid="vault-audit-range-clear" + an href. The
+  // href comes AFTER the data-testid in the rendered HTML
+  // (the DateRangeBar passes data-testid before href to
+  // <Link>). We match in either order to be robust.
+  const clearHref =
+    rangeHtml.match(/data-testid="vault-audit-range-clear"[^>]*href="([^"]+)"/)?.[1] ??
+    rangeHtml.match(/href="([^"]+)"[^>]*data-testid="vault-audit-range-clear"/)?.[1];
+  const clearHrefDecoded = clearHref?.replace(/&amp;/g, "&");
+  check(
+    "audit: [CLEAR] chip drops from + to",
+    Boolean(
+      clearHrefDecoded &&
+        !clearHrefDecoded.includes("from=") &&
+        !clearHrefDecoded.includes("to="),
+    ),
+    `clearHref=${clearHref ?? "none"}`,
+  );
+
+  // ── 26. Activity strip dimming: with the narrow range
+  // (last 5 days), some bars are in-range and most are
+  // out-of-range. The exact counts depend on how many of
+  // the 30 days fall in the 5-day window — but the math
+  // says at least 4 are in-range and ≥24 are out-of-range.
+  const inRangeBars = (
+    rangeHtml.match(/data-in-range="true"/g) ?? []
+  ).length;
+  const outOfRangeBars = (
+    rangeHtml.match(/data-in-range="false"/g) ?? []
+  ).length;
+  check(
+    "audit: range dimming — at least 1 bar is in-range",
+    inRangeBars >= 1,
+    `inRange=${inRangeBars}`,
+  );
+  check(
+    "audit: range dimming — at least 20 bars are out-of-range (narrow 5d window)",
+    outOfRangeBars >= 20,
+    `outOfRange=${outOfRangeBars}`,
+  );
+  // When no range is active, NO bars are out-of-range.
+  const noRangeOutOfRange = (
+    html1.match(/data-in-range="false"/g) ?? []
+  ).length;
+  check(
+    "audit: no range — no out-of-range bars",
+    noRangeOutOfRange === 0,
+    `outOfRange=${noRangeOutOfRange}`,
+  );
+
+  // ── 27. Malformed ?from= is silently dropped (no range
+  // active, no CLEAR chip).
+  const malformedPage = await get("/vault/audit?from=garbage");
+  const malformedHtml = await malformedPage.text();
+  check(
+    "audit: malformed ?from= is silently dropped (no CLEAR chip)",
+    !malformedHtml.includes('data-testid="vault-audit-range-clear"'),
+  );
+
+  // ── 28. ?from > ?to drops `to` (more useful than returning 0).
+  const reversedPage = await get("/vault/audit?from=2026-12-31&to=2026-01-01");
+  const reversedHtml = await reversedPage.text();
+  // The reversed range should still render (no 500, no error)
+  // and should NOT have a CLEAR chip if from-only was kept
+  // (the active-range badge shows "from 2026-12-31").
+  check(
+    "audit: ?from > ?to is forgiven (page renders, from-only kept)",
+    reversedPage.status === 200 &&
+      reversedHtml.includes("from 2026-12-31"),
+  );
+
+  // ── 29. Source-file checks.
+  const dateRangeBarSrc = readFileSync(
+    join(ROOT, "src/app/(app)/vault/audit/DateRangeBar.tsx"),
+    "utf8",
+  );
+  check(
+    "audit: DateRangeBar.tsx exists",
+    dateRangeBarSrc.includes("DateRangeBar"),
+  );
+  check(
+    "audit: DateRangeBar uses auditLogFilterToQuery for href merging",
+    dateRangeBarSrc.includes("auditLogFilterToQuery"),
+  );
+
+  const alSharedSrc77 = readFileSync(
+    join(ROOT, "src/lib/vault/audit-log-shared.ts"),
+    "utf8",
+  );
+  check(
+    "audit: DATE_RANGE_PRESETS lives in audit-log-shared.ts",
+    alSharedSrc77.includes("DATE_RANGE_PRESETS") &&
+      alSharedSrc77.includes("DateRangePresetId"),
+  );
+  check(
+    "audit: dateRangeForPreset helper exported from audit-log-shared.ts",
+    alSharedSrc77.includes("dateRangeForPreset"),
+  );
+  check(
+    "audit: rowMatchesAuditFilter also gates on from/to",
+    alSharedSrc77.includes("filter.from") &&
+      alSharedSrc77.includes("filter.to"),
+  );
+
+  const alSrc77 = readFileSync(join(ROOT, "src/lib/vault/audit-log.ts"), "utf8");
+  check(
+    "audit: whereFromFilter adds createdAt window when from/to set",
+    alSrc77.includes("createdAt") &&
+      alSrc77.includes("whereFromFilter"),
+  );
+
   // ── Summary
   const passed = checks.filter((c) => c[1]).length;
   const total = checks.length;
