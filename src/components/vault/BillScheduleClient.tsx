@@ -31,6 +31,7 @@
  */
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { SectionHeader } from "@/components/alchemy/SectionHeader";
 import { BillTransitionMenu } from "@/components/vault/BillTransitionMenu";
 import { BillEditor } from "@/components/vault/BillEditor";
@@ -235,7 +236,19 @@ function BillRow({
               gap: 8,
             }}
           >
-            <span>{bill.billerName}</span>
+            <Link
+              href={`/vault/bills/${encodeURIComponent(bill.id)}/history`}
+              data-testid={`vault-bill-name-link-${bill.id}`}
+              style={{
+                color: "var(--vessel-accent)",
+                textDecoration: "none",
+                fontFamily: "var(--font-sora)",
+                fontSize: 15,
+                fontWeight: 500,
+              }}
+            >
+              {bill.billerName}
+            </Link>
             {bill.source === "user" && (
               <span
                 data-testid={`vault-bill-source-user-${bill.id}`}

@@ -2418,6 +2418,139 @@ async function main() {
     data: { status: "ACTIVE", settlementReserve: 0 },
   });
 
+  // ── Phase 4.0 M5 — Bill audit drill-down (Cluster 7.5) ────────
+  // The per-bill history page surfaces every action the system
+  // has taken on a single bill. The M4 reset (above) deliberately
+  // deletes the M4 audit rows + PaymentAttempt rows, so we can't
+  // rely on those for the M5 checks. Instead, write fresh
+  // sentinel audit events for the target bill BEFORE the M5
+  // reads, so the page has data to render. Sentinels use the
+  // standard action types the page is built to display.
+  if (targetBill) {
+    // Sentinel write — the same shape the M4 writers use, so
+    // the page renders the same way.
+    await prisma.auditLog.deleteMany({
+      where: {
+        userId,
+        actionType: { in: ["smoke.test_m5_event", "vault.payment_executed", "vault.bill_state_changed"] },
+      },
+    });
+    const now = new Date();
+    await prisma.auditLog.create({
+      data: {
+        userId,
+        actionType: "vault.payment_executed",
+        payload: JSON.stringify({
+          billId: targetBill.id,
+          providerName: "Mock",
+          success: true,
+          requiresManualAction: false,
+          transactionId: "smoke-m5-tx-001",
+        }),
+        createdAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
+      },
+    });
+    await prisma.auditLog.create({
+      data: {
+        userId,
+        actionType: "vault.bill_state_changed",
+        payload: JSON.stringify({
+          billId: targetBill.id,
+          billerName: targetBill.billerName,
+          from: "EARNING",
+          to: "PREPARING_SETTLEMENT",
+          event: "BEGIN_SETTLEMENT",
+        }),
+        createdAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    const histPage = await get(
+      `/vault/bills/${encodeURIComponent(targetBill.id)}/history`,
+    );
+    check(
+      "M5: /vault/bills/<id>/history returns 200",
+      histPage.status === 200,
+      `status=${histPage.status}`,
+    );
+    const histHtml = await histPage.text();
+    check(
+      "M5: history page shows all 4 sections (header, summary, timeline, table)",
+      histHtml.includes('data-testid="vault-bill-history-header"') &&
+        histHtml.includes('data-testid="vault-bill-summary-strip"') &&
+        histHtml.includes('data-testid="vault-bill-timeline"') &&
+        (histHtml.includes('data-testid="vault-bill-history-table"') ||
+          histHtml.includes('data-testid="vault-bill-history-table-empty"')),
+    );
+    // Check the table actually renders the sentinel event chips.
+    // The chip is a <span data-testid="vault-bill-history-row-type"> with
+    // the actionType as the inner text (indented). Find each row
+    // element, then extract the type chip's text — this filters
+    // out the back-link in BillHeader that also has the type text
+    // in its href.
+    const rowMatches =
+      histHtml.match(/<tr[^>]+data-testid="vault-bill-history-row"[\s\S]*?<\/tr>/g) ?? [];
+    const chipTypes = rowMatches
+      .map((row) => {
+        const m = row.match(
+          /data-testid="vault-bill-history-row-type"[^>]*>([\s\S]*?)<\/span>/,
+        );
+        return m ? m[1].trim() : null;
+      })
+      .filter(Boolean);
+    check(
+      "M5: table renders the sentinel vault.payment_executed row",
+      chipTypes.includes("vault.payment_executed"),
+      `chipTypes=${chipTypes.join(",")}`,
+    );
+    check(
+      "M5: table renders the sentinel vault.bill_state_changed row",
+      chipTypes.includes("vault.bill_state_changed"),
+      `chipTypes=${chipTypes.join(",")}`,
+    );
+    // The vault.bill_history_viewed meta event is written on
+    // every visit (fire-and-forget AFTER the read). The smoke
+    // verifies the writer is wired + the payload shape is correct.
+    const beforeM5 = await prisma.auditLog.count({
+      where: { userId, actionType: "vault.bill_history_viewed" },
+    });
+    await get(`/vault/bills/${encodeURIComponent(targetBill.id)}/history`);
+    await new Promise((r) => setTimeout(r, 200));
+    const afterM5 = await prisma.auditLog.count({
+      where: { userId, actionType: "vault.bill_history_viewed" },
+    });
+    check(
+      "M5: vault.bill_history_viewed event written after a bill-history visit",
+      afterM5 === beforeM5 + 1,
+      `before=${beforeM5} after=${afterM5}`,
+    );
+    const latest = await prisma.auditLog.findFirst({
+      where: { userId, actionType: "vault.bill_history_viewed" },
+      orderBy: { createdAt: "desc" },
+    });
+    let lp = {};
+    try {
+      lp = latest ? JSON.parse(latest.payload) : {};
+    } catch {
+      lp = {};
+    }
+    check(
+      "M5: bill_history_viewed payload has the right billId",
+      lp.billId === targetBill.id,
+      `billId=${lp.billId}`,
+    );
+    // 404 path.
+    const nf = await get("/vault/bills/smoke-nonexistent-bill-id-7-5/history");
+    const nfHtml = await nf.text();
+    check(
+      "M5: unknown bill id renders the 404 panel (not a hard 404)",
+      nf.status === 200 &&
+        nfHtml.includes('data-testid="vault-bill-history-not-found"'),
+    );
+  } else {
+    log("M5", "skipped (no executed bill from M4 to test against)");
+  }
+
   // ── Final summary ─────────────────────────────────────────────
   console.log("\n--- checks ---");
   console.log(`checks: ${pass} pass / ${miss} miss`);

@@ -1,9 +1,11 @@
 /**
- * Compass Vault — audit log data access (Cluster 7.4).
+ * Compass Vault — audit log data access (Cluster 7.4 + 7.5).
  *
  * Reads + writes the project's append-only `AuditLog` table for
- * the `/vault/audit` page. The page is force-dynamic, so these
- * helpers are called on every render.
+ * the `/vault/audit` page (Cluster 7.4) and the per-bill
+ * drill-down at `/vault/bills/[id]/history` (Cluster 7.5).
+ * Both pages are force-dynamic, so these helpers are called on
+ * every render.
  *
  * Conventions:
  *   - `actionType` is the dotted string column (`vault.synced`,
@@ -25,10 +27,17 @@
  *   shows the UNFILTERED totals so the user always sees the
  *   full picture; the activity strip / type distribution /
  *   table all respect the filter.
+ *
+ * Cluster 7.5 — Per-bill filter (URL → BillHistoryFilter):
+ *   - `?type=<exactActionType>`     → filter.type
+ *   - `?take=<n>`                   → filter.take (default 50, max 200)
+ *   Combinations are AND. No prefix or q (per-bill scope is
+ *   already narrow).
  */
 import "server-only";
 import { prisma } from "@/server/db";
 import { recordVaultAudit } from "./db";
+import type { ScheduledBill, BillStatus, EnvelopeCategory } from "./types";
 
 // ──────────────────────────────────────────────────────────────────────
 // Public types
@@ -424,4 +433,418 @@ function daysAgo(n: number, now: Date): Date {
   const d = new Date(now);
   d.setDate(d.getDate() - n);
   return d;
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Cluster 7.5 — Per-bill audit drill-down
+//
+// The /vault/bills/[id]/history page scopes the audit log to a
+// single bill. The page reads rows whose payload carries the
+// bill's id (in `payload.billId` for most event types, or
+// `payload.billsCredited` for `vault.yield_routed`). Auth is
+// enforced by scoping the bill lookup to the user's vault —
+// a bill id from another user's vault returns null and the
+// page renders a 404 panel.
+//
+// The `payload` column is `String` in the schema (per the
+// existing audit-log pattern), so we can't use Prisma's JSON
+// path filter. Instead we narrow the DB query to the action
+// types that CAN have a billId in the payload, then post-
+// filter in JS over the parsed payload. The per-bill set is
+// bounded (a single bill accumulates ~10s of events over its
+// lifetime) so the JS cost is negligible.
+// ──────────────────────────────────────────────────────────────────────
+
+/** Action types that may carry a `billId` in the payload. */
+const BILL_AUDITABLE_ACTION_TYPES = [
+  "vault.bill_state_changed",
+  "vault.bill_added",
+  "vault.bill_updated",
+  "vault.bill_deleted",
+  "vault.bill_history_viewed",
+  "vault.payment_attempted",
+  "vault.payment_settled",
+  "vault.payment_failed",
+  "vault.payment_executed",
+  "vault.payment_manually_confirmed",
+  "vault.scheduler_run",
+  "vault.yield_routed",
+] as const;
+
+/** Per-bill filter — extends the 7.4 contract; no prefix / q. */
+export type BillHistoryFilter = {
+  /** Exact actionType match (e.g. "vault.bill_state_changed"). */
+  type?: string;
+  /** Max rows to return. Default 50, max 200. */
+  take?: number;
+};
+
+/**
+ * Build a `BillHistoryFilter` from a Next.js `searchParams` object.
+ * Strings only; missing/empty values are dropped. `take` is
+ * clamped to [10, 200] with a default of 50.
+ */
+export function parseBillHistoryFilter(
+  sp: Record<string, string | string[] | undefined> | undefined,
+): BillHistoryFilter {
+  if (!sp) return { take: 50 };
+  const get = (k: string): string | undefined => {
+    const v = sp[k];
+    if (Array.isArray(v)) return v[0];
+    return typeof v === "string" && v.length > 0 ? v : undefined;
+  };
+  const takeRaw = get("take");
+  const takeNum = takeRaw ? Number.parseInt(takeRaw, 10) : NaN;
+  const take = Number.isFinite(takeNum) ? Math.min(200, Math.max(10, takeNum)) : 50;
+  return {
+    type: get("type"),
+    take,
+  };
+}
+
+/** Serialize a bill-history filter back to a URL query string. */
+export function billHistoryFilterToQuery(f: BillHistoryFilter): string {
+  const params = new URLSearchParams();
+  if (f.type) params.set("type", f.type);
+  if (f.take && f.take !== 50) params.set("take", String(f.take));
+  const s = params.toString();
+  return s ? `?${s}` : "";
+}
+
+export type BillWithEnvelope = {
+  bill: ScheduledBill;
+  envelope: { id: string; name: string; category: EnvelopeCategory } | null;
+};
+
+export type BillAuditSummary = {
+  totalEvents: number;
+  firstEventAt: string | null;
+  lastActivityAt: string | null;
+  mostActiveType: AuditLogTypeCount | null;
+  eventsThisWeek: number;
+  /** Count of `vault.bill_state_changed` rows grouped by the
+   *  `to` field. Drives the BillTimeline stepper. */
+  stateTransitionsByState: Record<string, number>;
+  /** The bill's current status (read from `ScheduledBill.status`).
+   *  Null when the bill doesn't exist. */
+  currentState: BillStatus | null;
+};
+
+/**
+ * Fetch a bill by id, scoped to the current user. Returns null
+ * if the bill doesn't exist OR exists for a different user
+ * (the two are indistinguishable from the page's perspective).
+ * The page renders a 404 panel on null.
+ */
+export async function getBillByIdForUser(
+  userId: string,
+  billId: string,
+): Promise<BillWithEnvelope | null> {
+  const row = await prisma.scheduledBill.findFirst({
+    where: { id: billId, vault: { userId } },
+    include: { envelope: { select: { id: true, name: true, category: true } } },
+  });
+  if (!row) return null;
+  return {
+    bill: toScheduledBillPublic(row),
+    envelope: row.envelope
+      ? {
+          id: row.envelope.id,
+          name: row.envelope.name,
+          category: row.envelope.category as EnvelopeCategory,
+        }
+      : null,
+  };
+}
+
+/**
+ * Fetch the per-bill audit log rows. Newest first. Scoped to
+ * the current user + the bill's id. Returns parsed payloads.
+ * The optional `type` filter narrows to one actionType. Capped
+ * at `filter.take` rows (default 50, max 200).
+ */
+export async function getBillAuditLog(
+  userId: string,
+  billId: string,
+  filter: BillHistoryFilter,
+): Promise<AuditLogRow[]> {
+  const all = await prisma.auditLog.findMany({
+    where: {
+      userId,
+      actionType: { in: [...BILL_AUDITABLE_ACTION_TYPES] },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  // Post-filter on the parsed payload. Per-bill set is bounded.
+  const billRows = all.filter((r) => payloadMentionsBill(r.payload, billId));
+  // Optional type filter, applied after the bill scoping.
+  const filtered = filter.type
+    ? billRows.filter((r) => r.actionType === filter.type)
+    : billRows;
+  const take = filter.take ?? 50;
+  const sliced = filtered.slice(0, take);
+  return sliced.map(rowToAuditLogRow);
+}
+
+/**
+ * 4-cell summary for the bill's history page. Computes totals,
+ * most-active type, the 8 user-facing state transition counts
+ * (for the BillTimeline stepper), and last activity.
+ */
+export async function getBillAuditSummary(
+  userId: string,
+  billId: string,
+  now: Date = new Date(),
+): Promise<BillAuditSummary> {
+  // Read the bill separately so we can return its current state
+  // even when the audit log is empty.
+  const billRow = await prisma.scheduledBill.findFirst({
+    where: { id: billId, vault: { userId } },
+    select: { status: true },
+  });
+  if (!billRow) {
+    return {
+      totalEvents: 0,
+      firstEventAt: null,
+      lastActivityAt: null,
+      mostActiveType: null,
+      eventsThisWeek: 0,
+      stateTransitionsByState: {},
+      currentState: null,
+    };
+  }
+  const all = await prisma.auditLog.findMany({
+    where: {
+      userId,
+      actionType: { in: [...BILL_AUDITABLE_ACTION_TYPES] },
+    },
+    select: { actionType: true, payload: true, createdAt: true },
+  });
+  const billRows = all.filter((r) => payloadMentionsBill(r.payload, billId));
+  if (billRows.length === 0) {
+    return {
+      totalEvents: 0,
+      firstEventAt: null,
+      lastActivityAt: null,
+      mostActiveType: null,
+      eventsThisWeek: 0,
+      stateTransitionsByState: {},
+      currentState: billRow.status as BillStatus,
+    };
+  }
+  // Totals + most active type.
+  const typeCounts = new Map<string, number>();
+  for (const r of billRows) {
+    typeCounts.set(r.actionType, (typeCounts.get(r.actionType) ?? 0) + 1);
+  }
+  const mostActive: AuditLogTypeCount | null = (() => {
+    let best: { t: string; c: number } | null = null;
+    for (const [t, c] of typeCounts) {
+      if (!best || c > best.c || (c === best.c && t < best.t)) best = { t, c };
+    }
+    return best
+      ? { actionType: best.t, count: best.c, failedCount: 0 }
+      : null;
+  })();
+  // First / last timestamps.
+  const sorted = [...billRows].sort(
+    (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+  );
+  const first = sorted[0]!;
+  const last = sorted[sorted.length - 1]!;
+  // This week count.
+  const weekCutoff = daysAgo(7, now);
+  const eventsThisWeek = billRows.filter(
+    (r) => r.createdAt >= weekCutoff,
+  ).length;
+  // State transition counts (from `vault.bill_state_changed` rows).
+  const stateTransitionsByState: Record<string, number> = {};
+  for (const r of billRows) {
+    if (r.actionType !== "vault.bill_state_changed") continue;
+    let payload: Record<string, unknown>;
+    try {
+      payload = JSON.parse(r.payload);
+    } catch {
+      continue;
+    }
+    if (typeof payload.to !== "string") continue;
+    stateTransitionsByState[payload.to] =
+      (stateTransitionsByState[payload.to] ?? 0) + 1;
+  }
+  return {
+    totalEvents: billRows.length,
+    firstEventAt: first.createdAt.toISOString(),
+    lastActivityAt: last.createdAt.toISOString(),
+    mostActiveType: mostActive,
+    eventsThisWeek,
+    stateTransitionsByState,
+    currentState: billRow.status as BillStatus,
+  };
+}
+
+/**
+ * Record that the user opened `/vault/bills/[id]/history`. The
+ * payload captures the bill id + the filter the page was
+ * rendered with, so the user can see "I opened the Spectrum
+ * bill's history with the state-change filter" later. The page
+ * calls this AFTER its read so the just-written row doesn't
+ * show up in the same visit's table — the next visit will.
+ */
+export async function recordBillHistoryViewed(args: {
+  userId: string;
+  billId: string;
+  billerName: string;
+  filter: BillHistoryFilter;
+}): Promise<void> {
+  await recordVaultAudit({
+    userId: args.userId,
+    actionType: "vault.bill_history_viewed",
+    payload: {
+      billId: args.billId,
+      billerName: args.billerName,
+      filter: {
+        type: args.filter.type ?? null,
+        take: args.filter.take ?? 50,
+      },
+      at: new Date().toISOString(),
+    },
+  });
+}
+
+/** Build a `/vault/bills/<id>/history?type=...` deep-link from a
+ *  row's payload, when the payload carries a billId. Used by
+ *  the AuditTable row to deep-link into this page. Returns null
+ *  when the row has no billId (so the caller can render the
+ *  cell without a link). */
+export function billHistoryHrefForAuditRow(payload: Record<string, unknown>): string | null {
+  const billId = payloadMentionsBillId(payload);
+  if (!billId) return null;
+  const t = typeof payload.actionType === "string" ? (payload.actionType as string) : null;
+  // Most rows should NOT inherit the audit row's type as the
+  // bill-history filter (e.g. a "vault.funded" row would
+  // naturally filter to funded, but the user wants to see the
+  // bill's full history). Exception: when the row's payload
+  // actionType is "vault.bill_state_changed" or a payment
+  // outcome, the type is a meaningful starting filter.
+  const preserveType =
+    t === "vault.bill_state_changed" ||
+    t === "vault.payment_settled" ||
+    t === "vault.payment_failed" ||
+    t === "vault.payment_attempted" ||
+    t === "vault.scheduler_run";
+  const qs = preserveType ? `?type=${encodeURIComponent(t!)}` : "";
+  return `/vault/bills/${encodeURIComponent(billId)}/history${qs}`;
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Internal helpers (Cluster 7.5)
+// ──────────────────────────────────────────────────────────────────────
+
+/** True if the payload's JSON carries the given billId — either
+ *  as `payload.billId` (most event types) or inside the
+ *  `payload.billsCredited` array (vault.yield_routed). */
+function payloadMentionsBill(
+  rawPayload: string,
+  billId: string,
+): boolean {
+  let p: Record<string, unknown>;
+  try {
+    p = JSON.parse(rawPayload);
+  } catch {
+    return false;
+  }
+  return payloadMentionsBillId(p) === billId;
+}
+
+/** Extract a billId from a parsed payload, or null. */
+function payloadMentionsBillId(
+  p: Record<string, unknown>,
+): string | null {
+  if (typeof p.billId === "string") return p.billId;
+  if (Array.isArray(p.billsCredited)) {
+    for (const id of p.billsCredited) {
+      if (typeof id === "string") return id;
+    }
+  }
+  return null;
+}
+
+/** Local mapper for the AuditLog row → AuditLogRow domain shape.
+ *  Mirrors the inline mapper in `getAuditLog` so the new readers
+ *  produce identical results. */
+function rowToAuditLogRow(r: {
+  id: string;
+  actionType: string;
+  payload: string;
+  aiTierAtTime: number;
+  createdAt: Date;
+}): AuditLogRow {
+  let payload: Record<string, unknown> = {};
+  try {
+    const parsed = JSON.parse(r.payload);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      payload = parsed as Record<string, unknown>;
+    }
+  } catch {
+    // Bad JSON; render as empty.
+  }
+  return {
+    id: r.id,
+    actionType: r.actionType,
+    payload,
+    aiTierAtTime: r.aiTierAtTime,
+    createdAtIso: r.createdAt.toISOString(),
+  };
+}
+
+/** Prisma row → ScheduledBill domain shape. Local to this
+ *  module so the data layer doesn't need a new db.ts export.
+ *  Mirrors the `toScheduledBill` mapper in db.ts (which is
+ *  not exported). */
+function toScheduledBillPublic(row: {
+  id: string;
+  vaultId: string;
+  envelopeId: string;
+  billerName: string;
+  billerId: string;
+  maskedAccountNumber: string;
+  amount: number;
+  maxAuthorizedAmount: number;
+  currency: string;
+  frequency: string;
+  dueDate: Date;
+  executionWindowStart: Date;
+  executionWindowEnd: Date;
+  status: string;
+  providerPreference: string | null;
+  lastAttemptAt: Date | null;
+  settlementReference: string | null;
+  appliedYieldCents: number;
+  source: string;
+  createdAt: Date;
+  updatedAt: Date;
+}): ScheduledBill {
+  return {
+    id: row.id,
+    vaultId: row.vaultId,
+    envelopeId: row.envelopeId,
+    billerName: row.billerName,
+    billerId: row.billerId,
+    maskedAccountNumber: row.maskedAccountNumber,
+    amount: row.amount,
+    maxAuthorizedAmount: row.maxAuthorizedAmount,
+    currency: row.currency as ScheduledBill["currency"],
+    frequency: row.frequency as ScheduledBill["frequency"],
+    dueDate: row.dueDate.toISOString(),
+    executionWindowStart: row.executionWindowStart.toISOString(),
+    executionWindowEnd: row.executionWindowEnd.toISOString(),
+    status: row.status as BillStatus,
+    providerPreference: row.providerPreference ?? undefined,
+    lastAttemptAt: row.lastAttemptAt ? row.lastAttemptAt.toISOString() : undefined,
+    settlementReference: row.settlementReference ?? undefined,
+    appliedYieldCents: row.appliedYieldCents,
+    source: (row.source as "seed" | "user") ?? "seed",
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
 }

@@ -948,7 +948,16 @@ export async function recordVaultAudit(args: {
     // | null, at: ISO }`. The page writes the row AFTER its
     // read so this visit's table doesn't show it; the next
     // visit will.
-    | "vault.audit_log_viewed";
+    | "vault.audit_log_viewed"
+    // Cluster 7.5 — meta event written by
+    // `/vault/bills/[id]/history` on every render. Same
+    // audit-the-audited pattern as `vault.audit_log_viewed`;
+    // the user can see "I opened the Spectrum bill's history
+    // at 2:14pm" in the event stream. Payload:
+    // `{ billId, billerName, filter: { type, take } | null,
+    // at: ISO }`. The page writes the row AFTER its read so
+    // this visit's table doesn't show it; the next visit will.
+    | "vault.bill_history_viewed";
   payload: unknown;
 }): Promise<void> {
   await prisma.auditLog.create({

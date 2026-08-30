@@ -1,30 +1,25 @@
 /**
- * AuditTable — the events table.
+ * BillEventTable — Cluster 7.5.
  *
- * Newest first, capped at `take` rows (default 50). Each row:
- *   - // when: ISO timestamp in JetBrains Mono. Cluster 7.5
- *     wires a deep-link: when the row's payload carries a
- *     `billId`, the timestamp is a <Link> to
- *     /vault/bills/<billId>/history (so a payment_settled or
- *     bill_state_changed row is a one-click hop to the bill's
- *     full event stream).
- *   - // type: actionType as a chip with the type's stable color
- *   - // ai tier: aiTierAtTime (mono)
- *   - // payload: pretty-printed JSON in a <details> block
- *     (collapsed by default, click to expand)
+ * The per-bill event table. Mirrors the AuditTable shape from
+ * /vault/audit (Cluster 7.4) but:
+ *   - No [SHOW 50 MORE →] button (the bill's event set is
+ *     bounded; default 50 is usually enough; ?take=200 still
+ *     works for a busy bill).
+ *   - No `// ai tier` column (the per-bill scope is narrow
+ *     enough that the column is visual noise).
+ *   - The type chip color uses the same `colorForActionType`
+ *     palette as the audit page, so the same actionType
+ *     shows the same color in both surfaces.
  *
- * Server component. The "Show N more" button is a plain <Link>
- * that bumps `take` by 50 (capped at 200 by the data layer).
+ * Server component.
  */
 import * as React from "react";
 import Link from "next/link";
 import type { AuditLogRow } from "@/lib/vault/audit-log";
-import {
-  colorForActionType,
-  billHistoryHrefForAuditRow,
-} from "@/lib/vault/audit-log";
+import { colorForActionType } from "@/lib/vault/audit-log";
 
-export function AuditTable({
+export function BillEventTable({
   rows,
   take,
   filter,
@@ -32,11 +27,7 @@ export function AuditTable({
 }: {
   rows: AuditLogRow[];
   take: number;
-  filter: {
-    type?: string;
-    prefix?: string;
-    q?: string;
-  };
+  filter: { type?: string };
   /** True if there are more rows to show (we returned exactly
    *  `take`, so another page may exist). */
   hasMore: boolean;
@@ -44,7 +35,7 @@ export function AuditTable({
   if (rows.length === 0) {
     return (
       <div
-        data-testid="vault-audit-table-empty"
+        data-testid="vault-bill-history-table-empty"
         style={{
           padding: "24px 18px",
           border: "1px solid var(--vessel-border)",
@@ -55,15 +46,37 @@ export function AuditTable({
           textTransform: "uppercase",
           letterSpacing: "0.18em",
           marginBottom: 16,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 16,
         }}
       >
-        // no events match this filter
+        <span>// no events for this bill</span>
+        <Link
+          href="/vault/audit?type=vault.bill_state_changed"
+          data-testid="vault-bill-history-see-vault-audit"
+          style={{
+            color: "var(--vessel-accent)",
+            textDecoration: "none",
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: "0.18em",
+            border: "1px solid var(--vessel-accent)",
+            padding: "4px 10px",
+            borderRadius: 2,
+            whiteSpace: "nowrap",
+          }}
+        >
+          [SEE VAULT AUDIT →]
+        </Link>
       </div>
     );
   }
   return (
     <div
-      data-testid="vault-audit-table"
+      id="vault-bill-history-events"
+      data-testid="vault-bill-history-table"
       style={{
         border: "1px solid var(--vessel-border)",
         background: "var(--vessel-surface)",
@@ -90,8 +103,7 @@ export function AuditTable({
             }}
           >
             <th style={{ padding: "10px 14px", width: 180 }}>// when</th>
-            <th style={{ padding: "10px 14px", width: 240 }}>// type</th>
-            <th style={{ padding: "10px 14px", width: 60 }}>// ai</th>
+            <th style={{ padding: "10px 14px", width: 280 }}>// type</th>
             <th style={{ padding: "10px 14px" }}>// payload</th>
           </tr>
         </thead>
@@ -99,7 +111,7 @@ export function AuditTable({
           {rows.map((r) => (
             <tr
               key={r.id}
-              data-testid="vault-audit-row"
+              data-testid="vault-bill-history-row"
               style={{
                 borderBottom: "1px solid var(--vessel-border)",
                 verticalAlign: "top",
@@ -112,29 +124,11 @@ export function AuditTable({
                   color: "var(--ink-2)",
                 }}
               >
-                {(() => {
-                  const billHref = billHistoryHrefForAuditRow(r.payload);
-                  if (billHref) {
-                    return (
-                      <Link
-                        href={billHref}
-                        data-testid="vault-audit-row-when-link"
-                        style={{
-                          color: "var(--vessel-accent)",
-                          textDecoration: "none",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {formatTableTime(r.createdAtIso)}
-                      </Link>
-                    );
-                  }
-                  return <>{formatTableTime(r.createdAtIso)}</>;
-                })()}
+                {formatTableTime(r.createdAtIso)}
               </td>
               <td style={{ padding: "10px 14px" }}>
                 <span
-                  data-testid="vault-audit-row-type"
+                  data-testid="vault-bill-history-row-type"
                   style={{
                     display: "inline-block",
                     padding: "2px 8px",
@@ -149,15 +143,6 @@ export function AuditTable({
                 >
                   {r.actionType}
                 </span>
-              </td>
-              <td
-                style={{
-                  padding: "10px 14px",
-                  color: "var(--ink-2)",
-                  textAlign: "right",
-                }}
-              >
-                {r.aiTierAtTime}
               </td>
               <td style={{ padding: "10px 14px", color: "var(--ink-2)" }}>
                 <details>
@@ -174,7 +159,7 @@ export function AuditTable({
                     [SHOW JSON]
                   </summary>
                   <pre
-                    data-testid="vault-audit-row-payload"
+                    data-testid="vault-bill-history-row-payload"
                     style={{
                       margin: "8px 0 0",
                       padding: "10px 12px",
@@ -207,7 +192,7 @@ export function AuditTable({
         >
           <Link
             href={moreHref(filter, take)}
-            data-testid="vault-audit-show-more"
+            data-testid="vault-bill-history-show-more"
             style={{
               display: "inline-block",
               fontSize: 10,
@@ -245,15 +230,13 @@ function formatTableTime(iso: string): string {
 }
 
 function moreHref(
-  filter: { type?: string; prefix?: string; q?: string },
+  filter: { type?: string },
   take: number,
 ): string {
   const next = Math.min(200, take + 50);
   const params = new URLSearchParams();
   if (filter.type) params.set("type", filter.type);
-  if (filter.prefix) params.set("prefix", filter.prefix);
-  if (filter.q) params.set("q", filter.q);
   if (next !== 50) params.set("take", String(next));
   const s = params.toString();
-  return s ? `/vault/audit?${s}` : "/vault/audit";
+  return s ? `?${s}` : "";
 }
