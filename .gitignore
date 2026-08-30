@@ -54,7 +54,33 @@ Thumbs.db
 logs
 *.log
 
-# Local dev trash (diagnostic scripts, response dumps)
+# Local dev trash (diagnostic scripts, response dumps, dev-server logs,
+# commit-message drafts, scratch files). Underscore-prefixed names are
+# the convention; dot-prefixed `_…` and dot-only debug files are also
+# session artifacts. Patterns are explicit (not `_*` alone) so a real
+# file like `dashboard.tsx` is never accidentally caught.
 _trash_*
+_*.cjs
 _*.mjs
 _*.html
+_*.ps1
+_*.py
+_*.out
+_*.err
+_*.log
+_*.tmp
+_*.txt
+_*.md
+scratch-*
+debug-*
+_dev_*
+._*.cjs
+._*.mjs
+._*.html
+._*.ps1
+._*.txt
+.debug-*
+.diag.*
+.coord-*
+.audit-*
+.next-pid.txt
