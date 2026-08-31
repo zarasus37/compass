@@ -2827,6 +2827,173 @@ async function main() {
     );
   }
 
+  // ── Phase 4.0 M8 — Audit log retention cron (Cluster 7.8.1) ──
+  //
+  // Nightly cron that calls `pruneAuditLog` for every user. The
+  // bulk helper `pruneAuditLogForAllUsers` iterates
+  // `prisma.user.findMany` and wraps each user's prune in
+  // try/catch so one user's failure doesn't abort the batch.
+  // The M8 phase verifies the new endpoint + helper + dev
+  // scheduler are wired. The dedicated
+  // `tests/smoke-cron-audit-log-prune.mjs` exercises the full
+  // end-to-end (login → write sentinels → POST → verify DB state).
+  console.log("\n--- Phase 4.0 M8 — Audit log retention cron ---\n");
+  {
+    const { readFileSync: readFileSync8 } = await import("node:fs");
+    const { join: join8 } = await import("node:path");
+    const readFileSync = readFileSync8;
+    const join = join8;
+    // Source: bulk helper exists with the right shape.
+    const cronHelperSrc = readFileSync(
+      join(PROJECT_ROOT, "src/lib/vault/audit-log-cron.ts"),
+      "utf8",
+    );
+    check(
+      "M8: src/lib/vault/audit-log-cron.ts exists",
+      cronHelperSrc.length > 0,
+    );
+    check(
+      "M8: helper exports pruneAuditLogForAllUsers",
+      /export async function pruneAuditLogForAllUsers/.test(cronHelperSrc),
+    );
+    check(
+      "M8: helper iterates prisma.user.findMany",
+      /prisma\.user\.findMany/.test(cronHelperSrc),
+    );
+    check(
+      "M8: helper returns { ok, usersProcessed, totalRolledUp, results, retentionDays, now }",
+      /ok:\s*boolean/.test(cronHelperSrc) &&
+        /usersProcessed/.test(cronHelperSrc) &&
+        /totalRolledUp/.test(cronHelperSrc) &&
+        /retentionDays/.test(cronHelperSrc) &&
+        /now:/.test(cronHelperSrc),
+    );
+
+    // Source: cron endpoint file.
+    const cronRoutePath = join(
+      PROJECT_ROOT,
+      "src/app/api/cron/audit-log-prune/route.ts",
+    );
+    check(
+      "M8: /api/cron/audit-log-prune/route.ts exists",
+      readFileSync(cronRoutePath, "utf8").length > 0,
+    );
+    const cronRouteSrc = readFileSync(cronRoutePath, "utf8");
+    check(
+      "M8: /api/cron/audit-log-prune exports POST",
+      /export async function POST/.test(cronRouteSrc),
+    );
+    check(
+      "M8: /api/cron/audit-log-prune exports GET",
+      /export async function GET/.test(cronRouteSrc),
+    );
+    check(
+      "M8: route gates on CRON_SECRET when env is set",
+      /CRON_SECRET/.test(cronRouteSrc) && /401/.test(cronRouteSrc),
+    );
+    check(
+      "M8: route calls pruneAuditLogForAllUsers",
+      cronRouteSrc.includes("pruneAuditLogForAllUsers"),
+    );
+
+    // Source: dev scheduler script.
+    const devSchedPath = join(
+      PROJECT_ROOT,
+      "scripts/cron-audit-prune-dev.mjs",
+    );
+    check(
+      "M8: scripts/cron-audit-prune-dev.mjs exists",
+      readFileSync(devSchedPath, "utf8").length > 0,
+    );
+    const devSchedSrc = readFileSync(devSchedPath, "utf8");
+    check(
+      "M8: dev script polls /api/cron/audit-log-prune",
+      devSchedSrc.includes("/api/cron/audit-log-prune"),
+    );
+    check(
+      "M8: dev script honors AUDIT_LOG_PRUNE_POLL_MS env",
+      devSchedSrc.includes("AUDIT_LOG_PRUNE_POLL_MS"),
+    );
+
+    // package.json: cron:dev:audit + new smoke in chain.
+    const pkg3 = JSON.parse(
+      readFileSync(join(PROJECT_ROOT, "package.json"), "utf8"),
+    );
+    check(
+      "M8: package.json has cron:dev:audit script",
+      (pkg3.scripts["cron:dev:audit"] ?? "").includes(
+        "cron-audit-prune-dev.mjs",
+      ),
+    );
+    check(
+      "M8: package.json smoke script includes smoke-cron-audit-log-prune.mjs",
+      (pkg3.scripts.smoke ?? "").includes("smoke-cron-audit-log-prune.mjs"),
+    );
+
+    // Middleware: /api/cron must be in the public list so the
+    // dev scheduler can hit it without a session cookie.
+    const middlewareSrc = readFileSync(
+      join(PROJECT_ROOT, "src/middleware.ts"),
+      "utf8",
+    );
+    check(
+      "M8: middleware allows /api/cron (dev scheduler doesn't get redirected)",
+      /"\/api\/cron"/.test(middlewareSrc),
+    );
+
+    // Wire check: POST the endpoint, verify the response shape.
+    // (The dedicated M8 smoke writes sentinels + asserts the DB
+    // state; this is just a wire check.)
+    const cronWire = await postJson("/api/cron/audit-log-prune", {});
+    check(
+      "M8: /api/cron/audit-log-prune returns 200",
+      cronWire.status === 200,
+      `status=${cronWire.status}`,
+    );
+    const cronWireBody = cronWire.body ?? {};
+    check(
+      "M8: /api/cron/audit-log-prune body has ok=true",
+      cronWireBody.ok === true,
+      JSON.stringify(cronWireBody).slice(0, 200),
+    );
+    check(
+      "M8: /api/cron/audit-log-prune body has usersProcessed (number)",
+      typeof cronWireBody.usersProcessed === "number",
+      `usersProcessed=${cronWireBody.usersProcessed}`,
+    );
+    check(
+      "M8: /api/cron/audit-log-prune body has totalRolledUp (number)",
+      typeof cronWireBody.totalRolledUp === "number",
+      `totalRolledUp=${cronWireBody.totalRolledUp}`,
+    );
+    check(
+      "M8: /api/cron/audit-log-prune body has retentionDays (number)",
+      typeof cronWireBody.retentionDays === "number",
+      `retentionDays=${cronWireBody.retentionDays}`,
+    );
+    check(
+      "M8: /api/cron/audit-log-prune body has results array",
+      Array.isArray(cronWireBody.results),
+      `results=${typeof cronWireBody.results}`,
+    );
+
+    // GET endpoint — same handler, same auth.
+    const cronGetWire = await fetch(BASE + "/api/cron/audit-log-prune", {
+      method: "GET",
+    });
+    check(
+      "M8: GET /api/cron/audit-log-prune returns 200",
+      cronGetWire.status === 200,
+      `status=${cronGetWire.status}`,
+    );
+    const cronGetBody = await cronGetWire.json();
+    check(
+      "M8: GET /api/cron/audit-log-prune body has ok=true",
+      cronGetBody.ok === true,
+      JSON.stringify(cronGetBody).slice(0, 200),
+    );
+  }
+
   // ── Final summary ─────────────────────────────────────────────
   console.log("\n--- checks ---");
   console.log(`checks: ${pass} pass / ${miss} miss`);

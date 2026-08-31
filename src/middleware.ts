@@ -8,7 +8,10 @@
  *
  * Public routes: /login, /welcome, /api/health, /api/dev-agent,
  * /api/dev (dev-only test endpoints, themselves gated by
- * NODE_ENV=development at the route handler), /api/vault/chain-config
+ * NODE_ENV=development at the route handler), /api/cron (gated
+ * by the route's own CRON_SECRET bearer auth — pre-existing for
+ * /api/cron/vault, extended in Cluster 7.8.1 for
+ * /api/cron/audit-log-prune), /api/vault/chain-config
  * (read-only chain-config introspection, no secrets — see the
  * endpoint's own doc for what's exposed and why).
  * Everything else: requires a cookie. If missing → redirect to /login.
@@ -30,6 +33,14 @@ const PUBLIC_PREFIXES = [
   "/api/health",
   "/api/dev-agent",
   "/api/dev",
+  // Cluster 6.0 — vault auto bill-pay cron. Gated by the
+  // route's own CRON_SECRET bearer (skipped in dev). The dev
+  // scheduler process (scripts/cron-dev.mjs) hits this on a
+  // 30s poll without a session cookie; without this public
+  // prefix, the middleware would redirect it to /login and
+  // the script would silently log "poll failed". Cluster
+  // 7.8.1 extended the same pattern to /api/cron/audit-log-prune.
+  "/api/cron",
   // Cluster 6.0.1 — mainnet. Read-only chain-config endpoint.
   // Returns canonical chainId + addresses + explorerUrl; no
   // signer key, no RPC with API key, no DB info. Public on
