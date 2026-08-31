@@ -452,6 +452,64 @@ try {
   console.log(`[SKIP] GET /api/vault/chain-config not reachable: ${e.message}`);
 }
 
+// ── §14 — Vercel cron schedule (Cluster 7.8.2) ───────────────────
+// Production cron schedule for /api/cron/vault (auto bill-pay
+// scheduler, C6.0) and /api/cron/audit-log-prune (audit log
+// retention, C7.8/M8). Vercel sends GET to the paths listed
+// in `vercel.json:crons`. The schedule is always UTC.
+console.log("\n--- §14 vercel.json cron schedule ---\n");
+{
+  const vercelJsonPath = join(ROOT, "vercel.json");
+  check(
+    "vercel.json exists at project root (Cluster 7.8.2)",
+    existsSync(vercelJsonPath),
+  );
+  if (existsSync(vercelJsonPath)) {
+    let vercelConfig = null;
+    try {
+      vercelConfig = JSON.parse(readFileSync(vercelJsonPath, "utf8"));
+    } catch (e) {
+      check(
+        "vercel.json is valid JSON",
+        false,
+        `parse error: ${e.message}`,
+      );
+    }
+    check("vercel.json is valid JSON", vercelConfig !== null);
+    if (vercelConfig) {
+      check(
+        "vercel.json has crons array",
+        Array.isArray(vercelConfig.crons),
+        `crons=${typeof vercelConfig.crons}`,
+      );
+      const crons = vercelConfig.crons ?? [];
+      const auditPrune = crons.find(
+        (c) => c.path === "/api/cron/audit-log-prune",
+      );
+      const vault = crons.find((c) => c.path === "/api/cron/vault");
+      check(
+        "vercel.json: crons includes /api/cron/audit-log-prune",
+        Boolean(auditPrune),
+      );
+      check(
+        "vercel.json: crons includes /api/cron/vault",
+        Boolean(vault),
+      );
+      check(
+        "vercel.json: audit-log-prune schedule is set (string)",
+        typeof auditPrune?.schedule === "string" &&
+          auditPrune.schedule.length > 0,
+        `schedule=${auditPrune?.schedule}`,
+      );
+      check(
+        "vercel.json: vault schedule is set (string)",
+        typeof vault?.schedule === "string" && vault.schedule.length > 0,
+        `schedule=${vault?.schedule}`,
+      );
+    }
+  }
+}
+
 console.log();
 console.log("--- checks ---");
 console.log(`checks: ${pass} pass / ${miss} miss`);

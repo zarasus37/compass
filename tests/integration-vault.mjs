@@ -2994,6 +2994,140 @@ async function main() {
     );
   }
 
+  // ── Phase 4.0 M9 — Vercel cron schedule (Cluster 7.8.2) ──────
+  //
+  // Production schedule for the two cron endpoints. Vercel
+  // cron sends GET (not POST), so the vault cron endpoint
+  // was changed to delegate GET → POST. The audit log cron
+  // already had GET → POST. M9 adds the vercel.json + the
+  // GET-delegation fix; the smoke + smoke-deploy verify the
+  // schedule and the endpoint behavior.
+  console.log("\n--- Phase 4.0 M9 — Vercel cron schedule ---\n");
+  {
+    const { readFileSync: readFileSync9 } = await import("node:fs");
+    const { join: join9 } = await import("node:path");
+    const { existsSync: existsSync9 } = await import("node:fs");
+    const readFileSync = readFileSync9;
+    const join = join9;
+    const existsSync = existsSync9;
+    const vercelJsonPath = join(PROJECT_ROOT, "vercel.json");
+    check(
+      "M9: vercel.json exists at project root",
+      existsSync(vercelJsonPath),
+    );
+    let vercelConfig = null;
+    if (existsSync(vercelJsonPath)) {
+      const vercelSrc = readFileSync(vercelJsonPath, "utf8");
+      try {
+        vercelConfig = JSON.parse(vercelSrc);
+      } catch (e) {
+        check(
+          "M9: vercel.json is valid JSON",
+          false,
+          `parse error: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    }
+    check(
+      "M9: vercel.json is valid JSON",
+      vercelConfig !== null,
+    );
+    if (vercelConfig) {
+      check(
+        "M9: vercel.json has crons array",
+        Array.isArray(vercelConfig.crons),
+        `crons=${typeof vercelConfig.crons}`,
+      );
+      const crons = vercelConfig.crons ?? [];
+      const auditPruneCron = crons.find(
+        (c) => c.path === "/api/cron/audit-log-prune",
+      );
+      const vaultCron = crons.find(
+        (c) => c.path === "/api/cron/vault",
+      );
+      check(
+        "M9: crons includes /api/cron/audit-log-prune",
+        Boolean(auditPruneCron),
+        `paths=${crons.map((c) => c.path).join(",")}`,
+      );
+      check(
+        "M9: /api/cron/audit-log-prune schedule is set",
+        typeof auditPruneCron?.schedule === "string" &&
+          auditPruneCron.schedule.length > 0,
+        `schedule=${auditPruneCron?.schedule}`,
+      );
+      // Recommended cadence for audit log retention: once a day.
+      check(
+        "M9: /api/cron/audit-log-prune schedule is a daily cron (3-field daily hint: 'X H * * *')",
+        /^\d+ \d+ \* \* \*$/.test(auditPruneCron?.schedule ?? ""),
+        `schedule=${auditPruneCron?.schedule}`,
+      );
+      check(
+        "M9: crons includes /api/cron/vault",
+        Boolean(vaultCron),
+        `paths=${crons.map((c) => c.path).join(",")}`,
+      );
+      check(
+        "M9: /api/cron/vault schedule is set",
+        typeof vaultCron?.schedule === "string" &&
+          vaultCron.schedule.length > 0,
+        `schedule=${vaultCron?.schedule}`,
+      );
+      // Recommended cadence for vault auto bill-pay: every
+      // 5 minutes (bills shouldn't wait more than 5min past
+      // their scheduled time).
+      check(
+        "M9: /api/cron/vault schedule is frequent (every N minutes, N <= 5)",
+        /^\*\/[1-5] \* \* \* \*$/.test(vaultCron?.schedule ?? ""),
+        `schedule=${vaultCron?.schedule}`,
+      );
+    }
+
+    // The vault GET endpoint should now delegate to POST (so
+    // Vercel cron can hit it). The pre-7.8.2 behavior was a
+    // debug "dueCount" endpoint — that behavior is gone.
+    const vaultRouteSrc = readFileSync(
+      join(PROJECT_ROOT, "src/app/api/cron/vault/route.ts"),
+      "utf8",
+    );
+    check(
+      "M9: /api/cron/vault GET delegates to POST (Vercel cron sends GET)",
+      /export async function GET[\s\S]{0,200}return POST\(req\)/.test(
+        vaultRouteSrc,
+      ),
+    );
+
+    // Wire check: GET /api/cron/vault returns 200 with the
+    // new shape (same as POST).
+    const vaultGetWire = await fetch(BASE + "/api/cron/vault", {
+      method: "GET",
+    });
+    check(
+      "M9: GET /api/cron/vault returns 200",
+      vaultGetWire.status === 200,
+      `status=${vaultGetWire.status}`,
+    );
+    const vaultGetBody = await vaultGetWire.json();
+    check(
+      "M9: GET /api/cron/vault body has the new shape (ok, usersProcessed)",
+      vaultGetBody.ok === true &&
+        typeof vaultGetBody.usersProcessed === "number",
+      JSON.stringify(vaultGetBody).slice(0, 200),
+    );
+
+    // Wire check: GET /api/cron/audit-log-prune still works
+    // (M8 already covered this; M9 confirms it survived).
+    const auditPruneGet = await fetch(
+      BASE + "/api/cron/audit-log-prune",
+      { method: "GET" },
+    );
+    check(
+      "M9: GET /api/cron/audit-log-prune returns 200",
+      auditPruneGet.status === 200,
+      `status=${auditPruneGet.status}`,
+    );
+  }
+
   // ── Final summary ─────────────────────────────────────────────
   console.log("\n--- checks ---");
   console.log(`checks: ${pass} pass / ${miss} miss`);

@@ -76,11 +76,14 @@ export async function POST(req: Request) {
   });
 }
 
-// GET is also useful for ops debugging.
-export async function GET() {
-  const due = await prisma.vaultSchedule.findMany({
-    where: { enabled: true, nextRunAt: { lte: new Date() } },
-    select: { userId: true, cronExpression: true, timezone: true, nextRunAt: true },
-  });
-  return NextResponse.json({ ok: true, dueCount: due.length, due });
+// GET is also useful for ops debugging AND for Vercel cron
+// (Cluster 7.8.2 — Vercel cron sends GET, not POST, so this
+// is the entry point in production). The handler delegates
+// to POST so the work is identical: find due users, run the
+// scheduler, return the summary. (Pre-7.8.2, GET was a
+// "dry run" debug endpoint that only listed due users; that
+// behavior is no longer needed because Vercel now calls
+// GET to actually fire the scheduler.)
+export async function GET(req: Request) {
+  return POST(req);
 }
