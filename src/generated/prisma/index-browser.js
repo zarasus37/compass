@@ -278,6 +278,17 @@ exports.Prisma.AuditLogScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.AuditLogDailyRollupScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  dateKey: 'dateKey',
+  actionType: 'actionType',
+  count: 'count',
+  failedCount: 'failedCount',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SystemSettingsScalarFieldEnum = {
   id: 'id',
   activeEngineLvl: 'activeEngineLvl',
@@ -586,6 +597,7 @@ exports.Prisma.ModelName = {
   AllocationPlan: 'AllocationPlan',
   AllocationRule: 'AllocationRule',
   AuditLog: 'AuditLog',
+  AuditLogDailyRollup: 'AuditLogDailyRollup',
   SystemSettings: 'SystemSettings',
   PayPeriod: 'PayPeriod',
   FinancialIdentity: 'FinancialIdentity',

@@ -146,8 +146,13 @@ export function auditLogFilterToQuery(f: AuditLogFilter): string {
  * existing unfiltered `getAuditLogActivity` default, so the
  * default page state shows the same 30 bars before AND after
  * the date range filter ships.
+ *
+ * Cluster 7.8 — added the `365d` ("Last 12 months") preset for
+ * the year view. The activity strip caps at 90 columns for
+ * display, so the 365-day strip downsamples to 90 buckets
+ * (each bar ≈ 4 days). The table shows the full year.
  */
-export type DateRangePresetId = "24h" | "7d" | "30d" | "90d" | "all";
+export type DateRangePresetId = "24h" | "7d" | "30d" | "90d" | "365d" | "all";
 
 export const DATE_RANGE_PRESETS: ReadonlyArray<{
   id: DateRangePresetId;
@@ -159,6 +164,7 @@ export const DATE_RANGE_PRESETS: ReadonlyArray<{
   { id: "7d", label: "Last 7 days", daysBack: 7 },
   { id: "30d", label: "Last 30 days", daysBack: 30 },
   { id: "90d", label: "Last 90 days", daysBack: 90 },
+  { id: "365d", label: "Last 12 months", daysBack: 365 },
   { id: "all", label: "All time", daysBack: -1 },
 ];
 

@@ -2671,6 +2671,162 @@ async function main() {
     } catch {}
   }
 
+  // ── Phase 4.0 M7 — Audit log retention (Cluster 7.8) ─────────
+  //
+  // The live `AuditLog` table holds the last 90 days of events;
+  // older events are aggregated into `AuditLogDailyRollup` by
+  // the `pruneAuditLog` function. The M7 phase verifies the
+  // model + function + dev endpoint are all wired in. The
+  // dedicated `tests/smoke-audit-log-retention.mjs` exercises
+  // the full prune → rollup → delete cycle end-to-end.
+  console.log("\n--- Phase 4.0 M7 — Audit log retention ---\n");
+  {
+    const { readFileSync: readFileSync7 } = await import("node:fs");
+    const { join: join7 } = await import("node:path");
+    const readFileSync = readFileSync7;
+    const join = join7;
+    // Schema: the new model is in the Prisma client.
+    const generatedClient = readFileSync(
+      join(PROJECT_ROOT, "src/generated/prisma/index.d.ts"),
+      "utf8",
+    );
+    check(
+      "M7: AuditLogDailyRollup model exists in Prisma client",
+      generatedClient.includes("AuditLogDailyRollup"),
+    );
+    check(
+      "M7: prisma.auditLogDailyRollup accessor exists",
+      generatedClient.includes("auditLogDailyRollup"),
+    );
+
+    // DB: the table exists in Postgres with the expected
+    // unique constraint (the upsert key for the prune).
+    const tableExists = await prisma.$queryRawUnsafe(
+      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'AuditLogDailyRollup';",
+    );
+    check(
+      "M7: AuditLogDailyRollup table exists in Postgres",
+      Array.isArray(tableExists) && tableExists.length === 1,
+      `tables=${JSON.stringify(tableExists)}`,
+    );
+    const rollupUnique = await prisma.$queryRawUnsafe(
+      "SELECT indexname FROM pg_indexes WHERE tablename = 'AuditLogDailyRollup' AND indexname LIKE '%userId_dateKey_actionType%';",
+    );
+    check(
+      "M7: unique index on (userId, dateKey, actionType) exists",
+      Array.isArray(rollupUnique) && rollupUnique.length >= 1,
+      `indexes=${JSON.stringify(rollupUnique)}`,
+    );
+
+    // Source: audit-log.ts exports the new function.
+    const alSrc2 = readFileSync(
+      join(PROJECT_ROOT, "src/lib/vault/audit-log.ts"),
+      "utf8",
+    );
+    check(
+      "M7: audit-log.ts exports pruneAuditLog",
+      /export async function pruneAuditLog/.test(alSrc2),
+    );
+    check(
+      "M7: audit-log.ts exports getRetentionDays",
+      /export function getRetentionDays/.test(alSrc2),
+    );
+    check(
+      "M7: audit-log.ts uses auditLogDailyRollup in getAuditLogActivity",
+      alSrc2.includes("auditLogDailyRollup"),
+    );
+
+    // Source: dev endpoint is wired.
+    const pruneRouteSrc = readFileSync(
+      join(PROJECT_ROOT, "src/app/api/dev/audit-log-prune/route.ts"),
+      "utf8",
+    );
+    check(
+      "M7: /api/dev/audit-log-prune route is registered",
+      pruneRouteSrc.includes("export async function POST"),
+    );
+    check(
+      "M7: dev endpoint is gated by NODE_ENV",
+      /NODE_ENV\s*[!=]==?\s*["']development["']/.test(pruneRouteSrc),
+    );
+
+    // Wire check: the dev endpoint actually works (POST
+    // returns 200 for an authenticated user). The retention
+    // function is idempotent and harmless on an empty
+    // older-than-90d window.
+    const pruneResp = await postJson("/api/dev/audit-log-prune", {
+      retentionDays: 30,
+    });
+    check(
+      "M7: /api/dev/audit-log-prune is reachable (returns 200)",
+      pruneResp.status === 200,
+      `status=${pruneResp.status}`,
+    );
+    check(
+      "M7: /api/dev/audit-log-prune returns {ok: true}",
+      pruneResp.body?.ok === true,
+      JSON.stringify(pruneResp.body),
+    );
+
+    // Source: ActivityStrip has the dynamic geometry helpers
+    // that drive the 30/90/365-day strip.
+    const stripSrc2 = readFileSync(
+      join(PROJECT_ROOT, "src/app/(app)/vault/audit/ActivityStrip.tsx"),
+      "utf8",
+    );
+    check(
+      "M7: ActivityStrip defines geometryFor helper",
+      /function geometryFor/.test(stripSrc2),
+    );
+    check(
+      "M7: ActivityStrip defines downsample helper",
+      /function downsample/.test(stripSrc2),
+    );
+    check(
+      "M7: ActivityStrip caps at 90 columns (MAX_COLS = 90)",
+      /MAX_COLS\s*=\s*90/.test(stripSrc2),
+    );
+    check(
+      "M7: ActivityStrip sets data-window-days attribute",
+      /data-window-days/.test(stripSrc2),
+    );
+
+    // Source: audit-log-shared has the 365d preset.
+    const sharedSrc2 = readFileSync(
+      join(PROJECT_ROOT, "src/lib/vault/audit-log-shared.ts"),
+      "utf8",
+    );
+    check(
+      "M7: 365d preset in DateRangePresetId union",
+      /"365d"/.test(sharedSrc2),
+    );
+    check(
+      "M7: 365d preset in DATE_RANGE_PRESETS",
+      /id:\s*"365d"/.test(sharedSrc2),
+    );
+
+    // Wire check: the 365d chip is rendered on the page.
+    const auditPageResp = await get("/vault/audit?from=2025-08-30&to=2026-08-30");
+    const auditPageHtml = await auditPageResp.text();
+    check(
+      "M7: 365d chip rendered on /vault/audit",
+      auditPageHtml.includes('data-testid="vault-audit-range-365d"'),
+    );
+    check(
+      "M7: 365d view sets data-window-days='365' on the strip",
+      /data-window-days="365"/.test(auditPageHtml),
+    );
+
+    // package.json: the new smoke is in the chain.
+    const pkg2 = JSON.parse(
+      readFileSync(join(PROJECT_ROOT, "package.json"), "utf8"),
+    );
+    check(
+      "M7: package.json smoke script includes smoke-audit-log-retention.mjs",
+      (pkg2.scripts.smoke ?? "").includes("smoke-audit-log-retention.mjs"),
+    );
+  }
+
   // ── Final summary ─────────────────────────────────────────────
   console.log("\n--- checks ---");
   console.log(`checks: ${pass} pass / ${miss} miss`);

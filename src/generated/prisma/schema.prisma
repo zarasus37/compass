@@ -80,6 +80,7 @@ model User {
   allocationPlans  AllocationPlan[]
   bills            Bill[]
   auditLog         AuditLog[]
+  auditLogRollup   AuditLogDailyRollup[]
   identity         FinancialIdentity?
   /// Phase 2.0 — Vault (self-custodial bill-reserve). One vault per
   /// user in v1. Cascaded on user delete.
@@ -471,6 +472,57 @@ model AuditLog {
   @@index([userId])
   @@index([createdAt])
   @@index([userId, createdAt])
+}
+
+/// Cluster 7.8 — audit log retention.
+///
+/// Daily rollup of `AuditLog` rows older than the retention
+/// window (default 90 days). Written by the `pruneAuditLog`
+/// function (a nightly cron). The `AuditLog` rows themselves
+/// are deleted after the rollup is committed — the rollup
+/// preserves the action-type distribution + the failed-event
+/// count for the activity strip and the headline, but the
+/// individual payloads are dropped (they were the "what
+/// happened in this event" detail; the rollup is "how many
+/// things happened, by type, on this day").
+///
+/// Cluster 7.8's visible-UI payoff: the activity strip can
+/// show 90 / 365-day windows by aggregating from this
+/// table. The original 30-day strip is unaffected (it
+/// reads live rows; rolls up rows are > 90 days old).
+///
+/// Schema:
+///   - One row per (userId, dateKey, actionType).
+///   - `dateKey` is `YYYY-MM-DD` in the user's local TZ (we
+///     bucket at the DB layer using `createdAt` which is
+///     UTC; the rollup is approximate at the day boundary,
+///     which is acceptable for a count-only summary).
+///   - `count` is the number of AuditLog rows rolled up.
+///   - `failedCount` is the subset whose `actionType` is in
+///     the FAILED set (vault.payment_failed, etc.) — the
+///     activity strip uses this to draw the red bar.
+model AuditLogDailyRollup {
+  id          String   @id @default(cuid())
+  userId      String
+  /// YYYY-MM-DD (local-tz) the rolled-up events occurred on.
+  dateKey     String
+  actionType  String
+  count       Int      @default(0)
+  /// Subset of `count` whose actionType is in the FAILED set.
+  /// Cached at rollup time so the activity strip doesn't have
+  /// to re-derive it from a lookup table.
+  failedCount Int      @default(0)
+  /// When this rollup row was last written (the prune is
+  /// idempotent — re-running the prune on the same window
+  /// updates `updatedAt` but keeps the row).
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dateKey, actionType])
+  @@index([userId, dateKey])
+  @@index([userId, actionType])
 }
 
 /// Global system configuration. One row, identified by the constant

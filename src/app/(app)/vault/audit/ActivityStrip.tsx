@@ -1,9 +1,10 @@
 /**
- * ActivityStrip — 30-day audit-log activity bar chart.
+ * ActivityStrip — audit-log activity bar chart.
  *
  * Visual-first (per xKryptic User Memory 2026-08-23): the strip
  * shows the user the SHAPE of their system activity before they
- * read a single row. One bar per day, oldest left → today right.
+ * read a single row. One bar per day (or one per ~4 days for the
+ * year view), oldest left → today right.
  *
  * Pure SVG, server component. No client islands.
  *
@@ -21,19 +22,83 @@
  * shape but the in-range window is highlighted. Bars on the
  * boundary are still full-opacity so the visual cutoff is
  * obvious.
+ *
+ * Cluster 7.8 — dynamic column count. The strip is capped at
+ * 90 columns (the retention horizon) and downsamples wider
+ * windows into 90 buckets. So `days=30` renders 30 daily
+ * bars (the original look); `days=90` renders 90 daily bars
+ * at 7px each; `days=365` renders 90 bars where each bar
+ * covers ~4 days. The total events + peak count come from
+ * the downsampled buckets, so the header reflects what the
+ * strip shows.
  */
 import * as React from "react";
 import type { AuditLogActivityDay } from "@/lib/vault/audit-log";
 
 const WIDTH = 720;
 const HEIGHT = 84;
-const COLS = 30;
-const BAR_WIDTH = 18;
-const COL_GAP = (WIDTH - BAR_WIDTH * COLS) / (COLS - 1);
+const MAX_COLS = 90;
+const DEFAULT_BAR_WIDTH = 18;
+const DEFAULT_COL_GAP = 6;
 const MAX_BAR_HEIGHT = 60;
 const BAR_SCALE = 4; // sqrt(count) * 4
 const TOP_PAD = 16;
 const BOTTOM_PAD = 8;
+
+/** Compute the strip's geometry for a given data length.
+ *  Returns { cols, barWidth, colGap, width }. */
+function geometryFor(n: number): {
+  cols: number;
+  barWidth: number;
+  colGap: number;
+  width: number;
+} {
+  const cols = Math.max(1, Math.min(MAX_COLS, n));
+  if (n <= 30) {
+    // Original look: 30 wide daily bars.
+    return {
+      cols,
+      barWidth: DEFAULT_BAR_WIDTH,
+      colGap: DEFAULT_COL_GAP,
+      width: WIDTH,
+    };
+  }
+  // Wider windows: thinner bars, 1px gap. WIDTH grows with
+  // cols so each bar has the same visual weight; the parent
+  // has `overflowX: auto` so anything wider than the viewport
+  // becomes scrollable.
+  const barWidth = 7;
+  const colGap = 1;
+  return { cols, barWidth, colGap, width: cols * (barWidth + colGap) };
+}
+
+/** Downsample N daily entries into `target` buckets by summing
+ *  counts within each bucket. The first bucket is the
+ *  oldest days; the last bucket is the most recent. Used to
+ *  collapse a 365-day strip into 90 columns without losing
+ *  the per-day total in the header. */
+function downsample(
+  days: AuditLogActivityDay[],
+  target: number,
+): AuditLogActivityDay[] {
+  if (days.length <= target) return days;
+  const out: AuditLogActivityDay[] = [];
+  const groupSize = days.length / target;
+  for (let i = 0; i < target; i += 1) {
+    const start = Math.floor(i * groupSize);
+    const end = Math.min(days.length, Math.floor((i + 1) * groupSize));
+    const slice = days.slice(start, end);
+    const first = slice[0];
+    const count = slice.reduce((s, d) => s + d.count, 0);
+    const failedCount = slice.reduce((s, d) => s + d.failedCount, 0);
+    out.push({
+      dateKey: first?.dateKey ?? "",
+      count,
+      failedCount,
+    });
+  }
+  return out;
+}
 
 export function ActivityStrip({
   days,
@@ -48,35 +113,37 @@ export function ActivityStrip({
   /** Cluster 7.7 — when set, bars after this date (YYYY-MM-DD) are dimmed. */
   rangeTo?: string;
 }) {
-  if (days.length !== COLS) {
-    // Defensive: the data layer always returns 30. If a future
-    // caller passes a different length, pad/truncate so the
-    // strip still renders without breaking the layout.
-    if (days.length < COLS) {
-      const padded = [...days];
-      while (padded.length < COLS) {
-        padded.push({ dateKey: "", count: 0, failedCount: 0 });
-      }
-      days = padded;
-    } else {
-      days = days.slice(-COLS);
-    }
-  }
+  // Downsample to MAX_COLS first, then compute geometry from
+  // the downsampled length. The downsampled data IS what the
+  // strip displays; the source data may have more entries.
+  const display = downsample(days, MAX_COLS);
+  const { cols, barWidth, colGap, width } = geometryFor(display.length);
+  // If the geometry wants fewer cols than we have buckets
+  // (shouldn't happen — we capped at MAX_COLS — but be safe),
+  // take the last `cols` buckets.
+  const trimmed =
+    display.length > cols ? display.slice(display.length - cols) : display;
+  const data = trimmed;
 
-  const totalInPeriod = days.reduce((s, d) => s + d.count, 0);
-  const maxCount = Math.max(1, ...days.map((d) => d.count));
+  const totalInPeriod = data.reduce((s, d) => s + d.count, 0);
+  const maxCount = Math.max(1, ...data.map((d) => d.count));
   const todayKey = dateKeyLocal(now);
   const isEmpty = totalInPeriod === 0;
-  const firstKey = days[0]?.dateKey;
-  const lastKey = days[days.length - 1]?.dateKey;
+  const firstKey = data[0]?.dateKey;
+  const lastKey = data[data.length - 1]?.dateKey;
   // Cluster 7.7 — `rangeActive` is true when at least one of
   // rangeFrom/rangeTo is set. We use it to render a small
   // "range active" label in the strip's header.
   const rangeActive = Boolean(rangeFrom || rangeTo);
+  // Cluster 7.8 — the strip header reflects the actual range
+  // size (30/90/365) so the user knows what they're looking at.
+  const windowDays = days.length;
+  const headerLabel = `${windowDays}-day shape`;
 
   return (
     <div
       data-testid="vault-audit-activity-strip"
+      data-window-days={windowDays}
       style={{
         background: "var(--vessel-surface)",
         border: "1px solid var(--vessel-border)",
@@ -104,7 +171,7 @@ export function ActivityStrip({
             letterSpacing: "0.18em",
           }}
         >
-          {rangeActive ? "// 30-day shape (range active)" : "// 30-day shape"}
+          {rangeActive ? `// ${headerLabel} (range active)` : `// ${headerLabel}`}
         </div>
         <div
           data-testid="vault-audit-activity-summary"
@@ -117,29 +184,29 @@ export function ActivityStrip({
           }}
         >
           {isEmpty
-            ? "// quiet — no activity in 30d"
+            ? `// quiet — no activity in ${windowDays}d`
             : `// ${totalInPeriod} events · peak ${maxCount}/d`}
         </div>
       </div>
       <svg
-        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        width={WIDTH}
+        viewBox={`0 0 ${width} ${HEIGHT}`}
+        width={width}
         height={HEIGHT}
         role="img"
-        aria-label={`Audit log activity over the last 30 days. ${totalInPeriod} events total.`}
+        aria-label={`Audit log activity over the last ${windowDays} days. ${totalInPeriod} events total.`}
         style={{ display: "block", maxWidth: "100%", height: "auto" }}
       >
         {/* Faint horizontal grid at max height for reference */}
         <line
           x1={0}
           y1={TOP_PAD + MAX_BAR_HEIGHT + 0.5}
-          x2={WIDTH}
+          x2={width}
           y2={TOP_PAD + MAX_BAR_HEIGHT + 0.5}
           stroke="var(--vessel-border)"
           strokeWidth={1}
         />
-        {days.map((d, i) => {
-          const x = i * (BAR_WIDTH + COL_GAP);
+        {data.map((d, i) => {
+          const x = i * (barWidth + colGap);
           const isToday = d.dateKey === todayKey;
           const hasFailed = d.failedCount > 0;
           // Cluster 7.7 — is this bar inside the active range?
@@ -174,7 +241,7 @@ export function ActivityStrip({
                 <line
                   x1={x}
                   y1={TOP_PAD + MAX_BAR_HEIGHT - 2}
-                  x2={x + BAR_WIDTH}
+                  x2={x + barWidth}
                   y2={TOP_PAD + MAX_BAR_HEIGHT - 2}
                   stroke="var(--vessel-border)"
                   strokeWidth={1}
@@ -185,7 +252,7 @@ export function ActivityStrip({
                 <rect
                   x={x}
                   y={y}
-                  width={BAR_WIDTH}
+                  width={barWidth}
                   height={h}
                   fill={color}
                   rx={1}
@@ -204,10 +271,10 @@ export function ActivityStrip({
                   opacity={dimOpacity}
                 />
               ) : null}
-              {/* Day-of-month label (every 5th + today) */}
-              {(i % 5 === 0 || isToday) && d.dateKey ? (
+              {/* Day-of-month label (density-aware) */}
+              {(labelEvery(windowDays, i) || isToday) && d.dateKey ? (
                 <text
-                  x={x + BAR_WIDTH / 2}
+                  x={x + barWidth / 2}
                   y={labelY}
                   textAnchor="middle"
                   fontFamily="var(--font-jetbrains), monospace"
@@ -245,7 +312,7 @@ export function ActivityStrip({
         ) : null}
         {lastKey ? (
           <text
-            x={WIDTH}
+            x={width}
             y={HEIGHT - 1}
             textAnchor="end"
             fontFamily="var(--font-jetbrains), monospace"
@@ -256,11 +323,11 @@ export function ActivityStrip({
           </text>
         ) : null}
         {/* TODAY label above the gold tick */}
-        {days.map((d, i) =>
+        {data.map((d, i) =>
           d.dateKey === todayKey ? (
             <text
               key={`today-label-${i}`}
-              x={i * (BAR_WIDTH + COL_GAP) + BAR_WIDTH / 2 - 1}
+              x={i * (barWidth + colGap) + barWidth / 2 - 1}
               y={TOP_PAD - 4}
               textAnchor="middle"
               fontFamily="var(--font-jetbrains), monospace"
@@ -276,6 +343,16 @@ export function ActivityStrip({
       </svg>
     </div>
   );
+}
+
+/** Density-aware label cadence. The original 30-day strip
+ *  labeled every 5th bar; for 90/365-day windows we space
+ *  the labels further so the strip doesn't become a wall of
+ *  digits. */
+function labelEvery(windowDays: number, i: number): boolean {
+  if (windowDays <= 30) return i % 5 === 0;
+  if (windowDays <= 90) return i % 10 === 0;
+  return i % 10 === 0;
 }
 
 function dateKeyLocal(d: Date): string {

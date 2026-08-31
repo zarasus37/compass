@@ -451,6 +451,7 @@ async function main() {
     "vault-audit-range-7d",
     "vault-audit-range-30d",
     "vault-audit-range-90d",
+    "vault-audit-range-365d",
     "vault-audit-range-all",
   ];
   for (const id of presetChips) {

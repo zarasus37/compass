@@ -154,7 +154,13 @@ function whereFromFilter(userId: string, f: AuditLogFilter) {
   return where;
 }
 
-/** The "failed" action types — used to flag days/periods with errors. */
+/** The "failed" action types — used to flag days/periods with errors.
+ *  Cluster 7.8 also uses this in the prune function to compute
+ *  `failedCount` in the rollup table (one tally per
+ *  `(userId, dateKey, actionType)` row, not "was this whole
+ *  day a failure"). The rollup stores the COUNT of failed
+ *  events separately so the activity strip can draw the
+ *  red bar without re-deriving. */
 const FAILED_ACTION_TYPES = new Set<string>([
   "vault.payment_failed",
   "vault.safe_deploy_failed",
@@ -229,10 +235,42 @@ export async function getDistinctActionTypes(
 }
 
 /**
- * Compute the 30-day activity strip. Returns one entry per day,
+ * Cluster 7.8 — the retention horizon in days. The live
+ * `AuditLog` table holds the last `retentionDays` days of
+ * events; older events are moved to `AuditLogDailyRollup` by
+ * the `pruneAuditLog` function (a nightly cron).
+ *
+ * Override via `AUDIT_LOG_RETENTION_DAYS` env var (useful for
+ * the smoke, which uses small values like 0 or 7 to exercise
+ * the rollup path in seconds rather than days).
+ *
+ * The default of 90 days is the same horizon as the "Last 90
+ * days" date-range preset. The retention window and the UI
+ * window are decoupled — the UI can show a 365-day strip (the
+ * first 90 days filled from live rows, the rest from the
+ * rollup) without the retention window changing.
+ */
+const DEFAULT_RETENTION_DAYS = 90;
+
+export function getRetentionDays(): number {
+  const raw = process.env.AUDIT_LOG_RETENTION_DAYS;
+  if (!raw) return DEFAULT_RETENTION_DAYS;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 0) return DEFAULT_RETENTION_DAYS;
+  return n;
+}
+
+/**
+ * Compute the activity strip. Returns one entry per day,
  * oldest first (so the strip can render left→right). `dateKey`
  * is local YYYY-MM-DD. Days with no events are included with
- * count=0 so the strip is always 30 columns.
+ * count=0 so the strip is always `days` columns.
+ *
+ * Cluster 7.8 — when `days` extends past the retention
+ * horizon, the older days are filled from
+ * `AuditLogDailyRollup`. The 30-day strip (default) is
+ * always within the live horizon, so the existing behavior
+ * is unchanged for the default.
  *
  * Uses a fixed `now` argument so the test path can pin a date.
  * The page calls this without `now` (defaults to `new Date()`).
@@ -246,11 +284,56 @@ export async function getAuditLogActivity(
   const start = new Date(now);
   start.setHours(0, 0, 0, 0);
   start.setDate(start.getDate() - (days - 1));
-  const rows = await prisma.auditLog.findMany({
-    where: { userId, createdAt: { gte: start } },
+
+  // Cluster 7.8 — the live horizon is `retentionDays` days
+  // back. Live rows cover the last `retentionDays`; older
+  // days come from the rollup.
+  const retentionDays = getRetentionDays();
+  const liveHorizonStart = new Date(now);
+  liveHorizonStart.setHours(0, 0, 0, 0);
+  liveHorizonStart.setDate(
+    liveHorizonStart.getDate() - (retentionDays - 1),
+  );
+  // `liveStart` is the start of the live window for THIS
+  // activity call. The strip is always within the live
+  // horizon when `days <= retentionDays`; for wider strips
+  // (e.g. `days = 365`, `retentionDays = 90`), the live
+  // portion covers the last `retentionDays` and the older
+  // portion comes from the rollup.
+  const liveStart =
+    start.getTime() > liveHorizonStart.getTime()
+      ? start
+      : liveHorizonStart;
+  // Read live rows in [liveStart, now].
+  const liveRows = await prisma.auditLog.findMany({
+    where: { userId, createdAt: { gte: liveStart } },
     select: { actionType: true, createdAt: true },
   });
-  // Bucket by local dateKey.
+  // Read rollup rows in [start, liveStart). The `dateKey`
+  // is a YYYY-MM-DD string; we compare strings (which works
+  // because YYYY-MM-DD is lexicographically sortable).
+  const rollupRows =
+    liveStart.getTime() > start.getTime()
+      ? await prisma.auditLogDailyRollup.findMany({
+          where: {
+            userId,
+            dateKey: {
+              gte: dateKeyLocal(start),
+              lt: dateKeyLocal(liveStart),
+            },
+          },
+          select: {
+            dateKey: true,
+            actionType: true,
+            count: true,
+            failedCount: true,
+          },
+        })
+      : [];
+
+  // Bucket by local dateKey. The bucket map covers the full
+  // window; we add live rows by incrementing by 1, and rollup
+  // rows by adding their stored `count` + `failedCount`.
   const buckets = new Map<string, { count: number; failedCount: number }>();
   for (let i = 0; i < days; i += 1) {
     const d = new Date(start);
@@ -258,12 +341,18 @@ export async function getAuditLogActivity(
     const key = dateKeyLocal(d);
     buckets.set(key, { count: 0, failedCount: 0 });
   }
-  for (const r of rows) {
+  for (const r of liveRows) {
     const key = dateKeyLocal(r.createdAt);
     const cur = buckets.get(key) ?? { count: 0, failedCount: 0 };
     cur.count += 1;
     if (isFailedActionType(r.actionType)) cur.failedCount += 1;
     buckets.set(key, cur);
+  }
+  for (const r of rollupRows) {
+    const cur = buckets.get(r.dateKey) ?? { count: 0, failedCount: 0 };
+    cur.count += r.count;
+    cur.failedCount += r.failedCount;
+    buckets.set(r.dateKey, cur);
   }
   // Emit oldest → newest.
   const out: AuditLogActivityDay[] = [];
@@ -278,6 +367,128 @@ export async function getAuditLogActivity(
     out.push({ dateKey: key, count, failedCount });
   }
   return out;
+}
+
+/**
+ * Cluster 7.8 — prune (roll up + delete) the user's audit log.
+ *
+ * The live `AuditLog` table holds the last `retentionDays` days
+ * of events. Older events are aggregated into
+ * `AuditLogDailyRollup` (one row per `(userId, dateKey,
+ * actionType)`) and then DELETED from the live table. The
+ * rollup preserves the per-day action-type distribution and the
+ * failed-event count; the original `payload` is dropped.
+ *
+ * Idempotent: re-running the prune on the same window is a
+ * no-op (the rollup rows are upserted; the live rows are
+ * already gone).
+ *
+ * Called by a nightly cron in production. The dev-only
+ * `/api/dev/audit-log-prune` endpoint calls it with smaller
+ * `retentionDays` values for smoke testing.
+ *
+ * @param userId      The user whose log to prune.
+ * @param options.retentionDays  The retention horizon. Rows
+ *                    with `createdAt < now - retentionDays` are
+ *                    pruned. Default = `getRetentionDays()`.
+ * @param options.now  Pinned "now" for testability. Default =
+ *                    `new Date()`.
+ */
+export async function pruneAuditLog(
+  userId: string,
+  options: {
+    retentionDays?: number;
+    now?: Date;
+  } = {},
+): Promise<{
+  rolledUp: number;
+  deleted: number;
+  rollupRows: number;
+  retentionDays: number;
+}> {
+  const retentionDays = options.retentionDays ?? getRetentionDays();
+  const now = options.now ?? new Date();
+  // Cutoff is the start of the live horizon. Rows strictly
+  // BEFORE this are rolled up + deleted; rows AT or AFTER
+  // this stay in the live table.
+  const cutoff = new Date(now);
+  cutoff.setHours(0, 0, 0, 0);
+  cutoff.setDate(cutoff.getDate() - retentionDays);
+
+  // Read the rows to prune. We need (dateKey, actionType,
+  // isFailed) for the rollup; payload / aiTierAtTime are
+  // discarded (rollup stores only counts).
+  const toPrune = await prisma.auditLog.findMany({
+    where: { userId, createdAt: { lt: cutoff } },
+    select: { id: true, actionType: true, createdAt: true },
+  });
+  if (toPrune.length === 0) {
+    return { rolledUp: 0, deleted: 0, rollupRows: 0, retentionDays };
+  }
+
+  // Aggregate by (dateKey, actionType). The rollup row
+  // schema is one row per (userId, dateKey, actionType); the
+  // count is the number of live rows in that bucket, and
+  // failedCount is the subset whose actionType is in the
+  // FAILED set.
+  type RollupKey = string; // `${dateKey}\u0000${actionType}`
+  const grouped = new Map<
+    RollupKey,
+    { dateKey: string; actionType: string; count: number; failedCount: number }
+  >();
+  for (const r of toPrune) {
+    const dateKey = dateKeyLocal(r.createdAt);
+    const k: RollupKey = `${dateKey}\u0000${r.actionType}`;
+    const cur = grouped.get(k) ?? {
+      dateKey,
+      actionType: r.actionType,
+      count: 0,
+      failedCount: 0,
+    };
+    cur.count += 1;
+    if (isFailedActionType(r.actionType)) cur.failedCount += 1;
+    grouped.set(k, cur);
+  }
+
+  // Upsert each rollup row. The unique key is
+  // (userId, dateKey, actionType) so re-runs add to the
+  // existing count (we use `increment` instead of `set`,
+  // which is the idempotency guarantee).
+  for (const g of grouped.values()) {
+    await prisma.auditLogDailyRollup.upsert({
+      where: {
+        userId_dateKey_actionType: {
+          userId,
+          dateKey: g.dateKey,
+          actionType: g.actionType,
+        },
+      },
+      create: {
+        userId,
+        dateKey: g.dateKey,
+        actionType: g.actionType,
+        count: g.count,
+        failedCount: g.failedCount,
+      },
+      update: {
+        count: { increment: g.count },
+        failedCount: { increment: g.failedCount },
+      },
+    });
+  }
+
+  // Delete the pruned live rows.
+  const ids = toPrune.map((r) => r.id);
+  const del = await prisma.auditLog.deleteMany({
+    where: { id: { in: ids } },
+  });
+
+  return {
+    rolledUp: toPrune.length,
+    deleted: del.count,
+    rollupRows: grouped.size,
+    retentionDays,
+  };
 }
 
 /**

@@ -84,13 +84,17 @@ export default async function VaultAuditPage({
   // row, which only shows prefixes that exist in the data).
   //
   // Cluster 7.7 — the date range filter is also applied at
-  // the DB layer (getAuditLog respects it). The 30-day
-  // activity strip is the user's "view of recent activity"
-  // and stays fixed-width; when a date range is active, the
-  // strip's bars that fall OUTSIDE the range are visually
-  // dimmed (handled by ActivityStrip's data shape — we pass
-  // the unfiltered 30-day window and the bar component does
-  // the rest).
+  // the DB layer (getAuditLog respects it). The activity
+  // strip's window now follows the active range: 30 days for
+  // the default view, 90 for the "Last 90 days" preset, 365
+  // for the year view. The strip caps at 90 columns and
+  // downsamples wider windows to that ceiling.
+  //
+  // Cluster 7.8 — the activity strip's `days` is derived from
+  // the active `from`/`to` (when both are set) or defaults to
+  // 30. We cap the strip at 365 days (the longest preset) so
+  // the call always returns a bounded array.
+  const activityDays = computeActivityDays(filter);
   const [
     summary,
     allTypes,
@@ -100,7 +104,7 @@ export default async function VaultAuditPage({
   ] = await Promise.all([
     getAuditLogSummary(user.id),
     getDistinctActionTypes(user.id),
-    getAuditLogActivity(user.id, 30),
+    getAuditLogActivity(user.id, activityDays),
     getAuditLog(user.id, filter),
     getAuditLogPrefixes(user.id),
   ]);
@@ -158,7 +162,11 @@ export default async function VaultAuditPage({
 
           <SectionHeader
             eyebrow="// activity"
-            title={dateRangeActive ? "Last 30 days (range dimmed)" : "Last 30 days"}
+            title={
+              dateRangeActive
+                ? `Last ${activityDays} days (range dimmed)`
+                : `Last ${activityDays} days`
+            }
             em="one bar per day. hover for the breakdown."
             accent="cyan"
           />
@@ -220,6 +228,28 @@ export default async function VaultAuditPage({
       <AuditFooter firstEventAt={summary.firstEventAt} />
     </div>
   );
+}
+
+/**
+ * Compute the activity strip's window length from the active
+ * date-range filter. Defaults to 30 days (the original behavior
+ * and the default "no range" state). When the filter has both
+ * `from` and `to`, the window is the inclusive day count.
+ * Cluster 7.8 — the window follows the user's chosen preset,
+ * so a "Last 90 days" click drives a 90-day strip and
+ * "Last 12 months" drives a 365-day strip.
+ */
+function computeActivityDays(filter: {
+  from?: string;
+  to?: string;
+}): number {
+  if (!filter.from || !filter.to) return 30;
+  const from = new Date(`${filter.from}T00:00:00`);
+  const to = new Date(`${filter.to}T00:00:00`);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return 30;
+  const diffMs = to.getTime() - from.getTime();
+  if (diffMs < 0) return 30;
+  return Math.min(365, Math.max(1, Math.round(diffMs / 86_400_000) + 1));
 }
 
 function EmptyState() {

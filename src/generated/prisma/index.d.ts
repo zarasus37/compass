@@ -136,6 +136,37 @@ export type AllocationRule = $Result.DefaultSelection<Prisma.$AllocationRulePayl
  */
 export type AuditLog = $Result.DefaultSelection<Prisma.$AuditLogPayload>
 /**
+ * Model AuditLogDailyRollup
+ * Cluster 7.8 — audit log retention.
+ * 
+ * Daily rollup of `AuditLog` rows older than the retention
+ * window (default 90 days). Written by the `pruneAuditLog`
+ * function (a nightly cron). The `AuditLog` rows themselves
+ * are deleted after the rollup is committed — the rollup
+ * preserves the action-type distribution + the failed-event
+ * count for the activity strip and the headline, but the
+ * individual payloads are dropped (they were the "what
+ * happened in this event" detail; the rollup is "how many
+ * things happened, by type, on this day").
+ * 
+ * Cluster 7.8's visible-UI payoff: the activity strip can
+ * show 90 / 365-day windows by aggregating from this
+ * table. The original 30-day strip is unaffected (it
+ * reads live rows; rolls up rows are > 90 days old).
+ * 
+ * Schema:
+ * - One row per (userId, dateKey, actionType).
+ * - `dateKey` is `YYYY-MM-DD` in the user's local TZ (we
+ * bucket at the DB layer using `createdAt` which is
+ * UTC; the rollup is approximate at the day boundary,
+ * which is acceptable for a count-only summary).
+ * - `count` is the number of AuditLog rows rolled up.
+ * - `failedCount` is the subset whose `actionType` is in
+ * the FAILED set (vault.payment_failed, etc.) — the
+ * activity strip uses this to draw the red bar.
+ */
+export type AuditLogDailyRollup = $Result.DefaultSelection<Prisma.$AuditLogDailyRollupPayload>
+/**
  * Model SystemSettings
  * Global system configuration. One row, identified by the constant
  * "GLOBAL_CONFIG". Stores cross-cutting toggles that aren't user-scoped
@@ -565,6 +596,16 @@ export class PrismaClient<
     * ```
     */
   get auditLog(): Prisma.AuditLogDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.auditLogDailyRollup`: Exposes CRUD operations for the **AuditLogDailyRollup** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more AuditLogDailyRollups
+    * const auditLogDailyRollups = await prisma.auditLogDailyRollup.findMany()
+    * ```
+    */
+  get auditLogDailyRollup(): Prisma.AuditLogDailyRollupDelegate<ExtArgs, ClientOptions>;
 
   /**
    * `prisma.systemSettings`: Exposes CRUD operations for the **SystemSettings** model.
@@ -1223,6 +1264,7 @@ export namespace Prisma {
     AllocationPlan: 'AllocationPlan',
     AllocationRule: 'AllocationRule',
     AuditLog: 'AuditLog',
+    AuditLogDailyRollup: 'AuditLogDailyRollup',
     SystemSettings: 'SystemSettings',
     PayPeriod: 'PayPeriod',
     FinancialIdentity: 'FinancialIdentity',
@@ -1258,7 +1300,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "session" | "account" | "envelope" | "transaction" | "paySchedule" | "bill" | "goal" | "allocationPlan" | "allocationRule" | "auditLog" | "systemSettings" | "payPeriod" | "financialIdentity" | "identityIncome" | "identityExpense" | "identityDebt" | "identityAsset" | "identityGoal" | "identityEvent" | "identitySpendingHabit" | "identityHouseholdMember" | "onboardingMessage" | "vaultAccount" | "vaultEnvelope" | "scheduledBill" | "yieldEvent" | "paymentAttempt" | "providerEvent" | "vaultPreferences" | "vaultSchedule"
+      modelProps: "user" | "session" | "account" | "envelope" | "transaction" | "paySchedule" | "bill" | "goal" | "allocationPlan" | "allocationRule" | "auditLog" | "auditLogDailyRollup" | "systemSettings" | "payPeriod" | "financialIdentity" | "identityIncome" | "identityExpense" | "identityDebt" | "identityAsset" | "identityGoal" | "identityEvent" | "identitySpendingHabit" | "identityHouseholdMember" | "onboardingMessage" | "vaultAccount" | "vaultEnvelope" | "scheduledBill" | "yieldEvent" | "paymentAttempt" | "providerEvent" | "vaultPreferences" | "vaultSchedule"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -2073,6 +2115,80 @@ export namespace Prisma {
           count: {
             args: Prisma.AuditLogCountArgs<ExtArgs>
             result: $Utils.Optional<AuditLogCountAggregateOutputType> | number
+          }
+        }
+      }
+      AuditLogDailyRollup: {
+        payload: Prisma.$AuditLogDailyRollupPayload<ExtArgs>
+        fields: Prisma.AuditLogDailyRollupFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.AuditLogDailyRollupFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AuditLogDailyRollupPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.AuditLogDailyRollupFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AuditLogDailyRollupPayload>
+          }
+          findFirst: {
+            args: Prisma.AuditLogDailyRollupFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AuditLogDailyRollupPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.AuditLogDailyRollupFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AuditLogDailyRollupPayload>
+          }
+          findMany: {
+            args: Prisma.AuditLogDailyRollupFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AuditLogDailyRollupPayload>[]
+          }
+          create: {
+            args: Prisma.AuditLogDailyRollupCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AuditLogDailyRollupPayload>
+          }
+          createMany: {
+            args: Prisma.AuditLogDailyRollupCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.AuditLogDailyRollupCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AuditLogDailyRollupPayload>[]
+          }
+          delete: {
+            args: Prisma.AuditLogDailyRollupDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AuditLogDailyRollupPayload>
+          }
+          update: {
+            args: Prisma.AuditLogDailyRollupUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AuditLogDailyRollupPayload>
+          }
+          deleteMany: {
+            args: Prisma.AuditLogDailyRollupDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.AuditLogDailyRollupUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.AuditLogDailyRollupUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AuditLogDailyRollupPayload>[]
+          }
+          upsert: {
+            args: Prisma.AuditLogDailyRollupUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AuditLogDailyRollupPayload>
+          }
+          aggregate: {
+            args: Prisma.AuditLogDailyRollupAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateAuditLogDailyRollup>
+          }
+          groupBy: {
+            args: Prisma.AuditLogDailyRollupGroupByArgs<ExtArgs>
+            result: $Utils.Optional<AuditLogDailyRollupGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.AuditLogDailyRollupCountArgs<ExtArgs>
+            result: $Utils.Optional<AuditLogDailyRollupCountAggregateOutputType> | number
           }
         }
       }
@@ -3690,6 +3806,7 @@ export namespace Prisma {
     allocationPlan?: AllocationPlanOmit
     allocationRule?: AllocationRuleOmit
     auditLog?: AuditLogOmit
+    auditLogDailyRollup?: AuditLogDailyRollupOmit
     systemSettings?: SystemSettingsOmit
     payPeriod?: PayPeriodOmit
     financialIdentity?: FinancialIdentityOmit
@@ -3799,6 +3916,7 @@ export namespace Prisma {
     allocationPlans: number
     bills: number
     auditLog: number
+    auditLogRollup: number
   }
 
   export type UserCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -3811,6 +3929,7 @@ export namespace Prisma {
     allocationPlans?: boolean | UserCountOutputTypeCountAllocationPlansArgs
     bills?: boolean | UserCountOutputTypeCountBillsArgs
     auditLog?: boolean | UserCountOutputTypeCountAuditLogArgs
+    auditLogRollup?: boolean | UserCountOutputTypeCountAuditLogRollupArgs
   }
 
   // Custom InputTypes
@@ -3885,6 +4004,13 @@ export namespace Prisma {
    */
   export type UserCountOutputTypeCountAuditLogArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: AuditLogWhereInput
+  }
+
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountAuditLogRollupArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: AuditLogDailyRollupWhereInput
   }
 
 
@@ -4508,6 +4634,7 @@ export namespace Prisma {
     allocationPlans?: boolean | User$allocationPlansArgs<ExtArgs>
     bills?: boolean | User$billsArgs<ExtArgs>
     auditLog?: boolean | User$auditLogArgs<ExtArgs>
+    auditLogRollup?: boolean | User$auditLogRollupArgs<ExtArgs>
     identity?: boolean | User$identityArgs<ExtArgs>
     vaultAccount?: boolean | User$vaultAccountArgs<ExtArgs>
     vaultPreferences?: boolean | User$vaultPreferencesArgs<ExtArgs>
@@ -4565,6 +4692,7 @@ export namespace Prisma {
     allocationPlans?: boolean | User$allocationPlansArgs<ExtArgs>
     bills?: boolean | User$billsArgs<ExtArgs>
     auditLog?: boolean | User$auditLogArgs<ExtArgs>
+    auditLogRollup?: boolean | User$auditLogRollupArgs<ExtArgs>
     identity?: boolean | User$identityArgs<ExtArgs>
     vaultAccount?: boolean | User$vaultAccountArgs<ExtArgs>
     vaultPreferences?: boolean | User$vaultPreferencesArgs<ExtArgs>
@@ -4586,6 +4714,7 @@ export namespace Prisma {
       allocationPlans: Prisma.$AllocationPlanPayload<ExtArgs>[]
       bills: Prisma.$BillPayload<ExtArgs>[]
       auditLog: Prisma.$AuditLogPayload<ExtArgs>[]
+      auditLogRollup: Prisma.$AuditLogDailyRollupPayload<ExtArgs>[]
       identity: Prisma.$FinancialIdentityPayload<ExtArgs> | null
       /**
        * Phase 2.0 — Vault (self-custodial bill-reserve). One vault per
@@ -5033,6 +5162,7 @@ export namespace Prisma {
     allocationPlans<T extends User$allocationPlansArgs<ExtArgs> = {}>(args?: Subset<T, User$allocationPlansArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AllocationPlanPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     bills<T extends User$billsArgs<ExtArgs> = {}>(args?: Subset<T, User$billsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BillPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     auditLog<T extends User$auditLogArgs<ExtArgs> = {}>(args?: Subset<T, User$auditLogArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AuditLogPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    auditLogRollup<T extends User$auditLogRollupArgs<ExtArgs> = {}>(args?: Subset<T, User$auditLogRollupArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AuditLogDailyRollupPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     identity<T extends User$identityArgs<ExtArgs> = {}>(args?: Subset<T, User$identityArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     vaultAccount<T extends User$vaultAccountArgs<ExtArgs> = {}>(args?: Subset<T, User$vaultAccountArgs<ExtArgs>>): Prisma__VaultAccountClient<$Result.GetResult<Prisma.$VaultAccountPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     vaultPreferences<T extends User$vaultPreferencesArgs<ExtArgs> = {}>(args?: Subset<T, User$vaultPreferencesArgs<ExtArgs>>): Prisma__VaultPreferencesClient<$Result.GetResult<Prisma.$VaultPreferencesPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
@@ -5682,6 +5812,30 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: AuditLogScalarFieldEnum | AuditLogScalarFieldEnum[]
+  }
+
+  /**
+   * User.auditLogRollup
+   */
+  export type User$auditLogRollupArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AuditLogDailyRollup
+     */
+    select?: AuditLogDailyRollupSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AuditLogDailyRollup
+     */
+    omit?: AuditLogDailyRollupOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AuditLogDailyRollupInclude<ExtArgs> | null
+    where?: AuditLogDailyRollupWhereInput
+    orderBy?: AuditLogDailyRollupOrderByWithRelationInput | AuditLogDailyRollupOrderByWithRelationInput[]
+    cursor?: AuditLogDailyRollupWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: AuditLogDailyRollupScalarFieldEnum | AuditLogDailyRollupScalarFieldEnum[]
   }
 
   /**
@@ -17982,6 +18136,1159 @@ export namespace Prisma {
      * Choose, which related nodes to fetch as well
      */
     include?: AuditLogInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model AuditLogDailyRollup
+   */
+
+  export type AggregateAuditLogDailyRollup = {
+    _count: AuditLogDailyRollupCountAggregateOutputType | null
+    _avg: AuditLogDailyRollupAvgAggregateOutputType | null
+    _sum: AuditLogDailyRollupSumAggregateOutputType | null
+    _min: AuditLogDailyRollupMinAggregateOutputType | null
+    _max: AuditLogDailyRollupMaxAggregateOutputType | null
+  }
+
+  export type AuditLogDailyRollupAvgAggregateOutputType = {
+    count: number | null
+    failedCount: number | null
+  }
+
+  export type AuditLogDailyRollupSumAggregateOutputType = {
+    count: number | null
+    failedCount: number | null
+  }
+
+  export type AuditLogDailyRollupMinAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    dateKey: string | null
+    actionType: string | null
+    count: number | null
+    failedCount: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type AuditLogDailyRollupMaxAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    dateKey: string | null
+    actionType: string | null
+    count: number | null
+    failedCount: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type AuditLogDailyRollupCountAggregateOutputType = {
+    id: number
+    userId: number
+    dateKey: number
+    actionType: number
+    count: number
+    failedCount: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type AuditLogDailyRollupAvgAggregateInputType = {
+    count?: true
+    failedCount?: true
+  }
+
+  export type AuditLogDailyRollupSumAggregateInputType = {
+    count?: true
+    failedCount?: true
+  }
+
+  export type AuditLogDailyRollupMinAggregateInputType = {
+    id?: true
+    userId?: true
+    dateKey?: true
+    actionType?: true
+    count?: true
+    failedCount?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type AuditLogDailyRollupMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    dateKey?: true
+    actionType?: true
+    count?: true
+    failedCount?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type AuditLogDailyRollupCountAggregateInputType = {
+    id?: true
+    userId?: true
+    dateKey?: true
+    actionType?: true
+    count?: true
+    failedCount?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type AuditLogDailyRollupAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which AuditLogDailyRollup to aggregate.
+     */
+    where?: AuditLogDailyRollupWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AuditLogDailyRollups to fetch.
+     */
+    orderBy?: AuditLogDailyRollupOrderByWithRelationInput | AuditLogDailyRollupOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: AuditLogDailyRollupWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AuditLogDailyRollups from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AuditLogDailyRollups.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned AuditLogDailyRollups
+    **/
+    _count?: true | AuditLogDailyRollupCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: AuditLogDailyRollupAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: AuditLogDailyRollupSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: AuditLogDailyRollupMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: AuditLogDailyRollupMaxAggregateInputType
+  }
+
+  export type GetAuditLogDailyRollupAggregateType<T extends AuditLogDailyRollupAggregateArgs> = {
+        [P in keyof T & keyof AggregateAuditLogDailyRollup]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateAuditLogDailyRollup[P]>
+      : GetScalarType<T[P], AggregateAuditLogDailyRollup[P]>
+  }
+
+
+
+
+  export type AuditLogDailyRollupGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: AuditLogDailyRollupWhereInput
+    orderBy?: AuditLogDailyRollupOrderByWithAggregationInput | AuditLogDailyRollupOrderByWithAggregationInput[]
+    by: AuditLogDailyRollupScalarFieldEnum[] | AuditLogDailyRollupScalarFieldEnum
+    having?: AuditLogDailyRollupScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: AuditLogDailyRollupCountAggregateInputType | true
+    _avg?: AuditLogDailyRollupAvgAggregateInputType
+    _sum?: AuditLogDailyRollupSumAggregateInputType
+    _min?: AuditLogDailyRollupMinAggregateInputType
+    _max?: AuditLogDailyRollupMaxAggregateInputType
+  }
+
+  export type AuditLogDailyRollupGroupByOutputType = {
+    id: string
+    userId: string
+    dateKey: string
+    actionType: string
+    count: number
+    failedCount: number
+    createdAt: Date
+    updatedAt: Date
+    _count: AuditLogDailyRollupCountAggregateOutputType | null
+    _avg: AuditLogDailyRollupAvgAggregateOutputType | null
+    _sum: AuditLogDailyRollupSumAggregateOutputType | null
+    _min: AuditLogDailyRollupMinAggregateOutputType | null
+    _max: AuditLogDailyRollupMaxAggregateOutputType | null
+  }
+
+  type GetAuditLogDailyRollupGroupByPayload<T extends AuditLogDailyRollupGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<AuditLogDailyRollupGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof AuditLogDailyRollupGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], AuditLogDailyRollupGroupByOutputType[P]>
+            : GetScalarType<T[P], AuditLogDailyRollupGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type AuditLogDailyRollupSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    dateKey?: boolean
+    actionType?: boolean
+    count?: boolean
+    failedCount?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["auditLogDailyRollup"]>
+
+  export type AuditLogDailyRollupSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    dateKey?: boolean
+    actionType?: boolean
+    count?: boolean
+    failedCount?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["auditLogDailyRollup"]>
+
+  export type AuditLogDailyRollupSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    dateKey?: boolean
+    actionType?: boolean
+    count?: boolean
+    failedCount?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["auditLogDailyRollup"]>
+
+  export type AuditLogDailyRollupSelectScalar = {
+    id?: boolean
+    userId?: boolean
+    dateKey?: boolean
+    actionType?: boolean
+    count?: boolean
+    failedCount?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type AuditLogDailyRollupOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "dateKey" | "actionType" | "count" | "failedCount" | "createdAt" | "updatedAt", ExtArgs["result"]["auditLogDailyRollup"]>
+  export type AuditLogDailyRollupInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type AuditLogDailyRollupIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type AuditLogDailyRollupIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+
+  export type $AuditLogDailyRollupPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "AuditLogDailyRollup"
+    objects: {
+      user: Prisma.$UserPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      userId: string
+      /**
+       * YYYY-MM-DD (local-tz) the rolled-up events occurred on.
+       */
+      dateKey: string
+      actionType: string
+      count: number
+      /**
+       * Subset of `count` whose actionType is in the FAILED set.
+       * Cached at rollup time so the activity strip doesn't have
+       * to re-derive it from a lookup table.
+       */
+      failedCount: number
+      /**
+       * When this rollup row was last written (the prune is
+       * idempotent — re-running the prune on the same window
+       * updates `updatedAt` but keeps the row).
+       */
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["auditLogDailyRollup"]>
+    composites: {}
+  }
+
+  type AuditLogDailyRollupGetPayload<S extends boolean | null | undefined | AuditLogDailyRollupDefaultArgs> = $Result.GetResult<Prisma.$AuditLogDailyRollupPayload, S>
+
+  type AuditLogDailyRollupCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<AuditLogDailyRollupFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: AuditLogDailyRollupCountAggregateInputType | true
+    }
+
+  export interface AuditLogDailyRollupDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['AuditLogDailyRollup'], meta: { name: 'AuditLogDailyRollup' } }
+    /**
+     * Find zero or one AuditLogDailyRollup that matches the filter.
+     * @param {AuditLogDailyRollupFindUniqueArgs} args - Arguments to find a AuditLogDailyRollup
+     * @example
+     * // Get one AuditLogDailyRollup
+     * const auditLogDailyRollup = await prisma.auditLogDailyRollup.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends AuditLogDailyRollupFindUniqueArgs>(args: SelectSubset<T, AuditLogDailyRollupFindUniqueArgs<ExtArgs>>): Prisma__AuditLogDailyRollupClient<$Result.GetResult<Prisma.$AuditLogDailyRollupPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one AuditLogDailyRollup that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {AuditLogDailyRollupFindUniqueOrThrowArgs} args - Arguments to find a AuditLogDailyRollup
+     * @example
+     * // Get one AuditLogDailyRollup
+     * const auditLogDailyRollup = await prisma.auditLogDailyRollup.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends AuditLogDailyRollupFindUniqueOrThrowArgs>(args: SelectSubset<T, AuditLogDailyRollupFindUniqueOrThrowArgs<ExtArgs>>): Prisma__AuditLogDailyRollupClient<$Result.GetResult<Prisma.$AuditLogDailyRollupPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AuditLogDailyRollup that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AuditLogDailyRollupFindFirstArgs} args - Arguments to find a AuditLogDailyRollup
+     * @example
+     * // Get one AuditLogDailyRollup
+     * const auditLogDailyRollup = await prisma.auditLogDailyRollup.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends AuditLogDailyRollupFindFirstArgs>(args?: SelectSubset<T, AuditLogDailyRollupFindFirstArgs<ExtArgs>>): Prisma__AuditLogDailyRollupClient<$Result.GetResult<Prisma.$AuditLogDailyRollupPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AuditLogDailyRollup that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AuditLogDailyRollupFindFirstOrThrowArgs} args - Arguments to find a AuditLogDailyRollup
+     * @example
+     * // Get one AuditLogDailyRollup
+     * const auditLogDailyRollup = await prisma.auditLogDailyRollup.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends AuditLogDailyRollupFindFirstOrThrowArgs>(args?: SelectSubset<T, AuditLogDailyRollupFindFirstOrThrowArgs<ExtArgs>>): Prisma__AuditLogDailyRollupClient<$Result.GetResult<Prisma.$AuditLogDailyRollupPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more AuditLogDailyRollups that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AuditLogDailyRollupFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all AuditLogDailyRollups
+     * const auditLogDailyRollups = await prisma.auditLogDailyRollup.findMany()
+     * 
+     * // Get first 10 AuditLogDailyRollups
+     * const auditLogDailyRollups = await prisma.auditLogDailyRollup.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const auditLogDailyRollupWithIdOnly = await prisma.auditLogDailyRollup.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends AuditLogDailyRollupFindManyArgs>(args?: SelectSubset<T, AuditLogDailyRollupFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AuditLogDailyRollupPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a AuditLogDailyRollup.
+     * @param {AuditLogDailyRollupCreateArgs} args - Arguments to create a AuditLogDailyRollup.
+     * @example
+     * // Create one AuditLogDailyRollup
+     * const AuditLogDailyRollup = await prisma.auditLogDailyRollup.create({
+     *   data: {
+     *     // ... data to create a AuditLogDailyRollup
+     *   }
+     * })
+     * 
+     */
+    create<T extends AuditLogDailyRollupCreateArgs>(args: SelectSubset<T, AuditLogDailyRollupCreateArgs<ExtArgs>>): Prisma__AuditLogDailyRollupClient<$Result.GetResult<Prisma.$AuditLogDailyRollupPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many AuditLogDailyRollups.
+     * @param {AuditLogDailyRollupCreateManyArgs} args - Arguments to create many AuditLogDailyRollups.
+     * @example
+     * // Create many AuditLogDailyRollups
+     * const auditLogDailyRollup = await prisma.auditLogDailyRollup.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends AuditLogDailyRollupCreateManyArgs>(args?: SelectSubset<T, AuditLogDailyRollupCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many AuditLogDailyRollups and returns the data saved in the database.
+     * @param {AuditLogDailyRollupCreateManyAndReturnArgs} args - Arguments to create many AuditLogDailyRollups.
+     * @example
+     * // Create many AuditLogDailyRollups
+     * const auditLogDailyRollup = await prisma.auditLogDailyRollup.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many AuditLogDailyRollups and only return the `id`
+     * const auditLogDailyRollupWithIdOnly = await prisma.auditLogDailyRollup.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends AuditLogDailyRollupCreateManyAndReturnArgs>(args?: SelectSubset<T, AuditLogDailyRollupCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AuditLogDailyRollupPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a AuditLogDailyRollup.
+     * @param {AuditLogDailyRollupDeleteArgs} args - Arguments to delete one AuditLogDailyRollup.
+     * @example
+     * // Delete one AuditLogDailyRollup
+     * const AuditLogDailyRollup = await prisma.auditLogDailyRollup.delete({
+     *   where: {
+     *     // ... filter to delete one AuditLogDailyRollup
+     *   }
+     * })
+     * 
+     */
+    delete<T extends AuditLogDailyRollupDeleteArgs>(args: SelectSubset<T, AuditLogDailyRollupDeleteArgs<ExtArgs>>): Prisma__AuditLogDailyRollupClient<$Result.GetResult<Prisma.$AuditLogDailyRollupPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one AuditLogDailyRollup.
+     * @param {AuditLogDailyRollupUpdateArgs} args - Arguments to update one AuditLogDailyRollup.
+     * @example
+     * // Update one AuditLogDailyRollup
+     * const auditLogDailyRollup = await prisma.auditLogDailyRollup.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends AuditLogDailyRollupUpdateArgs>(args: SelectSubset<T, AuditLogDailyRollupUpdateArgs<ExtArgs>>): Prisma__AuditLogDailyRollupClient<$Result.GetResult<Prisma.$AuditLogDailyRollupPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more AuditLogDailyRollups.
+     * @param {AuditLogDailyRollupDeleteManyArgs} args - Arguments to filter AuditLogDailyRollups to delete.
+     * @example
+     * // Delete a few AuditLogDailyRollups
+     * const { count } = await prisma.auditLogDailyRollup.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends AuditLogDailyRollupDeleteManyArgs>(args?: SelectSubset<T, AuditLogDailyRollupDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AuditLogDailyRollups.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AuditLogDailyRollupUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many AuditLogDailyRollups
+     * const auditLogDailyRollup = await prisma.auditLogDailyRollup.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends AuditLogDailyRollupUpdateManyArgs>(args: SelectSubset<T, AuditLogDailyRollupUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AuditLogDailyRollups and returns the data updated in the database.
+     * @param {AuditLogDailyRollupUpdateManyAndReturnArgs} args - Arguments to update many AuditLogDailyRollups.
+     * @example
+     * // Update many AuditLogDailyRollups
+     * const auditLogDailyRollup = await prisma.auditLogDailyRollup.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more AuditLogDailyRollups and only return the `id`
+     * const auditLogDailyRollupWithIdOnly = await prisma.auditLogDailyRollup.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends AuditLogDailyRollupUpdateManyAndReturnArgs>(args: SelectSubset<T, AuditLogDailyRollupUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AuditLogDailyRollupPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one AuditLogDailyRollup.
+     * @param {AuditLogDailyRollupUpsertArgs} args - Arguments to update or create a AuditLogDailyRollup.
+     * @example
+     * // Update or create a AuditLogDailyRollup
+     * const auditLogDailyRollup = await prisma.auditLogDailyRollup.upsert({
+     *   create: {
+     *     // ... data to create a AuditLogDailyRollup
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the AuditLogDailyRollup we want to update
+     *   }
+     * })
+     */
+    upsert<T extends AuditLogDailyRollupUpsertArgs>(args: SelectSubset<T, AuditLogDailyRollupUpsertArgs<ExtArgs>>): Prisma__AuditLogDailyRollupClient<$Result.GetResult<Prisma.$AuditLogDailyRollupPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of AuditLogDailyRollups.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AuditLogDailyRollupCountArgs} args - Arguments to filter AuditLogDailyRollups to count.
+     * @example
+     * // Count the number of AuditLogDailyRollups
+     * const count = await prisma.auditLogDailyRollup.count({
+     *   where: {
+     *     // ... the filter for the AuditLogDailyRollups we want to count
+     *   }
+     * })
+    **/
+    count<T extends AuditLogDailyRollupCountArgs>(
+      args?: Subset<T, AuditLogDailyRollupCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], AuditLogDailyRollupCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a AuditLogDailyRollup.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AuditLogDailyRollupAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends AuditLogDailyRollupAggregateArgs>(args: Subset<T, AuditLogDailyRollupAggregateArgs>): Prisma.PrismaPromise<GetAuditLogDailyRollupAggregateType<T>>
+
+    /**
+     * Group by AuditLogDailyRollup.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AuditLogDailyRollupGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends AuditLogDailyRollupGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: AuditLogDailyRollupGroupByArgs['orderBy'] }
+        : { orderBy?: AuditLogDailyRollupGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, AuditLogDailyRollupGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetAuditLogDailyRollupGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the AuditLogDailyRollup model
+   */
+  readonly fields: AuditLogDailyRollupFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for AuditLogDailyRollup.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__AuditLogDailyRollupClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the AuditLogDailyRollup model
+   */
+  interface AuditLogDailyRollupFieldRefs {
+    readonly id: FieldRef<"AuditLogDailyRollup", 'String'>
+    readonly userId: FieldRef<"AuditLogDailyRollup", 'String'>
+    readonly dateKey: FieldRef<"AuditLogDailyRollup", 'String'>
+    readonly actionType: FieldRef<"AuditLogDailyRollup", 'String'>
+    readonly count: FieldRef<"AuditLogDailyRollup", 'Int'>
+    readonly failedCount: FieldRef<"AuditLogDailyRollup", 'Int'>
+    readonly createdAt: FieldRef<"AuditLogDailyRollup", 'DateTime'>
+    readonly updatedAt: FieldRef<"AuditLogDailyRollup", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * AuditLogDailyRollup findUnique
+   */
+  export type AuditLogDailyRollupFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AuditLogDailyRollup
+     */
+    select?: AuditLogDailyRollupSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AuditLogDailyRollup
+     */
+    omit?: AuditLogDailyRollupOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AuditLogDailyRollupInclude<ExtArgs> | null
+    /**
+     * Filter, which AuditLogDailyRollup to fetch.
+     */
+    where: AuditLogDailyRollupWhereUniqueInput
+  }
+
+  /**
+   * AuditLogDailyRollup findUniqueOrThrow
+   */
+  export type AuditLogDailyRollupFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AuditLogDailyRollup
+     */
+    select?: AuditLogDailyRollupSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AuditLogDailyRollup
+     */
+    omit?: AuditLogDailyRollupOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AuditLogDailyRollupInclude<ExtArgs> | null
+    /**
+     * Filter, which AuditLogDailyRollup to fetch.
+     */
+    where: AuditLogDailyRollupWhereUniqueInput
+  }
+
+  /**
+   * AuditLogDailyRollup findFirst
+   */
+  export type AuditLogDailyRollupFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AuditLogDailyRollup
+     */
+    select?: AuditLogDailyRollupSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AuditLogDailyRollup
+     */
+    omit?: AuditLogDailyRollupOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AuditLogDailyRollupInclude<ExtArgs> | null
+    /**
+     * Filter, which AuditLogDailyRollup to fetch.
+     */
+    where?: AuditLogDailyRollupWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AuditLogDailyRollups to fetch.
+     */
+    orderBy?: AuditLogDailyRollupOrderByWithRelationInput | AuditLogDailyRollupOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AuditLogDailyRollups.
+     */
+    cursor?: AuditLogDailyRollupWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AuditLogDailyRollups from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AuditLogDailyRollups.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AuditLogDailyRollups.
+     */
+    distinct?: AuditLogDailyRollupScalarFieldEnum | AuditLogDailyRollupScalarFieldEnum[]
+  }
+
+  /**
+   * AuditLogDailyRollup findFirstOrThrow
+   */
+  export type AuditLogDailyRollupFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AuditLogDailyRollup
+     */
+    select?: AuditLogDailyRollupSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AuditLogDailyRollup
+     */
+    omit?: AuditLogDailyRollupOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AuditLogDailyRollupInclude<ExtArgs> | null
+    /**
+     * Filter, which AuditLogDailyRollup to fetch.
+     */
+    where?: AuditLogDailyRollupWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AuditLogDailyRollups to fetch.
+     */
+    orderBy?: AuditLogDailyRollupOrderByWithRelationInput | AuditLogDailyRollupOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AuditLogDailyRollups.
+     */
+    cursor?: AuditLogDailyRollupWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AuditLogDailyRollups from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AuditLogDailyRollups.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AuditLogDailyRollups.
+     */
+    distinct?: AuditLogDailyRollupScalarFieldEnum | AuditLogDailyRollupScalarFieldEnum[]
+  }
+
+  /**
+   * AuditLogDailyRollup findMany
+   */
+  export type AuditLogDailyRollupFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AuditLogDailyRollup
+     */
+    select?: AuditLogDailyRollupSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AuditLogDailyRollup
+     */
+    omit?: AuditLogDailyRollupOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AuditLogDailyRollupInclude<ExtArgs> | null
+    /**
+     * Filter, which AuditLogDailyRollups to fetch.
+     */
+    where?: AuditLogDailyRollupWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AuditLogDailyRollups to fetch.
+     */
+    orderBy?: AuditLogDailyRollupOrderByWithRelationInput | AuditLogDailyRollupOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing AuditLogDailyRollups.
+     */
+    cursor?: AuditLogDailyRollupWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AuditLogDailyRollups from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AuditLogDailyRollups.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AuditLogDailyRollups.
+     */
+    distinct?: AuditLogDailyRollupScalarFieldEnum | AuditLogDailyRollupScalarFieldEnum[]
+  }
+
+  /**
+   * AuditLogDailyRollup create
+   */
+  export type AuditLogDailyRollupCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AuditLogDailyRollup
+     */
+    select?: AuditLogDailyRollupSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AuditLogDailyRollup
+     */
+    omit?: AuditLogDailyRollupOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AuditLogDailyRollupInclude<ExtArgs> | null
+    /**
+     * The data needed to create a AuditLogDailyRollup.
+     */
+    data: XOR<AuditLogDailyRollupCreateInput, AuditLogDailyRollupUncheckedCreateInput>
+  }
+
+  /**
+   * AuditLogDailyRollup createMany
+   */
+  export type AuditLogDailyRollupCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many AuditLogDailyRollups.
+     */
+    data: AuditLogDailyRollupCreateManyInput | AuditLogDailyRollupCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * AuditLogDailyRollup createManyAndReturn
+   */
+  export type AuditLogDailyRollupCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AuditLogDailyRollup
+     */
+    select?: AuditLogDailyRollupSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AuditLogDailyRollup
+     */
+    omit?: AuditLogDailyRollupOmit<ExtArgs> | null
+    /**
+     * The data used to create many AuditLogDailyRollups.
+     */
+    data: AuditLogDailyRollupCreateManyInput | AuditLogDailyRollupCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AuditLogDailyRollupIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * AuditLogDailyRollup update
+   */
+  export type AuditLogDailyRollupUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AuditLogDailyRollup
+     */
+    select?: AuditLogDailyRollupSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AuditLogDailyRollup
+     */
+    omit?: AuditLogDailyRollupOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AuditLogDailyRollupInclude<ExtArgs> | null
+    /**
+     * The data needed to update a AuditLogDailyRollup.
+     */
+    data: XOR<AuditLogDailyRollupUpdateInput, AuditLogDailyRollupUncheckedUpdateInput>
+    /**
+     * Choose, which AuditLogDailyRollup to update.
+     */
+    where: AuditLogDailyRollupWhereUniqueInput
+  }
+
+  /**
+   * AuditLogDailyRollup updateMany
+   */
+  export type AuditLogDailyRollupUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update AuditLogDailyRollups.
+     */
+    data: XOR<AuditLogDailyRollupUpdateManyMutationInput, AuditLogDailyRollupUncheckedUpdateManyInput>
+    /**
+     * Filter which AuditLogDailyRollups to update
+     */
+    where?: AuditLogDailyRollupWhereInput
+    /**
+     * Limit how many AuditLogDailyRollups to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * AuditLogDailyRollup updateManyAndReturn
+   */
+  export type AuditLogDailyRollupUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AuditLogDailyRollup
+     */
+    select?: AuditLogDailyRollupSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AuditLogDailyRollup
+     */
+    omit?: AuditLogDailyRollupOmit<ExtArgs> | null
+    /**
+     * The data used to update AuditLogDailyRollups.
+     */
+    data: XOR<AuditLogDailyRollupUpdateManyMutationInput, AuditLogDailyRollupUncheckedUpdateManyInput>
+    /**
+     * Filter which AuditLogDailyRollups to update
+     */
+    where?: AuditLogDailyRollupWhereInput
+    /**
+     * Limit how many AuditLogDailyRollups to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AuditLogDailyRollupIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * AuditLogDailyRollup upsert
+   */
+  export type AuditLogDailyRollupUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AuditLogDailyRollup
+     */
+    select?: AuditLogDailyRollupSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AuditLogDailyRollup
+     */
+    omit?: AuditLogDailyRollupOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AuditLogDailyRollupInclude<ExtArgs> | null
+    /**
+     * The filter to search for the AuditLogDailyRollup to update in case it exists.
+     */
+    where: AuditLogDailyRollupWhereUniqueInput
+    /**
+     * In case the AuditLogDailyRollup found by the `where` argument doesn't exist, create a new AuditLogDailyRollup with this data.
+     */
+    create: XOR<AuditLogDailyRollupCreateInput, AuditLogDailyRollupUncheckedCreateInput>
+    /**
+     * In case the AuditLogDailyRollup was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<AuditLogDailyRollupUpdateInput, AuditLogDailyRollupUncheckedUpdateInput>
+  }
+
+  /**
+   * AuditLogDailyRollup delete
+   */
+  export type AuditLogDailyRollupDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AuditLogDailyRollup
+     */
+    select?: AuditLogDailyRollupSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AuditLogDailyRollup
+     */
+    omit?: AuditLogDailyRollupOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AuditLogDailyRollupInclude<ExtArgs> | null
+    /**
+     * Filter which AuditLogDailyRollup to delete.
+     */
+    where: AuditLogDailyRollupWhereUniqueInput
+  }
+
+  /**
+   * AuditLogDailyRollup deleteMany
+   */
+  export type AuditLogDailyRollupDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which AuditLogDailyRollups to delete
+     */
+    where?: AuditLogDailyRollupWhereInput
+    /**
+     * Limit how many AuditLogDailyRollups to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * AuditLogDailyRollup without action
+   */
+  export type AuditLogDailyRollupDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AuditLogDailyRollup
+     */
+    select?: AuditLogDailyRollupSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AuditLogDailyRollup
+     */
+    omit?: AuditLogDailyRollupOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AuditLogDailyRollupInclude<ExtArgs> | null
   }
 
 
@@ -42199,6 +43506,20 @@ export namespace Prisma {
   export type AuditLogScalarFieldEnum = (typeof AuditLogScalarFieldEnum)[keyof typeof AuditLogScalarFieldEnum]
 
 
+  export const AuditLogDailyRollupScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    dateKey: 'dateKey',
+    actionType: 'actionType',
+    count: 'count',
+    failedCount: 'failedCount',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type AuditLogDailyRollupScalarFieldEnum = (typeof AuditLogDailyRollupScalarFieldEnum)[keyof typeof AuditLogDailyRollupScalarFieldEnum]
+
+
   export const SystemSettingsScalarFieldEnum: {
     id: 'id',
     activeEngineLvl: 'activeEngineLvl',
@@ -42677,6 +43998,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanListRelationFilter
     bills?: BillListRelationFilter
     auditLog?: AuditLogListRelationFilter
+    auditLogRollup?: AuditLogDailyRollupListRelationFilter
     identity?: XOR<FinancialIdentityNullableScalarRelationFilter, FinancialIdentityWhereInput> | null
     vaultAccount?: XOR<VaultAccountNullableScalarRelationFilter, VaultAccountWhereInput> | null
     vaultPreferences?: XOR<VaultPreferencesNullableScalarRelationFilter, VaultPreferencesWhereInput> | null
@@ -42703,6 +44025,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanOrderByRelationAggregateInput
     bills?: BillOrderByRelationAggregateInput
     auditLog?: AuditLogOrderByRelationAggregateInput
+    auditLogRollup?: AuditLogDailyRollupOrderByRelationAggregateInput
     identity?: FinancialIdentityOrderByWithRelationInput
     vaultAccount?: VaultAccountOrderByWithRelationInput
     vaultPreferences?: VaultPreferencesOrderByWithRelationInput
@@ -42732,6 +44055,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanListRelationFilter
     bills?: BillListRelationFilter
     auditLog?: AuditLogListRelationFilter
+    auditLogRollup?: AuditLogDailyRollupListRelationFilter
     identity?: XOR<FinancialIdentityNullableScalarRelationFilter, FinancialIdentityWhereInput> | null
     vaultAccount?: XOR<VaultAccountNullableScalarRelationFilter, VaultAccountWhereInput> | null
     vaultPreferences?: XOR<VaultPreferencesNullableScalarRelationFilter, VaultPreferencesWhereInput> | null
@@ -43691,6 +45015,79 @@ export namespace Prisma {
     payload?: StringWithAggregatesFilter<"AuditLog"> | string
     aiTierAtTime?: IntWithAggregatesFilter<"AuditLog"> | number
     createdAt?: DateTimeWithAggregatesFilter<"AuditLog"> | Date | string
+  }
+
+  export type AuditLogDailyRollupWhereInput = {
+    AND?: AuditLogDailyRollupWhereInput | AuditLogDailyRollupWhereInput[]
+    OR?: AuditLogDailyRollupWhereInput[]
+    NOT?: AuditLogDailyRollupWhereInput | AuditLogDailyRollupWhereInput[]
+    id?: StringFilter<"AuditLogDailyRollup"> | string
+    userId?: StringFilter<"AuditLogDailyRollup"> | string
+    dateKey?: StringFilter<"AuditLogDailyRollup"> | string
+    actionType?: StringFilter<"AuditLogDailyRollup"> | string
+    count?: IntFilter<"AuditLogDailyRollup"> | number
+    failedCount?: IntFilter<"AuditLogDailyRollup"> | number
+    createdAt?: DateTimeFilter<"AuditLogDailyRollup"> | Date | string
+    updatedAt?: DateTimeFilter<"AuditLogDailyRollup"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }
+
+  export type AuditLogDailyRollupOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    dateKey?: SortOrder
+    actionType?: SortOrder
+    count?: SortOrder
+    failedCount?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    user?: UserOrderByWithRelationInput
+  }
+
+  export type AuditLogDailyRollupWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    userId_dateKey_actionType?: AuditLogDailyRollupUserIdDateKeyActionTypeCompoundUniqueInput
+    AND?: AuditLogDailyRollupWhereInput | AuditLogDailyRollupWhereInput[]
+    OR?: AuditLogDailyRollupWhereInput[]
+    NOT?: AuditLogDailyRollupWhereInput | AuditLogDailyRollupWhereInput[]
+    userId?: StringFilter<"AuditLogDailyRollup"> | string
+    dateKey?: StringFilter<"AuditLogDailyRollup"> | string
+    actionType?: StringFilter<"AuditLogDailyRollup"> | string
+    count?: IntFilter<"AuditLogDailyRollup"> | number
+    failedCount?: IntFilter<"AuditLogDailyRollup"> | number
+    createdAt?: DateTimeFilter<"AuditLogDailyRollup"> | Date | string
+    updatedAt?: DateTimeFilter<"AuditLogDailyRollup"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }, "id" | "userId_dateKey_actionType">
+
+  export type AuditLogDailyRollupOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    dateKey?: SortOrder
+    actionType?: SortOrder
+    count?: SortOrder
+    failedCount?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: AuditLogDailyRollupCountOrderByAggregateInput
+    _avg?: AuditLogDailyRollupAvgOrderByAggregateInput
+    _max?: AuditLogDailyRollupMaxOrderByAggregateInput
+    _min?: AuditLogDailyRollupMinOrderByAggregateInput
+    _sum?: AuditLogDailyRollupSumOrderByAggregateInput
+  }
+
+  export type AuditLogDailyRollupScalarWhereWithAggregatesInput = {
+    AND?: AuditLogDailyRollupScalarWhereWithAggregatesInput | AuditLogDailyRollupScalarWhereWithAggregatesInput[]
+    OR?: AuditLogDailyRollupScalarWhereWithAggregatesInput[]
+    NOT?: AuditLogDailyRollupScalarWhereWithAggregatesInput | AuditLogDailyRollupScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"AuditLogDailyRollup"> | string
+    userId?: StringWithAggregatesFilter<"AuditLogDailyRollup"> | string
+    dateKey?: StringWithAggregatesFilter<"AuditLogDailyRollup"> | string
+    actionType?: StringWithAggregatesFilter<"AuditLogDailyRollup"> | string
+    count?: IntWithAggregatesFilter<"AuditLogDailyRollup"> | number
+    failedCount?: IntWithAggregatesFilter<"AuditLogDailyRollup"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"AuditLogDailyRollup"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"AuditLogDailyRollup"> | Date | string
   }
 
   export type SystemSettingsWhereInput = {
@@ -45458,6 +46855,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -45484,6 +46882,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -45510,6 +46909,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -45536,6 +46936,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -46604,6 +48005,82 @@ export namespace Prisma {
     payload?: StringFieldUpdateOperationsInput | string
     aiTierAtTime?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AuditLogDailyRollupCreateInput = {
+    id?: string
+    dateKey: string
+    actionType: string
+    count?: number
+    failedCount?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutAuditLogRollupInput
+  }
+
+  export type AuditLogDailyRollupUncheckedCreateInput = {
+    id?: string
+    userId: string
+    dateKey: string
+    actionType: string
+    count?: number
+    failedCount?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type AuditLogDailyRollupUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    dateKey?: StringFieldUpdateOperationsInput | string
+    actionType?: StringFieldUpdateOperationsInput | string
+    count?: IntFieldUpdateOperationsInput | number
+    failedCount?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutAuditLogRollupNestedInput
+  }
+
+  export type AuditLogDailyRollupUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    dateKey?: StringFieldUpdateOperationsInput | string
+    actionType?: StringFieldUpdateOperationsInput | string
+    count?: IntFieldUpdateOperationsInput | number
+    failedCount?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AuditLogDailyRollupCreateManyInput = {
+    id?: string
+    userId: string
+    dateKey: string
+    actionType: string
+    count?: number
+    failedCount?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type AuditLogDailyRollupUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    dateKey?: StringFieldUpdateOperationsInput | string
+    actionType?: StringFieldUpdateOperationsInput | string
+    count?: IntFieldUpdateOperationsInput | number
+    failedCount?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AuditLogDailyRollupUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    dateKey?: StringFieldUpdateOperationsInput | string
+    actionType?: StringFieldUpdateOperationsInput | string
+    count?: IntFieldUpdateOperationsInput | number
+    failedCount?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type SystemSettingsCreateInput = {
@@ -48659,6 +50136,12 @@ export namespace Prisma {
     none?: AuditLogWhereInput
   }
 
+  export type AuditLogDailyRollupListRelationFilter = {
+    every?: AuditLogDailyRollupWhereInput
+    some?: AuditLogDailyRollupWhereInput
+    none?: AuditLogDailyRollupWhereInput
+  }
+
   export type FinancialIdentityNullableScalarRelationFilter = {
     is?: FinancialIdentityWhereInput | null
     isNot?: FinancialIdentityWhereInput | null
@@ -48717,6 +50200,10 @@ export namespace Prisma {
   }
 
   export type AuditLogOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type AuditLogDailyRollupOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -49489,6 +50976,55 @@ export namespace Prisma {
 
   export type AuditLogSumOrderByAggregateInput = {
     aiTierAtTime?: SortOrder
+  }
+
+  export type AuditLogDailyRollupUserIdDateKeyActionTypeCompoundUniqueInput = {
+    userId: string
+    dateKey: string
+    actionType: string
+  }
+
+  export type AuditLogDailyRollupCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    dateKey?: SortOrder
+    actionType?: SortOrder
+    count?: SortOrder
+    failedCount?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type AuditLogDailyRollupAvgOrderByAggregateInput = {
+    count?: SortOrder
+    failedCount?: SortOrder
+  }
+
+  export type AuditLogDailyRollupMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    dateKey?: SortOrder
+    actionType?: SortOrder
+    count?: SortOrder
+    failedCount?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type AuditLogDailyRollupMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    dateKey?: SortOrder
+    actionType?: SortOrder
+    count?: SortOrder
+    failedCount?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type AuditLogDailyRollupSumOrderByAggregateInput = {
+    count?: SortOrder
+    failedCount?: SortOrder
   }
 
   export type SystemSettingsCountOrderByAggregateInput = {
@@ -50783,6 +52319,13 @@ export namespace Prisma {
     connect?: AuditLogWhereUniqueInput | AuditLogWhereUniqueInput[]
   }
 
+  export type AuditLogDailyRollupCreateNestedManyWithoutUserInput = {
+    create?: XOR<AuditLogDailyRollupCreateWithoutUserInput, AuditLogDailyRollupUncheckedCreateWithoutUserInput> | AuditLogDailyRollupCreateWithoutUserInput[] | AuditLogDailyRollupUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: AuditLogDailyRollupCreateOrConnectWithoutUserInput | AuditLogDailyRollupCreateOrConnectWithoutUserInput[]
+    createMany?: AuditLogDailyRollupCreateManyUserInputEnvelope
+    connect?: AuditLogDailyRollupWhereUniqueInput | AuditLogDailyRollupWhereUniqueInput[]
+  }
+
   export type FinancialIdentityCreateNestedOneWithoutUserInput = {
     create?: XOR<FinancialIdentityCreateWithoutUserInput, FinancialIdentityUncheckedCreateWithoutUserInput>
     connectOrCreate?: FinancialIdentityCreateOrConnectWithoutUserInput
@@ -50868,6 +52411,13 @@ export namespace Prisma {
     connectOrCreate?: AuditLogCreateOrConnectWithoutUserInput | AuditLogCreateOrConnectWithoutUserInput[]
     createMany?: AuditLogCreateManyUserInputEnvelope
     connect?: AuditLogWhereUniqueInput | AuditLogWhereUniqueInput[]
+  }
+
+  export type AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput = {
+    create?: XOR<AuditLogDailyRollupCreateWithoutUserInput, AuditLogDailyRollupUncheckedCreateWithoutUserInput> | AuditLogDailyRollupCreateWithoutUserInput[] | AuditLogDailyRollupUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: AuditLogDailyRollupCreateOrConnectWithoutUserInput | AuditLogDailyRollupCreateOrConnectWithoutUserInput[]
+    createMany?: AuditLogDailyRollupCreateManyUserInputEnvelope
+    connect?: AuditLogDailyRollupWhereUniqueInput | AuditLogDailyRollupWhereUniqueInput[]
   }
 
   export type FinancialIdentityUncheckedCreateNestedOneWithoutUserInput = {
@@ -51040,6 +52590,20 @@ export namespace Prisma {
     deleteMany?: AuditLogScalarWhereInput | AuditLogScalarWhereInput[]
   }
 
+  export type AuditLogDailyRollupUpdateManyWithoutUserNestedInput = {
+    create?: XOR<AuditLogDailyRollupCreateWithoutUserInput, AuditLogDailyRollupUncheckedCreateWithoutUserInput> | AuditLogDailyRollupCreateWithoutUserInput[] | AuditLogDailyRollupUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: AuditLogDailyRollupCreateOrConnectWithoutUserInput | AuditLogDailyRollupCreateOrConnectWithoutUserInput[]
+    upsert?: AuditLogDailyRollupUpsertWithWhereUniqueWithoutUserInput | AuditLogDailyRollupUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: AuditLogDailyRollupCreateManyUserInputEnvelope
+    set?: AuditLogDailyRollupWhereUniqueInput | AuditLogDailyRollupWhereUniqueInput[]
+    disconnect?: AuditLogDailyRollupWhereUniqueInput | AuditLogDailyRollupWhereUniqueInput[]
+    delete?: AuditLogDailyRollupWhereUniqueInput | AuditLogDailyRollupWhereUniqueInput[]
+    connect?: AuditLogDailyRollupWhereUniqueInput | AuditLogDailyRollupWhereUniqueInput[]
+    update?: AuditLogDailyRollupUpdateWithWhereUniqueWithoutUserInput | AuditLogDailyRollupUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: AuditLogDailyRollupUpdateManyWithWhereWithoutUserInput | AuditLogDailyRollupUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: AuditLogDailyRollupScalarWhereInput | AuditLogDailyRollupScalarWhereInput[]
+  }
+
   export type FinancialIdentityUpdateOneWithoutUserNestedInput = {
     create?: XOR<FinancialIdentityCreateWithoutUserInput, FinancialIdentityUncheckedCreateWithoutUserInput>
     connectOrCreate?: FinancialIdentityCreateOrConnectWithoutUserInput
@@ -51204,6 +52768,20 @@ export namespace Prisma {
     update?: AuditLogUpdateWithWhereUniqueWithoutUserInput | AuditLogUpdateWithWhereUniqueWithoutUserInput[]
     updateMany?: AuditLogUpdateManyWithWhereWithoutUserInput | AuditLogUpdateManyWithWhereWithoutUserInput[]
     deleteMany?: AuditLogScalarWhereInput | AuditLogScalarWhereInput[]
+  }
+
+  export type AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput = {
+    create?: XOR<AuditLogDailyRollupCreateWithoutUserInput, AuditLogDailyRollupUncheckedCreateWithoutUserInput> | AuditLogDailyRollupCreateWithoutUserInput[] | AuditLogDailyRollupUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: AuditLogDailyRollupCreateOrConnectWithoutUserInput | AuditLogDailyRollupCreateOrConnectWithoutUserInput[]
+    upsert?: AuditLogDailyRollupUpsertWithWhereUniqueWithoutUserInput | AuditLogDailyRollupUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: AuditLogDailyRollupCreateManyUserInputEnvelope
+    set?: AuditLogDailyRollupWhereUniqueInput | AuditLogDailyRollupWhereUniqueInput[]
+    disconnect?: AuditLogDailyRollupWhereUniqueInput | AuditLogDailyRollupWhereUniqueInput[]
+    delete?: AuditLogDailyRollupWhereUniqueInput | AuditLogDailyRollupWhereUniqueInput[]
+    connect?: AuditLogDailyRollupWhereUniqueInput | AuditLogDailyRollupWhereUniqueInput[]
+    update?: AuditLogDailyRollupUpdateWithWhereUniqueWithoutUserInput | AuditLogDailyRollupUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: AuditLogDailyRollupUpdateManyWithWhereWithoutUserInput | AuditLogDailyRollupUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: AuditLogDailyRollupScalarWhereInput | AuditLogDailyRollupScalarWhereInput[]
   }
 
   export type FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput = {
@@ -51708,6 +53286,20 @@ export namespace Prisma {
     upsert?: UserUpsertWithoutAuditLogInput
     connect?: UserWhereUniqueInput
     update?: XOR<XOR<UserUpdateToOneWithWhereWithoutAuditLogInput, UserUpdateWithoutAuditLogInput>, UserUncheckedUpdateWithoutAuditLogInput>
+  }
+
+  export type UserCreateNestedOneWithoutAuditLogRollupInput = {
+    create?: XOR<UserCreateWithoutAuditLogRollupInput, UserUncheckedCreateWithoutAuditLogRollupInput>
+    connectOrCreate?: UserCreateOrConnectWithoutAuditLogRollupInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type UserUpdateOneRequiredWithoutAuditLogRollupNestedInput = {
+    create?: XOR<UserCreateWithoutAuditLogRollupInput, UserUncheckedCreateWithoutAuditLogRollupInput>
+    connectOrCreate?: UserCreateOrConnectWithoutAuditLogRollupInput
+    upsert?: UserUpsertWithoutAuditLogRollupInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutAuditLogRollupInput, UserUpdateWithoutAuditLogRollupInput>, UserUncheckedUpdateWithoutAuditLogRollupInput>
   }
 
   export type UserCreateNestedOneWithoutIdentityInput = {
@@ -53313,6 +54905,36 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type AuditLogDailyRollupCreateWithoutUserInput = {
+    id?: string
+    dateKey: string
+    actionType: string
+    count?: number
+    failedCount?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type AuditLogDailyRollupUncheckedCreateWithoutUserInput = {
+    id?: string
+    dateKey: string
+    actionType: string
+    count?: number
+    failedCount?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type AuditLogDailyRollupCreateOrConnectWithoutUserInput = {
+    where: AuditLogDailyRollupWhereUniqueInput
+    create: XOR<AuditLogDailyRollupCreateWithoutUserInput, AuditLogDailyRollupUncheckedCreateWithoutUserInput>
+  }
+
+  export type AuditLogDailyRollupCreateManyUserInputEnvelope = {
+    data: AuditLogDailyRollupCreateManyUserInput | AuditLogDailyRollupCreateManyUserInput[]
+    skipDuplicates?: boolean
+  }
+
   export type FinancialIdentityCreateWithoutUserInput = {
     id?: string
     ageRange?: string | null
@@ -53804,6 +55426,36 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"AuditLog"> | Date | string
   }
 
+  export type AuditLogDailyRollupUpsertWithWhereUniqueWithoutUserInput = {
+    where: AuditLogDailyRollupWhereUniqueInput
+    update: XOR<AuditLogDailyRollupUpdateWithoutUserInput, AuditLogDailyRollupUncheckedUpdateWithoutUserInput>
+    create: XOR<AuditLogDailyRollupCreateWithoutUserInput, AuditLogDailyRollupUncheckedCreateWithoutUserInput>
+  }
+
+  export type AuditLogDailyRollupUpdateWithWhereUniqueWithoutUserInput = {
+    where: AuditLogDailyRollupWhereUniqueInput
+    data: XOR<AuditLogDailyRollupUpdateWithoutUserInput, AuditLogDailyRollupUncheckedUpdateWithoutUserInput>
+  }
+
+  export type AuditLogDailyRollupUpdateManyWithWhereWithoutUserInput = {
+    where: AuditLogDailyRollupScalarWhereInput
+    data: XOR<AuditLogDailyRollupUpdateManyMutationInput, AuditLogDailyRollupUncheckedUpdateManyWithoutUserInput>
+  }
+
+  export type AuditLogDailyRollupScalarWhereInput = {
+    AND?: AuditLogDailyRollupScalarWhereInput | AuditLogDailyRollupScalarWhereInput[]
+    OR?: AuditLogDailyRollupScalarWhereInput[]
+    NOT?: AuditLogDailyRollupScalarWhereInput | AuditLogDailyRollupScalarWhereInput[]
+    id?: StringFilter<"AuditLogDailyRollup"> | string
+    userId?: StringFilter<"AuditLogDailyRollup"> | string
+    dateKey?: StringFilter<"AuditLogDailyRollup"> | string
+    actionType?: StringFilter<"AuditLogDailyRollup"> | string
+    count?: IntFilter<"AuditLogDailyRollup"> | number
+    failedCount?: IntFilter<"AuditLogDailyRollup"> | number
+    createdAt?: DateTimeFilter<"AuditLogDailyRollup"> | Date | string
+    updatedAt?: DateTimeFilter<"AuditLogDailyRollup"> | Date | string
+  }
+
   export type FinancialIdentityUpsertWithoutUserInput = {
     update: XOR<FinancialIdentityUpdateWithoutUserInput, FinancialIdentityUncheckedUpdateWithoutUserInput>
     create: XOR<FinancialIdentityCreateWithoutUserInput, FinancialIdentityUncheckedCreateWithoutUserInput>
@@ -54033,6 +55685,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -54058,6 +55711,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -54099,6 +55753,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -54124,6 +55779,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -54149,6 +55805,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -54174,6 +55831,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -54293,6 +55951,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -54318,6 +55977,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -54375,6 +56035,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -54400,6 +56061,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -54558,6 +56220,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -54583,6 +56246,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -54701,6 +56365,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -54726,6 +56391,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -54851,6 +56517,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -54876,6 +56543,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -54997,6 +56665,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -55022,6 +56691,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -55102,6 +56772,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -55127,6 +56798,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -55197,6 +56869,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -55222,6 +56895,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -55263,6 +56937,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -55288,6 +56963,7 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -55313,6 +56989,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -55338,6 +57015,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -55379,6 +57057,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -55404,6 +57083,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -55429,6 +57109,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -55454,6 +57135,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -55525,6 +57207,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -55550,6 +57233,7 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -55747,6 +57431,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -55772,6 +57457,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -55813,6 +57499,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -55838,6 +57525,127 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
+  }
+
+  export type UserCreateWithoutAuditLogRollupInput = {
+    id?: string
+    name: string
+    email: string
+    passwordHash: string
+    aiTier?: number
+    routingLevel?: number
+    defaultViewId?: string | null
+    settings?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    sessions?: SessionCreateNestedManyWithoutUserInput
+    accounts?: AccountCreateNestedManyWithoutUserInput
+    envelopes?: EnvelopeCreateNestedManyWithoutUserInput
+    transactions?: TransactionCreateNestedManyWithoutUserInput
+    paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
+    goals?: GoalCreateNestedManyWithoutUserInput
+    allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    bills?: BillCreateNestedManyWithoutUserInput
+    auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutAuditLogRollupInput = {
+    id?: string
+    name: string
+    email: string
+    passwordHash: string
+    aiTier?: number
+    routingLevel?: number
+    defaultViewId?: string | null
+    settings?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
+    accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
+    envelopes?: EnvelopeUncheckedCreateNestedManyWithoutUserInput
+    transactions?: TransactionUncheckedCreateNestedManyWithoutUserInput
+    paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
+    goals?: GoalUncheckedCreateNestedManyWithoutUserInput
+    allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutAuditLogRollupInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutAuditLogRollupInput, UserUncheckedCreateWithoutAuditLogRollupInput>
+  }
+
+  export type UserUpsertWithoutAuditLogRollupInput = {
+    update: XOR<UserUpdateWithoutAuditLogRollupInput, UserUncheckedUpdateWithoutAuditLogRollupInput>
+    create: XOR<UserCreateWithoutAuditLogRollupInput, UserUncheckedCreateWithoutAuditLogRollupInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutAuditLogRollupInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutAuditLogRollupInput, UserUncheckedUpdateWithoutAuditLogRollupInput>
+  }
+
+  export type UserUpdateWithoutAuditLogRollupInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    aiTier?: IntFieldUpdateOperationsInput | number
+    routingLevel?: IntFieldUpdateOperationsInput | number
+    defaultViewId?: NullableStringFieldUpdateOperationsInput | string | null
+    settings?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    sessions?: SessionUpdateManyWithoutUserNestedInput
+    accounts?: AccountUpdateManyWithoutUserNestedInput
+    envelopes?: EnvelopeUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUpdateManyWithoutUserNestedInput
+    paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
+    goals?: GoalUpdateManyWithoutUserNestedInput
+    allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    bills?: BillUpdateManyWithoutUserNestedInput
+    auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutAuditLogRollupInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    aiTier?: IntFieldUpdateOperationsInput | number
+    routingLevel?: IntFieldUpdateOperationsInput | number
+    defaultViewId?: NullableStringFieldUpdateOperationsInput | string | null
+    settings?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
+    accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
+    envelopes?: EnvelopeUncheckedUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUncheckedUpdateManyWithoutUserNestedInput
+    paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
+    goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
+    allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -55864,6 +57672,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
     vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
@@ -55889,6 +57698,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
     vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
@@ -56212,6 +58022,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
     vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
@@ -56237,6 +58048,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
     vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
@@ -57906,6 +59718,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
     vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
@@ -57931,6 +59744,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
     vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
@@ -58108,6 +59922,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
     vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
@@ -58133,6 +59948,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
     vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
@@ -59314,6 +61130,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
@@ -59339,6 +61156,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
@@ -59380,6 +61198,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
@@ -59405,6 +61224,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
@@ -59430,6 +61250,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -59455,6 +61276,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -59496,6 +61318,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -59521,6 +61344,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -59649,6 +61473,16 @@ export namespace Prisma {
     payload?: string
     aiTierAtTime?: number
     createdAt?: Date | string
+  }
+
+  export type AuditLogDailyRollupCreateManyUserInput = {
+    id?: string
+    dateKey: string
+    actionType: string
+    count?: number
+    failedCount?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
   }
 
   export type SessionUpdateWithoutUserInput = {
@@ -60036,6 +61870,36 @@ export namespace Prisma {
     payload?: StringFieldUpdateOperationsInput | string
     aiTierAtTime?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AuditLogDailyRollupUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    dateKey?: StringFieldUpdateOperationsInput | string
+    actionType?: StringFieldUpdateOperationsInput | string
+    count?: IntFieldUpdateOperationsInput | number
+    failedCount?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AuditLogDailyRollupUncheckedUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    dateKey?: StringFieldUpdateOperationsInput | string
+    actionType?: StringFieldUpdateOperationsInput | string
+    count?: IntFieldUpdateOperationsInput | number
+    failedCount?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AuditLogDailyRollupUncheckedUpdateManyWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    dateKey?: StringFieldUpdateOperationsInput | string
+    actionType?: StringFieldUpdateOperationsInput | string
+    count?: IntFieldUpdateOperationsInput | number
+    failedCount?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type TransactionCreateManyAccountInput = {
