@@ -637,24 +637,33 @@ async function main() {
     `clearHref=${clearHref ?? "none"}`,
   );
 
-  // ── 26. Activity strip dimming: with the narrow range
-  // (last 5 days), some bars are in-range and most are
-  // out-of-range. The exact counts depend on how many of
-  // the 30 days fall in the 5-day window — but the math
-  // says at least 4 are in-range and ≥24 are out-of-range.
+  // ── 26. Activity strip dimming: with a from-only range
+  // (no `to`), the strip stays at its 30-day default while
+  // the filter is open-ended, so the bars BEFORE the `from`
+  // date are out-of-range. The 5d `from`+`to` window above
+  // (rangeHtml) doesn't exercise dimming because C7.8 made
+  // the strip scale with the active range (a from+to
+  // filter makes the strip exactly the window — all
+  // in-range). To exercise dimming we need a from-only
+  // request that keeps the strip at 30 days.
+  const fromOnlyDate = fiveAgoYmd; // 5 days back, local
+  const fromOnlyPage = await get(
+    `/vault/audit?from=${fromOnlyDate}`,
+  );
+  const fromOnlyHtml = await fromOnlyPage.text();
   const inRangeBars = (
-    rangeHtml.match(/data-in-range="true"/g) ?? []
+    fromOnlyHtml.match(/data-in-range="true"/g) ?? []
   ).length;
   const outOfRangeBars = (
-    rangeHtml.match(/data-in-range="false"/g) ?? []
+    fromOnlyHtml.match(/data-in-range="false"/g) ?? []
   ).length;
   check(
-    "audit: range dimming — at least 1 bar is in-range",
+    "audit: range dimming — at least 1 bar is in-range (from-only filter, 30d strip)",
     inRangeBars >= 1,
     `inRange=${inRangeBars}`,
   );
   check(
-    "audit: range dimming — at least 20 bars are out-of-range (narrow 5d window)",
+    "audit: range dimming — at least 20 bars are out-of-range (from-only filter, narrow window)",
     outOfRangeBars >= 20,
     `outOfRange=${outOfRangeBars}`,
   );
