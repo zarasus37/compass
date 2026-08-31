@@ -958,7 +958,16 @@ export async function recordVaultAudit(args: {
     // `{ billId, billerName, filter: { type, take } | null,
     // at: ISO }`. The page writes the row AFTER its read so
     // this visit's table doesn't show it; the next visit will.
-    | "vault.bill_history_viewed";
+    | "vault.bill_history_viewed"
+    // Cluster 7.10 — cron alert surface. Written by
+    // `recordCronAlert` in `audit-log-alerts.ts` when the
+    // audit log retention cron (or any future cron) records
+    // a per-user failure. The row is the durable record; an
+    // optional webhook (Sentry / PagerDuty / generic) is
+    // fired in parallel for real-time alerting. Payload:
+    // `{ kind, error, context, at }`. Visible in the audit
+    // log table on `/vault/audit` like any other event.
+    | "vault.cron_prune_failure";
   payload: unknown;
 }): Promise<void> {
   const row = await prisma.auditLog.create({

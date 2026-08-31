@@ -3128,6 +3128,183 @@ async function main() {
     );
   }
 
+  // ── Phase 4.0 M10 — Cron alert surface (Cluster 7.10) ──────
+  //
+  // When the audit log retention cron (M8) returns
+  // `usersFailed > 0`, each failed user gets an alert:
+  //   1. A `vault.cron_prune_failure` audit row is written
+  //      (the durable record — visible in the audit page).
+  //   2. If `CRON_ALERT_WEBHOOK_URL` is set, a webhook POST
+  //      is fired (Sentry envelope / PagerDuty Events v2 /
+  //      generic JSON, auto-detected from the URL).
+  //
+  // M10 verifies the alert surface at the integration level.
+  // The dedicated `tests/smoke-cron-alerts.mjs` exercises
+  // the dev endpoint round-trip (POST → DB row → GET).
+  console.log("\n--- Phase 4.0 M10 — Cron alert surface ---\n");
+  {
+    const { readFileSync: readFileSync10 } = await import("node:fs");
+    const { join: join10 } = await import("node:path");
+    const readFileSync = readFileSync10;
+    const join = join10;
+
+    // Source: alert adapter exists with the right exports.
+    const adapterPath = join(
+      PROJECT_ROOT,
+      "src/lib/vault/audit-log-alerts.ts",
+    );
+    check(
+      "M10: src/lib/vault/audit-log-alerts.ts exists",
+      readFileSync(adapterPath, "utf8").length > 0,
+    );
+    const adapterSrc = readFileSync(adapterPath, "utf8");
+    check(
+      "M10: adapter exports recordCronAlert",
+      /export async function recordCronAlert/.test(adapterSrc),
+    );
+    check(
+      "M10: adapter exports getRecentCronAlerts",
+      /export async function getRecentCronAlerts/.test(adapterSrc),
+    );
+    check(
+      "M10: adapter reads CRON_ALERT_WEBHOOK_URL env",
+      adapterSrc.includes("CRON_ALERT_WEBHOOK_URL"),
+    );
+    check(
+      "M10: adapter supports Sentry URL detection",
+      adapterSrc.includes("sentry.io"),
+    );
+    check(
+      "M10: adapter supports PagerDuty URL detection",
+      adapterSrc.includes("pagerduty.com"),
+    );
+    check(
+      "M10: adapter has a 2s webhook timeout",
+      /WEBHOOK_TIMEOUT_MS\s*=\s*2_000/.test(adapterSrc),
+    );
+    check(
+      "M10: adapter masks the URL on failure logs",
+      adapterSrc.includes("maskUrl"),
+    );
+
+    // Source: action type is in the recordVaultAudit union.
+    const dbSrc10 = readFileSync(
+      join(PROJECT_ROOT, "src/lib/vault/db.ts"),
+      "utf8",
+    );
+    check(
+      "M10: recordVaultAudit union includes vault.cron_prune_failure",
+      /vault\.cron_prune_failure/.test(dbSrc10),
+    );
+
+    // Source: bulk prune helper calls recordCronAlert for ERRORs.
+    const cronHelperSrc = readFileSync(
+      join(PROJECT_ROOT, "src/lib/vault/audit-log-cron.ts"),
+      "utf8",
+    );
+    check(
+      "M10: audit-log-cron imports recordCronAlert",
+      /from\s+["']\.\/audit-log-alerts["']/.test(cronHelperSrc),
+    );
+    check(
+      "M10: bulk prune records alerts for ERROR results",
+      /recordCronAlert/.test(cronHelperSrc) &&
+        /status\s*===\s*["']ERROR["']/.test(cronHelperSrc),
+    );
+    check(
+      "M10: bulk prune uses Promise.allSettled for parallel alerts",
+      /Promise\.allSettled/.test(cronHelperSrc),
+    );
+
+    // Source: dev endpoint exists and is gated.
+    const devRouteSrc = readFileSync(
+      join(PROJECT_ROOT, "src/app/api/dev/cron-alerts/route.ts"),
+      "utf8",
+    );
+    check(
+      "M10: /api/dev/cron-alerts route file exists",
+      devRouteSrc.length > 0,
+    );
+    check(
+      "M10: dev endpoint exports POST + GET",
+      /export async function POST/.test(devRouteSrc) &&
+        /export async function GET/.test(devRouteSrc),
+    );
+    check(
+      "M10: dev endpoint is gated by NODE_ENV",
+      /NODE_ENV\s*[!=]==?\s*["']development["']/.test(devRouteSrc),
+    );
+
+    // Wire check: POST + GET the dev endpoint, verify the
+    // round-trip works.
+    const postJson10 = async (path, body) => {
+      const headers = new Headers();
+      applyCookies(headers);
+      headers.set("content-type", "application/json");
+      const r = await fetch(BASE + path, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body ?? {}),
+        redirect: "manual",
+      });
+      return { status: r.status, body: await r.json() };
+    };
+    const sentinelErr = `m10-integration-sentinel-${Date.now()}`;
+    const postResp10 = await postJson10("/api/dev/cron-alerts", {
+      error: sentinelErr,
+      context: { source: "m10" },
+    });
+    check(
+      "M10: POST /api/dev/cron-alerts returns 200",
+      postResp10.status === 200,
+      `status=${postResp10.status}`,
+    );
+    check(
+      "M10: POST body has ok=true",
+      postResp10.body?.ok === true,
+      JSON.stringify(postResp10.body).slice(0, 200),
+    );
+    const getResp10 = await get("/api/dev/cron-alerts?limit=20");
+    const getBody10 = await getResp10.json();
+    check(
+      "M10: GET /api/dev/cron-alerts returns 200",
+      getResp10.status === 200,
+      `status=${getResp10.status}`,
+    );
+    const ourAlert = (getBody10.alerts ?? []).find(
+      (a) => a.payload?.error === sentinelErr,
+    );
+    check(
+      "M10: the just-written alert is in the GET response",
+      Boolean(ourAlert),
+      `ourAlert=${JSON.stringify(ourAlert)}`,
+    );
+    check(
+      "M10: alert actionType is vault.cron_prune_failure",
+      ourAlert?.actionType === "vault.cron_prune_failure",
+      `actionType=${ourAlert?.actionType}`,
+    );
+
+    // package.json: the new smoke is in the chain.
+    const pkg4 = JSON.parse(
+      readFileSync(join(PROJECT_ROOT, "package.json"), "utf8"),
+    );
+    check(
+      "M10: package.json smoke script includes smoke-cron-alerts.mjs",
+      (pkg4.scripts.smoke ?? "").includes("smoke-cron-alerts.mjs"),
+    );
+
+    // .env.production.example documents the webhook env var.
+    const envExample = readFileSync(
+      join(PROJECT_ROOT, ".env.production.example"),
+      "utf8",
+    );
+    check(
+      "M10: .env.production.example documents CRON_ALERT_WEBHOOK_URL",
+      envExample.includes("CRON_ALERT_WEBHOOK_URL"),
+    );
+  }
+
   // ── Final summary ─────────────────────────────────────────────
   console.log("\n--- checks ---");
   console.log(`checks: ${pass} pass / ${miss} miss`);

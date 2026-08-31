@@ -22,6 +22,7 @@
 import "server-only";
 import { prisma } from "@/server/db";
 import { pruneAuditLog, getRetentionDays } from "./audit-log";
+import { recordCronAlert } from "./audit-log-alerts";
 
 export type BulkPruneResult = {
   ok: boolean;
@@ -108,6 +109,27 @@ export async function pruneAuditLogForAllUsers(opts?: {
         error: message,
       });
     }
+  }
+
+  // Cluster 7.10 — surface per-user failures to ops. Each
+  // ERROR result gets an alert (durable audit row + optional
+  // webhook). The audit row is the source of truth; the
+  // webhook is a real-time shortcut. `Promise.allSettled`
+  // ensures one failed alert doesn't break the others; each
+  // alert's own try/catch (inside `recordCronAlert`) handles
+  // the webhook's failure isolation.
+  const failedResults = results.filter((r) => r.status === "ERROR");
+  if (failedResults.length > 0) {
+    await Promise.allSettled(
+      failedResults.map((r) =>
+        recordCronAlert({
+          userId: r.userId,
+          kind: "prune_failure",
+          error: r.error ?? "unknown error",
+          context: { retentionDays, now: now.toISOString() },
+        }),
+      ),
+    );
   }
 
   return {
