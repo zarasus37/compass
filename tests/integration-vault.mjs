@@ -3330,6 +3330,13 @@ async function main() {
   // M11 verifies the wiring at the integration level. The
   // dedicated `tests/smoke-live-ticker.mjs` exercises the page
   // surface + bus round-trip + source-file checks end-to-end.
+  //
+  // Cluster 7.11.1 — added 3 wins from Polar's v2-amended spec:
+  //   (a) semantic tone colors (good/watch/bad/neutral → CSS var)
+  //   (b) hide unmapped types (humanizer returns null, not
+  //       "event happened" placeholder)
+  //   (c) reconcile-on-reconnect (new endpoint + fetch on
+  //       reconnecting/closed → live transition)
   console.log("\n--- Phase 4.0 M11 — Live activity ticker ---\n");
   {
     const { readFileSync: readFileSync11 } = await import("node:fs");
@@ -3389,12 +3396,44 @@ async function main() {
       /export\s*\{[^}]*VAULT_AUDIT_ACTION_TYPES/.test(sharedSrc11),
     );
     check(
-      "M11: humanizeVaultAction is exhaustive (returns 'event happened' fallback)",
-      /return "event happened";/.test(sharedSrc11),
+      "M11: humanizeVaultAction returns null for unknown types (no 'event happened')",
+      /export function humanizeVaultAction[\s\S]*return null;/.test(sharedSrc11) &&
+        !/return "event happened";/.test(sharedSrc11),
+    );
+    check(
+      "M11: humanizeVaultAction public signature returns { text, tone } | null",
+      /export function humanizeVaultAction[\s\S]*\{ text: string; tone: HumanizeTone \} \| null/.test(sharedSrc11),
     );
     check(
       "M11: humanizeVaultAction has 25+ case branches",
       (sharedSrc11.match(/case "vault\./g) ?? []).length >= 25,
+    );
+    // Cluster 7.11.1 — HumanizeTone + TONE_COLOR + TONE_FOR
+    check(
+      "M11: HumanizeTone type is exported (good/watch/bad/neutral)",
+      /export type HumanizeTone/.test(sharedSrc11) &&
+        /"good"/.test(sharedSrc11) &&
+        /"watch"/.test(sharedSrc11) &&
+        /"bad"/.test(sharedSrc11) &&
+        /"neutral"/.test(sharedSrc11),
+    );
+    check(
+      "M11: TONE_COLOR is exported (CSS var map for each tone)",
+      /export const TONE_COLOR: Record<HumanizeTone, string>/.test(sharedSrc11) &&
+        /var\(--ok\)/.test(sharedSrc11) &&
+        /var\(--vessel-watch\)/.test(sharedSrc11) &&
+        /var\(--vessel-over\)/.test(sharedSrc11),
+    );
+    check(
+      "M11: TONE_FOR is exhaustive (every union member has a tone)",
+      /const TONE_FOR: Record<VaultAuditActionType, HumanizeTone>/.test(sharedSrc11) &&
+        unionTypes.every((t) =>
+          new RegExp(`"${t.replace(/\./g, "\\.")}":\\s*"(good|watch|bad|neutral)"`).test(sharedSrc11),
+        ),
+    );
+    check(
+      "M11: LiveTickerEvent carries the tone field",
+      /export type LiveTickerEvent = \{[\s\S]*tone: HumanizeTone;/.test(sharedSrc11),
     );
     check(
       "M11: liveTickerEventFromRow exports the row→event adapter",
@@ -3456,12 +3495,55 @@ async function main() {
       /import Link from "next\/link"/.test(tickerSrc),
     );
     check(
-      "M11: LiveActivityTicker uses colorForActionType for the dot",
-      /colorForActionType\(/.test(tickerSrc),
+      "M11: LiveActivityTicker uses TONE_COLOR (semantic tones, not djb2)",
+      /TONE_COLOR/.test(tickerSrc) &&
+        !/colorForActionType\(/.test(tickerSrc),
     );
     check(
       "M11: LiveActivityTicker re-renders the relative time column (5s tick)",
       /setInterval\(\(\) => setRelTick/.test(tickerSrc),
+    );
+    // Cluster 7.11.1 — reconcile-on-reconnect. The ticker
+    // fetches /api/vault/audit/recent on the reconnecting/closed
+    // → live transition to backfill events that arrived during
+    // the disconnect window (EventSource does NOT replay).
+    check(
+      "M11: LiveActivityTicker reconciles on reconnect (fetches /api/vault/audit/recent)",
+      /\/api\/vault\/audit\/recent/.test(tickerSrc) &&
+        /hasBeenDisconnected/.test(tickerSrc) &&
+        /state === "reconnecting"|state === "closed"/.test(tickerSrc),
+    );
+    check(
+      "M11: LiveActivityTicker carries data-tone on each row",
+      /data-tone=\{ev\.tone\}/.test(tickerSrc),
+    );
+
+    // Cluster 7.11.1 — the new endpoint the reconcile fetches.
+    const recentRouteSrc = readFileSync11(
+      join11(PROJECT_ROOT, "src/app/api/vault/audit/recent/route.ts"),
+      "utf8",
+    );
+    check(
+      "M11: src/app/api/vault/audit/recent/route.ts exists",
+      recentRouteSrc.length > 0,
+    );
+    check(
+      "M11: /api/vault/audit/recent requires auth (401 without user)",
+      /getCurrentUser/.test(recentRouteSrc) &&
+        /status:\s*401/.test(recentRouteSrc),
+    );
+    check(
+      "M11: /api/vault/audit/recent clamps ?take= into [1, 50]",
+      /take/.test(recentRouteSrc) &&
+        /MIN_TAKE\s*=\s*1/.test(recentRouteSrc) &&
+        /MAX_TAKE\s*=\s*50/.test(recentRouteSrc) &&
+        /Math\.(min|max)/.test(recentRouteSrc),
+    );
+    check(
+      "M11: /api/vault/audit/recent returns { ok, rows } via getAuditLog",
+      /getAuditLog\(user\.id, \{\s*take/.test(recentRouteSrc) &&
+        /ok:\s*true/.test(recentRouteSrc) &&
+        /rows/.test(recentRouteSrc),
     );
 
     // Sidebar slot integration.

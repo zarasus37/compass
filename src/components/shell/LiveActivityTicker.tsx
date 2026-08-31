@@ -1,5 +1,6 @@
 /**
- * LiveActivityTicker — Cluster 7.11.
+ * LiveActivityTicker — Cluster 7.11 (live ticker) + 7.11.1 (semantic
+ * tone colors + reconcile-on-reconnect).
  *
  * Sidebar widget that surfaces the last 3 vault events as a
  * live feed under the `// Ledger` chapter header. The user
@@ -17,7 +18,22 @@
  *     the page renders that subscribe to it.
  *   - `liveTickerEventFromRow` is the single point that turns
  *     a raw `AuditLogRow` into a `LiveTickerEvent` (humanize +
- *     deep-link).
+ *     tone + deep-link). Returns null for unmapped types; the
+ *     ticker filters them out silently.
+ *
+ * **Color**: Cluster 7.11.1 — replaced the djb2 hash
+ * (`colorForActionType`) with semantic tone colors from the
+ * humanizer (good=green, watch=orange, bad=red, neutral=ink-3).
+ * In a 3-row ticker, djb2 confetti was noise; semantic colors
+ * let the user triage at a glance. The audit page keeps djb2
+ * for type-distinct rendering in a 50+ row table.
+ *
+ * **Reconcile on reconnect** (7.11.1): `useAuditStream`'s
+ * docblock states reconnect does NOT replay missed events.
+ * When the connection transitions from `reconnecting` / `closed`
+ * back to `live`, the ticker fetches the last 3 rows from
+ * `GET /api/vault/audit/recent` and prepends any new events not
+ * already in `seenIds`. Capped at TICKER_LIMIT.
  *
  * **Empty state is silent**: when there are no events, the
  * component renders nothing. The sidebar just doesn't show the
@@ -49,12 +65,10 @@ import * as React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  colorForActionType,
   formatRelativeTime,
-  humanizeVaultAction,
   liveTickerEventFromRow,
   LIVE_TICKER_IGNORED_TYPES,
-  billHistoryHrefForAuditRow,
+  TONE_COLOR,
   type AuditLogRow,
   type LiveTickerEvent,
 } from "@/lib/vault/audit-log-shared";
@@ -80,12 +94,14 @@ export function LiveActivityTicker({ initialRows }: LiveActivityTickerProps) {
   // initial events don't get re-humanized on every re-render.
   // The server passes the last 3 rows; we filter out the meta
   // events here so the initial render never shows them (the
-  // hook's `ignoreActionTypes` only protects streamed rows).
+  // hook's `ignoreActionTypes` only protects streamed rows), and
+  // we drop any row the humanizer can't map (null return).
   const seed = React.useMemo<LiveTickerEvent[]>(
     () =>
       initialRows
         .filter((r) => !LIVE_TICKER_IGNORED_TYPES.has(r.actionType as never))
-        .map(liveTickerEventFromRow),
+        .map(liveTickerEventFromRow)
+        .filter((e): e is LiveTickerEvent => e !== null),
     [initialRows],
   );
 
@@ -96,10 +112,17 @@ export function LiveActivityTicker({ initialRows }: LiveActivityTickerProps) {
   // Relative-time tick. Bumping this state re-renders the
   // ticker so the "2s ago" → "3s ago" column updates.
   const [, setRelTick] = useState(0);
+  // Cluster 7.11.1 — reconcile-on-reconnect. Set to true after
+  // the ticker has ever been in a non-live state (reconnecting /
+  // closed). The next transition to "live" triggers a single
+  // fetch from /api/vault/audit/recent to backfill any events
+  // that arrived during the disconnect window.
+  const hasBeenDisconnected = useRef(false);
 
   const onRow = useCallback((row: AuditLogRow) => {
     if (seenIds.current.has(row.id)) return;
     const ev = liveTickerEventFromRow(row);
+    if (!ev) return; // unmapped type — silently drop
     seenIds.current.add(row.id);
     setStreamed((prev) => {
       const next = [ev, ...prev];
@@ -135,6 +158,84 @@ export function LiveActivityTicker({ initialRows }: LiveActivityTickerProps) {
       if (flashTimer.current) clearTimeout(flashTimer.current);
     };
   }, []);
+
+  // Cluster 7.11.1 — reconcile-on-reconnect. EventSource auto-
+  // reconnects on transient errors, but it does NOT replay
+  // missed events. When we transition from a non-live state
+  // back to "live", fetch the last TICKER_LIMIT rows from the
+  // server and prepend any new events not already in seenIds.
+  //
+  // We use a ref to track "ever been disconnected" so the first
+  // mount → "live" doesn't fire a redundant fetch (the initial
+  // rows already cover it).
+  useEffect(() => {
+    if (state === "reconnecting" || state === "closed") {
+      hasBeenDisconnected.current = true;
+      return;
+    }
+    if (state !== "live" || !hasBeenDisconnected.current) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(
+          `/api/vault/audit/recent?take=${TICKER_LIMIT}`,
+          { credentials: "same-origin" },
+        );
+        if (!r.ok) return;
+        const body = (await r.json()) as {
+          ok?: boolean;
+          rows?: AuditLogRow[];
+        };
+        if (cancelled || !body.ok || !Array.isArray(body.rows)) return;
+        // Convert + filter + dedupe against seenIds. The
+        // server's rows are newest-first; we want to prepend
+        // any that aren't already in the ticker. Re-use the
+        // same liveTickerEventFromRow helper so the filter
+        // (meta events + unmapped) stays consistent.
+        const newEvents: LiveTickerEvent[] = [];
+        for (const row of body.rows) {
+          if (seenIds.current.has(row.id)) continue;
+          if (LIVE_TICKER_IGNORED_TYPES.has(row.actionType as never)) {
+            // Don't add to seenIds — these never reach the ticker.
+            continue;
+          }
+          const ev = liveTickerEventFromRow(row);
+          if (!ev) continue;
+          seenIds.current.add(row.id);
+          newEvents.push(ev);
+          if (newEvents.length >= TICKER_LIMIT) break;
+        }
+        if (cancelled || newEvents.length === 0) return;
+        setStreamed((prev) => {
+          const next = [...newEvents, ...prev].slice(0, TICKER_LIMIT);
+          // Drop seenIds entries that fell out of the window.
+          const nextIds = new Set(next.map((e) => e.id));
+          for (const id of [...seenIds.current]) {
+            if (!nextIds.has(id)) seenIds.current.delete(id);
+          }
+          return next;
+        });
+        // Flash the newest prepended row so the user sees the
+        // backfill arrived.
+        const newest = newEvents[0];
+        if (newest) {
+          setFlashId(newest.id);
+          if (flashTimer.current) clearTimeout(flashTimer.current);
+          flashTimer.current = setTimeout(() => {
+            setFlashId(null);
+            flashTimer.current = null;
+          }, 2000);
+        }
+      } catch {
+        // Network blip. The next reconnect cycle will retry.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [state]);
 
   // Combine: streamed first (newest), then seed rows not in
   // streamed. Trim to TICKER_LIMIT.
@@ -200,13 +301,18 @@ export function LiveActivityTicker({ initialRows }: LiveActivityTickerProps) {
 
       {/* The event list. Each row is a Link when href is set. */}
       {events.map((ev) => {
-        const color = colorForActionType(ev.actionType);
+        // Cluster 7.11.1 — semantic tone color (good/watch/bad/
+        // neutral → CSS var). The audit page keeps djb2 (50+ row
+        // table is where type-distinct colors earn their keep);
+        // the 3-row ticker uses the humanizer's tone.
+        const color = TONE_COLOR[ev.tone] ?? TONE_COLOR.neutral;
         const time = formatRelativeTime(ev.at);
         const isFlash = ev.id === flashId;
         const rowContent = (
           <>
             <span
               aria-hidden
+              data-tone={ev.tone}
               style={{
                 width: 6,
                 height: 6,
@@ -262,6 +368,7 @@ export function LiveActivityTicker({ initialRows }: LiveActivityTickerProps) {
             href={ev.href}
             data-testid="vault-live-ticker-row"
             data-action-type={ev.actionType}
+            data-tone={ev.tone}
             style={{ ...rowStyle, color: "var(--ink-2)" }}
           >
             {rowContent}
@@ -271,6 +378,7 @@ export function LiveActivityTicker({ initialRows }: LiveActivityTickerProps) {
             key={ev.id}
             data-testid="vault-live-ticker-row"
             data-action-type={ev.actionType}
+            data-tone={ev.tone}
             style={rowStyle}
           >
             {rowContent}

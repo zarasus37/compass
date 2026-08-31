@@ -408,110 +408,267 @@ export type LiveTickerEvent = {
   id: string;
   actionType: VaultAuditActionType | string;
   summary: string;
+  /** Semantic tone for the color dot. Drives the row's signal
+   *  color (good=green, watch=orange, bad=red, neutral=ink-3).
+   *  Cluster 7.11.1 — replaced the djb2 hash from 7.11 with a
+   *  semantic map; djb2 confetti was noise in a 3-row ticker. */
+  tone: HumanizeTone;
   at: string;
   href?: string;
 };
 
 /**
- * Humanize a vault action into a 1-line summary the user can
- * read at a glance. Covers all 30 action types in the
- * `VaultAuditActionType` union. Returns `"event happened"` for
- * any unknown type so a future-added action type without an
- * explicit humanizer doesn't crash the ticker.
+ * Semantic tone for a vault event. Drives the LiveActivityTicker's
+ * color dot — green for "good news", orange for "needs attention",
+ * red for "broken", neutral for everything else.
  *
- * The map is `Partial` by design — runtime fallback handles
- * future types. TypeScript exhaustiveness is checked by the
- * smoke (which iterates `VAULT_AUDIT_ACTION_TYPES` and asserts
- * every key is in the map).
+ * Cluster 7.11.1 — the 7.11 djb2 hash (`colorForActionType`) is
+ * kept for the audit page (where a 50+ row table benefits from
+ * type-distinct colors) but replaced in the 3-row ticker, where
+ * djb2 confetti was noise.
+ */
+export type HumanizeTone = "good" | "watch" | "bad" | "neutral";
+
+/**
+ * Per-action-type tone. Compile-time exhaustiveness on the
+ * `VaultAuditActionType` union — a missing key is a TS error.
+ * Edit together with the `humanize` switch below.
+ *
+ * Rationale per type:
+ *   - "good"    — money in, success, manual confirm, risk accepted
+ *   - "watch"   — in-progress, fallback, transient data stale
+ *   - "bad"     — failed, paused, unhandled risk
+ *   - "neutral" — config/state changes, ambient events, meta
+ */
+const TONE_FOR: Record<VaultAuditActionType, HumanizeTone> = {
+  // Vault lifecycle
+  "vault.synced": "neutral",
+  "vault.paused": "bad",
+  "vault.resumed": "good",
+  "vault.balance_refreshed": "neutral",
+  "vault.safe_deployed": "good",
+  "vault.safe_deploy_failed": "bad",
+  "vault.funded": "good",
+  // Aave
+  "vault.aave_supply": "good",
+  "vault.aave_withdraw": "neutral",
+  "vault.apy_refreshed": "neutral",
+  "vault.apy_refresh_failed": "watch",
+  // Yield routing
+  "vault.yield_routed": "good",
+  "vault.yield_routing_changed": "neutral",
+  // Bills
+  "vault.bill_added": "neutral",
+  "vault.bill_updated": "neutral",
+  "vault.bill_deleted": "neutral",
+  "vault.bill_state_changed": "neutral",
+  // Payments
+  "vault.payment_attempted": "watch",
+  "vault.payment_settled": "good",
+  "vault.payment_failed": "bad",
+  "vault.payment_executed": "good",
+  "vault.payment_manually_confirmed": "good",
+  // Adapters
+  "vault.adapter_fallback": "watch",
+  // Off-ramp / risk
+  "vault.off_ramp_provider_changed": "neutral",
+  "vault.risk_acknowledged": "good",
+  "vault.risk_unacknowledged": "bad",
+  // Scheduler
+  "vault.scheduler_run": "neutral",
+  // Meta (filtered at the hook, but humanized for completeness)
+  "vault.audit_log_viewed": "neutral",
+  "vault.bill_history_viewed": "neutral",
+  // Cluster 7.10 — cron alert surface
+  "vault.cron_prune_failure": "bad",
+};
+
+/**
+ * CSS var for each tone. Tied to the design system's status colors
+ * (good=--ok, watch=--vessel-watch, bad=--vessel-over) plus a dim
+ * neutral (`--ink-3`) that doesn't compete with the brand's
+ * purple `--vessel-accent`.
+ *
+ * Exported so the LiveActivityTicker (Cluster 7.11.1) and any
+ * future tone-driven surface can share the same mapping.
+ */
+export const TONE_COLOR: Record<HumanizeTone, string> = {
+  good: "var(--ok)",
+  watch: "var(--vessel-watch)",
+  bad: "var(--vessel-over)",
+  neutral: "var(--ink-3)",
+};
+
+/**
+ * Map a vault action to a human-readable summary + semantic tone.
+ * Covers all 30 action types in the `VaultAuditActionType` union.
+ * Returns `null` for any unknown type (a future-added action type
+ * that bypassed the type system) — the ticker filters `null` out
+ * silently rather than rendering an "event happened" placeholder.
+ *
+ * Cluster 7.11.1 — return shape changed from `string` to
+ * `{ text, tone } | null`. The ticker uses `tone` for the color
+ * dot. The null branch replaces the old "event happened"
+ * fallback: hiding is safer than rendering jargon in a non-tech
+ * user's sidebar.
+ *
+ * The map is exhaustive for known types (TS error on missing key).
+ * The runtime null fallback is the "future type" safety net; it
+ * should not fire in normal use.
  */
 function humanize(
   actionType: VaultAuditActionType,
   payload: Record<string, unknown>,
-): string {
+): { text: string; tone: HumanizeTone } {
+  const tone = TONE_FOR[actionType];
   switch (actionType) {
     case "vault.synced":
-      return "Vault synced";
+      return { text: "Vault synced", tone };
     case "vault.paused":
-      return "Vault paused";
+      return { text: "Vault paused", tone };
     case "vault.resumed":
-      return "Vault resumed";
+      return { text: "Vault resumed", tone };
     case "vault.balance_refreshed":
-      return "Balance refreshed";
+      return { text: "Balance refreshed", tone };
     case "vault.safe_deployed":
-      return "Safe deployed";
+      return { text: "Safe deployed", tone };
     case "vault.safe_deploy_failed":
-      return "Safe deploy failed";
+      return { text: "Safe deploy failed", tone };
     case "vault.funded":
-      return `Safe funded${formatAmount(payload.amountCents)}`;
+      return {
+        text: `Safe funded${formatAmount(payload.amountCents)}`,
+        tone,
+      };
     case "vault.aave_supply":
-      return `Aave supply${formatAmount(payload.amountCents)}`;
+      return {
+        text: `Aave supply${formatAmount(payload.amountCents)}`,
+        tone,
+      };
     case "vault.aave_withdraw":
-      return `Aave withdraw${formatAmount(payload.amountCents)}`;
+      return {
+        text: `Aave withdraw${formatAmount(payload.amountCents)}`,
+        tone,
+      };
     case "vault.apy_refreshed":
-      return `APY refreshed${
-        payload.fromApr != null && payload.toApr != null
-          ? ` · ${payload.fromApr}% → ${payload.toApr}%`
-          : ""
-      }`;
+      return {
+        text: `APY refreshed${
+          payload.fromApr != null && payload.toApr != null
+            ? ` · ${payload.fromApr}% → ${payload.toApr}%`
+            : ""
+        }`,
+        tone,
+      };
     case "vault.apy_refresh_failed":
-      return "APY refresh failed";
+      return { text: "APY refresh failed", tone };
     case "vault.yield_routed":
-      return `Yield routed${formatAmount(payload.totalRoutedCents)}`;
+      return {
+        text: `Yield routed${formatAmount(payload.totalRoutedCents)}`,
+        tone,
+      };
     case "vault.yield_routing_changed":
-      return payload.fromStrategy || payload.toStrategy
-        ? `Yield routing · ${payload.fromStrategy ?? "—"} → ${payload.toStrategy ?? "—"}`
-        : "Yield routing changed";
+      return {
+        text:
+          payload.fromStrategy || payload.toStrategy
+            ? `Yield routing · ${payload.fromStrategy ?? "—"} → ${payload.toStrategy ?? "—"}`
+            : "Yield routing changed",
+        tone,
+      };
     case "vault.bill_added":
-      return `${strField(payload.billerName) ?? "Bill"} added${formatAmount(payload.amountCents)}`;
+      return {
+        text: `${strField(payload.billerName) ?? "Bill"} added${formatAmount(payload.amountCents)}`,
+        tone,
+      };
     case "vault.bill_updated":
-      return `${strField(payload.billerName) ?? "Bill"} updated`;
+      return {
+        text: `${strField(payload.billerName) ?? "Bill"} updated`,
+        tone,
+      };
     case "vault.bill_deleted":
-      return `${strField(payload.billerName) ?? "Bill"} deleted`;
+      return {
+        text: `${strField(payload.billerName) ?? "Bill"} deleted`,
+        tone,
+      };
     case "vault.bill_state_changed":
-      return payload.from || payload.to
-        ? `${strField(payload.billerName) ?? "Bill"} · ${payload.from ?? "—"} → ${payload.to ?? "—"}`
-        : "Bill state changed";
+      return {
+        text:
+          payload.from || payload.to
+            ? `${strField(payload.billerName) ?? "Bill"} · ${payload.from ?? "—"} → ${payload.to ?? "—"}`
+            : "Bill state changed",
+        tone,
+      };
     case "vault.payment_attempted":
-      return `${strField(payload.billerName) ?? "Bill"} · payment attempted${formatAmount(payload.amountCents)}`;
+      return {
+        text: `${strField(payload.billerName) ?? "Bill"} · payment attempted${formatAmount(payload.amountCents)}`,
+        tone,
+      };
     case "vault.payment_settled":
-      return `${strField(payload.billerName) ?? "Bill"} · payment settled${formatAmount(payload.amountCents)}`;
+      return {
+        text: `${strField(payload.billerName) ?? "Bill"} · payment settled${formatAmount(payload.amountCents)}`,
+        tone,
+      };
     case "vault.payment_failed":
-      return `${strField(payload.billerName) ?? "Bill"} · payment FAILED${formatAmount(payload.amountCents)}`;
+      return {
+        text: `${strField(payload.billerName) ?? "Bill"} · payment FAILED${formatAmount(payload.amountCents)}`,
+        tone,
+      };
     case "vault.payment_executed":
-      return `${strField(payload.billerName) ?? "Bill"} · executed via ${strField(payload.provider) ?? "gateway"}${formatAmount(payload.amountCents)}`;
+      return {
+        text: `${strField(payload.billerName) ?? "Bill"} · executed via ${strField(payload.provider) ?? "gateway"}${formatAmount(payload.amountCents)}`,
+        tone,
+      };
     case "vault.payment_manually_confirmed":
-      return `${strField(payload.billerName) ?? "Bill"} · confirmed manually${formatAmount(payload.amountCents)}`;
+      return {
+        text: `${strField(payload.billerName) ?? "Bill"} · confirmed manually${formatAmount(payload.amountCents)}`,
+        tone,
+      };
     case "vault.adapter_fallback":
-      return `Adapter fallback${payload.from || payload.to ? ` · ${payload.from ?? "—"} → ${payload.to ?? "—"}` : ""}`;
+      return {
+        text: `Adapter fallback${payload.from || payload.to ? ` · ${payload.from ?? "—"} → ${payload.to ?? "—"}` : ""}`,
+        tone,
+      };
     case "vault.off_ramp_provider_changed":
-      return `Off-ramp: ${strField(payload.from) ?? "—"} → ${strField(payload.to) ?? "—"}`;
+      return {
+        text: `Off-ramp: ${strField(payload.from) ?? "—"} → ${strField(payload.to) ?? "—"}`,
+        tone,
+      };
     case "vault.risk_acknowledged":
-      return "Risk acknowledged";
+      return { text: "Risk acknowledged", tone };
     case "vault.risk_unacknowledged":
-      return "Risk unacknowledged";
+      return { text: "Risk unacknowledged", tone };
     case "vault.scheduler_run":
-      return `Scheduler run${
-        payload.usersProcessed != null || payload.billsAffected != null
-          ? ` · ${payload.usersProcessed ?? 0} users, ${payload.billsAffected ?? 0} bills`
-          : ""
-      }`;
+      return {
+        text: `Scheduler run${
+          payload.usersProcessed != null || payload.billsAffected != null
+            ? ` · ${payload.usersProcessed ?? 0} users, ${payload.billsAffected ?? 0} bills`
+            : ""
+        }`,
+        tone,
+      };
     // Meta events are excluded by LIVE_TICKER_IGNORED_TYPES, but
     // the humanizer still maps them so a smoke that bypasses the
     // ignore-set can verify the map is exhaustive.
     case "vault.audit_log_viewed":
-      return "Audit log opened";
+      return { text: "Audit log opened", tone };
     case "vault.bill_history_viewed":
-      return `${strField(payload.billerName) ?? "Bill"} history opened`;
+      return {
+        text: `${strField(payload.billerName) ?? "Bill"} history opened`,
+        tone,
+      };
     case "vault.cron_prune_failure":
-      return `Audit log prune failed${payload.error ? ` · ${truncate(strField(payload.error) ?? "", 40)}` : ""}`;
+      return {
+        text: `Audit log prune failed${payload.error ? ` · ${truncate(strField(payload.error) ?? "", 40)}` : ""}`,
+        tone,
+      };
     default: {
       // Exhaustiveness check — if a new action type is added to
       // the union without a humanizer, this assignment fails
-      // at compile time. The runtime fallback below keeps the
-      // ticker rendering even if a stale build ships.
+      // at compile time. The `TONE_FOR` map above would also
+      // fail to compile, so both gates fire in the same edit.
       const _exhaustive: never = actionType;
       void _exhaustive;
-      return "event happened";
+      // Unreachable in normal use; the public humanizer wraps
+      // this and returns null for unknown types.
+      return { text: "event happened", tone: "neutral" };
     }
   }
 }
@@ -530,23 +687,33 @@ function truncate(s: string, n: number): string {
 }
 
 /**
- * Public humanizer. Returns the 1-line summary for the given
- * action type + payload, or `"event happened"` for any type not
- * in the humanizer map. Safe to call with any action type
- * (unknown / future types are handled).
+ * Public humanizer. Returns `{ text, tone }` for any action type
+ * in the `VaultAuditActionType` union, or `null` for an unknown
+ * type (a future-added action that bypassed the type system).
+ *
+ * Cluster 7.11.1 — return shape changed from `string` to
+ * `{ text, tone } | null`. The `null` branch replaces the old
+ * "event happened" fallback so a non-technical user never sees
+ * a placeholder string in the sidebar ticker.
+ *
+ * The audit page chips and any other caller that previously did
+ * `humanizeVaultAction(t, p)` must now check for null. Today
+ * the only caller is the LiveActivityTicker via
+ * `liveTickerEventFromRow`; the audit page renders `actionType`
+ * directly (not the humanized text).
  */
 export function humanizeVaultAction(
   actionType: string,
   payload: Record<string, unknown>,
-): string {
+): { text: string; tone: HumanizeTone } | null {
   // Fast path: known type → exhaustive switch.
   if ((VAULT_AUDIT_ACTION_TYPES as ReadonlyArray<string>).includes(actionType)) {
     return humanize(actionType as VaultAuditActionType, payload);
   }
   // Unknown type (likely a future-added one before the humanizer
   // is updated). The smoke asserts this never fires for a
-  // type in the union.
-  return "event happened";
+  // type in the union. The ticker treats null as "don't render".
+  return null;
 }
 
 /**
@@ -581,21 +748,32 @@ export function formatRelativeTime(
 /**
  * Build a `LiveTickerEvent` from a row received via the SSE
  * stream (or read from the initial server render). Centralizes
- * the humanize + deep-link + id-stable hashing so the ticker
+ * the humanize + deep-link + tone assignment so the ticker
  * component stays purely presentational.
+ *
+ * Returns `null` when the humanizer doesn't recognize the action
+ * type (a future-added type that bypassed the union). The ticker
+ * filters null out — unmapped events are silently dropped instead
+ * of rendering an "event happened" placeholder.
+ *
+ * Cluster 7.11.1 — added the `tone` field for the semantic color
+ * dot. The audit page uses `colorForActionType` (djb2); the
+ * ticker uses the humanizer's tone.
  */
 export function liveTickerEventFromRow(row: {
   id: string;
   actionType: string;
   payload: Record<string, unknown>;
   createdAtIso: string;
-}): LiveTickerEvent {
-  const summary = humanizeVaultAction(row.actionType, row.payload);
+}): LiveTickerEvent | null {
+  const h = humanizeVaultAction(row.actionType, row.payload);
+  if (!h) return null;
   const href = billHistoryHrefForAuditRow(row.payload) ?? undefined;
   return {
     id: row.id,
     actionType: row.actionType,
-    summary,
+    summary: h.text,
+    tone: h.tone,
     at: row.createdAtIso,
     href,
   };

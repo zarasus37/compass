@@ -9,8 +9,11 @@
  *   3. The two meta events (`vault.audit_log_viewed`,
  *      `vault.bill_history_viewed`) are NEVER rendered in the
  *      ticker, even when present in the initial 3.
- *   4. Each row's color dot matches the actionType's djb2-mapped
- *      palette color (same source as the audit page).
+ *   4. Each row carries a `data-tone` attribute matching the
+ *      humanizer's semantic tone (good/watch/bad/neutral). The
+ *      7.11 djb2 hash was replaced with a semantic map in
+ *      7.11.1 — the dot color now signals "what kind of news
+ *      is this" instead of "which type is this".
  *   5. Events with a `billId` in the payload deep-link to
  *      `/vault/bills/<id>/history` (reuses
  *      `billHistoryHrefForAuditRow`).
@@ -34,6 +37,25 @@
  *  13. Source-file checks: the new file exists; AppSidebar imports
  *      it; the (app)/layout and root page both pass initial rows.
  *  14. Integration-vault M11 source checks (subset of #13).
+ *
+ * Cluster 7.11.1 (semantic tones + reconcile):
+ *  15. The `humanizeVaultAction` return shape is `{text, tone} | null`
+ *      (not `string`), and the public wrapper returns `null` for any
+ *      actionType not in the `VaultAuditActionType` union (no more
+ *      "event happened" placeholder).
+ *  16. The rendered ticker rows carry `data-tone` matching the
+ *      humanizer's tone for each actionType (good for
+ *      `vault.payment_settled`, bad for `vault.cron_prune_failure`,
+ *      etc.).
+ *  17. The new `GET /api/vault/audit/recent?take=N` endpoint
+ *      returns `{ ok: true, rows: [...] }` and respects `?take=`.
+ *  18. The LiveActivityTicker source carries the reconcile-on-
+ *      reconnect effect (fetches `/api/vault/audit/recent` on
+ *      the reconnect → live transition).
+ *  19. `TONE_COLOR` is exported and maps each tone to the
+ *      design-system CSS var.
+ *  20. The `TONE_FOR` Record covers every action type (compile-time
+ *      exhaustiveness + runtime smoke).
  *
  * Note on the dev endpoint: the smoke and dev server are separate
  * processes. A direct `prisma.auditLog.create()` from the smoke
@@ -256,6 +278,24 @@ async function main() {
     where: { userId, actionType: SENTINEL_META_B, payload: { contains: "smoke-ticker-" } },
   });
 
+  // Cluster 7.11.1 — clean up recent meta events for this user.
+  // When this smoke runs after `smoke-cron-alerts` (the chain in
+  // `pnpm smoke`), the cron-alerts smoke leaves a fresh
+  // `vault.audit_log_viewed` row that lands in the top 3 and
+  // pushes the seeded `vault.cron_prune_failure` out (the meta
+  // event is filtered, so the ticker renders only 2 rows).
+  // Deleting meta events from the last 5 minutes for THIS user
+  // makes the smoke robust without affecting other smokes'
+  // assertions (those check their own written rows by ID).
+  const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
+  await prisma.auditLog.deleteMany({
+    where: {
+      userId,
+      actionType: { in: [SENTINEL_META_A, SENTINEL_META_B] },
+      createdAt: { gte: fiveMinAgo },
+    },
+  });
+
   // 3 visible events, newest first. The 2nd carries a billId so
   // the deep-link check exercises the Link branch.
   const billId = `smoke-bill-${Date.now()}`;
@@ -380,7 +420,32 @@ async function main() {
     `links=${linkMatches.length}`,
   );
 
-  // ── 10. SSE round-trip: open the stream, write a new event via
+  // ── 10. Cluster 7.11.1 — semantic tone color check. Each row
+  // carries a `data-tone` attribute the humanizer derived from
+  // the action type. We assert the expected tone per the seeded
+  // event (good for payment_settled, neutral for bill_state_changed,
+  // bad for cron_prune_failure).
+  const toneMatches = [...html.matchAll(/data-testid="vault-live-ticker-row" data-action-type="([^"]+)" data-tone="([^"]+)"/g)];
+  const renderedTonePairs = toneMatches.map((m) => ({ type: m[1], tone: m[2] }));
+  check(
+    "ticker: 3 rows carry data-tone (good/watch/bad/neutral)",
+    renderedTonePairs.length === 3,
+    `count=${renderedTonePairs.length}`,
+  );
+  const TONE_FOR_TYPE = {
+    "vault.payment_settled": "good",
+    "vault.bill_state_changed": "neutral",
+    "vault.cron_prune_failure": "bad",
+  };
+  for (const { type, tone } of renderedTonePairs) {
+    check(
+      `ticker: ${type} → tone=${TONE_FOR_TYPE[type] ?? "?"}`,
+      tone === (TONE_FOR_TYPE[type] ?? null),
+      `got=${tone}`,
+    );
+  }
+
+  // ── 11. SSE round-trip: open the stream, write a new event via
   // the dev endpoint, verify it arrives. The ticker's hook uses
   // the same bus + hook, so a successful bus event means the
   // ticker would render it client-side.
@@ -430,7 +495,70 @@ async function main() {
   // Clean up the bus sentinel so the DB doesn't grow.
   await prisma.auditLog.deleteMany({ where: { userId, actionType: busSentinel } });
 
-  // ── 11. Empty state: a user with zero events renders NO ticker.
+  // ── 12. Cluster 7.11.1 — GET /api/vault/audit/recent. The
+  // ticker uses this on the reconnect → live transition to
+  // backfill events that arrived during the disconnect window
+  // (EventSource does NOT replay missed events). Verify the
+  // route returns the recent rows + respects ?take=.
+  const recentDefault = await get("/api/vault/audit/recent");
+  check(
+    "ticker: GET /api/vault/audit/recent returns 200",
+    recentDefault.status === 200,
+    `status=${recentDefault.status}`,
+  );
+  const recentDefaultBody = await recentDefault.json();
+  check(
+    "ticker: /api/vault/audit/recent body has ok=true",
+    recentDefaultBody?.ok === true,
+    `body=${JSON.stringify(recentDefaultBody).slice(0, 80)}`,
+  );
+  check(
+    "ticker: /api/vault/audit/recent returns rows array",
+    Array.isArray(recentDefaultBody?.rows),
+    `rows=${typeof recentDefaultBody?.rows}`,
+  );
+  check(
+    "ticker: /api/vault/audit/recent default returns 3 rows",
+    recentDefaultBody?.rows?.length === 3,
+    `len=${recentDefaultBody?.rows?.length}`,
+  );
+
+  // ?take=5 returns 5 (clamped to MAX_TAKE=50, default 3).
+  const recentTake = await get("/api/vault/audit/recent?take=5");
+  const recentTakeBody = await recentTake.json();
+  check(
+    "ticker: /api/vault/audit/recent?take=5 returns 5 rows",
+    recentTakeBody?.rows?.length === 5,
+    `len=${recentTakeBody?.rows?.length}`,
+  );
+
+  // Out-of-range take is clamped, not 400.
+  const recentHuge = await get("/api/vault/audit/recent?take=999");
+  const recentHugeBody = await recentHuge.json();
+  check(
+    "ticker: /api/vault/audit/recent?take=999 clamps to <= 50",
+    Array.isArray(recentHugeBody?.rows) && recentHugeBody.rows.length <= 50,
+    `len=${recentHugeBody?.rows?.length}`,
+  );
+
+  // Auth gate: the (app) middleware redirects unauthenticated
+  // requests to /login BEFORE the route handler runs, so a
+  // no-cookie GET returns a redirect (the source-file check
+  // below verifies the route's own 401 logic in case the
+  // middleware is ever relaxed).
+  const noAuthHeaders = new Headers();
+  const noAuth = await fetch(BASE + "/api/vault/audit/recent", {
+    headers: noAuthHeaders,
+    redirect: "manual",
+  });
+  check(
+    "ticker: /api/vault/audit/recent redirects unauthenticated (3xx) or 401s",
+    noAuth.status === 401 ||
+      (noAuth.status >= 300 && noAuth.status < 400),
+    `status=${noAuth.status}`,
+  );
+
+  // ── 13. Empty state: a user with zero events renders NO ticker.
   // We can't easily create a fresh user mid-smoke, so we verify
   // the negative path indirectly: every event the user has is
   // filtered out (only meta events), so the ticker should hide.
@@ -438,7 +566,7 @@ async function main() {
   // ticker is absent. (Skipped for now to keep the smoke focused;
   // the source-file check in #13 covers the contract.)
 
-  // ── 12. Ticker renders on the dashboard root too
+  // ── 14. Ticker renders on the dashboard root too
   const dash = await get("/");
   check("dashboard: 200", dash.status === 200, `status=${dash.status}`);
   const dashHtml = await dash.text();
@@ -447,7 +575,7 @@ async function main() {
     dashHtml.includes('data-testid="vault-live-ticker"'),
   );
 
-  // ── 13. Source-file checks
+  // ── 15. Source-file checks
   const liveTickerSrc = readFileSync(join(ROOT, "src/components/shell/LiveActivityTicker.tsx"), "utf8");
   check("src: LiveActivityTicker.tsx exists", liveTickerSrc.length > 0);
   check(
@@ -539,6 +667,100 @@ async function main() {
     "src: db.ts recordVaultAudit uses VaultAuditActionType (imported)",
     /import type \{ VaultAuditActionType \}/.test(dbTsSrc) &&
       /actionType: VaultAuditActionType;/.test(dbTsSrc),
+  );
+
+  // ── 16. Cluster 7.11.1 — humanizer return shape + tone map
+  check(
+    "src: HumanizeTone type is exported (good/watch/bad/neutral)",
+    /export type HumanizeTone/.test(sharedSrc) &&
+      /"good"/.test(sharedSrc) &&
+      /"watch"/.test(sharedSrc) &&
+      /"bad"/.test(sharedSrc) &&
+      /"neutral"/.test(sharedSrc),
+  );
+  check(
+    "src: TONE_COLOR is exported (CSS var map for each tone)",
+    /export const TONE_COLOR: Record<HumanizeTone, string>/.test(sharedSrc) &&
+      /var\(--ok\)/.test(sharedSrc) &&
+      /var\(--vessel-watch\)/.test(sharedSrc) &&
+      /var\(--vessel-over\)/.test(sharedSrc),
+  );
+  check(
+    "src: TONE_FOR is exhaustive (every union member has a tone)",
+    /const TONE_FOR: Record<VaultAuditActionType, HumanizeTone>/.test(sharedSrc) &&
+      unionTypes.every((t) => new RegExp(`"${t.replace(/\./g, "\\.")}":\\s*"(good|watch|bad|neutral)"`).test(sharedSrc)),
+  );
+  check(
+    "src: humanizeVaultAction returns null for unknown types (no 'event happened')",
+    /return null;/.test(sharedSrc) &&
+      !/return "event happened";/.test(sharedSrc),
+  );
+  check(
+    "src: humanizeVaultAction public signature returns { text, tone } | null",
+    /export function humanizeVaultAction[\s\S]*\{ text: string; tone: HumanizeTone \} \| null/.test(sharedSrc),
+  );
+  check(
+    "src: liveTickerEventFromRow returns null for unmapped types",
+    /export function liveTickerEventFromRow[\s\S]*LiveTickerEvent \| null/.test(sharedSrc),
+  );
+  check(
+    "src: LiveTickerEvent carries the tone field",
+    /export type LiveTickerEvent = \{[\s\S]*tone: HumanizeTone;/.test(sharedSrc),
+  );
+
+  // ── 17. Cluster 7.11.1 — ticker uses semantic tone colors,
+  // not djb2.
+  check(
+    "src: LiveActivityTicker uses TONE_COLOR (not colorForActionType)",
+    liveTickerSrc.includes("TONE_COLOR") &&
+      !liveTickerSrc.includes("colorForActionType("),
+  );
+  check(
+    "src: LiveActivityTicker carries data-tone on each row",
+    /data-tone=\{ev\.tone\}/.test(liveTickerSrc),
+  );
+
+  // ── 18. Cluster 7.11.1 — reconcile-on-reconnect logic
+  check(
+    "src: LiveActivityTicker fetches /api/vault/audit/recent on reconnect",
+    /\/api\/vault\/audit\/recent/.test(liveTickerSrc) &&
+      /hasBeenDisconnected/.test(liveTickerSrc),
+  );
+  check(
+    "src: LiveActivityTicker reconciles on state → live transition",
+    /state === "live"/.test(liveTickerSrc) &&
+      /state === "reconnecting"|state === "closed"/.test(liveTickerSrc),
+  );
+
+  // ── 19. Cluster 7.11.1 — new endpoint file
+  const recentRoutePath = join(ROOT, "src/app/api/vault/audit/recent/route.ts");
+  let recentRouteSrc = "";
+  try {
+    recentRouteSrc = readFileSync(recentRoutePath, "utf8");
+  } catch {
+    // File missing — check below will fail.
+  }
+  check(
+    "src: /api/vault/audit/recent/route.ts exists",
+    recentRouteSrc.length > 0,
+  );
+  check(
+    "src: /api/vault/audit/recent requires auth (401 without user)",
+    /getCurrentUser/.test(recentRouteSrc) &&
+      /status:\s*401/.test(recentRouteSrc),
+  );
+  check(
+    "src: /api/vault/audit/recent clamps ?take= into [1, 50]",
+    /take/.test(recentRouteSrc) &&
+      /MIN_TAKE\s*=\s*1/.test(recentRouteSrc) &&
+      /MAX_TAKE\s*=\s*50/.test(recentRouteSrc) &&
+      /Math\.(min|max)/.test(recentRouteSrc),
+  );
+  check(
+    "src: /api/vault/audit/recent returns { ok, rows } via getAuditLog",
+    /getAuditLog\(user\.id, \{\s*take/.test(recentRouteSrc) &&
+      /ok:\s*true/.test(recentRouteSrc) &&
+      /rows/.test(recentRouteSrc),
   );
 
   // Cleanup
