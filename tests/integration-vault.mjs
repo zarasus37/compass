@@ -3628,6 +3628,202 @@ async function main() {
     );
   }
 
+  // ── Phase 4.0 M12 — Per-bill off-ramp provider override UI (Cluster 7.14) ──
+  //
+  // The data shape (ScheduledBill.providerPreference) was already
+  // wired in C6.0/C7.3. 7.14 surfaces it: a chip picker in the
+  // bill editor, a per-bill chip on /vault, the off-ramp
+  // provider changes audited with a { scope: "bill" } payload,
+  // and a resolveChain fix that makes the per-bill override
+  // actually reach the adapter Map (the silent-no-op bug).
+  //
+  // M12 verifies the wiring at the integration level. The
+  // dedicated `tests/smoke-bill-provider-override.mjs`
+  // exercises the page surface + the round-trip assertion
+  // (set "SPRITZ" → assert gateway chain[0] === "Spritz").
+  console.log("\n--- Phase 4.0 M12 — Per-bill off-ramp override ---\n");
+  {
+    const { readFileSync: readFileSync12 } = await import("node:fs");
+    const { join: join12 } = await import("node:path");
+    // The fix: resolveChain must normalize via
+    // OFFRAMP_PROVIDER_ADAPTER_NAME, not just read the field.
+    // (Polar 7.14 review — the silent-no-op bug.)
+    const gatewaySrc = readFileSync12(
+      join12(PROJECT_ROOT, "src/lib/vault/gateway.ts"),
+      "utf8",
+    );
+    check(
+      "M12: gateway.ts exports chainSourceLabel",
+      /export function chainSourceLabel/.test(gatewaySrc),
+    );
+    check(
+      "M12: gateway.ts exports normalizeOffRampProvider",
+      /export function normalizeOffRampProvider/.test(gatewaySrc),
+    );
+    check(
+      "M12: resolveChain normalizes via OFFRAMP_PROVIDER_ADAPTER_NAME (not a direct Map.has)",
+      /resolveChain\(bill: ScheduledBill\): string\[\][\s\S]*resolveProviderAdapterName/.test(
+        gatewaySrc,
+      ),
+    );
+
+    // The action: validate ownership + provider, write the
+    // { scope: "bill" } audit row, revalidate the surfaces.
+    const serverSrc = readFileSync12(
+      join12(PROJECT_ROOT, "src/lib/vault/server.ts"),
+      "utf8",
+    );
+    check(
+      "M12: setBillProviderPreferenceAction validates bill ownership (findFirst with vault.userId)",
+      /export async function setBillProviderPreferenceAction[\s\S]*findFirst\(\s*\{\s*where:\s*\{\s*id:\s*billId,\s*vault:\s*\{\s*userId:\s*user\.id\s*\}\s*\}/.test(
+        serverSrc,
+      ),
+    );
+    check(
+      "M12: setBillProviderPreferenceAction validates provider against the union",
+      /setBillProviderPreferenceAction[\s\S]*BILL_PROVIDER_VALUES\.has/.test(
+        serverSrc,
+      ) &&
+        /setBillProviderPreferenceAction[\s\S]*MOCK[\s\S]*SPRITZ[\s\S]*MONTO/.test(
+          serverSrc,
+        ),
+    );
+    check(
+      "M12: setBillProviderPreferenceAction writes audit row with scope: 'bill' + billId + from + to",
+      /setBillProviderPreferenceAction[\s\S]*scope:\s*"bill"/.test(serverSrc) &&
+        /setBillProviderPreferenceAction[\s\S]*billId/.test(serverSrc) &&
+        /setBillProviderPreferenceAction[\s\S]*from/.test(serverSrc) &&
+        /setBillProviderPreferenceAction[\s\S]*to/.test(serverSrc),
+    );
+    check(
+      "M12: setBillProviderPreferenceAction revalidates /vault/bills/[id], /vault, /obligations",
+      /setBillProviderPreferenceAction[\s\S]*revalidatePath\(`\/vault\/bills\/\$\{billId\}`\)/.test(
+        serverSrc,
+      ) &&
+        /setBillProviderPreferenceAction[\s\S]*revalidatePath\("\/vault"\)/.test(
+          serverSrc,
+        ) &&
+        /setBillProviderPreferenceAction[\s\S]*revalidatePath\("\/obligations"\)/.test(
+          serverSrc,
+        ),
+    );
+    check(
+      "M12: setBillProviderPreferenceAction no-op short-circuits when from === to",
+      /setBillProviderPreferenceAction[\s\S]*if\s*\(from\s*===\s*to\)[\s\S]*noop:\s*true/.test(
+        serverSrc,
+      ),
+    );
+
+    // The client wrapper (mirrors setOffRampProviderActionClient).
+    const actionsSrc = readFileSync12(
+      join12(PROJECT_ROOT, "src/lib/vault/actions.ts"),
+      "utf8",
+    );
+    check(
+      "M12: actions.ts exports setBillProviderPreferenceActionClient",
+      /export async function setBillProviderPreferenceActionClient/.test(
+        actionsSrc,
+      ),
+    );
+
+    // The picker component.
+    const pickerSrc = readFileSync12(
+      join12(PROJECT_ROOT, "src/components/vault/BillOffRampPicker.tsx"),
+      "utf8",
+    );
+    check(
+      "M12: BillOffRampPicker has aria-label='Per-bill off-ramp provider'",
+      /aria-label="Per-bill off-ramp provider"/.test(pickerSrc),
+    );
+    check(
+      "M12: BillOffRampPicker renders the inherit (USE MY DEFAULT) state as a first-class chip",
+      /"inherit"/.test(pickerSrc) &&
+        /useState<OffRampProvider \| null>/.test(pickerSrc),
+    );
+    check(
+      "M12: BillOffRampPicker renders the resolved chain display (data-chain attr)",
+      /data-chain=/.test(pickerSrc) &&
+        /vault-bill-offramp-resolved-chain/.test(pickerSrc),
+    );
+    check(
+      "M12: BillOffRampPicker uses useTransition + pending (no double-fire)",
+      /useTransition/.test(pickerSrc) &&
+        /disabled={pending}/.test(pickerSrc),
+    );
+
+    // The bill detail page mounts the picker + reads user default.
+    const historyPageSrc = readFileSync12(
+      join12(
+        PROJECT_ROOT,
+        "src/app/(app)/vault/bills/[id]/history/page.tsx",
+      ),
+      "utf8",
+    );
+    check(
+      "M12: history page mounts BillOffRampPicker",
+      /import \{ BillOffRampPicker \}/.test(historyPageSrc) &&
+        /<BillOffRampPicker/.test(historyPageSrc),
+    );
+    check(
+      "M12: history page builds the gateway + calls resolveChain for the picker (round-trip path)",
+      /OffRampGateway\.buildDefault/.test(historyPageSrc) &&
+        /gateway\.resolveChain\(bill\)/.test(historyPageSrc),
+    );
+
+    // The vault schedule row shows the chip when override differs
+    // from user default.
+    const billScheduleSrc = readFileSync12(
+      join12(PROJECT_ROOT, "src/components/vault/BillScheduleClient.tsx"),
+      "utf8",
+    );
+    check(
+      "M12: BillScheduleClient renders per-bill override chip when bill.providerPreference differs from userDefault",
+      /vault-bill-provider-override-\$\{bill\.id\}/.test(billScheduleSrc) &&
+        /userDefaultOffRampProvider/.test(billScheduleSrc),
+    );
+    check(
+      "M12: BillScheduleClient silent when bill.providerPreference is null (inherits user default)",
+      /Provider · /.test(billScheduleSrc) &&
+        /if\s*\(!prefRaw\)\s*return\s*null/.test(billScheduleSrc),
+    );
+
+    // The /vault page wires the user default to the client.
+    const vaultPageSrc = readFileSync12(
+      join12(PROJECT_ROOT, "src/app/(app)/vault/page.tsx"),
+      "utf8",
+    );
+    check(
+      "M12: /vault page passes userDefaultOffRampProvider to BillScheduleClient",
+      /userDefaultOffRampProvider=\{snap\.preferences\.offRampProvider\}/.test(
+        vaultPageSrc,
+      ),
+    );
+
+    // The per-bill history page now renders the
+    // { scope: 'bill' } audit row.
+    const auditLogSrc = readFileSync12(
+      join12(PROJECT_ROOT, "src/lib/vault/audit-log.ts"),
+      "utf8",
+    );
+    check(
+      "M12: BILL_AUDITABLE_ACTION_TYPES includes vault.off_ramp_provider_changed",
+      /BILL_AUDITABLE_ACTION_TYPES[\s\S]*"vault\.off_ramp_provider_changed"/.test(
+        auditLogSrc,
+      ),
+    );
+
+    // package.json smoke script picks up the new file.
+    const pkg6 = JSON.parse(
+      readFileSync12(join12(PROJECT_ROOT, "package.json"), "utf8"),
+    );
+    check(
+      "M12: package.json smoke script includes smoke-bill-provider-override.mjs",
+      (pkg6.scripts.smoke ?? "").includes(
+        "smoke-bill-provider-override.mjs",
+      ),
+    );
+  }
+
   // ── Final summary ─────────────────────────────────────────────
   console.log("\n--- checks ---");
   console.log(`checks: ${pass} pass / ${miss} miss`);

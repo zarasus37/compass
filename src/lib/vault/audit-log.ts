@@ -654,6 +654,14 @@ const BILL_AUDITABLE_ACTION_TYPES = [
   "vault.payment_manually_confirmed",
   "vault.scheduler_run",
   "vault.yield_routed",
+  // Cluster 7.14 — per-bill off-ramp provider override. The
+  // payload shape (extending the existing
+  // `vault.off_ramp_provider_changed`) is
+  // `{ scope: "bill", billId, from, to }`, so this row carries
+  // a billId and belongs on the per-bill history timeline. The
+  // user-level (scope unset) variant is still gated to the
+  // /vault/audit page by the regular actionType filter.
+  "vault.off_ramp_provider_changed",
 ] as const;
 
 /** True if the payload's JSON carries the given billId — either

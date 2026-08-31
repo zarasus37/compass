@@ -16,6 +16,7 @@ import {
   clearVaultAction,
   setYieldRoutingAction,
   setOffRampProviderAction,
+  setBillProviderPreferenceAction,
   acknowledgeRiskAction,
   revokeRiskAcknowledgementAction,
   pauseVaultAction,
@@ -91,6 +92,25 @@ export async function setYieldRoutingStrategyAction(strategy: string) {
  */
 export async function setOffRampProviderActionClient(provider: string) {
   return setOffRampProviderAction(provider);
+}
+
+/**
+ * Cluster 7.14 — Server action: set a single bill's off-ramp
+ * provider override. Mirrors `setOffRampProviderActionClient`:
+ * the client component imports this wrapper, not the server
+ * action directly, so the action surface is centralized in
+ * `server.ts` and the client boundary is just an import.
+ *
+ * Empty string `""` clears the override (the bill reverts to the
+ * user default). Validates ownership server-side; the action
+ * returns `error: "bill not found"` for a bill id from another
+ * user's vault.
+ */
+export async function setBillProviderPreferenceActionClient(
+  billId: string,
+  provider: string,
+) {
+  return setBillProviderPreferenceAction(billId, provider);
 }
 
 /**

@@ -487,6 +487,109 @@ export async function setOffRampProviderAction(
   }
 }
 
+// ──────────────────────────────────────────────────────────────────────
+// Cluster 7.14 — Per-bill off-ramp provider override
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Whitelist of valid providers for a per-bill override. The same
+ * 3 values as `OffRampProvider` (Cluster 7.3) plus the empty
+ * string (which clears the override → bill inherits the user
+ * default). Mirrors the pattern at the top of
+ * `setOffRampProviderAction` above.
+ */
+const BILL_PROVIDER_VALUES = new Set<OffRampProvider | "">([
+  "MOCK",
+  "SPRITZ",
+  "MONTO",
+  "",
+]);
+
+/**
+ * Cluster 7.14 — set a single bill's off-ramp provider override.
+ *
+ * Per the C7.3 spec, "Future cluster: per-bill off-ramp provider
+ * override UI." This is that cluster. The user can pin a single
+ * bill to a different provider than the user default (e.g. route
+ * rent through Spritz while subscriptions stay on MOCK, or pin one
+ * experimental bill to a specific provider without changing the
+ * user-wide default).
+ *
+ * Storage convention: writes the **enum form** (`"MOCK" |
+ * "SPRITZ" | "MONTO" | null`) for consistency with
+ * `VaultPreferences.offRampProvider`. The `gateway.resolveChain`
+ * function (also updated in 7.14) normalizes via
+ * `OFFRAMP_PROVIDER_ADAPTER_NAME` so the lookup is case-correct.
+ *
+ * Auth: validates the bill belongs to the user via `findFirst`
+ * (NOT `findUnique`, which 500s on a bill that exists for
+ * another user). A bill id from another user's vault returns
+ * `error: "bill not found"`.
+ *
+ * No-op short-circuit: if `from === to`, returns `{ ok, from, to,
+ * noop: true }` and does NOT write the audit row (avoids audit
+ * log spam on a redundant click).
+ *
+ * Revalidates: the bill detail page + /vault + /obligations so
+ * every visible surface updates.
+ */
+export async function setBillProviderPreferenceAction(
+  billId: string,
+  rawProvider: string,
+): Promise<
+  | { ok: true; from: string | null; to: string | null; noop?: boolean }
+  | { ok: false; error: string }
+> {
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { ok: false, error: "not signed in" };
+  }
+  if (!billId || typeof billId !== "string") {
+    return { ok: false, error: "billId required" };
+  }
+  if (!BILL_PROVIDER_VALUES.has(rawProvider as OffRampProvider | "")) {
+    return {
+      ok: false,
+      error: `unknown provider: ${rawProvider} (expected MOCK | SPRITZ | MONTO | "" for clear)`,
+    };
+  }
+  // Find the bill, scoped to the current user. `findFirst` (not
+  // findUnique) because a bill id from another user's vault
+  // returns null (not a 500).
+  const bill = await prisma.scheduledBill.findFirst({
+    where: { id: billId, vault: { userId: user.id } },
+    select: { id: true, providerPreference: true },
+  });
+  if (!bill) return { ok: false, error: "bill not found" };
+  // Normalize: "" → null (clear the override).
+  const to: string | null = rawProvider === "" ? null : rawProvider;
+  const from: string | null = bill.providerPreference ?? null;
+  if (from === to) {
+    return { ok: true, from, to, noop: true };
+  }
+  try {
+    await prisma.scheduledBill.update({
+      where: { id: billId },
+      data: { providerPreference: to, updatedAt: new Date() },
+    });
+    await recordVaultAudit({
+      userId: user.id,
+      actionType: "vault.off_ramp_provider_changed",
+      payload: { scope: "bill", billId, from, to },
+    });
+    revalidatePath(`/vault/bills/${billId}`);
+    revalidatePath("/vault");
+    revalidatePath("/obligations");
+    return { ok: true, from, to };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vault] setBillProviderPreference failed:", message);
+    return { ok: false, error: message };
+  }
+}
+
 /**
  * Cluster 7.3 — Build the off-ramp gateway for a user, taking
  * their `VaultPreferences.offRampProvider` into account. The two

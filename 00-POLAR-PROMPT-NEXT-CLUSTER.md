@@ -1,78 +1,51 @@
-# Polar prompt — Compass next cluster
+# Polar prompt — Cluster 7.12 (per-bill off-ramp provider override UI)
 
-**What to do:** Open your Polar desktop app → its chat (the `polar-agent://` UI or wherever Composer lives) → paste the **POLAR PROMPT** below as a single message → wait for the answer → paste the response back to Mavis.
+Hey Polar — picking the next cluster. Spec is at `00-CLUSTER-7.12-PER-BILL-OFF-RAMP-OVERRIDE.md` (in the workspace, not on Drive). TL;DR below; full detail in the spec.
 
----
+## What I picked
 
-## POLAR PROMPT (paste this verbatim into Polar's chat)
+**Per-bill off-ramp provider override UI.** The C7.3 spec explicitly deferred this as "future cluster" and the data shape is fully wired. The user can route different bills through different providers (e.g. rent → Spritz, subscriptions → MOCK) — a real product surface, not a theoretical one.
 
-```
-You are advising on a personal-finance app called Compass, built for a non-technical user (xKryptic's mom). Stage 2 (creation) is mid-flight: 7.10 just shipped. The next cluster is open-ended — pick the single highest-value one to ship next, and justify briefly.
+## Why this one
 
-# Project snapshot
-- Stack: Next.js 16 (App Router) + React 19 + TS strict + Tailwind v4 + Prisma 7 (Postgres) + Zod + shadcn/Base UI. Single-user (mom is the canonical seed), server-side sessions, argon2id.
-- Postgres on localhost:5433 (Docker, NOT 5432 — Windows native PG18 owns 5432). `DATABASE_URL=postgresql://compass:compass@localhost:5433/compass_dev`.
-- Design system: Sovereign Monad vessel (v6). Dark slate-purple canvas, neon purple accent, antique gold for "today/expected", system green for OK, vessel-over red for over-limit, vessel-watch orange for warnings. Sora for headings, JetBrains Mono for data. Terminal voice with `[OK]/[WARN]/[SIGIL]/[INDEXED]` markers. The 7 planetary vessels (Sol=Rent, Luna=Groceries, Mars=Buffer, Mercury=Utilities, Jupiter=Growth, Venus=Joy, Saturn=Debt) are preserved as semantic mapping.
-- Quality bar is mom-grade. Type-safety end-to-end. Money math in integer cents.
-- All 20 data-layer smokes + integration-vault 261 + smoke-deploy 102 = ~1,730 checks ALL GREEN. tsc clean.
-- Dev server: not running in this fresh session — will need to start (Docker Desktop → `compass_dev_pg` container → `pnpm dev`).
+- **Visible UI on existing infra** — same pattern as 7.11 (ticker). Data layer (`ScheduledBill.providerPreference` + `gateway.resolveChain(bill)` + `addBill`/`updateBill` actions + `validateBillOptions`) is already there. Only the UI is missing.
+- **Real product surface** — kill switch per bill, A/B testing per provider, "leave the high-stakes ones on Spritz and pin the noise to MOCK" is a real workflow.
+- **Pairs with 7.11 ticker** — when a `vault.off_ramp_provider_changed` event with `scope: "bill"` lands, the ticker shows it; the bill's history page also shows the override timeline. The visible-UI payoff is in the history timeline (per-bill overrides over time) + the per-bill chip on /obligations.
 
-# Just-shipped (7.10)
-- Cron alert surface for audit log retention failures. New `vault.cron_prune_failure` action type, `src/lib/vault/audit-log-alerts.ts` (Sentry/PD/generic webhook auto-detect, 2s timeout, URL-masking), dev-only `/api/dev/cron-alerts` endpoint, optional `CRON_ALERT_WEBHOOK_URL` / `CRON_ALERT_PAGERDUTY_ROUTING_KEY` env. Pure infra; visible-UI payoff is "one more color in the audit page action-type column."
+## The contract (full spec in `00-CLUSTER-7.12-PER-BILL-OFF-RAMP-OVERRIDE.md`)
 
-# Recent history (for context)
-- 7.0–7.6 = audit log end-user surface, per-bill drill-down, SSE live updates, date range filter
-- 7.7 = `?from=`/`?to=` URL contract on `/vault/audit`
-- 7.8 = 90-day retention + 365-day year view
-- 7.8.1 = nightly audit-log cron
-- 7.8.2 = Vercel cron schedule (`vercel.json`)
-- 7.9 = dimming test post-C7.8 fix
-- 7.10 = above
+- **1 new server action**: `setBillProviderPreferenceAction({ billId, provider })`. Validates bill ownership + provider against `OffRampProvider` union (MOCK | SPRITZ | MONTO). Writes `vault.off_ramp_provider_changed` audit row with payload `{ scope: "bill", billId, from, to }`. Revalidates the bill page + /vault + /obligations.
+- **1 new client component**: `BillOffRampPicker` — 3 provider chips (MOCK | SPRITZ | MONTO) + 1 "Use default · <userDefault>" chip (= the `null` value). Mirrors the C7.3 `OffRampProviderPicker` on /vault/preferences. Mounts on `/vault/bills/[id]`.
+- **3 visible surfaces**:
+  - `/vault/bills/[id]` — full picker under the bill header
+  - `/obligations` — `[PROVIDER · spritz]` chip inline next to the bill name when an override is set (no chrome leak when no override)
+  - `/vault` OffRampPanel — chain summary shows per-bill override vs. user default tooltip per row
+  - `/vault/bills/[id]/history` — `vault.off_ramp_provider_changed` events with `scope: "bill"` in the timeline
+- **No schema change, no new env vars, no middleware change**. `ScheduledBill.providerPreference` already exists (added C6.0/C7.3).
+- **No-op short-circuit**: action returns `{ ok, noop: true }` if `from === to`; no audit row written for redundant changes.
 
-# Candidate next clusters (from HANDOVER.md §"Next cluster" / §"What was NOT done")
-A. Real-time live activity ticker in the sidebar (reuses the C7.6 SSE bus + hook)
-B. Prod-env var naming consistency (`.env.production.example` uses `VAULT_SIGNER_KEY` but `safe-deploy.ts` reads `VAULT_SAFE_SIGNER_PRIVATE_KEY` — a prod deploy using the example as-is gets no signer). 30-min infra fix.
-C. Real Spritz sandbox creds (sdk.spritz.finance signup → set `SPRITZ_INTEGRATION_KEY` + `SPRITZ_SANDBOX=true` → chain auto-flips to live). No code change.
-D. Real mainnet deploy (Cluster 6.0.1 wired mainnet; the chain table, addresses, env block, prod check, API, smoke are all green — but no real mainnet deploy was ever performed).
-E. Per-bill off-ramp provider override UI (data shape `ScheduledBill.providerPreference` exists; the picker in `/vault/preferences` is single user-level).
-F. Refund / dispute flow.
-G. Multi-sig / threshold changes.
-H. Other chains (Optimism, Arbitrum, Polygon) — chain table is the clean place to add.
-I. Real Monto adapter (Spritz already wired in 7.3; Monto is a stub — swap in `src/lib/vault/spritz-client.ts`).
-J. Real fiat bank-account linking.
-K. Dynamic Pool address resolution (`PoolAddressesProvider.getPool()` so Aave upgrades don't need a code change).
-L. Prisma migration history (`prisma db push` → `prisma migrate dev` so health endpoint reports `migrationStatus: current` instead of `pushed`).
-M. Per-bill off-ramp provider override UI.
-N. Refund / dispute flow.
+## Smoke plan
 
-# Standing user preferences (apply when ranking)
-- "Visible UI matters more than invisible architecture" — interleave visible-UI milestones with infra so the user can see progress; reserve pure-infra for off-cycle.
-- "Quality > speed" — at natural breakpoints, ship a fresh-session handoff rather than let quality slip.
-- "Visual-first" — default to a chart/strip/sparkline over a list of text rows; build the chart first; add a list only if exact values can't live in the chart.
-- "Headline numbers need growth-oriented suggestions" — pair summary numbers with clickable suggestions that make them bigger/better.
-- "Two-tier AI surface" — production-grade (Mavis) for onboarding/extraction; lighter (Ollama OK) for post-onboarding "ask me anything."
-- "End-of-session: save + update everything" — commit + update COORDINATION.md + HANDOVER.md + memory at every session-end or natural breakpoint.
+`tests/smoke-bill-provider-override.mjs` (~30 checks): page surface + server action + /vault OffRampPanel + /vault/bills/[id]/history chain summary + the no-op short-circuit + the cross-user bill ownership check. `tests/integration-vault.mjs` Phase 4.0 M12 (~20 source + wire checks).
 
-# What I want from you (Polar)
-1. **Pick ONE cluster** from the list above (A through N — or propose a different one if the handoff missed a clear winner).
-2. **One-paragraph rationale** — why this cluster, why now, what's the visible-UI payoff if any, what's the infra-vs-UI mix.
-3. **Suggested spec skeleton** — 5–8 bullet outline of what the cluster ships (data model + UI surfaces + smoke + commit shape) so the fresh session can start with a written contract, not improvise.
-4. **Risk callouts** — anything that could derail the cluster, in one or two lines.
-5. **One alternative** — second-best pick + one-line reason, so I can choose between the two.
+## What I'm asking you to do
 
-Be opinionated. If you'd push back on any of the standing preferences for this cluster, say so. Keep total response under ~600 words.
-```
+1. **Read the spec** (`00-CLUSTER-7.12-PER-BILL-OFF-RAMP-OVERRIDE.md`) end to end.
+2. **Read the source first** — before correcting the spec, open the files it references and verify the claims:
+   - `src/lib/vault/server.ts` (the action surface — does the existing `setOffRampProviderAction` pattern match what I proposed?)
+   - `src/lib/vault/gateway.ts` (does `resolveChain(bill)` actually read `bill.providerPreference`? — yes, confirmed)
+   - `src/app/(app)/vault/preferences/page.tsx` (the existing `OffRampProviderPicker` — the visual pattern to mirror)
+   - `src/app/(app)/obligations/page.tsx` (where the per-bill chip will live)
+   - `src/app/(app)/vault/bills/[id]/page.tsx` (where the picker will mount)
+   - `prisma/schema.prisma` (lines around 1000 — `providerPreference` column shape)
+3. **Spec corrections** — anything in the spec that contradicts the source (I want the corrections as a list, not a rewrite).
+4. **Design wins** — anything that makes the visible-UI payoff bigger, the data layer cleaner, or the failure modes more graceful. Reasonable scope; not a full redesign.
+5. **Numbering** — happy to call this 7.12 (since 7.11.1 was the polish, the next cluster is 7.12). Push back if you'd rather call it something else.
 
----
+The 7.11 → 7.11.1 pattern was: spec → your review → I integrate 3 wins + reject 2 with reasoning. Same shape here.
 
-## How to relay back
+No need to draft the implementation — I integrate against my conventions. The 3 wins from your v2 review (semantic tones, hide unmapped, reconcile) shipped cleanly in 7.11.1; this is the same pattern.
 
-Once Polar answers, paste the response (or your own summary if Polar's too long) back to Mavis in this chat. Mavis will:
+Standing context: Mavis is the long-term co-architect across all of xKryptic's projects. Compass is the personal-finance app for xKryptic's mom. Specs at workspace root (00-CLUSTER-7.X-*.md), HANDOVER.md + COORDINATION.md are the handoff contract between sessions, design system is Component Oracle Terminal (cool teal/cyan on near-black, Sora headings + JetBrains Mono data, oracle voice with `[OK]/[WARN]/[SIGIL]/[INDEXED]` markers).
 
-1. **Synthesize** — your Polar recommendation + Mavis's own Compass-grounded judgment + the handoff context
-2. **Write the cluster spec** at `00-CLUSTER-X.Y-NAME.md` in the workspace root
-3. **Update HANDOVER.md** "Next cluster" section to the chosen cluster
-4. **Update COORDINATION.md** "Last update" line
-5. **Execute the cluster** — schema, code, smokes, commit, handoff doc
-
-If Polar's answer is hard to paste, screenshot the chat and drop the image in. Mavis will OCR the relevant parts.
+Talk soon.

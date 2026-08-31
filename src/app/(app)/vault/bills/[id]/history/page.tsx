@@ -47,6 +47,13 @@ import { BillSummaryStrip } from "./BillSummaryStrip";
 import { BillTimeline } from "./BillTimeline";
 import { BillEventTable } from "./BillEventTable";
 import { LiveBillEventTable } from "./LiveBillEventTable";
+import { BillOffRampPicker } from "@/components/vault/BillOffRampPicker";
+import { OffRampGateway, chainSourceLabel, normalizeOffRampProvider } from "@/lib/vault/gateway";
+import { getOrCreateVaultPreferences } from "@/lib/vault/db";
+import {
+  OFFRAMP_PROVIDER_LABEL,
+  type OffRampProvider,
+} from "@/lib/vault/types";
 
 export const dynamic = "force-dynamic";
 
@@ -79,10 +86,14 @@ export default async function BillHistoryPage({
 
   // Parallel reads. The summary computes the unfiltered totals
   // for the 4-cell strip; the table respects the filter.
-  const [billWithEnv, summary, tableRows] = await Promise.all([
+  // Cluster 7.14 — also read the user's preferences so the
+  // per-bill off-ramp picker can render the resolved chain and
+  // the "use my default" chip label.
+  const [billWithEnv, summary, tableRows, prefs] = await Promise.all([
     getBillByIdForUser(user.id, billId),
     getBillAuditSummary(user.id, billId),
     getBillAuditLog(user.id, billId, filter),
+    getOrCreateVaultPreferences(user.id),
   ]);
 
   // 404 — bill not found (or not the user's). Render the
@@ -178,6 +189,61 @@ export default async function BillHistoryPage({
         envelopeName={envelope?.name ?? null}
         envelopeCategory={envelope?.category ?? null}
       />
+
+      {(() => {
+        // Cluster 7.14 — per-bill off-ramp provider picker. The
+        // gateway is built server-side with the user's default
+        // provider baked in; we then ask it to resolve the chain
+        // for THIS bill (which respects the per-bill override via
+        // the C7.14 resolveChain fix). The picker renders the
+        // chain + the chips for switching.
+        const userDefault: OffRampProvider = (prefs.offRampProvider ??
+          "MOCK") as OffRampProvider;
+        const gateway = OffRampGateway.buildDefault(user.id, userDefault);
+        const chain = gateway.resolveChain(bill);
+        const source = chainSourceLabel(bill, userDefault);
+        // Normalize the stored value to the enum form for the
+        // picker's `current` prop. Legacy rows may have the
+        // display form ("Spritz") or lowercase ("spritz"); the
+        // helper handles both.
+        const current = normalizeOffRampProvider(bill.providerPreference);
+        return (
+          <>
+            <SectionHeader
+              eyebrow="// off-ramp"
+              title="Off-ramp provider"
+              em="which rail this bill settles through."
+              accent="cyan"
+            />
+            <div
+              data-testid="vault-bill-offramp-section"
+              style={{ marginBottom: 32 }}
+            >
+              <BillOffRampPicker
+                billId={billId}
+                current={current}
+                userDefaultLabel={OFFRAMP_PROVIDER_LABEL[userDefault]}
+                chain={chain}
+                source={source}
+              />
+              <div
+                style={{
+                  fontFamily: "var(--font-sora)",
+                  fontSize: 12,
+                  color: "var(--ink-3)",
+                  marginTop: 10,
+                  lineHeight: 1.5,
+                  maxWidth: 720,
+                }}
+              >
+                {current === null
+                  ? "This bill follows your user-level provider. Pick any of the chips above to pin it to a specific rail — useful for routing high-value bills to Spritz while subscriptions stay on MOCK, or for one-off kill switches."
+                  : "This bill is pinned to a specific provider. Pick a different chip to switch, or [USE MY DEFAULT] to revert to the user-level choice."}
+              </div>
+            </div>
+          </>
+        );
+      })()}
 
       <SectionHeader
         eyebrow="// summary"

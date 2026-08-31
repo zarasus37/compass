@@ -233,13 +233,23 @@ export class OffRampGateway {
    * matches a known adapter, that adapter goes first; the rest of
    * the chain follows in the user-preference order. The chain
    * always ends with "Manual Push" (the terminal safety path).
+   *
+   * Cluster 7.14 — the stored preference is normalized via
+   * `OFFRAMP_PROVIDER_ADAPTER_NAME` (the enum form "SPRITZ" maps
+   * to the adapter name "Spritz") because `this.adapters` is
+   * keyed by display names. Accepts the enum form, the display
+   * form, and the lowercase form defensively — older rows may
+   * have any of the three. Unknown values fall through to the
+   * user default. The smoke (`smoke-bill-provider-override.mjs`)
+   * asserts the round-trip: set "SPRITZ", get "Spritz" first.
    */
   resolveChain(bill: ScheduledBill): string[] {
-    const pref = bill.providerPreference;
+    const adapterName = resolveProviderAdapterName(
+      bill.providerPreference,
+      this.adapters,
+    );
     const known =
-      pref && this.adapters.has(pref)
-        ? pref
-        : (this.fallbackOrder[0] ?? "Mock");
+      adapterName ?? (this.fallbackOrder[0] ?? "Mock");
     const tail = this.fallbackOrder.filter((n) => n !== known);
     return [known, ...tail];
   }
@@ -334,4 +344,91 @@ export function eventFromResult(
     type: "FAIL_FINAL",
     error: (result as { error: string }).error,
   };
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Cluster 7.14 — helpers for the per-bill off-ramp provider override UI
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * The user-visible label for which preference is driving a bill's
+ * chain. Cluster 7.14 — used by `BillOffRampPicker` to render the
+ * "currently routes via" line and by `BillScheduleClient` to
+ * decide whether to show the per-bill override chip on /vault.
+ *
+ * Two states: "per-bill override" (the bill has its own preference
+ * that diverges from the user default) or "user default" (the bill
+ * inherits the user-level choice). The default is "user default"
+ * (covers `null` and `undefined`).
+ */
+export type BillOffRampSource = "per-bill override" | "user default";
+
+export function chainSourceLabel(
+  bill: { providerPreference?: string | null | undefined },
+  userDefault: string,
+): BillOffRampSource {
+  return bill.providerPreference ? "per-bill override" : "user default";
+}
+
+/**
+ * Resolve a stored `providerPreference` to the adapter name the
+ * `adapters` Map is keyed by.
+ *
+ * The Map is keyed by display names ("Mock" | "Spritz" | "Monto" |
+ * "Manual Push"). The enum form ("MOCK" | "SPRITZ" | "MONTO") is
+ * the canonical stored value (consistent with
+ * `VaultPreferences.offRampProvider`). Older rows may have the
+ * display form or the lowercase form (the original seed used
+ * lowercase). The bridge is `OFFRAMP_PROVIDER_ADAPTER_NAME`.
+ *
+ * Returns `null` when the input is empty, malformed, or doesn't
+ * match any known adapter. The caller (resolveChain) falls back
+ * to the user default in that case.
+ *
+ * Cluster 7.14 — added when the per-bill override surfaced as a
+ * silent no-op (the value was being read but the Map key never
+ * matched). The round-trip smoke asserts "SPRITZ" → "Spritz".
+ */
+function resolveProviderAdapterName(
+  pref: string | null | undefined,
+  adapters: Map<string, unknown>,
+): string | null {
+  if (!pref) return null;
+  // Direct hit on the bridge (handles "MOCK" / "SPRITZ" / "MONTO")
+  const fromEnum = (OFFRAMP_PROVIDER_ADAPTER_NAME as Record<string, string>)[pref];
+  if (fromEnum) return fromEnum;
+  // Case-insensitive match (handles "Mock" / "mock" / "spritz" /
+  // "Monto" / etc. — defensive against legacy rows + manual edits)
+  const upper = pref.toUpperCase();
+  if (upper in OFFRAMP_PROVIDER_ADAPTER_NAME) {
+    return OFFRAMP_PROVIDER_ADAPTER_NAME[upper as keyof typeof OFFRAMP_PROVIDER_ADAPTER_NAME];
+  }
+  // Direct match on the adapter name itself (e.g. "Manual Push"
+  // bypasses the enum bridge)
+  if (adapters.has(pref)) return pref;
+  return null;
+}
+
+/**
+ * Cluster 7.14 — normalize a stored `providerPreference` (which
+ * may be in any of: enum form, display form, lowercase legacy
+ * form) to the canonical `OffRampProvider` enum value. Returns
+ * `null` when the value is empty or doesn't match any known
+ * provider. Used by the picker prop + the per-bill chip to
+ * decide which chip to highlight + the audit row's "to" payload.
+ */
+export function normalizeOffRampProvider(
+  pref: string | null | undefined,
+): OffRampProvider | null {
+  if (!pref) return null;
+  // Direct hit on the enum form
+  if (pref in OFFRAMP_PROVIDER_ADAPTER_NAME) {
+    return pref as OffRampProvider;
+  }
+  // Case-insensitive match for legacy rows
+  const upper = pref.toUpperCase();
+  if (upper in OFFRAMP_PROVIDER_ADAPTER_NAME) {
+    return upper as OffRampProvider;
+  }
+  return null;
 }

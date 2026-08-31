@@ -41,7 +41,8 @@ import { BillRecoveryPanel } from "@/components/vault/BillRecoveryPanel";
 import { formatMoney } from "@/lib/money";
 import { formatShortDate } from "@/lib/format";
 import { tone as toneForBadge, userLabel, type BillTone } from "@/lib/vault/state-machine";
-import type { ScheduledBill, VaultEnvelope } from "@/lib/vault/types";
+import type { ScheduledBill, VaultEnvelope, OffRampProvider } from "@/lib/vault/types";
+import { OFFRAMP_PROVIDER_LABEL } from "@/lib/vault/types";
 
 type Mode = "add" | "edit" | null;
 
@@ -56,11 +57,17 @@ export function BillScheduleClient({
   bills,
   envelopes,
   gateByBillId,
+  userDefaultOffRampProvider,
 }: {
   bills: ScheduledBill[];
   envelopes: VaultEnvelope[];
   /** Map: billId → canExecute result. Computed on the server. */
   gateByBillId: Record<string, BillGateInfo>;
+  /** Cluster 7.14 — the user's default off-ramp provider (enum).
+   *  Used by the per-row chip to decide when a bill has a
+   *  per-bill override (chip shown) vs. inherits the user
+   *  default (no chip). */
+  userDefaultOffRampProvider: OffRampProvider;
 }) {
   const [mode, setMode] = useState<Mode>(null);
   const [editingBill, setEditingBill] = useState<ScheduledBill | null>(null);
@@ -149,6 +156,7 @@ export function BillScheduleClient({
             isLast={i === sorted.length - 1}
             onEdit={openEdit}
             gate={gateByBillId[b.id] ?? { canExecute: false, reason: "gate not computed" }}
+            userDefaultOffRampProvider={userDefaultOffRampProvider}
           />
         ))}
       </div>
@@ -198,11 +206,14 @@ function BillRow({
   isLast,
   onEdit,
   gate,
+  userDefaultOffRampProvider,
 }: {
   bill: ScheduledBill;
   isLast: boolean;
   onEdit: (bill: ScheduledBill) => void;
   gate: BillGateInfo;
+  /** Cluster 7.14 — the user's default off-ramp provider (enum). */
+  userDefaultOffRampProvider: OffRampProvider;
 }) {
   const label = userLabel(bill.status);
   const billTone = toneForBadge(bill.status);
@@ -268,6 +279,47 @@ function BillRow({
                 USER
               </span>
             )}
+            {/* Cluster 7.14 — per-bill off-ramp override chip. Shown
+                only when the bill's providerPreference diverges
+                from the user's default. Bills that follow the
+                account get no chip (the user default applies
+                uniformly — a chip per row is noise). Defensive
+                against legacy rows that may store "spritz" or
+                "Spritz" instead of the enum form. */}
+            {(() => {
+              const prefRaw = bill.providerPreference;
+              if (!prefRaw) return null;
+              const upper = prefRaw.toUpperCase();
+              const isOverride =
+                upper !== userDefaultOffRampProvider &&
+                (upper === "MOCK" ||
+                  upper === "SPRITZ" ||
+                  upper === "MONTO");
+              if (!isOverride) return null;
+              const displayName =
+                OFFRAMP_PROVIDER_LABEL[
+                  upper as keyof typeof OFFRAMP_PROVIDER_LABEL
+                ] ?? prefRaw;
+              return (
+                <span
+                  data-testid={`vault-bill-provider-override-${bill.id}`}
+                  title="Per-bill off-ramp override"
+                  style={{
+                    fontFamily: "var(--font-jetbrains), monospace",
+                    fontSize: 8.5,
+                    fontWeight: 700,
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
+                    color: "var(--gold)",
+                    border: "1px solid var(--gold)",
+                    padding: "1px 5px",
+                    borderRadius: 2,
+                  }}
+                >
+                  Provider · {displayName}
+                </span>
+              );
+            })()}
           </div>
           <div
             style={{

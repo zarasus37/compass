@@ -156,6 +156,7 @@ export default async function VaultPage() {
       <BillScheduleClient
         bills={snap.bills}
         envelopes={snap.envelopes}
+        userDefaultOffRampProvider={snap.preferences.offRampProvider}
         gateByBillId={await computeGateByBillId(snap.bills, snap.vault)}
       />
 
