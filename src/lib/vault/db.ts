@@ -30,6 +30,7 @@
 import "server-only";
 import { prisma } from "@/server/db";
 import { publishAuditEvent } from "./audit-bus";
+import type { VaultAuditActionType } from "./audit-action-types";
 import type {
   VaultAccount,
   VaultEnvelope,
@@ -906,68 +907,7 @@ export async function recordProviderEvent(args: {
  */
 export async function recordVaultAudit(args: {
   userId: string;
-  actionType:
-    | "vault.synced"
-    | "vault.bill_state_changed"
-    | "vault.payment_attempted"
-    | "vault.payment_settled"
-    | "vault.payment_failed"
-    | "vault.adapter_fallback"
-    | "vault.yield_routing_changed"
-    | "vault.risk_acknowledged"
-    | "vault.risk_unacknowledged"
-    | "vault.paused"
-    | "vault.resumed"
-    | "vault.apy_refreshed"
-    | "vault.apy_refresh_failed"
-    | "vault.yield_routed"
-    | "vault.bill_added"
-    | "vault.bill_updated"
-    | "vault.bill_deleted"
-    | "vault.safe_deployed"
-    | "vault.safe_deploy_failed"
-    | "vault.funded"
-    | "vault.balance_refreshed"
-    | "vault.aave_supply"
-    | "vault.aave_withdraw"
-    // Cluster Vault 4.0 M4 — gateway outcomes. `payment_executed`
-    // records the gateway's per-click decision (provider chain,
-    // success/degraded/failure); `payment_manually_confirmed`
-    // records the user confirming an out-of-band payment after
-    // the gateway fell back to the manual adapter.
-    | "vault.payment_executed"
-    | "vault.payment_manually_confirmed"
-    // Cluster 7.3 — user-level off-ramp provider preference
-    // change. Audit row written from `setOffRampProviderAction`
-    // with `{ from, to }` payload so the future audit-log page
-    // can show the provider history.
-    | "vault.off_ramp_provider_changed"
-    // Cluster 7.4 — meta event written by `/vault/audit` on
-    // every render. The audit log is auditable itself, so the
-    // user can see "I opened the audit log at 2:14pm" in the
-    // event stream. Payload: `{ filter: { type, prefix, q, take }
-    // | null, at: ISO }`. The page writes the row AFTER its
-    // read so this visit's table doesn't show it; the next
-    // visit will.
-    | "vault.audit_log_viewed"
-    // Cluster 7.5 — meta event written by
-    // `/vault/bills/[id]/history` on every render. Same
-    // audit-the-audited pattern as `vault.audit_log_viewed`;
-    // the user can see "I opened the Spectrum bill's history
-    // at 2:14pm" in the event stream. Payload:
-    // `{ billId, billerName, filter: { type, take } | null,
-    // at: ISO }`. The page writes the row AFTER its read so
-    // this visit's table doesn't show it; the next visit will.
-    | "vault.bill_history_viewed"
-    // Cluster 7.10 — cron alert surface. Written by
-    // `recordCronAlert` in `audit-log-alerts.ts` when the
-    // audit log retention cron (or any future cron) records
-    // a per-user failure. The row is the durable record; an
-    // optional webhook (Sentry / PagerDuty / generic) is
-    // fired in parallel for real-time alerting. Payload:
-    // `{ kind, error, context, at }`. Visible in the audit
-    // log table on `/vault/audit` like any other event.
-    | "vault.cron_prune_failure";
+  actionType: VaultAuditActionType;
   payload: unknown;
 }): Promise<void> {
   const row = await prisma.auditLog.create({

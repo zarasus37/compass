@@ -328,11 +328,13 @@ async function main() {
   );
 
   // 6c. The action type is in the recordVaultAudit union.
-  const dbPath = join(ROOT, "src/lib/vault/db.ts");
-  const dbSrc = readFileSync(dbPath, "utf8");
+  // The union was extracted from db.ts to audit-action-types.ts
+  // in C7.11; the canonical home is the new module.
+  const actionTypesPath = join(ROOT, "src/lib/vault/audit-action-types.ts");
+  const actionTypesSrc = readFileSync(actionTypesPath, "utf8");
   check(
-    "source: recordVaultAudit union includes vault.cron_prune_failure",
-    /vault\.cron_prune_failure/.test(dbSrc),
+    "source: audit-action-types.ts VaultAuditActionType has vault.cron_prune_failure",
+    /vault\.cron_prune_failure/.test(actionTypesSrc),
   );
 
   // 6d. The bulk prune helper calls recordCronAlert for ERRORs.

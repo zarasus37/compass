@@ -399,11 +399,17 @@ async function main() {
       notFoundHtml.includes('data-testid="vault-bill-history-not-found"'),
   );
 
-  // ── 14. Source-file: db.ts recordVaultAudit union has the new type ─
-  const dbSrc = readFileSync(join(ROOT, "src/lib/vault/db.ts"), "utf8");
+  // ── 14. Source-file: the audit-action-types module has the
+  // bill_history_viewed action type. The union was extracted
+  // from db.ts to audit-action-types.ts in C7.11 so the client
+  // can import it without pulling server-only.
+  const actionTypesSrc = readFileSync(
+    join(ROOT, "src/lib/vault/audit-action-types.ts"),
+    "utf8",
+  );
   check(
-    "history: db.ts recordVaultAudit union has vault.bill_history_viewed",
-    dbSrc.includes('"vault.bill_history_viewed"'),
+    "history: audit-action-types.ts VaultAuditActionType has vault.bill_history_viewed",
+    /vault\.bill_history_viewed/.test(actionTypesSrc),
   );
 
   // ── 15. Source-file: audit-log.ts has the new exports ───────────

@@ -23,6 +23,7 @@ import { TopAppBar } from "@/components/shell/TopAppBar";
 import { RebalanceAlertBay } from "@/components/alerts/RebalanceAlertBay";
 import { CommandPaletteProvider } from "@/components/command-palette/CommandPaletteProvider";
 import { getSearchIndex } from "@/lib/command-palette/search-index";
+import { getAuditLog } from "@/lib/vault/audit-log";
 import { CARD_META, type CardId } from "@/components/dashboard/catalog";
 import { loadIdentitySummary } from "@/lib/identity/identity-summary";
 import {
@@ -711,19 +712,27 @@ export default async function Dashboard() {
   // Cluster 7.1 — read the command palette search index
   // alongside the engine level + pay period so the dashboard
   // gets the same ⌘K palette as every (app)/ page.
-  const [engineLevel, payPeriod, searchIndex] = await Promise.all([
+  // Cluster 7.11 — also read the last 3 audit events for the
+  // sidebar's LiveActivityTicker. Same shape as (app)/layout's
+  // read so the dashboard and (app)/ pages get the same ticker
+  // initial rows.
+  const [engineLevel, payPeriod, searchIndex, tickerRows] = await Promise.all([
     getActiveEngineLevel(),
     (async () => {
       const pp = await getCurrentPayPeriod();
       return { startDate: pp.startDate, endDate: pp.endDate };
     })(),
     getSearchIndex(user.id),
+    getAuditLog(user.id, { take: 3 }),
   ]);
 
   return (
     <CommandPaletteProvider searchIndex={searchIndex}>
       <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", minHeight: "100vh" }}>
-        <AppSidebar user={{ name: user.name, email: user.email }} />
+        <AppSidebar
+          user={{ name: user.name, email: user.email }}
+          tickerInitialRows={tickerRows}
+        />
         <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
           {/* Persistent top bar — Sovereign Monad branding, pay period
               chip, engine toggle. Reads engine level + pay period from

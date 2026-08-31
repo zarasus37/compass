@@ -9,6 +9,7 @@ import { liveEnvelopes, getCurrentPayPeriod } from "@/lib/mock";
 import { getActiveEngineLevel } from "@/app/(app)/settings/engine-actions";
 import { CommandPaletteProvider } from "@/components/command-palette/CommandPaletteProvider";
 import { getSearchIndex } from "@/lib/command-palette/search-index";
+import { getAuditLog } from "@/lib/vault/audit-log";
 
 /**
  * App shell — the signed-in layout. Wraps every page in the (app)
@@ -66,19 +67,27 @@ export default async function AppLayout({
   }));
 
   // Read engine + pay period + the command palette search
-  // index concurrently. The index is small (~50 items: 16
+  // index + the last 3 audit events (for the sidebar ticker)
+  // concurrently. The index is small (~50 items: 16
   // routes + ~30 dynamic DB rows) and crosses the
-  // server→client boundary as a plain JSON object.
-  const [engineLevel, payPeriod, searchIndex] = await Promise.all([
+  // server→client boundary as a plain JSON object. The audit
+  // log read is bounded (3 rows) and uses the same data layer
+  // as the audit page; the client component filters the meta
+  // events from the initial set on mount.
+  const [engineLevel, payPeriod, searchIndex, tickerRows] = await Promise.all([
     getActiveEngineLevel(),
     getCurrentPayPeriod(),
     getSearchIndex(user.id),
+    getAuditLog(user.id, { take: 3 }),
   ]);
 
   return (
     <CommandPaletteProvider searchIndex={searchIndex}>
       <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", minHeight: "100vh" }}>
-        <AppSidebar user={{ name: user.name, email: user.email }} />
+        <AppSidebar
+          user={{ name: user.name, email: user.email }}
+          tickerInitialRows={tickerRows}
+        />
         <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
           <TopAppBar
             engineLevel={engineLevel}

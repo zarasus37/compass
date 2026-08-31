@@ -3187,14 +3187,28 @@ async function main() {
       adapterSrc.includes("maskUrl"),
     );
 
-    // Source: action type is in the recordVaultAudit union.
+    // Source: action type is in the VaultAuditActionType union.
+    // The union was extracted from db.ts to audit-action-types.ts
+    // in C7.11 so the client can import it without pulling
+    // server-only. We verify the actionType is in the new
+    // canonical home AND that db.ts wires the import.
+    const actionTypesSrcM10 = readFileSync(
+      join(PROJECT_ROOT, "src/lib/vault/audit-action-types.ts"),
+      "utf8",
+    );
     const dbSrc10 = readFileSync(
       join(PROJECT_ROOT, "src/lib/vault/db.ts"),
       "utf8",
     );
     check(
-      "M10: recordVaultAudit union includes vault.cron_prune_failure",
-      /vault\.cron_prune_failure/.test(dbSrc10),
+      "M10: VaultAuditActionType union (audit-action-types.ts) includes vault.cron_prune_failure",
+      /vault\.cron_prune_failure/.test(actionTypesSrcM10),
+    );
+    check(
+      "M10: db.ts recordVaultAudit uses the imported VaultAuditActionType",
+      /import\s+type\s*\{\s*VaultAuditActionType\s*\}\s+from\s+["']\.\/audit-action-types["']/.test(
+        dbSrc10,
+      ) && /actionType:\s*VaultAuditActionType;/.test(dbSrc10),
     );
 
     // Source: bulk prune helper calls recordCronAlert for ERRORs.
@@ -3302,6 +3316,233 @@ async function main() {
     check(
       "M10: .env.production.example documents CRON_ALERT_WEBHOOK_URL",
       envExample.includes("CRON_ALERT_WEBHOOK_URL"),
+    );
+  }
+
+  // ── Phase 4.0 M11 — Real-time live activity ticker (Cluster 7.11) ──
+  //
+  // The sidebar's LiveActivityTicker surfaces the last 3 vault
+  // events as a live feed under the `// Ledger` chapter. The
+  // surface is wired to the same SSE bus + hook as the audit page
+  // + bill history page; the visible-UI payoff is "every page
+  // shows what's happening" without leaving the current route.
+  //
+  // M11 verifies the wiring at the integration level. The
+  // dedicated `tests/smoke-live-ticker.mjs` exercises the page
+  // surface + bus round-trip + source-file checks end-to-end.
+  console.log("\n--- Phase 4.0 M11 — Live activity ticker ---\n");
+  {
+    const { readFileSync: readFileSync11 } = await import("node:fs");
+    const { join: join11 } = await import("node:path");
+    // The new shared types file is the canonical source of
+    // truth for the action-type union + the ignore-set.
+    const actionTypesSrc = readFileSync11(
+      join11(PROJECT_ROOT, "src/lib/vault/audit-action-types.ts"),
+      "utf8",
+    );
+    check(
+      "M11: src/lib/vault/audit-action-types.ts exists",
+      actionTypesSrc.length > 0,
+    );
+    check(
+      "M11: VaultAuditActionType union is exported",
+      actionTypesSrc.includes("export type VaultAuditActionType"),
+    );
+    check(
+      "M11: VAULT_AUDIT_ACTION_TYPES array is exported",
+      actionTypesSrc.includes("export const VAULT_AUDIT_ACTION_TYPES"),
+    );
+    check(
+      "M11: LIVE_TICKER_IGNORED_TYPES set is exported",
+      actionTypesSrc.includes("export const LIVE_TICKER_IGNORED_TYPES"),
+    );
+    // The union has at least 25 types (the pre-C7.11 count was
+    // 28; the new file should match).
+    const unionTypes = [...actionTypesSrc.matchAll(/^\s*\|\s*"([^"]+)"/gm)].map(
+      (m) => m[1],
+    );
+    check(
+      "M11: VaultAuditActionType union has 30+ action types",
+      unionTypes.length >= 30,
+      `count=${unionTypes.length}`,
+    );
+    // The ignore-set is a Set (not a plain array) — the
+    // useAuditStream hook's `ignoreActionTypes` option accepts
+    // either, but the ticker should spread from a Set.
+    check(
+      "M11: LIVE_TICKER_IGNORED_TYPES is a Set<VaultAuditActionType>",
+      /Set<VaultAuditActionType>/.test(actionTypesSrc),
+    );
+
+    // The shared module exports the humanizer + relative-time
+    // helper + the row→event adapter.
+    const sharedSrc11 = readFileSync11(
+      join11(PROJECT_ROOT, "src/lib/vault/audit-log-shared.ts"),
+      "utf8",
+    );
+    check(
+      "M11: audit-log-shared re-exports LIVE_TICKER_IGNORED_TYPES",
+      /export\s*\{[^}]*LIVE_TICKER_IGNORED_TYPES/.test(sharedSrc11),
+    );
+    check(
+      "M11: audit-log-shared re-exports VAULT_AUDIT_ACTION_TYPES",
+      /export\s*\{[^}]*VAULT_AUDIT_ACTION_TYPES/.test(sharedSrc11),
+    );
+    check(
+      "M11: humanizeVaultAction is exhaustive (returns 'event happened' fallback)",
+      /return "event happened";/.test(sharedSrc11),
+    );
+    check(
+      "M11: humanizeVaultAction has 25+ case branches",
+      (sharedSrc11.match(/case "vault\./g) ?? []).length >= 25,
+    );
+    check(
+      "M11: liveTickerEventFromRow exports the row→event adapter",
+      /export function liveTickerEventFromRow/.test(sharedSrc11),
+    );
+    check(
+      "M11: liveTickerEventFromRow uses billHistoryHrefForAuditRow",
+      /billHistoryHrefForAuditRow\(/.test(sharedSrc11),
+    );
+    check(
+      "M11: formatRelativeTime exports the 2s/1m/3h/2d formatter",
+      /export function formatRelativeTime/.test(sharedSrc11) &&
+        /s ago/.test(sharedSrc11),
+    );
+
+    // The ticker component itself.
+    const tickerSrc = readFileSync11(
+      join11(PROJECT_ROOT, "src/components/shell/LiveActivityTicker.tsx"),
+      "utf8",
+    );
+    check(
+      "M11: src/components/shell/LiveActivityTicker.tsx exists",
+      tickerSrc.length > 0,
+    );
+    check(
+      "M11: LiveActivityTicker is 'use client'",
+      /"use client"/.test(tickerSrc),
+    );
+    check(
+      "M11: LiveActivityTicker subscribes via useAuditStream",
+      /useAuditStream\(/.test(tickerSrc),
+    );
+    check(
+      "M11: LiveActivityTicker passes LIVE_TICKER_IGNORED_TYPES to the hook",
+      /ignoreActionTypes:\s*\[\.\.\.LIVE_TICKER_IGNORED_TYPES\]/.test(tickerSrc),
+    );
+    check(
+      "M11: LiveActivityTicker caps the list at 3 (TICKER_LIMIT)",
+      /TICKER_LIMIT\s*=\s*3/.test(tickerSrc),
+    );
+    check(
+      "M11: LiveActivityTicker has aria-label='Recent vault activity'",
+      /aria-label="Recent vault activity"/.test(tickerSrc),
+    );
+    check(
+      "M11: LiveActivityTicker has aria-live='polite' on the new-row region",
+      /aria-live="polite"/.test(tickerSrc),
+    );
+    check(
+      "M11: LiveActivityTicker renders nothing when events.length === 0",
+      /if \(events.length === 0\) return null;/.test(tickerSrc),
+    );
+    check(
+      "M11: LiveActivityTicker filters the meta events from the initial seed",
+      /LIVE_TICKER_IGNORED_TYPES\.has\(r\.actionType/.test(tickerSrc),
+    );
+    check(
+      "M11: LiveActivityTicker uses Link from next/link for deep-link rows",
+      /import Link from "next\/link"/.test(tickerSrc),
+    );
+    check(
+      "M11: LiveActivityTicker uses colorForActionType for the dot",
+      /colorForActionType\(/.test(tickerSrc),
+    );
+    check(
+      "M11: LiveActivityTicker re-renders the relative time column (5s tick)",
+      /setInterval\(\(\) => setRelTick/.test(tickerSrc),
+    );
+
+    // Sidebar slot integration.
+    const sidebarSrc11 = readFileSync11(
+      join11(PROJECT_ROOT, "src/components/sidebar/AppSidebar.tsx"),
+      "utf8",
+    );
+    check(
+      "M11: AppSidebar imports LiveActivityTicker",
+      /import\s*\{[^}]*LiveActivityTicker[^}]*\}\s*from\s*["']@\/components\/shell\/LiveActivityTicker["']/.test(
+        sidebarSrc11,
+      ),
+    );
+    check(
+      "M11: AppSidebar imports AuditLogRow from audit-log-shared",
+      /import\s+type\s*\{[^}]*AuditLogRow[^}]*\}\s*from\s*["']@\/lib\/vault\/audit-log-shared["']/.test(
+        sidebarSrc11,
+      ),
+    );
+    check(
+      "M11: AppSidebar has tickerInitialRows prop",
+      /tickerInitialRows\?: AuditLogRow\[\]/.test(sidebarSrc11),
+    );
+    check(
+      "M11: AppSidebar adds slot to NavChapter type",
+      /slot\?:\s*React\.ReactNode/.test(sidebarSrc11),
+    );
+    check(
+      "M11: AppSidebar passes ticker to the // Ledger chapter",
+      /chapter\.label === "\/\/ Ledger"/.test(sidebarSrc11) &&
+        /LiveActivityTicker/.test(sidebarSrc11),
+    );
+
+    // Both layouts pass the ticker initial rows.
+    const appLayoutSrc11 = readFileSync11(
+      join11(PROJECT_ROOT, "src/app/(app)/layout.tsx"),
+      "utf8",
+    );
+    check(
+      "M11: (app)/layout imports getAuditLog",
+      /import\s*\{[^}]*getAuditLog[^}]*\}\s*from\s*["']@\/lib\/vault\/audit-log["']/.test(
+        appLayoutSrc11,
+      ),
+    );
+    check(
+      "M11: (app)/layout reads last 3 audit rows for the ticker",
+      /getAuditLog\(user\.id, \{\s*take:\s*3\s*\}\)/.test(appLayoutSrc11),
+    );
+    check(
+      "M11: (app)/layout passes tickerInitialRows to AppSidebar",
+      /tickerInitialRows=\{tickerRows\}/.test(appLayoutSrc11),
+    );
+    const dashSrc11 = readFileSync11(join11(PROJECT_ROOT, "src/app/page.tsx"), "utf8");
+    check(
+      "M11: src/app/page.tsx (dashboard) also passes tickerInitialRows",
+      /tickerInitialRows=\{tickerRows\}/.test(dashSrc11) &&
+        /getAuditLog\(user\.id, \{\s*take:\s*3\s*\}\)/.test(dashSrc11),
+    );
+
+    // db.ts refactor: recordVaultAudit uses the imported union
+    // (the source-of-truth move lets the client import the same
+    // type from audit-action-types.ts without pulling server-only).
+    const dbSrc11 = readFileSync11(join11(PROJECT_ROOT, "src/lib/vault/db.ts"), "utf8");
+    check(
+      "M11: db.ts imports VaultAuditActionType from audit-action-types",
+      /import\s+type\s*\{\s*VaultAuditActionType\s*\}\s+from\s+["']\.\/audit-action-types["']/.test(
+        dbSrc11,
+      ),
+    );
+    check(
+      "M11: db.ts recordVaultAudit signature uses VaultAuditActionType",
+      /actionType:\s*VaultAuditActionType;/.test(dbSrc11),
+    );
+
+    // package.json smoke script picks up the new file.
+    const pkg5 = JSON.parse(
+      readFileSync11(join11(PROJECT_ROOT, "package.json"), "utf8"),
+    );
+    check(
+      "M11: package.json smoke script includes smoke-live-ticker.mjs",
+      (pkg5.scripts.smoke ?? "").includes("smoke-live-ticker.mjs"),
     );
   }
 

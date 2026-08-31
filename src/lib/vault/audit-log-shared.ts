@@ -13,7 +13,24 @@
  * everything from this file, so existing server-side imports
  * (e.g. `import { colorForActionType } from "@/lib/vault/audit-log"`)
  * keep working unchanged.
+ *
+ * Cluster 7.11 — added `LiveTickerEvent`, the humanizer map, and
+ * the relative-time formatter used by the LiveActivityTicker in
+ * the sidebar. All client-safe (no Prisma, no `server-only`).
  */
+
+import { formatMoney } from "@/lib/money";
+import {
+  VAULT_AUDIT_ACTION_TYPES,
+  LIVE_TICKER_IGNORED_TYPES,
+  type VaultAuditActionType,
+} from "./audit-action-types";
+
+// Re-export the action-type bits so consumers can import
+// everything from `@/lib/vault/audit-log-shared` (one import path
+// for the live-ticker use case).
+export { VAULT_AUDIT_ACTION_TYPES, LIVE_TICKER_IGNORED_TYPES };
+export type { VaultAuditActionType };
 
 // ──────────────────────────────────────────────────────────────────────
 // Public types (shared with the client wrappers)
@@ -373,4 +390,213 @@ export function rowMatchesAuditFilter(
     if (filter.to && rowDate > filter.to) return false;
   }
   return true;
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Live ticker types + humanizer (Cluster 7.11)
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Shape of a single row in the sidebar's live activity ticker.
+ * `summary` is the humanized 1-liner; `at` is the row's UTC ISO
+ * timestamp. `href` is set when the payload carries a billId
+ * (deep-link to `/vault/bills/[id]/history`, via the existing
+ * `billHistoryHrefForAuditRow` helper — same source of truth
+ * the AuditTable row uses).
+ */
+export type LiveTickerEvent = {
+  id: string;
+  actionType: VaultAuditActionType | string;
+  summary: string;
+  at: string;
+  href?: string;
+};
+
+/**
+ * Humanize a vault action into a 1-line summary the user can
+ * read at a glance. Covers all 30 action types in the
+ * `VaultAuditActionType` union. Returns `"event happened"` for
+ * any unknown type so a future-added action type without an
+ * explicit humanizer doesn't crash the ticker.
+ *
+ * The map is `Partial` by design — runtime fallback handles
+ * future types. TypeScript exhaustiveness is checked by the
+ * smoke (which iterates `VAULT_AUDIT_ACTION_TYPES` and asserts
+ * every key is in the map).
+ */
+function humanize(
+  actionType: VaultAuditActionType,
+  payload: Record<string, unknown>,
+): string {
+  switch (actionType) {
+    case "vault.synced":
+      return "Vault synced";
+    case "vault.paused":
+      return "Vault paused";
+    case "vault.resumed":
+      return "Vault resumed";
+    case "vault.balance_refreshed":
+      return "Balance refreshed";
+    case "vault.safe_deployed":
+      return "Safe deployed";
+    case "vault.safe_deploy_failed":
+      return "Safe deploy failed";
+    case "vault.funded":
+      return `Safe funded${formatAmount(payload.amountCents)}`;
+    case "vault.aave_supply":
+      return `Aave supply${formatAmount(payload.amountCents)}`;
+    case "vault.aave_withdraw":
+      return `Aave withdraw${formatAmount(payload.amountCents)}`;
+    case "vault.apy_refreshed":
+      return `APY refreshed${
+        payload.fromApr != null && payload.toApr != null
+          ? ` · ${payload.fromApr}% → ${payload.toApr}%`
+          : ""
+      }`;
+    case "vault.apy_refresh_failed":
+      return "APY refresh failed";
+    case "vault.yield_routed":
+      return `Yield routed${formatAmount(payload.totalRoutedCents)}`;
+    case "vault.yield_routing_changed":
+      return payload.fromStrategy || payload.toStrategy
+        ? `Yield routing · ${payload.fromStrategy ?? "—"} → ${payload.toStrategy ?? "—"}`
+        : "Yield routing changed";
+    case "vault.bill_added":
+      return `${strField(payload.billerName) ?? "Bill"} added${formatAmount(payload.amountCents)}`;
+    case "vault.bill_updated":
+      return `${strField(payload.billerName) ?? "Bill"} updated`;
+    case "vault.bill_deleted":
+      return `${strField(payload.billerName) ?? "Bill"} deleted`;
+    case "vault.bill_state_changed":
+      return payload.from || payload.to
+        ? `${strField(payload.billerName) ?? "Bill"} · ${payload.from ?? "—"} → ${payload.to ?? "—"}`
+        : "Bill state changed";
+    case "vault.payment_attempted":
+      return `${strField(payload.billerName) ?? "Bill"} · payment attempted${formatAmount(payload.amountCents)}`;
+    case "vault.payment_settled":
+      return `${strField(payload.billerName) ?? "Bill"} · payment settled${formatAmount(payload.amountCents)}`;
+    case "vault.payment_failed":
+      return `${strField(payload.billerName) ?? "Bill"} · payment FAILED${formatAmount(payload.amountCents)}`;
+    case "vault.payment_executed":
+      return `${strField(payload.billerName) ?? "Bill"} · executed via ${strField(payload.provider) ?? "gateway"}${formatAmount(payload.amountCents)}`;
+    case "vault.payment_manually_confirmed":
+      return `${strField(payload.billerName) ?? "Bill"} · confirmed manually${formatAmount(payload.amountCents)}`;
+    case "vault.adapter_fallback":
+      return `Adapter fallback${payload.from || payload.to ? ` · ${payload.from ?? "—"} → ${payload.to ?? "—"}` : ""}`;
+    case "vault.off_ramp_provider_changed":
+      return `Off-ramp: ${strField(payload.from) ?? "—"} → ${strField(payload.to) ?? "—"}`;
+    case "vault.risk_acknowledged":
+      return "Risk acknowledged";
+    case "vault.risk_unacknowledged":
+      return "Risk unacknowledged";
+    case "vault.scheduler_run":
+      return `Scheduler run${
+        payload.usersProcessed != null || payload.billsAffected != null
+          ? ` · ${payload.usersProcessed ?? 0} users, ${payload.billsAffected ?? 0} bills`
+          : ""
+      }`;
+    // Meta events are excluded by LIVE_TICKER_IGNORED_TYPES, but
+    // the humanizer still maps them so a smoke that bypasses the
+    // ignore-set can verify the map is exhaustive.
+    case "vault.audit_log_viewed":
+      return "Audit log opened";
+    case "vault.bill_history_viewed":
+      return `${strField(payload.billerName) ?? "Bill"} history opened`;
+    case "vault.cron_prune_failure":
+      return `Audit log prune failed${payload.error ? ` · ${truncate(strField(payload.error) ?? "", 40)}` : ""}`;
+    default: {
+      // Exhaustiveness check — if a new action type is added to
+      // the union without a humanizer, this assignment fails
+      // at compile time. The runtime fallback below keeps the
+      // ticker rendering even if a stale build ships.
+      const _exhaustive: never = actionType;
+      void _exhaustive;
+      return "event happened";
+    }
+  }
+}
+
+function strField(v: unknown): string | undefined {
+  return typeof v === "string" && v.length > 0 ? v : undefined;
+}
+
+function formatAmount(v: unknown): string {
+  if (typeof v !== "number" || !Number.isFinite(v)) return "";
+  return ` · ${formatMoney(v)}`;
+}
+
+function truncate(s: string, n: number): string {
+  return s.length > n ? `${s.slice(0, n - 1)}…` : s;
+}
+
+/**
+ * Public humanizer. Returns the 1-line summary for the given
+ * action type + payload, or `"event happened"` for any type not
+ * in the humanizer map. Safe to call with any action type
+ * (unknown / future types are handled).
+ */
+export function humanizeVaultAction(
+  actionType: string,
+  payload: Record<string, unknown>,
+): string {
+  // Fast path: known type → exhaustive switch.
+  if ((VAULT_AUDIT_ACTION_TYPES as ReadonlyArray<string>).includes(actionType)) {
+    return humanize(actionType as VaultAuditActionType, payload);
+  }
+  // Unknown type (likely a future-added one before the humanizer
+  // is updated). The smoke asserts this never fires for a
+  // type in the union.
+  return "event happened";
+}
+
+/**
+ * Format a millisecond-accurate ISO timestamp as a compact
+ * "2s ago" / "1m ago" / "3h ago" / "2d ago" string. Used by
+ * the ticker for the right-aligned timestamp column. Past
+ * timestamps only; future timestamps render as `"now"`.
+ */
+export function formatRelativeTime(
+  iso: string,
+  now: Date = new Date(),
+): string {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return "—";
+  const delta = now.getTime() - t;
+  if (delta < 0) return "now";
+  const sec = Math.floor(delta / 1000);
+  if (sec < 5) return "now";
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  if (day < 30) return `${day}d ago`;
+  // Older than a month — show the date so the user knows it's
+  // not "fresh" activity.
+  const d = new Date(t);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Build a `LiveTickerEvent` from a row received via the SSE
+ * stream (or read from the initial server render). Centralizes
+ * the humanize + deep-link + id-stable hashing so the ticker
+ * component stays purely presentational.
+ */
+export function liveTickerEventFromRow(row: {
+  id: string;
+  actionType: string;
+  payload: Record<string, unknown>;
+  createdAtIso: string;
+}): LiveTickerEvent {
+  const summary = humanizeVaultAction(row.actionType, row.payload);
+  const href = billHistoryHrefForAuditRow(row.payload) ?? undefined;
+  return {
+    id: row.id,
+    actionType: row.actionType,
+    summary,
+    at: row.createdAtIso,
+    href,
+  };
 }

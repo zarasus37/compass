@@ -351,11 +351,17 @@ async function main() {
       schedHtml.includes("/vault/audit?type=vault.scheduler_run"),
   );
 
-  // ── 13. Source-file: db.ts recordVaultAudit union has the new type
-  const dbSrc = readFileSync(join(ROOT, "src/lib/vault/db.ts"), "utf8");
+  // ── 13. Source-file: the audit-action-types module has the
+  // audit_log_viewed action type. The union was extracted from
+  // db.ts to audit-action-types.ts in C7.11 so the client can
+  // import it without pulling server-only.
+  const actionTypesSrc = readFileSync(
+    join(ROOT, "src/lib/vault/audit-action-types.ts"),
+    "utf8",
+  );
   check(
-    "audit: db.ts recordVaultAudit union has vault.audit_log_viewed",
-    dbSrc.includes('"vault.audit_log_viewed"'),
+    "audit: audit-action-types.ts VaultAuditActionType has vault.audit_log_viewed",
+    /vault\.audit_log_viewed/.test(actionTypesSrc),
   );
 
   // ── 14. Source-file: color map + meta event

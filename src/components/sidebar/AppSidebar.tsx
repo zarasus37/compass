@@ -3,6 +3,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { LiveActivityTicker } from "@/components/shell/LiveActivityTicker";
+import type { AuditLogRow } from "@/lib/vault/audit-log-shared";
 
 /**
  * AppSidebar — the 4-chapter navigation rail (Component Oracle Terminal).
@@ -49,6 +51,13 @@ interface NavItem {
 interface NavChapter {
   label: string;
   items: NavItem[];
+  /**
+   * Optional content rendered between the chapter label and the
+   * first nav item. Used by the `// Ledger` chapter to host the
+   * LiveActivityTicker (Cluster 7.11). When undefined, the
+   * chapter renders label + items as before.
+   */
+  slot?: React.ReactNode;
 }
 
 const NAV: NavChapter[] = [
@@ -95,9 +104,18 @@ const NAV: NavChapter[] = [
 
 export interface AppSidebarProps {
   user: { name: string; email: string };
+  /**
+   * Last N audit events (newest first) read server-side. Passed
+   * to the `// Ledger` chapter's LiveActivityTicker. The ticker
+   * filters the meta events client-side and then subscribes for
+   * live updates via the existing SSE bus.
+   *
+   * Cluster 7.11.
+   */
+  tickerInitialRows?: AuditLogRow[];
 }
 
-export function AppSidebar({ user }: AppSidebarProps) {
+export function AppSidebar({ user, tickerInitialRows = [] }: AppSidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = React.useState(false);
 
@@ -181,15 +199,29 @@ export function AppSidebar({ user }: AppSidebarProps) {
         )}
       </div>
 
-      {NAV.map((chapter) => (
-        <NavChapterView
-          key={chapter.label}
-          chapter={chapter}
-          pathname={pathname}
-          collapsed={collapsed}
-          onToggleCollapse={() => setCollapsed((c) => !c)}
-        />
-      ))}
+      {NAV.map((chapter) => {
+        // Cluster 7.11 — the `// Ledger` chapter hosts the
+        // LiveActivityTicker. The ticker is a child of the
+        // chapter's slot (between the label and the first nav
+        // item); when there are no events, the ticker renders
+        // nothing so the chapter falls through to the same
+        // label + items layout.
+        const slot =
+          chapter.label === "// Ledger" && tickerInitialRows ? (
+            <LiveActivityTicker initialRows={tickerInitialRows} />
+          ) : (
+            chapter.slot
+          );
+        return (
+          <NavChapterView
+            key={chapter.label}
+            chapter={{ ...chapter, slot }}
+            pathname={pathname}
+            collapsed={collapsed}
+            onToggleCollapse={() => setCollapsed((c) => !c)}
+          />
+        );
+      })}
 
       {/* User — terminal-style status card at the bottom */}
       <div
@@ -313,21 +345,27 @@ function NavChapterView({
   return (
     <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
       {!collapsed ? (
-        <div
-          style={{
-            fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 9.5,
-            fontWeight: 500,
-            color: "var(--ink-3)",
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-            padding: "8px 12px 4px",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-          }}
-        >
-          {chapter.label}
-        </div>
+        <>
+          <div
+            style={{
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 9.5,
+              fontWeight: 500,
+              color: "var(--ink-3)",
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              padding: "8px 12px 4px",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+            }}
+          >
+            {chapter.label}
+          </div>
+          {/* Cluster 7.11 — chapter slot (e.g. LiveActivityTicker
+              on the Ledger chapter). Renders between the label
+              and the first nav item. */}
+          {chapter.slot}
+        </>
       ) : (
         <div
           aria-hidden
