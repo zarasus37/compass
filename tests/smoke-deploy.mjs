@@ -510,6 +510,261 @@ console.log("\n--- §14 vercel.json cron schedule ---\n");
   }
 }
 
+// ── §15 — Cluster 7.16: mom-ready v1 launch (PWA + seed-admin) ───
+//
+// The launch shape: PWA manifest + icons + service worker so mom can
+// install the app on her phone, seed-admin CLI so the prod DB has
+// her account on first deploy, password-reset CLI for the recovery
+// path, and the env contract that documents ADMIN_EMAIL/ADMIN_NAME/
+// ADMIN_PASSWORD in .env.production.example.
+console.log("\n--- §15 cluster 7.16 mom-ready ---\n");
+{
+  // PWA manifest.
+  const manifest = read("public/manifest.json");
+  let manifestJson = null;
+  try {
+    manifestJson = manifest ? JSON.parse(manifest) : null;
+  } catch (e) {
+    check("public/manifest.json is valid JSON", false, e.message);
+  }
+  check("public/manifest.json exists", manifestJson !== null);
+  if (manifestJson) {
+    check("manifest has name", typeof manifestJson.name === "string" && manifestJson.name.length > 0);
+    check("manifest has short_name", typeof manifestJson.short_name === "string" && manifestJson.short_name.length > 0);
+    check("manifest has start_url: /", manifestJson.start_url === "/");
+    check(
+      "manifest has display: standalone",
+      manifestJson.display === "standalone",
+      `display=${manifestJson.display}`,
+    );
+    check(
+      "manifest has theme_color",
+      typeof manifestJson.theme_color === "string" &&
+        /^#[0-9a-fA-F]{6}$/.test(manifestJson.theme_color),
+      `theme_color=${manifestJson.theme_color}`,
+    );
+    check(
+      "manifest has icons[] with at least 2 sizes",
+      Array.isArray(manifestJson.icons) && manifestJson.icons.length >= 2,
+      `count=${manifestJson.icons?.length}`,
+    );
+    const sizes = (manifestJson.icons ?? []).map((i) => i.sizes);
+    check(
+      "manifest includes 192x192 icon",
+      sizes.includes("192x192"),
+    );
+    check(
+      "manifest includes 512x512 icon",
+      sizes.includes("512x512"),
+    );
+    const hasMaskable = (manifestJson.icons ?? []).some(
+      (i) => i.purpose === "maskable",
+    );
+    check("manifest includes a maskable icon (Android adaptive)", hasMaskable);
+  }
+
+  // Icons on disk.
+  for (const icon of [
+    "public/icon-192.png",
+    "public/icon-512.png",
+    "public/icon-maskable-512.png",
+    "public/apple-touch-icon.png",
+  ]) {
+    check(`${icon} exists`, existsSync(join(ROOT, icon)));
+  }
+
+  // Service worker.
+  const sw = read("public/sw.js");
+  check("public/sw.js exists", sw !== null);
+  if (sw) {
+    check(
+      "sw.js has install listener with cache.addAll",
+      /addEventListener\(\s*["']install["']/.test(sw) &&
+        /cache\.addAll/.test(sw),
+    );
+    check(
+      "sw.js has fetch listener with network-first or cache-first",
+      /addEventListener\(\s*["']fetch["']/.test(sw) &&
+        (/caches\.match/.test(sw) || /fetch\(/.test(sw)),
+    );
+  }
+
+  // Service worker registrar (client component, dev-skipped).
+  const swRegistrar = read("src/components/pwa/ServiceWorkerRegistrar.tsx");
+  check(
+    "src/components/pwa/ServiceWorkerRegistrar.tsx exists",
+    swRegistrar !== null,
+  );
+  if (swRegistrar) {
+    check(
+      "ServiceWorkerRegistrar skips registration in dev",
+      /process\.env\.NODE_ENV\s*!==\s*["']production["']/.test(swRegistrar),
+    );
+    check(
+      "ServiceWorkerRegistrar calls navigator.serviceWorker.register",
+      /navigator\.serviceWorker\.register/.test(swRegistrar),
+    );
+  }
+
+  // Install prompt (client component, iOS + Android).
+  const installPrompt = read("src/components/pwa/InstallPrompt.tsx");
+  check(
+    "src/components/pwa/InstallPrompt.tsx exists",
+    installPrompt !== null,
+  );
+  if (installPrompt) {
+    check(
+      "InstallPrompt detects iOS via standalone flag",
+      /standalone/.test(installPrompt),
+    );
+    check(
+      "InstallPrompt handles beforeinstallprompt (Android)",
+      /beforeinstallprompt/.test(installPrompt),
+    );
+    check(
+      "InstallPrompt stores dismissal in localStorage",
+      /localStorage/.test(installPrompt),
+    );
+  }
+
+  // layout.tsx wires the PWA bits.
+  const layout = read("src/app/layout.tsx");
+  check(
+    "src/app/layout.tsx imports ServiceWorkerRegistrar",
+    !!layout && /ServiceWorkerRegistrar/.test(layout),
+  );
+  check(
+    "src/app/layout.tsx imports InstallPrompt",
+    !!layout && /InstallPrompt/.test(layout),
+  );
+  check(
+    "src/app/layout.tsx references /manifest.json",
+    !!layout && /\/manifest\.json/.test(layout),
+  );
+  check(
+    "src/app/layout.tsx references apple-touch-icon",
+    !!layout && /apple-touch-icon/.test(layout),
+  );
+
+  // Seed-admin CLI.
+  const seedAdmin = read("scripts/seed-admin.mjs");
+  check("scripts/seed-admin.mjs exists", seedAdmin !== null);
+  if (seedAdmin) {
+    check(
+      "seed-admin reads ADMIN_EMAIL/ADMIN_NAME/ADMIN_PASSWORD env",
+      /ADMIN_EMAIL/.test(seedAdmin) &&
+        /ADMIN_NAME/.test(seedAdmin) &&
+        /ADMIN_PASSWORD/.test(seedAdmin),
+    );
+    check(
+      "seed-admin is idempotent (findUnique before create)",
+      /prisma\.user\.findUnique/.test(seedAdmin) &&
+        /(\.user\.create|tx\.user\.create)/.test(seedAdmin),
+    );
+    check(
+      "seed-admin refuses weak passwords in production",
+      /NODE_ENV\s*===\s*["']production["']/.test(seedAdmin) &&
+        /isWeak/.test(seedAdmin),
+    );
+    check(
+      "seed-admin uses argon2id (memoryCost 19456, timeCost 2)",
+      /memoryCost:\s*19_?456/.test(seedAdmin) &&
+        /timeCost:\s*2/.test(seedAdmin),
+    );
+    check(
+      "seed-admin invalidates sessions on overwrite",
+      /ADMIN_ALLOW_OVERWRITE/.test(seedAdmin) &&
+        /session\.deleteMany/.test(seedAdmin),
+    );
+  }
+  check(
+    "package.json has seed:admin script",
+    typeof pkg.scripts?.["seed:admin"] === "string",
+  );
+
+  // Reset-password CLI.
+  const resetPw = read("scripts/reset-password.mjs");
+  check("scripts/reset-password.mjs exists", resetPw !== null);
+  if (resetPw) {
+    check(
+      "reset-password invalidates all sessions for the user",
+      /session\.deleteMany/.test(resetPw),
+    );
+    check(
+      "reset-password supports --password, --stdin, and TTY prompt",
+      /--password/.test(resetPw) &&
+        /--stdin/.test(resetPw) &&
+        /promptHidden|createInterface/.test(resetPw),
+    );
+    check(
+      "reset-password refuses weak passwords in production",
+      /NODE_ENV\s*===\s*["']production["']/.test(resetPw),
+    );
+  }
+  check(
+    "package.json has auth:reset-password script",
+    typeof pkg.scripts?.["auth:reset-password"] === "string",
+  );
+
+  // Env contract documents the new ADMIN_* keys.
+  check(
+    ".env.production.example documents ADMIN_EMAIL",
+    !!envProd && /ADMIN_EMAIL\s*=\s*"/.test(envProd),
+  );
+  check(
+    ".env.production.example documents ADMIN_NAME",
+    !!envProd && /ADMIN_NAME\s*=\s*"/.test(envProd),
+  );
+  check(
+    ".env.production.example documents ADMIN_PASSWORD",
+    !!envProd && /ADMIN_PASSWORD\s*=\s*"/.test(envProd),
+  );
+
+  // Mom-launch runbook on disk.
+  check(
+    "00-MOM-LAUNCH-RUNBOOK.md exists (xKryptic's external-account work)",
+    existsSync(join(ROOT, "00-MOM-LAUNCH-RUNBOOK.md")),
+  );
+
+  // Cluster spec on disk.
+  check(
+    "00-CLUSTER-7.16-MOM-READY-V1-LAUNCH.md exists",
+    existsSync(join(ROOT, "00-CLUSTER-7.16-MOM-READY-V1-LAUNCH.md")),
+  );
+
+  // Live manifest + service worker checks (if dev server is up).
+  try {
+    const m = await fetch("http://127.0.0.1:3000/manifest.json", {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (m.status === 200) {
+      check(
+        "GET /manifest.json returns 200 with image/png icon set",
+        (await m.json()).icons?.length >= 2,
+      );
+    } else {
+      console.log(`[SKIP] GET /manifest.json returned ${m.status}`);
+    }
+  } catch (e) {
+    console.log(`[SKIP] GET /manifest.json not reachable: ${e.message}`);
+  }
+  try {
+    const s = await fetch("http://127.0.0.1:3000/sw.js", {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (s.status === 200) {
+      check(
+        "GET /sw.js returns 200 (service worker reachable)",
+        (await s.text()).includes("compass-shell"),
+      );
+    } else {
+      console.log(`[SKIP] GET /sw.js returned ${s.status}`);
+    }
+  } catch (e) {
+    console.log(`[SKIP] GET /sw.js not reachable: ${e.message}`);
+  }
+}
+
 console.log();
 console.log("--- checks ---");
 console.log(`checks: ${pass} pass / ${miss} miss`);

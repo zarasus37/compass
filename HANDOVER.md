@@ -1,9 +1,10 @@
 # Compass — Fresh-Session Handoff
 
-**Date**: 2026-08-31 07:00 CDT
-**Last commit**: Cluster 7.14 (Per-bill off-ramp provider override UI + resolveChain fix) — committed on top of `8b13660` (Cluster 7.11.1)
-**Predecessor commit**: `a8639d6` (Cluster 7.11) → `1f21ea1` (Cluster 7.10) → `bec5d5c` (Cluster 7.9) → `52bb94c` (Cluster 7.8.2) → `b7ef8cf` (Cluster 7.8.1) → `8f7b23b` (Cluster 7.8) → `ef0982a` (Cluster 7.7) → `3af7566` (Cluster 7.6) → `f980240` (session-scratch cleanup) → `eb7c1f9` (Cluster 7.5) → `ed4129b` (handoff + COORDINATION reflect Cluster 7.4) → `ee405f8` (Cluster 7.4)
-**🎯 NEXT CLUSTER (TBD — pick from candidates below)**: see "Next cluster" for the menu.
+**Date**: 2026-09-06
+**Last commit**: Cluster 7.16 (Mom-ready / v1 launch — PWA + seed-admin + CLI password reset) — committed on top of `eb0843b` (Cluster 7.14)
+**Predecessor commit**: `eb0843b` (7.14) → `8b13660` (7.11.1) → `a8639d6` (7.11) → `1f21ea1` (7.10) → `bec5d5c` (7.9) → `52bb94c` (7.8.2) → `b7ef8cf` (7.8.1) → `8f7b23b` (7.8) → `ef0982a` (7.7) → `3af7566` (7.6) → `f980240` → `eb7c1f9` (7.5) → `ed4129b` → `ee405f8` (7.4)
+**🎯 NEXT CLUSTER (TBD)**: see "Next cluster candidates" below. The 7.15 sparkline spec is on disk and paused; resume when mom is live.
+**🚀 LAUNCH POSTURE (NEW)**: xKryptic's mom is the v1 single user. Deploy target is Vercel (production) + Neon (Postgres). Runbook at `00-MOM-LAUNCH-RUNBOOK.md` covers the external-account work (GitHub repo, Neon, Vercel env vars, deploy, send mom the URL). Local dev (`pnpm dev` on `localhost:3000`) is unchanged for cluster work. Each cluster commit on a feature branch gets a Vercel preview URL; merge to `main` to ship to mom.
 
 ---
 

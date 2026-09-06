@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Sora, JetBrains_Mono } from "next/font/google";
 import { Providers } from "./providers";
+import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import "./globals.css";
 
 /**
@@ -33,6 +35,22 @@ export const metadata: Metadata = {
   },
   description: "An oracle for your money. Personal-finance terminal, indexed by the user, for the user.",
   applicationName: "Compass",
+  // PWA wiring — Cluster 7.16. The manifest declares icons + theme color
+  // for the install experience; the apple-touch-icon is referenced here
+  // because iOS doesn't read it from the manifest.
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Compass",
+  },
+  icons: {
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export const viewport: Viewport = {
@@ -40,6 +58,10 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#060A12" },
     { media: "(prefers-color-scheme: dark)", color: "#060A12" },
   ],
+  // PWA mobile polish — Cluster 7.16.
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
 };
 
 export default function RootLayout({
@@ -53,6 +75,8 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <Providers>{children}</Providers>
+        <ServiceWorkerRegistrar />
+        <InstallPrompt />
       </body>
     </html>
   );
