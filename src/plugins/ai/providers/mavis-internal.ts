@@ -36,7 +36,7 @@ interface OpenAiStyleResponse {
   usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
 }
 
-const DEFAULT_MODEL = "m3";
+const DEFAULT_MODEL = config.ai.mavis.model || "MiniMax-M3";
 
 export function createMavisInternalProvider(): AiProviderPlugin {
   const { baseUrl, apiKey } = config.ai.mavis;

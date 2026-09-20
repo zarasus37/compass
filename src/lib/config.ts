@@ -36,6 +36,11 @@ export const config = {
     mavis: {
       baseUrl: optionalEnv("COMPASS_AI_MAVIS_BASE_URL", "http://127.0.0.1:52100"),
       apiKey: optionalEnv("COMPASS_AI_MAVIS_API_KEY", ""),
+      // Prefer COMPASS_AI_*; fall back to MAVIS_MODEL (already set on Vercel).
+      model: optionalEnv(
+        "COMPASS_AI_MAVIS_MODEL",
+        process.env.MAVIS_MODEL ?? "MiniMax-M3",
+      ),
     },
     ollama: {
       baseUrl: optionalEnv("COMPASS_AI_OLLAMA_BASE_URL", "http://127.0.0.1:11434"),
