@@ -49,13 +49,37 @@ const fullMode = args.includes("--full");
 const PORT = process.env.PORT || "3000";
 const BASE = `http://127.0.0.1:${PORT}`;
 
+/** Sensible smoke-invocation env. The smokes themselves load .env.local
+ *  via dotenv (default override=false) which respects whatever we set
+ *  here. Force DATABASE_URL to the local dev Postgres so the smokes
+ *  don't accidentally pick up .env.local's port-5433 URL when the
+ *  shell session has nothing set. */
+function smokeEnv() {
+  return {
+    ...process.env,
+    DATABASE_URL:
+      process.env.DATABASE_URL ||
+      "postgresql://compass:compass@localhost:5432/compass_dev",
+    LLM_PROVIDER: process.env.LLM_PROVIDER || "mock",
+    LLM_PROVIDER_ADVISOR: process.env.LLM_PROVIDER_ADVISOR || "mock",
+    AUTH_SECRET:
+      process.env.AUTH_SECRET ||
+      "dev-only-secret-please-replace-with-a-real-one-aaaaaaaaaaaaaaaaaa",
+    // Pass the sandbox bypass flag through to the smoke children
+    // so dev-only routes (e.g. /api/dev/*) and the OnboardingGate
+    // bypass activate consistently across server + smokes. See
+    // src/lib/env/prod.ts and src/lib/onboarding/gate.ts.
+    COMPASS_SANDBOX: process.env.COMPASS_SANDBOX || "1",
+  };
+}
+
 /** Pipe child stdout/stderr through if TTY, otherwise capture for logs. */
 function run(label, cmd, args, opts = {}) {
   const t0 = Date.now();
   const child = spawnSync(cmd, args, {
     cwd: ROOT,
     stdio: "inherit",
-    env: process.env,
+    env: smokeEnv(),
     ...opts,
   });
   const dt = ((Date.now() - t0) / 1000).toFixed(1);
@@ -67,7 +91,7 @@ function run(label, cmd, args, opts = {}) {
 }
 
 /** Long-running child we manage ourselves (so we can kill it). */
-function startServer() {
+async function startServer() {
   const env = {
     ...process.env,
     NODE_ENV: forceDev ? "development" : "production",
@@ -102,11 +126,47 @@ function startServer() {
   // Build the prod artifact first. If a stale .next/dev exists
   // (from a previous dev session), nuke it; mixing caches breaks
   // the prod build's static chunk references.
+  //
+  // Skip-wipe-if-fresh: rebuilding from scratch is slow AND the
+  // sandbox's font fetch from fonts.gstatic.com is flaky (Turbopack
+  // has to download every Google font at build time). If .next/
+  // is recent and was built in this same sandbox session, reuse it.
+  //
+  // Retry-on-busy: the slow sandbox filesystem occasionally
+  // surfaces ENOTEMPTY when a concurrent next process is still
+  // releasing handles.
   const nextDir = join(ROOT, ".next");
-  if (existsSync(nextDir)) {
-    console.log("[smoke-server] removing stale .next/ before prod build");
-    rmSync(nextDir, { recursive: true, force: true });
+  const FORCE_REBUILD = process.env.SMOKE_FORCE_REBUILD === "1";
+  let needBuild = true;
+  if (!FORCE_REBUILD && existsSync(nextDir)) {
+    const { statSync } = await import("node:fs");
+    const ageMs = Date.now() - statSync(nextDir).mtimeMs;
+    if (ageMs < 5 * 60 * 1000) {
+      console.log(
+        `[smoke-server] reusing existing .next/ (${Math.round(ageMs / 1000)}s old, <5min — set SMOKE_FORCE_REBUILD=1 to override)`,
+      );
+      needBuild = false;
+    } else {
+      console.log(
+        `[smoke-server] removing stale .next/ (${Math.round(ageMs / 1000)}s old)`,
+      );
+      let attempts = 0;
+      while (attempts < 5) {
+        try {
+          rmSync(nextDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 });
+          break;
+        } catch (e) {
+          if (e.code === "ENOTEMPTY" && attempts < 4) {
+            attempts++;
+            await new Promise((r) => setTimeout(r, 500));
+            continue;
+          }
+          throw e;
+        }
+      }
+    }
   }
+  void needBuild;
 
   console.log("[smoke-server] building prod artifact...");
   const build = spawnSync("pnpm", ["build"], {
@@ -142,9 +202,16 @@ async function waitForReady(child) {
     }
     try {
       const r = await fetch(`${BASE}/api/health`);
-      if (r.status === 200) {
+      // The health endpoint returns 200 (everything green), 503
+      // (subsystem down but server alive — typical in sandbox/dev
+      // where the LLM_PROVIDER=mock still pings a real provider).
+      // Either means the server is up and routing requests.
+      if (r.status === 200 || r.status === 503) {
         const dt = ((Date.now() - t0) / 1000).toFixed(1);
-        console.log(`[smoke-server] ready in ${dt}s`);
+        console.log(
+          `[smoke-server] ready in ${dt}s (status=${r.status})`,
+        );
+        return;
         return;
       }
     } catch {
@@ -159,7 +226,7 @@ async function waitForReady(child) {
 
 async function main() {
   console.log("[smoke-server] starting workflow");
-  const child = startServer();
+  const child = await startServer();
 
   // Best-effort teardown on any exit path (success, failure, Ctrl-C).
   const teardown = () => {

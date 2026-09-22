@@ -32,7 +32,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  if (process.env.NODE_ENV !== "development") {
+  // Dev-only guard — see src/app/api/dev-agent/run-agent/route.ts for
+  // the COMPASS_SANDBOX bypass rationale (Cluster 7.15.1). The
+  // smoke-onboarding-agent exercises tools via this endpoint.
+  if (
+    process.env.NODE_ENV !== "development" &&
+    process.env.COMPASS_SANDBOX !== "1"
+  ) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
 

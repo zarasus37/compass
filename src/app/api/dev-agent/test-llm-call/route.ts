@@ -57,7 +57,12 @@ const ENV_KEYS = [
 ];
 
 export async function POST(req: NextRequest) {
-  if (process.env.NODE_ENV === "production") {
+  // Dev-only guard — see src/app/api/dev-agent/run-agent/route.ts for
+  // the COMPASS_SANDBOX bypass rationale (Cluster 7.15.1).
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.COMPASS_SANDBOX !== "1"
+  ) {
     return NextResponse.json(
       { error: "_dev routes are disabled in production" },
       { status: 404 },

@@ -154,8 +154,17 @@ async function ensureMomOnboarded(): Promise<void> {
 }
 
 export async function POST(req: NextRequest) {
-  // Dev-only guard: refuse to run in production.
-  if (process.env.NODE_ENV === "production") {
+  // Dev-only guard: refuse to run in production. The smoke-server
+  // orchestrator (Cluster 7.15.1) runs `next start` (NODE_ENV=production)
+  // for stability, so the local-agent sandbox opts in via
+  // COMPASS_SANDBOX=1 to keep this route reachable. Production
+  // deploys (Vercel, CI) never set the flag → this stays a 404
+  // in real prod. Same shape as the bypass in
+  // src/lib/env/prod.ts:validateProdEnv().
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.COMPASS_SANDBOX !== "1"
+  ) {
     return NextResponse.json(
       { error: "_dev routes are disabled in production" },
       { status: 404 },
@@ -234,7 +243,12 @@ export async function POST(req: NextRequest) {
  * an in-memory echo). Returns 404 if the user has no identity.
  */
 export async function GET(req: NextRequest) {
-  if (process.env.NODE_ENV === "production") {
+  // Dev-only guard — see POST handler above for the COMPASS_SANDBOX
+  // bypass rationale.
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.COMPASS_SANDBOX !== "1"
+  ) {
     return NextResponse.json(
       { error: "_dev routes are disabled in production" },
       { status: 404 },

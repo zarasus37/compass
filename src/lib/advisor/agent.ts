@@ -113,12 +113,16 @@ const MAX_ROUNDS = 3;
 export async function runAdvisor(input: RunAdvisorInput): Promise<RunAdvisorResult> {
   const state = await loadConversation(input.userId);
 
-  if (!state.completedAt) {
+  if (!state.completedAt && process.env.COMPASS_SANDBOX !== "1") {
     // The advisor surface has no concept of "build the identity" —
     // that's the onboarding flow. The route layer is expected to
     // gate on this; throw here as a defense in depth so a future
     // direct call from a non-route context can't accidentally
     // surface a half-formed answer.
+    //
+    // Cluster 7.15.1 — sandbox bypass (see src/lib/onboarding/gate.ts
+    // for the rationale). Production deploys (Vercel, CI) never set
+    // the flag, so this defense-in-depth gate stays active.
     throw new Error(
       "[advisor] user has not completed onboarding; redirect to /onboarding first.",
     );

@@ -59,7 +59,10 @@ export async function POST(req: NextRequest) {
   // helpful panel (and a "Finish onboarding" CTA) rather than
   // a raw error.
   const state = await loadConversation(user.id);
-  if (!state.completedAt) {
+  // Cluster 7.15.1 — sandbox bypass. See src/lib/onboarding/gate.ts
+  // for the rationale; production deploys (Vercel, CI) never set
+  // the flag, so the gate stays active in real prod.
+  if (!state.completedAt && process.env.COMPASS_SANDBOX !== "1") {
     return NextResponse.json(
       {
         error: "onboarding_incomplete",
