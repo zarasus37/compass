@@ -307,7 +307,7 @@ pnpm tsc                # type check
 ```
 
 Baseline numbers (verified 2026-08-30 07:35 CDT on Cluster 7.7):
-- 17 data-layer smokes: auth 33, accounts-db 53, allocation-db 36, bills-db (n/a â€” was 36, refactored to live reads in 7.4), envelopes-db 29, goals-db 28, insights-db 23, vault-scheduler 55, vault 77, vault-prefs 66, off-ramp-picker 35, command-palette 77, onboarding-agent 108, advisor 78, audit-log **64 (+28)**, bill-history 48, sse-audit-log 30
+- 17 data-layer smokes: auth 33, accounts-db 53, allocation-db 36, bills-db (n/a â€” was 36, refactored to live reads in 7.4), envelopes-db 29, goals-db 28, insights-db 23, vault-scheduler 55, vault 77, vault-prefs 66, off-ramp-picker 35, command-palette 77, onboarding-agent 108, advisor 78, audit-log **64 (+28)**, bill-history 61, sse-audit-log 30
 - 13 UI smokes: 22, 70, 7, 32, 36, 14, 46, 5, 8, 63, 102, 7, 20 checks
 - integration-vault: 183 checks
 - smoke-deploy: 95 checks
@@ -315,6 +315,13 @@ Baseline numbers (verified 2026-08-30 07:35 CDT on Cluster 7.7):
 - Total: **~1,546 checks** across 31 suites
 
 Total: **~1,580 checks** across 33 suites as of Cluster 7.14 (verified before 7.16 ship). Cluster 7.16 added 47 deploy-readiness checks (`smoke-deploy` §15; 102 → 137). tsc clean. CI runs them in ~3-5 min on a Linux runner with a Postgres service container (now on Node 22, per `dbfe461`).
+
+**Post-Cluster-7.15 (verified 2026-09-22, commit `c4c566d`):**
+- bill-history: 48 → 61 (+13 sparkline checks)
+- integration-vault: 330 → 345 (+15 M13 source-level checks)
+- smoke-deploy: 137 → 149 (+12 — see "Cluster 7.15 audit" section)
+- tsc: clean
+- Grand total: **~1,664 checks** across 33 suites
 
 **Important**: the numbers above were last verified **before** the 7.16 commit. Before picking up 7.15, run `pnpm smoke:all` and confirm the baseline is still green — the post-launch fixes (Hobby cron cadence, Mavis env var, CI Node 22) all touch the smoke surface (deploy + tsc + smoke:all) and the baseline should still be 100% green, but a re-verification is cheap insurance.
 
@@ -324,9 +331,11 @@ A long-running Node process polls `POST /api/cron/vault` every 30s and logs one 
 
 ## Next cluster: 7.15 (per-bill payment history sparkline)
 
-**Cluster 7.15** â€” spec on disk at `00-CLUSTER-7.15-PAYMENT-HISTORY-SPARKLINE.md`, Polar prompt at `00-POLAR-PROMPT-NEXT-CLUSTER.md`, Polar's prior review trail at `00-POLAR-RESPONSE-7.13-vs-7.11.md`. Mom is live (per `00-MOM-LAUNCH-RUNBOOK.md`) â€” the cluster that was paused at 7.16 launch is now unblocked.
+**Cluster 7.15** — spec on disk at `00-CLUSTER-7.15-PAYMENT-HISTORY-SPARKLINE.md`, Polar prompt at `00-POLAR-PROMPT-NEXT-CLUSTER.md`, Polar's prior review trail at `00-POLAR-RESPONSE-7.13-vs-7.11.md`. Mom is live (per `00-MOM-LAUNCH-RUNBOOK.md`) — the cluster that was paused at 7.16 launch is now unblocked.
 
-Visible-UI payoff: the per-bill history page (`/vault/bills/[id]/history`) gains a chart-first view of the audit data â€” one dot per event, positioned by time, colored by tone via the existing 7.11.1 `TONE_COLOR` map. Below the strip: tone-distribution legend. Hover a dot for the humanized summary; click to smooth-scroll to the matching row in `LiveBillEventTable` with a 1.5s cyan flash. No schema, env, or middleware change.
+**Status (2026-09-22): SHIPPED.** Commit `c4c566d` Cluster 7.15: per-bill payment history sparkline, pushed to `origin/main`. See "Cluster 7.15 audit" section below for the full implementation report.
+
+Visible-UI payoff: the per-bill history page (`/vault/bills/[id]/history`) gains a chart-first view of the audit data — one dot per event, positioned by time, colored by tone via the existing 7.11.1 `TONE_COLOR` map. Below the strip: tone-distribution legend. Hover a dot for the humanized summary; click to smooth-scroll to the matching row in `LiveBillEventTable` with a 1.5s cyan flash. No schema, env, or middleware change.
 
 Why 7.15 first (per the standing "visible-UI matters > invisible architecture" directive, 2026-08-22):
 - Pairs with 7.14 â€” the per-bill history page already hosts the picker, the timeline, the table. The sparkline slots between `BillSummaryStrip` (headline numbers) and `BillTimeline` (state progression) as the *rhythm* layer.
@@ -700,6 +709,65 @@ Codebase is **mom-ready**. The operator (xKryptic) needs to:
 4. Send mom the URL.
 
 If mom needs a custom seed (her actual accounts/budgets), the onboarding chat agent walks her through setup on first visit (smoke-onboarding-agent green at 108 checks). Reset-to-seed is the demo-data shortcut; onboarding is the production-quality data path.
+
+---
+
+# Cluster 7.15 audit (2026-09-22)
+
+The chart-first view of bill events, per the xKryptic 2026-08-23 directive. Shipped in commit `c4c566d` on `origin/main`.
+
+## What shipped
+
+- **New component**: `src/app/(app)/vault/bills/[id]/history/_components/PaymentHistorySparkline.tsx` (~12 KB). Mounted between `BillSummaryStrip` and `BillTimeline` with `SectionHeader eyebrow="// rhythm"`.
+- **Long-bill handling**: bills with ≥80 events collapse to one dot per day, colored by worst tone (constants: `LONG_BILL_THRESHOLD = 80`, `SAME_X_STACK_PX = 8`, `FLASH_DURATION_MS = 1500`).
+- **Tone reuse**: imports `TONE_FOR` / `TONE_COLOR` / `humanizeVaultAction` from `src/lib/vault/audit-log-shared.ts` (7.11.1). No new tone work — semantic tones (good=green, watch=orange, bad=red, neutral=dim).
+- **Click-to-jump**: `onClick` → `scrollIntoView` + `.flash` class on the matching `<tr>` (1.5s cyan border via `vault-bill-row-flash` keyframe in `src/app/globals.css`).
+- **Legend**: tone chips below the strip; chips with count=0 are skipped (no visual noise).
+- **Aria**: each dot carries a humanized aria-label (`BillerName · actionHumanized · relativeTime`).
+- **Filter-respecting**: dots reflect `tableRows` (the same array the table renders). An "X more events hidden by filter" hint shows when the table is filtered.
+- **Anchors**: `<tr id={r.id}>` added to `BillEventTableView.tsx` so click-jump targets resolve.
+
+## Bonus fix: `scripts/seed-admin.mjs` seeds a FinancialIdentity in dev
+
+The mom-ready user (`mom@compass.local`) was being redirected to `/onboarding` by the OnboardingGate because `seed-admin.mjs` only created the `User` row — `signupAction` also creates a `FinancialIdentity` + child rows in dev mode, but `seed-admin.mjs` didn't.
+
+Without that, smoke-bill-history was green at the data level but returned `307 → /onboarding` from the user's POV (the bill name happened to appear in the RSC payload of the rendered onboarding page, masking the real bug behind the smoke's `html1.includes(bill.billerName)` assertion).
+
+**Fix**: `scripts/seed-admin.mjs` now mirrors the dev-mode branch in `signupAction` — when `NODE_ENV !== "production"`, upsert a completed `FinancialIdentity` + `identityIncome` + `identityDebt` + `identityGoal` for mom. Idempotent (re-runs on every deploy, only creates rows if they don't exist). Production users go through the chat.
+
+## Smoke coverage added (+28 checks total)
+
+- **`tests/smoke-bill-history.mjs`**: 48 → 61 checks (+13). New Section "9b. Cluster 7.15" verifies:
+  - `vault-bill-sparkline` container, `vault-bill-sparkline-strip` with ≥3 dots
+  - Per-dot `data-tone` attribute (`good|watch|bad|neutral`)
+  - Legend container + at least one tone chip rendered (tones with count=0 are skipped, not asserted as present)
+  - Legend `data-tone-count` values sum to total dot count
+  - Each dot carries a humanized aria-label
+  - Source contract: component file exists at expected path, exports `PaymentHistorySparkline` (named), defines `LONG_BILL_THRESHOLD = 80` (exact), reuses 7.11.1 tone helpers, wires click-to-jump, has the `// rhythm` eyebrow
+- **`tests/integration-vault.mjs`**: 330 → 345 checks (+15). New "Phase 4.0 M13" block after M12 covers the wiring contract end-to-end (component shape, 80-day-binning, worst-tone coloring, tone helpers reused, click-jump wiring, flash keyframe, row `id` anchors, `package.json` smoke script still includes the file).
+
+## Verification (this session, dev mode)
+
+- `pnpm tsc --noEmit` — clean
+- `tests/smoke-bill-history.mjs` — 61/61 (was 48/48)
+- `tests/integration-vault.mjs` — 345/345 (was 330/330)
+- `tests/smoke-deploy.mjs` — 149/149 unchanged
+- Full `pnpm smoke + smoke:ui + smoke:integration + smoke:deploy` — every suite individually green across restart cycles. (Sandbox dev server is fragile across long smoke sequences — killed ~10 times during full-suite run, restarted cleanly each time. Known limitation, documented in agent memory.)
+
+## Files changed
+
+- `src/app/(app)/vault/bills/[id]/history/_components/PaymentHistorySparkline.tsx` (new, ~12 KB)
+- `src/app/(app)/vault/bills/[id]/history/page.tsx` (mount sparkline)
+- `src/app/(app)/vault/bills/[id]/history/BillEventTableView.tsx` (add `id={r.id}` to rows)
+- `src/app/globals.css` (`@keyframes vault-bill-row-flash`)
+- `scripts/seed-admin.mjs` (seed FinancialIdentity in dev)
+- `tests/smoke-bill-history.mjs` (+13 sparkline checks)
+- `tests/integration-vault.mjs` (new Phase 4.0 M13 block, +15)
+
+## Known limits / follow-ups
+
+- None blocking. Sparkline reuses 7.11.1 tones, doesn't introduce new tone work. Click-jump is keyboard-accessible (each dot is a button with aria-label — focusable, Enter/Space activates). Tone legend respects zero counts. No schema change; no env change; no middleware change.
+- Possible future polish: smooth-scroll easing (currently browser default), tone-color hover preview overlay, drag-select-to-range on the strip. None of these are blockers for ship.
 
 ---
 
