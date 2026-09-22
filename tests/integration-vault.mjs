@@ -3836,6 +3836,151 @@ async function main() {
     );
   }
 
+  // ── Phase 4.0 M13 — Per-bill payment history sparkline (Cluster 7.15) ──
+  //
+  // The chart-first view of a bill's audit history: one dot per
+  // event colored by tone (good/watch/bad/neutral), or one dot
+  // per day for long bills (≥80 events). Reuses the 7.11.1 tone
+  // helpers (TONE_FOR, TONE_COLOR, humanizeVaultAction) from
+  // audit-log-shared. Click-to-jump scrolls + flashes the matching
+  // row in BillEventTable. Per the xKryptic 2026-08-23 directive.
+  //
+  // M13 verifies the wiring at the integration level. The
+  // dedicated `tests/smoke-bill-history.mjs` exercises the
+  // visual contract (data-testids, dot count, legend, click-jump).
+  console.log("\n--- Phase 4.0 M13 — Payment history sparkline ---\n");
+  {
+    const { readFileSync: readFileSync13, existsSync: existsSync13 } = await import("node:fs");
+    const { join: join13 } = await import("node:path");
+    const existsSync = existsSync13;
+
+    // The component lives under the bill-history page's
+    // _components/ folder (Cluster 7.5 convention).
+    const sparklinePath = join13(
+      PROJECT_ROOT,
+      "src/app/(app)/vault/bills/[id]/history/_components/PaymentHistorySparkline.tsx",
+    );
+    check(
+      "M13: PaymentHistorySparkline.tsx exists under history/_components/",
+      existsSync(sparklinePath),
+    );
+
+    if (existsSync(sparklinePath)) {
+      const spSrc = readFileSync13(sparklinePath, "utf8");
+
+      // Exports the named function (not default — keeps the
+      // tree-shake friendly + named-import consistent with other
+      // siblings in the folder).
+      check(
+        "M13: sparkline exports PaymentHistorySparkline (named)",
+        /export\s+function\s+PaymentHistorySparkline/.test(spSrc),
+      );
+
+      // Reuses tone helpers from audit-log-shared (7.11.1).
+      check(
+        "M13: sparkline imports TONE_FOR / TONE_COLOR / humanizeVaultAction from audit-log-shared",
+        spSrc.includes("TONE_FOR") &&
+          spSrc.includes("TONE_COLOR") &&
+          spSrc.includes("humanizeVaultAction") &&
+          spSrc.includes("audit-log-shared"),
+      );
+
+      // Long-bill day-binning threshold is exactly 80.
+      check(
+        "M13: LONG_BILL_THRESHOLD = 80 (long-bill day-binning)",
+        /LONG_BILL_THRESHOLD\s*=\s*80\b/.test(spSrc),
+      );
+
+      // Uses worstTone (or equivalent) for daily bins.
+      check(
+        "M13: long-bill bins colored by worst tone",
+        spSrc.includes("worstTone") || spSrc.includes("worst"),
+      );
+
+      // Click-to-jump wires onClick → scrollIntoView + flash class.
+      check(
+        "M13: sparkline dots wire onClick → scrollIntoView + .flash (click-to-jump)",
+        spSrc.includes("onClick") &&
+          spSrc.includes("scrollIntoView") &&
+          /\.flash/.test(spSrc),
+      );
+
+      // Tone legend renders only non-zero tones (count chip per tone).
+      check(
+        "M13: sparkline legend skips 0-count tones, renders data-testid per present tone",
+        /data-testid=\{`vault-bill-sparkline-legend-\$\{t}`\}/.test(spSrc) &&
+          /if\s*\(n\s*===\s*0\)\s*return\s*null/.test(spSrc),
+      );
+
+      // Each dot has an aria-label (per xKryptic directive: keyboard
+      // navigable + screen-reader friendly).
+      check(
+        "M13: each dot has humanized aria-label",
+        /aria-label=\{d\.ariaLabel\}/.test(spSrc) ||
+          /aria-label=\{[a-zA-Z_]+\.ariaLabel\}/.test(spSrc),
+      );
+
+      // Empty state with copy "No events yet" or equivalent.
+      check(
+        "M13: sparkline renders empty state when no events",
+        /events\.length\s*===\s*0/.test(spSrc) ||
+          /No events/i.test(spSrc),
+      );
+
+      // Stable stacking: same-x dots stacked with vertical offset.
+      check(
+        "M13: sparkline stacks same-x dots (SAME_X_STACK_PX)",
+        spSrc.includes("SAME_X_STACK_PX"),
+      );
+    }
+
+    // page.tsx wires the sparkline into the bill history.
+    const historyPageSrc = readFileSync13(
+      join13(PROJECT_ROOT, "src/app/(app)/vault/bills/[id]/history/page.tsx"),
+      "utf8",
+    );
+    check(
+      "M13: history page imports PaymentHistorySparkline",
+      /import\s*\{\s*PaymentHistorySparkline\s*\}\s*from/.test(historyPageSrc),
+    );
+    check(
+      "M13: history page mounts <PaymentHistorySparkline> between BillSummaryStrip and BillTimeline",
+      historyPageSrc.includes("PaymentHistorySparkline") &&
+        historyPageSrc.includes("// rhythm"),
+    );
+
+    // Flash keyframe lives in globals.css (1.5s highlight).
+    const globalsSrc = readFileSync13(
+      join13(PROJECT_ROOT, "src/app/globals.css"),
+      "utf8",
+    );
+    check(
+      "M13: globals.css has @keyframes vault-bill-row-flash (click-to-jump highlight)",
+      /@keyframes\s+vault-bill-row-flash/.test(globalsSrc),
+    );
+
+    // Event table rows carry id={r.id} so the click-jump anchor
+    // can scroll to them.
+    const eventTableSrc = readFileSync13(
+      join13(PROJECT_ROOT, "src/app/(app)/vault/bills/[id]/history/BillEventTableView.tsx"),
+      "utf8",
+    );
+    check(
+      "M13: BillEventTableView rows have id={r.id} anchor for click-jump",
+      /<tr[^>]*\bid=\{r\.id\}/.test(eventTableSrc) ||
+        /id=\{r\.id\}/.test(eventTableSrc),
+    );
+
+    // package.json picks up the smoke updates.
+    const pkg7 = JSON.parse(
+      readFileSync13(join13(PROJECT_ROOT, "package.json"), "utf8"),
+    );
+    check(
+      "M13: package.json smoke script still includes smoke-bill-history.mjs",
+      (pkg7.scripts.smoke ?? "").includes("smoke-bill-history.mjs"),
+    );
+  }
+
   // ── Final summary ─────────────────────────────────────────────
   console.log("\n--- checks ---");
   console.log(`checks: ${pass} pass / ${miss} miss`);

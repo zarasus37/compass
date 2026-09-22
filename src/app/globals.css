@@ -450,3 +450,20 @@
   transform: scale(1.05);
   z-index: 2;
 }
+
+/* ============================================================================
+   FLASH (Cluster 7.15 — click-to-jump on the payment-history sparkline)
+   ============================================================================ */
+.flash {
+  animation: vault-bill-row-flash 1.5s ease-out;
+}
+@keyframes vault-bill-row-flash {
+  0% {
+    background-color: rgba(168, 85, 247, 0.18);
+    box-shadow: inset 0 0 0 2px var(--vessel-accent);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: inset 0 0 0 2px transparent;
+  }
+}

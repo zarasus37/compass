@@ -301,6 +301,69 @@ async function main() {
       html1.includes("vault.payment_settled"),
   );
 
+  // ── 9b. Cluster 7.15: PaymentHistorySparkline renders ───────────
+  // The sparkline sits between BillSummaryStrip and the timeline,
+  // showing one dot per event (or one per day for long bills) with
+  // tone-coded color. Tone legend explains the dot semantics;
+  // clicking a dot scrolls + flashes the matching table row.
+  check(
+    "sparkline: container present",
+    html1.includes('data-testid="vault-bill-sparkline"'),
+  );
+  // Strip + dots. ≥3 events seeded, so we expect ≥3 dots.
+  const dotMatches = html1.match(/data-testid="vault-bill-sparkline-dot"/g) ?? [];
+  check(
+    "sparkline: strip with ≥3 dots rendered",
+    html1.includes('data-testid="vault-bill-sparkline-strip"') && dotMatches.length >= 3,
+    `dots=${dotMatches.length}`,
+  );
+  // Each dot has a data-tone attribute (good/watch/bad/neutral).
+  check(
+    "sparkline: dots carry data-tone",
+    /data-testid="vault-bill-sparkline-dot"[^>]*data-tone="(good|watch|bad|neutral)"/.test(html1),
+  );
+  // Tone legend container present + at least one tone chip with
+  // a count. (Chips with count=0 are skipped; we only assert that
+  // tones present in the data are rendered.)
+  const tones = ["good", "watch", "bad", "neutral"];
+  let legendChipsFound = 0;
+  const legendCounts = {};
+  for (const t of tones) {
+    const tid = `vault-bill-sparkline-legend-${t}`;
+    if (html1.includes(`data-testid="${tid}"`)) {
+      legendChipsFound += 1;
+      const m = html1.match(new RegExp(`data-testid="${tid}"[^>]*data-tone-count="(\\d+)"`));
+      legendCounts[t] = m ? Number(m[1]) : null;
+    }
+  }
+  check(
+    "sparkline: legend container present",
+    html1.includes('data-testid="vault-bill-sparkline-legend"'),
+  );
+  check(
+    "sparkline: at least one tone chip rendered (only tones with count>0)",
+    legendChipsFound >= 1,
+    `chips=${legendChipsFound}`,
+  );
+  // Counts must be non-negative integers and sum to dot count.
+  const countsValid =
+    Object.values(legendCounts).every((c) => c !== null && c >= 0) &&
+    Object.values(legendCounts).reduce((a, b) => a + b, 0) === dotMatches.length;
+  check(
+    "sparkline: legend counts sum to dot count",
+    countsValid,
+    `counts=${JSON.stringify(legendCounts)} dots=${dotMatches.length}`,
+  );
+  // Each dot carries a per-dot aria-label (e.g.
+  // "Smoke Test Bill · history opened · 5m ago") so the
+  // sparkline is keyboard- and screen-reader-friendly.
+  const dotAriaMatches = html1.match(/aria-label="[^"]*·[^"]*"/g) ?? [];
+  check(
+    "sparkline: dots have humanized aria-labels",
+    dotAriaMatches.length >= dotMatches.length,
+    `aria=${dotAriaMatches.length} dots=${dotMatches.length}`,
+  );
+
   // ── 10. Filter contract: ?type=vault.payment_settled narrows the table ─
   const SENTINEL_FILTER_TYPE = "vault.payment_settled";
   const typedPage = await get(
@@ -469,6 +532,50 @@ async function main() {
     "history: /vault/bills/[id]/history file exists",
     existsSync(join(ROOT, "src/app/(app)/vault/bills/[id]/history/page.tsx")),
   );
+
+  // ── 17b. Cluster 7.15: PaymentHistorySparkline source-level ──────
+  // The sparkline component is the chart-first view of bill events
+  // (xKryptic 2026-08-23 directive). It lives in its own file under
+  // _components/ and is mounted between BillSummaryStrip and the
+  // timeline. Long bills (≥80 events) bin to one dot per day.
+  const sparklinePath = join(
+    ROOT,
+    "src/app/(app)/vault/bills/[id]/history/_components/PaymentHistorySparkline.tsx",
+  );
+  check(
+    "sparkline: component file exists",
+    existsSync(sparklinePath),
+  );
+  if (existsSync(sparklinePath)) {
+    const spSrc = readFileSync(sparklinePath, "utf8");
+    check(
+      "sparkline: exports component",
+      /export\s+default\s+function\s+PaymentHistorySparkline/.test(spSrc) ||
+        /export\s+function\s+PaymentHistorySparkline/.test(spSrc),
+    );
+    check(
+      "sparkline: handles long bills (80-event day-binning)",
+      spSrc.includes("LONG_BILL_THRESHOLD") &&
+        /LONG_BILL_THRESHOLD\s*=\s*80/.test(spSrc),
+    );
+    check(
+      "sparkline: reuses tone helpers from audit-log-shared",
+      spSrc.includes("TONE_FOR") &&
+        spSrc.includes("audit-log-shared"),
+    );
+    check(
+      "sparkline: hover tooltips + click-to-jump",
+      spSrc.includes("onClick") &&
+        spSrc.includes("scrollIntoView") &&
+        /aria-label/.test(spSrc),
+    );
+    // Mounted in page.tsx with SectionHeader eyebrow "// rhythm".
+    check(
+      "sparkline: mounted in page.tsx with rhythm eyebrow",
+      pageSrc.includes("PaymentHistorySparkline") &&
+        pageSrc.includes("// rhythm"),
+    );
+  }
 
   // ── 18. package.json smoke script includes the new smoke ────────
   const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));

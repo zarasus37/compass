@@ -48,6 +48,7 @@ import { BillTimeline } from "./BillTimeline";
 import { BillEventTable } from "./BillEventTable";
 import { LiveBillEventTable } from "./LiveBillEventTable";
 import { BillOffRampPicker } from "@/components/vault/BillOffRampPicker";
+import { PaymentHistorySparkline } from "./_components/PaymentHistorySparkline";
 import { OffRampGateway, chainSourceLabel, normalizeOffRampProvider } from "@/lib/vault/gateway";
 import { getOrCreateVaultPreferences } from "@/lib/vault/db";
 import {
@@ -253,6 +254,47 @@ export default async function BillHistoryPage({
       />
 
       <BillSummaryStrip bill={bill} summary={summary} filter={filter} />
+
+      {(() => {
+        // Cluster 7.15 — per-bill payment-history sparkline. The
+        // shape mirrors `tableRows` (respects the ?type= filter)
+        // so the sparkline stays consistent with what the table
+        // shows. Total count uses the unfiltered summary so the
+        // "more events hidden by filter" hint stays accurate.
+        const sparklineEvents = tableRows.map((r) => ({
+          id: r.id,
+          actionType: r.actionType,
+          atMs: new Date(r.createdAtIso).getTime(),
+          payload: r.payload,
+        }));
+        return (
+          <>
+            <SectionHeader
+              eyebrow="// rhythm"
+              title="Payment history at a glance"
+              em="every event, one dot. colored by what happened."
+              accent="cyan"
+            />
+            <div
+              style={{
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 9.5,
+                color: "var(--ink-3)",
+                textTransform: "uppercase",
+                letterSpacing: "0.18em",
+                marginBottom: 8,
+                marginTop: -8,
+              }}
+            >
+              hover for details · click to jump to the row
+            </div>
+            <PaymentHistorySparkline
+              events={sparklineEvents}
+              totalEventCount={summary.totalEvents}
+            />
+          </>
+        );
+      })()}
 
       <div id="vault-bill-history-timeline">
         <SectionHeader

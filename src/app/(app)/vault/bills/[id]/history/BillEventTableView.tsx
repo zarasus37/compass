@@ -117,10 +117,12 @@ export function BillEventTableView({
           {rows.map((r) => (
             <tr
               key={r.id}
+              id={r.id}
               data-testid="vault-bill-history-row"
               style={{
                 borderBottom: "1px solid var(--vessel-border)",
                 verticalAlign: "top",
+                transition: "background-color 200ms ease, box-shadow 200ms ease",
               }}
             >
               <td
