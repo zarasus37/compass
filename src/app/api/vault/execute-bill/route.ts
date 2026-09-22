@@ -30,7 +30,21 @@ interface RequestBody {
 }
 
 export async function POST(req: NextRequest) {
-  if (process.env.NODE_ENV !== "development") {
+  // Cluster 7.18 — sandbox bypass.
+  //
+  // The original gate refused everything in NODE_ENV=production.
+  // Cluster 7.15.1 introduced the sandbox-mode `next start` flow
+  // (NODE_ENV=production + COMPASS_SANDBOX=1) to keep the prod-env
+  // safety net intact while letting smoke-server run smokes
+  // against a real server. The dev/*/routes got the COMPASS_SANDBOX
+  // escape hatch in Cluster 7.15.1.1; this route was missed. The
+  // integration-vault M4 section was the silent casualty — it
+  // expected a 200 (or 400) but always saw 404 in the sandbox
+  // because the production gate fired first.
+  if (
+    process.env.NODE_ENV !== "development" &&
+    process.env.COMPASS_SANDBOX !== "1"
+  ) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
   let user;
