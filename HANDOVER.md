@@ -1,8 +1,8 @@
 ﻿# Compass â€” Fresh-Session Handoff
 
 **Date**: 2026-09-22
-**Last commit**: `e2b60d5` (Cluster 7.18: extend sandbox bypass to /api/vault/execute-bill) â€” on top of `eb75225` (HANDOVER 7.15.2 audit) â†’ `12cdce7` (Cluster 7.15.2 fix) â†’ `fd9676e` (Cluster 7.15.1.1) â†’ `79eeaff` (Cluster 7.15.1 smoke-server) â†’ `aa28f21` (HANDOVER audit) â†’ `c4c566d` (Cluster 7.15 sparkline).
-**Predecessor commit chain (post-7.14)**: `e2b60d5` (7.18) â†’ `eb75225` (HANDOVER 7.15.2) â†’ `12cdce7` (7.15.2 fix) â†’ `fd9676e` (7.15.1.1) â†’ `79eeaff` (7.15.1) â†’ `aa28f21` (HANDOVER audit) â†’ `c4c566d` (7.15) â†’ `617bab7` (7.17) â†’ `7748f70` (HANDOVER 7.16) â†’ `9c3e4cc` (7.15 prep docs) â†’ `dbfe461` (CI Node 22) â†’ `8ee96a9` (Mavis env) â†’ `5641b4d` (merge) â†’ `ea1d49a` (Hobby cron) â†’ `680db8f` (7.16) â†’ `eb0843b` (7.14) â†’ `8b13660` (7.11.1) â†’ `a8639d6` (7.11) â†’ `1f21ea1` (7.10) â†’ `bec5d5c` (7.9) â†’ `52bb94c` (7.8.2) â†’ `b7ef8cf` (7.8.1) â†’ `8f7b23b` (7.8) â†’ `ef0982a` (7.7) â†’ `3af7566` (7.6) â†’ `eb7c1f9` (7.5) â†’ `ee405f8` (7.4)
+**Last commit**: `ee8ef19` (Cluster 7.19: retention health banner on /settings) — on top of `778b124` (HANDOVER 7.18 audit) â†’ `12cdce7` (Cluster 7.15.2 fix) â†’ `fd9676e` (Cluster 7.15.1.1) â†’ `79eeaff` (Cluster 7.15.1 smoke-server) â†’ `aa28f21` (HANDOVER audit) â†’ `c4c566d` (Cluster 7.15 sparkline).
+**Predecessor commit chain (post-7.14)**: `ee8ef19` (7.19) â†’ `778b124` (HANDOVER 7.18) â†’ `12cdce7` (7.15.2 fix) â†’ `fd9676e` (7.15.1.1) â†’ `79eeaff` (7.15.1) â†’ `aa28f21` (HANDOVER audit) â†’ `c4c566d` (7.15) â†’ `617bab7` (7.17) â†’ `7748f70` (HANDOVER 7.16) â†’ `9c3e4cc` (7.15 prep docs) â†’ `dbfe461` (CI Node 22) â†’ `8ee96a9` (Mavis env) â†’ `5641b4d` (merge) â†’ `ea1d49a` (Hobby cron) â†’ `680db8f` (7.16) â†’ `eb0843b` (7.14) â†’ `8b13660` (7.11.1) â†’ `a8639d6` (7.11) â†’ `1f21ea1` (7.10) â†’ `bec5d5c` (7.9) â†’ `52bb94c` (7.8.2) â†’ `b7ef8cf` (7.8.1) â†’ `8f7b23b` (7.8) â†’ `ef0982a` (7.7) â†’ `3af7566` (7.6) â†’ `eb7c1f9` (7.5) â†’ `ee405f8` (7.4)
 **ðŸŽ¯ NEXT CLUSTER**: **Cluster 7.15 â€” Per-bill payment history sparkline.** Spec is on disk at `00-CLUSTER-7.15-PAYMENT-HISTORY-SPARKLINE.md`. Polar prompt is at `00-POLAR-PROMPT-NEXT-CLUSTER.md`. Mom is live (per `00-MOM-LAUNCH-RUNBOOK.md`) â€” 7.15 is unblocked.
 **ðŸš€ LAUNCH POSTURE**: xKryptic's mom is the v1 single user â€” **LIVE** on Vercel + Neon since the 7.16 commit (`680db8f`, 2026-09-06). Runbook at `00-MOM-LAUNCH-RUNBOOK.md` covers the external-account work (GitHub repo, Neon, Vercel env vars, deploy, send mom the URL). Local dev (`pnpm dev` on `localhost:3000`) is unchanged for cluster work. Each cluster commit on a feature branch gets a Vercel preview URL; merge to `main` to ship to mom.
 
@@ -862,6 +862,57 @@ The "7.15 row-count change" connection is real but orthogonal: Cluster 7.15 (spa
 - `HANDOVER.md` (this section)
 
 No schema change, no env change, no middleware change, no test additions or edits. The 16 M4 misses that triggered this cluster are now resolved by the same code path that the rest of the dev-only routes have used since 7.15.1.1.
+
+---
+
+# Cluster 7.19 audit (2026-09-22, session 5)
+
+**Status: SHIPPED.** Commit `ee8ef19` Cluster 7.19: retention health banner on /settings, pushed to `origin/main` on top of `778b124`.
+
+## What shipped
+
+A mom-visible banner on `/settings` (the gear-icon chrome) that answers "is Compass looking after my data?" with three cells:
+
+1. **Retention window** — `getRetentionDays()` (default 90, override `AUDIT_LOG_RETENTION_DAYS`).
+2. **Last prune** — `MAX(AuditLogDailyRollup.updatedAt)` for the user. Renders `never` + the honest subtext `audit rollups not yet initialized` when no rollup rows exist (no fake timestamp).
+3. **Vault scheduler** — `VaultSchedule.lastRunAt` + `.lastRunStatus` + `.cronExpression` humanizer. States: `ok` (recent SUCCESS), `warn` (never run yet), `error` (last status ERROR).
+
+Below the cells, a plain-English caption explains the rolling-window model — "the last 90 days of activity stay in the live ledger; older is aggregated into daily rollups so the 365-day strip still works without keeping every event forever."
+
+## Why the "never run yet" state is honest
+
+Cluster 7.8 put `pruneAuditLog` on a nightly cron. Cluster 7.19 surfaces its status to mom without faking a timestamp. If no rollup row has been touched yet, the cell shows `never` and the pill degrades from `[OK] HEALTHY` to `[WARN] PENDING`. The first real cron run converts both to `ok` automatically — no operator action needed.
+
+## Implementation notes
+
+- **`loadRetentionHealth(userId)`** — async server helper, 3 Prisma reads in parallel (`auditLogDailyRollup.aggregate`, two `count`s, `vaultSchedule.findUnique`). Lives in the component module so the page stays a thin rendering wrapper.
+- **`liveAuditRowCount`** + **`rollupRowCount`** — new exports in `src/lib/vault/audit-log.ts` next to `getRetentionDays`. Both indexed; both server-only.
+- **`/settings/page.tsx`** — promoted to async server component. Renders `<RetentionHealthBanner>` between the SettingsRow grid and the ResetSeedButton. Respects signed-out users (no banner without a session).
+- **`tests/smoke-retention-health.mjs`** — 17 checks: DOM hooks (testid, eyebrow, pill state, cells) in never-run state; verify the cell carries a `data-iso` timestamp after `/api/dev/audit-log-prune` writes a rollup row; retention window matches `getRetentionDays()`. Smoke uses DOM attributes rather than prose so it doesn't drift on copy edits.
+- **`package.json`** — `smoke` chain extended with the new smoke as the final stage.
+
+No schema change. No env change. No new env vars. No new API routes (uses the existing `/api/dev/audit-log-prune` + the existing `VaultSchedule` table).
+
+## Verification
+
+- `pnpm tsc`: clean
+- `pnpm smoke` (data layer, 20 stages incl. new): **981 / 0 miss** (was 964, +17 from new smoke)
+- `tests/integration-vault.mjs`: 345 / 0 miss (unchanged)
+- `tests/smoke-deploy.mjs`: 145 / 0 miss (unchanged)
+- `smoke:ui` (13 stages, run individually this session): 432 / 0 miss
+- Total smoke surface: **1,903 / 0 miss**
+
+## Files changed in this session
+
+Added:
+- `src/components/settings/RetentionHealthBanner.tsx` (data helper + presentational component, 330 LOC)
+- `tests/smoke-retention-health.mjs` (17 checks)
+
+Modified:
+- `package.json` (`smoke` chain extended)
+- `src/app/(app)/settings/page.tsx` (async server + banner mount)
+- `src/lib/vault/audit-log.ts` (`liveAuditRowCount`, `rollupRowCount` exports)
+- `HANDOVER.md` (this section)
 
 ---
 
