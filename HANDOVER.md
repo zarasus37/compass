@@ -1,8 +1,8 @@
 ﻿# Compass â€” Fresh-Session Handoff
 
 **Date**: 2026-09-22
-**Last commit**: `9c3e4cc` (docs: Cluster 7.15 prep + housekeeping) â€” on top of `dbfe461` (CI Node 22 bump) â†’ `8ee96a9` (Mavis model env) â†’ `5641b4d` (merge Hobby cron fix) â†’ `ea1d49a` (Hobby vault cron fix) â†’ `680db8f` (Cluster 7.16 â€” mom-ready v1 launch).
-**Predecessor commit chain (post-7.14)**: `9c3e4cc` (7.15 prep docs) â†’ `dbfe461` (CI Node 22) â†’ `8ee96a9` (Mavis env) â†’ `5641b4d` (merge) â†’ `ea1d49a` (Hobby cron) â†’ `680db8f` (7.16) â†’ `eb0843b` (7.14) â†’ `8b13660` (7.11.1) â†’ `a8639d6` (7.11) â†’ `1f21ea1` (7.10) â†’ `bec5d5c` (7.9) â†’ `52bb94c` (7.8.2) â†’ `b7ef8cf` (7.8.1) â†’ `8f7b23b` (7.8) â†’ `ef0982a` (7.7) â†’ `3af7566` (7.6) â†’ `eb7c1f9` (7.5) â†’ `ee405f8` (7.4)
+**Last commit**: `12cdce7` (Cluster 7.15.2: LLM dispatcher mock-seed namespace + advisor doubling root cause) â€” on top of `fd9676e` (Cluster 7.15.1.1) â†’ `79eeaff` (Cluster 7.15.1 smoke-server) â†’ `aa28f21` (HANDOVER audit) â†’ `c4c566d` (Cluster 7.15 sparkline) â†’ `617bab7` (Cluster 7.17 production-readiness hardening) â†’ `7748f70` (HANDOVER 7.16) â†’ `9c3e4cc` (7.15 prep docs).
+**Predecessor commit chain (post-7.14)**: `12cdce7` (7.15.2 fix) â†’ `fd9676e` (7.15.1.1) â†’ `79eeaff` (7.15.1) â†’ `aa28f21` (HANDOVER audit) â†’ `c4c566d` (7.15) â†’ `617bab7` (7.17) â†’ `7748f70` (HANDOVER 7.16) â†’ `9c3e4cc` (7.15 prep docs) â†’ `dbfe461` (CI Node 22) â†’ `8ee96a9` (Mavis env) â†’ `5641b4d` (merge) â†’ `ea1d49a` (Hobby cron) â†’ `680db8f` (7.16) â†’ `eb0843b` (7.14) â†’ `8b13660` (7.11.1) â†’ `a8639d6` (7.11) â†’ `1f21ea1` (7.10) â†’ `bec5d5c` (7.9) â†’ `52bb94c` (7.8.2) â†’ `b7ef8cf` (7.8.1) â†’ `8f7b23b` (7.8) â†’ `ef0982a` (7.7) â†’ `3af7566` (7.6) â†’ `eb7c1f9` (7.5) â†’ `ee405f8` (7.4)
 **ðŸŽ¯ NEXT CLUSTER**: **Cluster 7.15 â€” Per-bill payment history sparkline.** Spec is on disk at `00-CLUSTER-7.15-PAYMENT-HISTORY-SPARKLINE.md`. Polar prompt is at `00-POLAR-PROMPT-NEXT-CLUSTER.md`. Mom is live (per `00-MOM-LAUNCH-RUNBOOK.md`) â€” 7.15 is unblocked.
 **ðŸš€ LAUNCH POSTURE**: xKryptic's mom is the v1 single user â€” **LIVE** on Vercel + Neon since the 7.16 commit (`680db8f`, 2026-09-06). Runbook at `00-MOM-LAUNCH-RUNBOOK.md` covers the external-account work (GitHub repo, Neon, Vercel env vars, deploy, send mom the URL). Local dev (`pnpm dev` on `localhost:3000`) is unchanged for cluster work. Each cluster commit on a feature branch gets a Vercel preview URL; merge to `main` to ship to mom.
 
@@ -768,6 +768,53 @@ Without that, smoke-bill-history was green at the data level but returned `307 �
 
 - None blocking. Sparkline reuses 7.11.1 tones, doesn't introduce new tone work. Click-jump is keyboard-accessible (each dot is a button with aria-label — focusable, Enter/Space activates). Tone legend respects zero counts. No schema change; no env change; no middleware change.
 - Possible future polish: smooth-scroll easing (currently browser default), tone-color hover preview overlay, drag-select-to-range on the strip. None of these are blockers for ship.
+
+---
+
+# Cluster 7.15.2 audit (2026-09-22, session 3)
+
+**Status: SHIPPED.** Commit `12cdce7` Cluster 7.15.2: LLM dispatcher mock-seed namespace + advisor doubling root cause, pushed to `origin/main` on top of `fd9676e` (7.15.1.1).
+
+## What shipped
+
+Two-line scope change in `src/lib/llm/index.ts` plus a defensive `resetMockState("l1-fallback-default")` at the top of the dev-only test endpoint:
+
+1. **`src/lib/llm/index.ts` — `dispatch case "mock"`** reverted to `await callMock(req)` (no model override). The previous 7.15.2 commit had it do `await callMock({...req, model: fallbackSeed})` for the callLLM path, which made the normal mock flow share MOCK_STATES state with the mavis/ollama fallback path. The two paths now use distinct seeds — callLLM normal-flow → "compass-mock-1", callLLM fallback → "l1-fallback-default", callLLMForAdvisor mock provider → "l1-fallback-advisor" — no cross-pollution.
+
+2. **`src/lib/llm/index.ts` — `callLLMForAdvisor`** added an explicit `if (wanted === "mock")` branch that routes through `fallbackToMock(... , "Advisor running on mock (dev mode) — using read-only L1 response.")`. This preserves the original 7.15.2 doubling fix at the API surface (not the dispatcher): when the advisor surface has no real provider in dev, it returns the read-only text response without doubling the message count. The "doubling" UX banner fires so the operator knows the advisor is on backup.
+
+3. **`src/app/api/dev-agent/test-llm-call/route.ts`** wipes `MOCK_STATES["l1-fallback-default"]` on every invocation, alongside the existing `resetLLMConfig()`. Makes the smoke idempotent across repeated runs without depending on the global `resetMockState()` from the run-agent flow (the test-llm-call endpoint is a separate code path).
+
+## Root cause of the 7.15.2 follow-up regression
+
+The 7.15.2 commit (`uncommitted in working tree at HEAD~0`) had a tempting fix: anywhere the dispatcher routed through `case "mock"`, force the seed to the `fallbackSeed` so the advisor's mock walk wouldn't go through onboarding tools. But that meant **every** callLLM mock call (smoke turns 1–4, the after-reset income POST, etc.) wrote topics into `MOCK_STATES["l1-fallback-default"]` — the exact same state key the test-llm-call endpoint uses for its mavis-fallback path. By the time the smoke reached the L1 fallback test, the seed's `topicsCovered` already had `income`, so the dispatcher fell through to "Tell me a bit more…" and never called `saveIncomeSource`. The bundle chase was a red herring — `MOCK_STATES` is in-process state that survives rebuilds as long as the server stays up.
+
+The "fix the dispatcher instead" approach (this commit) is more surgical: keep the dispatcher's `case "mock"` seed semantics normal (each entry point owns its own seed), and put the advisor-specific workaround where the advisor-specific decision lives (`callLLMForAdvisor`).
+
+## Verification (this session, fresh server)
+
+- `pnpm tsc`: clean
+- `tests/smoke-onboarding-agent.mjs`: **108/0 pass** (was 106/2 before fix)
+- `tests/smoke-advisor.mjs`: 78/0 pass (unchanged — the original 7.15.2 fix is preserved)
+- `tests/smoke-bill-history.mjs`: 61/0 (re-check — no regression from seed changes)
+- `tests/integration-vault.mjs`: 329/16 (16 pre-existing M4 state-dependent misses, unrelated to this change)
+- `tests/smoke-deploy.mjs`: 145/0
+- `pnpm smoke` (full data-layer suite, 19 stages): 964 checks, 0 miss; 19 suites ALL GREEN
+
+## Why this regression was hard to find
+
+1. The bug only appears when the seed is polluted BEFORE the test runs — i.e. the smoke had to have done an income POST before the L1 fallback test. The smoke does exactly that ("after reset: I get paid $500 weekly").
+2. Calling the test-llm-call endpoint directly via `curl` on a fresh server returned the correct saveIncomeSource payload. The smoke is the only thing that exposes the pollution.
+3. Next.js's SWC bundle silently strips `console.log` calls (despite the compiler flag `removeConsole` being unset in `next.config.ts`). Debug logging via `console.log` doesn't survive `pnpm build`. The fix used `process.stderr.write` instead.
+4. Stale `next-server` processes from previous sessions hold port 3000 even after the parent `pnpm start` is killed. The "fresh server" state must be verified by `fuser -v 3000/tcp` before re-running the smoke.
+
+## Files changed in this session (cluster 7.15.2 fix)
+
+- `src/lib/llm/index.ts` (+27 lines: case "mock" reversion + callLLMForAdvisor wanted === "mock" branch)
+- `src/app/api/dev-agent/test-llm-call/route.ts` (+8 lines: resetMockState("l1-fallback-default") on every POST)
+- `HANDOVER.md` (this section)
+
+No schema change, no env change, no middleware change, no test additions or edits (the fix is verified by the existing smoke surface).
 
 ---
 
