@@ -206,6 +206,20 @@ Two options:
 
 ---
 
+### Step 6.6 — Confirm the retention health banner (5 sec)
+
+Mom can see "your data is being looked after" on the same settings page once she logs in. Cluster 7.19 added a `DATA · RETENTION` banner at the bottom of `/settings` (above the Danger zone) with three cells:
+
+- **Retention window** — 90 days (live horizon, rolling)
+- **Last prune** — when the audit-log retention cron last aggregated her older events into daily rollups. Renders `never` until the first nightly cron fires, then flips to `today`/`yesterday`/`N days ago`.
+- **Vault scheduler** — when her vault auto-pay scheduler last ran + its status (SUCCESS / NO_BILLS / SKIPPED / ERROR).
+
+If mom opens /settings and sees `[WARN] PENDING` on either cell, that's expected for the first ~24h after deploy (no real cron has run yet). The next nightly cron converts both to `[OK] HEALTHY` automatically. No operator action needed.
+
+This is a read-only surface — there's no toggle here, no button to click. The banner just answers the "is Compass running scheduled work for me?" question in plain English so mom doesn't need to ask.
+
+---
+
 ## Step 8 — Set up the dev workflow (5 min)
 
 Your local work is unchanged. To develop a new cluster:
