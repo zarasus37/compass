@@ -85,3 +85,6 @@ _dev_*
 .coord-*
 .audit-*
 .next-pid.txt
+
+.vercel
+.env*
