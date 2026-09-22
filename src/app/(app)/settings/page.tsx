@@ -2,6 +2,11 @@ import * as React from "react";
 import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { ResetSeedButton } from "@/components/settings/ResetSeedButton";
+import {
+  RetentionHealthBanner,
+  loadRetentionHealth,
+} from "@/components/settings/RetentionHealthBanner";
+import { getCurrentUser } from "@/server/auth/user";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +27,11 @@ export const dynamic = "force-dynamic";
  * `// Ledger · Obligations` and `// Learn · Habit Quiz`
  * respectively.
  */
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const user = await getCurrentUser();
+  const retentionHealth = user
+    ? await loadRetentionHealth(user.id)
+    : null;
   return (
     <div>
       <PageHead
@@ -86,6 +95,10 @@ export default function SettingsPage() {
       </div>
 
       <ResetSeedButton />
+
+      {retentionHealth && (
+        <RetentionHealthBanner data={retentionHealth} />
+      )}
     </div>
   );
 }

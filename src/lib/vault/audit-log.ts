@@ -261,6 +261,32 @@ export function getRetentionDays(): number {
 }
 
 /**
+ * Count live AuditLog rows for the user. The live ledger
+ * holds the last `retentionDays` of events; counts above
+ * that ceiling mean the cron is overdue.
+ *
+ * Cluster 7.19 — used by the retention health banner on
+ * /settings to show "X live rows" as a soft sanity metric.
+ */
+export async function liveAuditRowCount(userId: string): Promise<number> {
+  return await prisma.auditLog.count({ where: { userId } });
+}
+
+/**
+ * Count AuditLogDailyRollup rows for the user. Each row is
+ * one `(dateKey, actionType)` bucket. A non-zero count means
+ * the prune cron has aggregated at least one bucket; zero
+ * means the prune has never run for this user.
+ *
+ * Cluster 7.19 — used by the retention health banner.
+ */
+export async function rollupRowCount(userId: string): Promise<number> {
+  return await prisma.auditLogDailyRollup.count({ where: { userId } });
+}
+
+
+
+/**
  * Compute the activity strip. Returns one entry per day,
  * oldest first (so the strip can render left→right). `dateKey`
  * is local YYYY-MM-DD. Days with no events are included with
