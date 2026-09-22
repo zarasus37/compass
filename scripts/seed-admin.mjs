@@ -6,6 +6,14 @@
  * the user if no row exists for ADMIN_EMAIL. Safe to call against a
  * fresh DB (after `prisma migrate deploy`) or a populated DB.
  *
+ * This script creates the USER only. Demo data (envelopes, bills,
+ * goals, allocation plan, accounts) is populated two ways:
+ *   1. The in-app onboarding chat agent walks mom through setup on
+ *      her first visit (smoke-onboarding-agent is green at 108 checks).
+ *   2. The `/api/reset-seed` admin endpoint re-seeds the canonical
+ *      demo data — accessible via the "Reset to seed" button in
+ *      /settings, or POSTable directly.
+ *
  * Required env:
  *   - DATABASE_URL          (Postgres pooled connection string)
  *   - ADMIN_EMAIL           (e.g. mom@example.com)

@@ -164,6 +164,28 @@ If `/api/health` returns 503 with `db.ok: false`, the `DATABASE_URL` is wrong or
 
 If everything is green, log in with mom's email + the `ADMIN_PASSWORD` you set in Vercel. You should land on the dashboard with empty data (envelopes, goals, bills — all empty until she runs through onboarding or you seed them).
 
+### Step 6.5 — Populate mom's demo data (1 min)
+
+Mom will land on a populated dashboard if you seed her demo data once. **Do this before sending her the URL** so she sees a real app on first open, not empty states.
+
+Two options:
+
+**A) Reset-to-seed via the UI (recommended)**:
+1. After logging in as mom, click the gear icon (top-right) → **Settings**.
+2. Scroll to the **Danger zone** section.
+3. Click **Reset to seed data**. Confirm the modal.
+4. You'll land back on the dashboard — it now shows 7 envelopes (Rent, Groceries, etc.), 6 canonical bills, 4 goals (Emergency + Invest), the allocation plan, and her financial identity.
+
+**B) Hit the API directly** (if the UI button is hidden / you're scripting):
+```bash
+# After logging in once in the browser, the cookie is in your devtools.
+# Export the session cookie then POST:
+curl -X POST https://compass-mom.vercel.app/api/reset-seed \
+  -H "Cookie: compass_session=<paste from devtools>"
+```
+
+The reset is idempotent — re-running replaces the seed rows (canonical 7 envelopes, 6 bills, 4 goals) with the same data. Any user-created rows in those tables are preserved (the reset only touches rows tagged `source="seed"`).
+
 ---
 
 ## Step 7 — Send mom the URL (2 min)

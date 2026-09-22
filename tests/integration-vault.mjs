@@ -3076,9 +3076,21 @@ async function main() {
       // Recommended cadence for vault auto bill-pay: every
       // 5 minutes (bills shouldn't wait more than 5min past
       // their scheduled time).
+      //
+      // Vercel Hobby plans cap crons at 2/day, so the deploy was
+      // changed to `0 4 * * *` (commit ea1d49a). On Vercel Pro
+      // the recommendation is `*/5 * * * *`. We accept either:
+      //   - */N with N in 1..5  (Pro: 5-min cadence)
+      //   - X H * * *           (Hobby: daily at H o'clock)
+      const isProCadence = /^\*\/[1-5] \* \* \* \*$/.test(
+        vaultCron?.schedule ?? "",
+      );
+      const isHobbyDaily = /^\d+ \d+ \* \* \*$/.test(
+        vaultCron?.schedule ?? "",
+      );
       check(
-        "M9: /api/cron/vault schedule is frequent (every N minutes, N <= 5)",
-        /^\*\/[1-5] \* \* \* \*$/.test(vaultCron?.schedule ?? ""),
+        "M9: /api/cron/vault schedule is frequent (Vercel Pro: */N<=5) or Hobby-daily (X H * * *)",
+        isProCadence || isHobbyDaily,
         `schedule=${vaultCron?.schedule}`,
       );
     }

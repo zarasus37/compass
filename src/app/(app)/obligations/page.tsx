@@ -631,10 +631,7 @@ function BillsTimeline({ bills }: { bills: BillView[] }) {
                 stroke={isPaid ? "var(--ok)" : "var(--terminal-cyan-dim)"}
                 strokeWidth={0.5}
               />
-              <title>
-                {b.name} · day {b.dueDay} · {formatMoney(b.amountCents)}
-                {isPaid ? " · paid" : ""}
-              </title>
+              <title>{`${b.name} · day ${b.dueDay} · ${formatMoney(b.amountCents)}${isPaid ? " · paid" : ""}`}</title>
             </g>
           );
         })}

@@ -1759,9 +1759,7 @@ function PeriodDonut({ envelopes, totalSpentCents, totalTargetCents }: PeriodDon
             fill={s.color}
             opacity={0.92}
           >
-            <title>
-              {s.name} · {formatMoney(s.spentCents)} of {formatMoney(s.targetCents)} ({Math.round(s.pct * 100)}% of allocation)
-            </title>
+            <title>{`${s.name} · ${formatMoney(s.spentCents)} of ${formatMoney(s.targetCents)} (${Math.round(s.pct * 100)}% of allocation)`}</title>
           </path>
         ))}
         {/* Center labels */}
