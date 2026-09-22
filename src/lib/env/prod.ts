@@ -92,6 +92,27 @@ export function validateProdEnv(): { ok: true } | { ok: false; issues: ProdEnvIs
     return { ok: true };
   }
 
+  // Cluster 7.15.1 — sandbox escape hatch. The local-agent smoke
+  // runs `next start` (prod build) to dodge the dev-server instability
+  // documented in HANDOVER.md. The dev environment doesn't have the
+  // real prod keys (MAVIS_API_KEY, VAULT_SIGNER_KEY, etc.) so we let
+  // the operator opt in to a sandbox-only bypass with an explicit
+  // env var. Production deploys (Vercel, CI) never set this flag —
+  // Vercel's prod-env is real, so the validator still does its job.
+  if (process.env.COMPASS_SANDBOX === "1") {
+    if (process.env.NODE_ENV !== "production") {
+      // Guard: the flag only means anything in NODE_ENV=production.
+      // In dev, validateProdEnv() returns ok:true above; nothing to do.
+      return { ok: true };
+    }
+    // eslint-disable-next-line no-console
+    console.warn(
+      "[prod-env] COMPASS_SANDBOX=1: bypassing prod-env safety checks. " +
+        "This flag is for local smoke runs only — never set it on Vercel/CI.",
+    );
+    return { ok: true };
+  }
+
   const issues: ProdEnvIssue[] = [];
 
   // 1. Required keys must be present.

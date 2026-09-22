@@ -21,6 +21,8 @@
     "smoke:integration": "node tests/integration-vault.mjs",
     "smoke:all": "pnpm smoke && pnpm smoke:ui && pnpm smoke:integration && pnpm smoke:deploy",
     "smoke:deploy": "node tests/smoke-deploy.mjs",
+    "smoke:server": "node scripts/smoke-server.mjs",
+    "smoke:all:server": "node scripts/smoke-server.mjs --full",
     "seed:admin": "node scripts/seed-admin.mjs",
     "auth:reset-password": "node scripts/reset-password.mjs",
     "cron:dev": "node scripts/cron-dev.mjs",
