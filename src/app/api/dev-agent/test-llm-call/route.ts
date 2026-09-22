@@ -33,6 +33,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { callLLM, resetLLMConfig } from "@/lib/llm";
+import { resetMockState } from "@/lib/llm/providers/mock";
 import { ONBOARDING_SYSTEM_PROMPT } from "@/lib/onboarding/system-prompt";
 import { ONBOARDING_TOOLS } from "@/lib/onboarding/tools";
 
@@ -107,6 +108,13 @@ export async function POST(req: NextRequest) {
     }
     // Force the dispatcher to re-read the env.
     resetLLMConfig();
+    // Cluster 7.15.2 follow-up: wipe the fallback-seed state so
+    // the test exercises the L1 rules from a clean topicsCovered
+    // slate. Without this, a smoke that hits the endpoint twice
+    // (or after a previous run left pollution) returns the
+    // "Tell me a bit more" fallback because "income" is already
+    // in topicsCovered.
+    resetMockState("l1-fallback-default");
 
     // Make a minimal LLM call. The primary will fail (bogus URL / key)
     // and the dispatcher should fall through to the L1 rules engine.

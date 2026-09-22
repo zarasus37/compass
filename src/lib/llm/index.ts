@@ -93,6 +93,23 @@ export async function callLLMForAdvisor(req: LLMRequest): Promise<LLMResponse> {
   if (wanted === "ollama" && c.advisor.ollamaMissing) {
     return fallbackToMock(req, wanted, "Ollama env missing — falling back to L1 mock for advisor");
   }
+  // Cluster 7.15.2 follow-up: when the user picked "mock" as the
+  // advisor's primary provider (dev mode without API keys), the
+  // normal-flow mock would walk the onboarding topic-pattern
+  // flow and call saveIncomeSource et al — which doubles the
+  // assistant message count every turn and breaks the advisor
+  // (smoke-advisor doubling bug). Route the mock path through
+  // fallbackToMock with the read-only advisor seed so it returns
+  // the no-tools text response. This keeps the seed namespace
+  // clean for the fall-back path (the dispatch case "mock" branch
+  // in the catch block also uses "l1-fallback-advisor").
+  if (wanted === "mock") {
+    return fallbackToMock(
+      req,
+      "mavis", // surface as a "primary that fell back" so the banner UX fires
+      "Advisor running on mock (dev mode) — using read-only L1 response.",
+    );
+  }
   return dispatch(req, wanted, c, "l1-fallback-advisor");
 }
 
@@ -125,6 +142,22 @@ async function dispatch(
         }
         return await callOllama(c.ollama, req);
       case "mock":
+        // Normal-flow mock: pass req.model through unchanged so each
+        // caller controls its own seed (callLLM callers pass
+        // "compass-mock-1" via the run-agent path, callLLMForAdvisor
+        // callers leave it undefined → default).
+        // Cluster 7.15.2 follow-up: do NOT override req.model with
+        // fallbackSeed here. Doing so makes the normal mock flow
+        // share MOCK_STATES state with the mavis/ollama fallback
+        // path (the catch block below), which means a smoke that
+        // exercised the mock flow first then forces a mavis
+        // fallback sees a polluted topicsCovered for the fallback
+        // seed. Fix that by keeping the case "mock" seed normal and
+        // letting fallbackToMock own its own seed.
+        // The original 7.15.2 doubling bug is fixed at the caller
+        // boundary in cluster 7.15.2 follow-up (see commit) by
+        // callLLMForAdvisor forcing the seed when the advisor
+        // surface has no real provider.
         return await callMock(req);
       default: {
         const _exhaustive: never = provider;
