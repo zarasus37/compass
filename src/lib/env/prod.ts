@@ -30,34 +30,30 @@ export type ProdEnvIssue = {
 
 const REQUIRED: Array<{ key: string; placeholder: RegExp | null; reason: string }> = [
   {
+    // Dev URL placeholder check: catch "postgresql://compass:compass@…".
+    // sslmode=require is enforced separately in step 1b below (it's
+    // a "must include" check, not "must not include").
     key: "DATABASE_URL",
     placeholder: /postgresql:\/\/compass:compass@/i,
     reason:
       "DATABASE_URL must be the production Postgres URL (not the dev Docker URL).",
   },
   {
-    key: "DATABASE_URL",
-    placeholder: /\?sslmode=require/,
-    reason:
-      "DATABASE_URL must include ?sslmode=require for production Postgres.",
-    // Special handling below: this is a "must include" not a "must not include".
-  },
-  {
     key: "MAVIS_API_KEY",
     placeholder: /^sk-api-kkrA3L7/, // the leaked dev key from .env.local
     reason: "MAVIS_API_KEY must be a fresh production key, not the dev key.",
   },
-  {
-    key: "VAULT_SIGNER_KEY",
-    placeholder: /^0xMOCK/i,
-    reason:
-      "VAULT_SIGNER_KEY must be a real EOA private key in production. The MOCK signer is dev-only.",
-  },
-  {
-    key: "VAULT_CHAIN_ID",
-    placeholder: null,
-    reason: "VAULT_CHAIN_ID is required (e.g. 8453 for Base mainnet, 84532 for Base Sepolia testnet).",
-  },
+  // Note: VAULT_SIGNER_KEY and VAULT_CHAIN_ID are NOT in this
+  // REQUIRED list. Vault is v1.1+ (deferred per user direction
+  // 2026-09-22: clusters 7.20–7.25 are reserved for vault re-enable
+  // but mom-launch ships without it). When those vars are unset,
+  // the vault code paths themselves (`safe-deploy.ts`,
+  // `db.ts:executeBill`) throw honest "env not configured" errors
+  // at runtime — the app boots fine, the /vault page renders an
+  // honest "vault env pending" banner, and no routing crashes.
+  //
+  // The MOCK signer check stays live so a `VAULT_SIGNER_KEY=0xMOCK…`
+  // placeholder can never sneak in; see FORBIDDEN_PLACEHOLDERS below.
 ];
 
 const FORBIDDEN_PROVIDERS: Array<{ key: string; value: string; reason: string }> = [
@@ -74,7 +70,11 @@ const FORBIDDEN_PROVIDERS: Array<{ key: string; value: string; reason: string }>
  *  Base Sepolia (84532). The chain table in safe-deploy.ts has
  *  both wired, but the prod validator refuses to start with a
  *  testnet chainId. The check is a no-op in dev/test (where the
- *  testnet is the right target). */
+ *  testnet is the right target).
+ *
+ *  Vault v1.1 deferred cluster — these checks are conditional:
+ *  if VAULT_CHAIN_ID is unset (mom-launch), the check is skipped.
+ *  If set, it must be mainnet. Same for the MOCK signer check. */
 const FORBIDDEN_IN_PROD: Array<{ key: string; test: (v: string) => boolean; reason: string }> = [
   {
     key: "VAULT_CHAIN_ID",
@@ -84,6 +84,14 @@ const FORBIDDEN_IN_PROD: Array<{ key: string; test: (v: string) => boolean; reas
       "Set VAULT_CHAIN_ID=8453 for Base mainnet. " +
       "Real USDC on a testnet is a misconfiguration; the deploy will succeed " +
       "but every bill / deposit is valueless.",
+  },
+  {
+    key: "VAULT_SIGNER_KEY",
+    test: (v) => /^0xMOCK/i.test(v),
+    reason:
+      "VAULT_SIGNER_KEY=0xMOCK… is the dev mock-signer placeholder. " +
+      "Use a real EOA private key, OR leave the var unset (vault is v1.1+; " +
+      "vault code paths throw 'env not configured' at runtime when unset).",
   },
 ];
 
@@ -124,16 +132,22 @@ export function validateProdEnv(): { ok: true } | { ok: false; issues: ProdEnvIs
     }
     // 2. If a "must not match" placeholder is set, check it.
     if (placeholder && placeholder.test(v)) {
-      // Special-case: sslmode=require is a "must include" (regex above
-      // is the include pattern, not exclude). Handle here.
-      if (key === "DATABASE_URL" && placeholder.source.includes("sslmode=require")) {
-        if (!placeholder.test(v)) {
-          issues.push({ key, message: reason });
-        }
-        continue;
-      }
-      // All other "placeholders" are dev values that must not appear.
       issues.push({ key, message: reason });
+    }
+  }
+
+  // 1b. Separate "must include" checks for DATABASE_URL — explicitly
+  // fail if sslmode=require is missing. (Previously this was a
+  // dead-code branch in the loop above, see audit log 2026-09-23.)
+  {
+    const dbUrl = process.env.DATABASE_URL ?? "";
+    if (dbUrl && !/\?sslmode=require/.test(dbUrl)) {
+      issues.push({
+        key: "DATABASE_URL",
+        message:
+          "DATABASE_URL must include ?sslmode=require for production Postgres. " +
+          "(Managed Postgres providers like Neon refuse non-TLS connections.)",
+      });
     }
   }
 
