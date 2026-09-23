@@ -239,6 +239,22 @@ The card reads the same `PaySchedule` and `Bill` data mom already entered elsewh
 
 ---
 
+### Step 6.8 — Confirm the quick-add transaction popover (5 sec)
+
+Mom can log a transaction without navigating away from her current page. Cluster 7.27 added a `+` button to the right side of `TopAppBar` (between `Search` and the engine pill). Clicking it opens a small popover with three fields: amount (auto-focused), envelope dropdown, payee (optional).
+
+To verify:
+1. Log in as mom and look at the right side of the top bar.
+2. Click the `+` button. The popover should drop down with the amount field ready for input.
+3. Type `-5.42` (negative for a spend), pick an envelope, leave the payee blank (it'll default to "Quick log"), and press `Log`.
+4. The popover should close, a brief `−$5.42 → {Envelope}` flash should appear under the `+` for ~2.5 seconds, and the dashboard's cash-flow card should re-render with the new bill (verify by scrolling to the cash-flow card and seeing the same transaction in the per-paycheck detail list).
+
+If mom has no envelopes, the `+` becomes a plain link to `/envelopes` — no fake submit. If she clicks `Log` with an empty or zero amount, an inline error pill appears and the popover stays open.
+
+The "Full form →" link routes to `/transactions/new` for the rare case where mom wants more fields (date picker, autopay, etc.). Both the popover and the full form write to the same `Transaction` table with `source="quick-add"` vs `source="user"` so future analytics can distinguish them.
+
+---
+
 ## Step 8 — Set up the dev workflow (5 min)
 
 Your local work is unchanged. To develop a new cluster:
