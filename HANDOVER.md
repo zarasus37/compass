@@ -1,8 +1,8 @@
 ﻿# Compass â€” Fresh-Session Handoff
 
 **Date**: 2026-09-22
-**Last commit**: `ee8ef19` (Cluster 7.19: retention health banner on /settings) — on top of `778b124` (HANDOVER 7.18 audit) â†’ `12cdce7` (Cluster 7.15.2 fix) â†’ `fd9676e` (Cluster 7.15.1.1) â†’ `79eeaff` (Cluster 7.15.1 smoke-server) â†’ `aa28f21` (HANDOVER audit) â†’ `c4c566d` (Cluster 7.15 sparkline).
-**Predecessor commit chain (post-7.14)**: `ee8ef19` (7.19) â†’ `778b124` (HANDOVER 7.18) â†’ `12cdce7` (7.15.2 fix) â†’ `fd9676e` (7.15.1.1) â†’ `79eeaff` (7.15.1) â†’ `aa28f21` (HANDOVER audit) â†’ `c4c566d` (7.15) â†’ `617bab7` (7.17) â†’ `7748f70` (HANDOVER 7.16) â†’ `9c3e4cc` (7.15 prep docs) â†’ `dbfe461` (CI Node 22) â†’ `8ee96a9` (Mavis env) â†’ `5641b4d` (merge) â†’ `ea1d49a` (Hobby cron) â†’ `680db8f` (7.16) â†’ `eb0843b` (7.14) â†’ `8b13660` (7.11.1) â†’ `a8639d6` (7.11) â†’ `1f21ea1` (7.10) â†’ `bec5d5c` (7.9) â†’ `52bb94c` (7.8.2) â†’ `b7ef8cf` (7.8.1) â†’ `8f7b23b` (7.8) â†’ `ef0982a` (7.7) â†’ `3af7566` (7.6) â†’ `eb7c1f9` (7.5) â†’ `ee405f8` (7.4)
+**Last commit**: `33033e5` (Cluster 7.26: cash flow forecast + `<title>` warning cleanup) — on top of `3191c55` (HANDOVER cleanup) â†’ `c248d18` (runbook Step 6.6) â†’ `84df3cc` (HANDOVER 7.19) â†’ `ee8ef19` (Cluster 7.19) â†’ `778b124` (HANDOVER 7.18) â†’ `12cdce7` (Cluster 7.15.2 fix) â†’ `fd9676e` (7.15.1.1) â†’ `79eeaff` (7.15.1) â†’ `aa28f21` (HANDOVER audit) â†’ `c4c566d` (Cluster 7.15 sparkline).
+**Predecessor commit chain (post-7.14)**: `33033e5` (7.26) â†’ `3191c55` (HANDOVER cleanup) â†’ `c248d18` (runbook 6.6) â†’ `84df3cc` (HANDOVER 7.19) â†’ `ee8ef19` (Cluster 7.19) â†’ `778b124` (HANDOVER 7.18) â†’ `e2b60d5` (Cluster 7.18) â†’ `12cdce7` (7.15.2 fix) â†’ `fd9676e` (7.15.1.1) â†’ `79eeaff` (7.15.1) â†’ `aa28f21` (HANDOVER audit) â†’ `c4c566d` (7.15) â†’ `617bab7` (7.17) â†’ `7748f70` (HANDOVER 7.16) â†’ `9c3e4cc` (7.15 prep docs) â†’ `dbfe461` (CI Node 22) â†’ `8ee96a9` (Mavis env) â†’ `5641b4d` (merge) â†’ `ea1d49a` (Hobby cron) â†’ `680db8f` (7.16) â†’ `eb0843b` (7.14) â†’ `8b13660` (7.11.1) â†’ `a8639d6` (7.11) â†’ `1f21ea1` (7.10) â†’ `bec5d5c` (7.9) â†’ `52bb94c` (7.8.2) â†’ `b7ef8cf` (7.8.1) â†’ `8f7b23b` (7.8) â†’ `ef0982a` (7.7) â†’ `3af7566` (7.6) â†’ `eb7c1f9` (7.5) â†’ `ee405f8` (7.4)
 **ðŸŽ¯ NEXT CLUSTER**: **Cluster 7.15 â€” Per-bill payment history sparkline.** Spec is on disk at `00-CLUSTER-7.15-PAYMENT-HISTORY-SPARKLINE.md`. Polar prompt is at `00-POLAR-PROMPT-NEXT-CLUSTER.md`. Mom is live (per `00-MOM-LAUNCH-RUNBOOK.md`) â€” 7.15 is unblocked.
 **ðŸš€ LAUNCH POSTURE**: xKryptic's mom is the v1 single user â€” **LIVE** on Vercel + Neon since the 7.16 commit (`680db8f`, 2026-09-06). Runbook at `00-MOM-LAUNCH-RUNBOOK.md` covers the external-account work (GitHub repo, Neon, Vercel env vars, deploy, send mom the URL). Local dev (`pnpm dev` on `localhost:3000`) is unchanged for cluster work. Each cluster commit on a feature branch gets a Vercel preview URL; merge to `main` to ship to mom.
 
@@ -915,4 +915,72 @@ Modified:
 - `HANDOVER.md` (this section)
 
 ---
+
+# Cluster 7.26 audit (2026-09-23, session 6)
+
+**Status: SHIPPED.** Commit `33033e5` Cluster 7.26: cash flow forecast + `<title>` warning cleanup, pushed to `origin/main` on top of `3191c55`.
+
+## What shipped
+
+A mom-visible **30/60/90-day balance projection** card on `/dashboard` (full mode, 60-day default) and `/insights` (compact mode, 60-day chip). Answers the question "what's my checking account balance next month?" — the most common budgeting anxiety that the existing pace projection (`/period`) and 12-month net-worth trajectory (`/insights`) did not address.
+
+The card surfaces:
+- **Now / N-day balance** headline (`$X / $Y`, compact money)
+- **SVG line chart** with gold pay-period dots + amber bill-day dots over the horizon
+- **Buffer reference line** (gold dashed, sum of bills in next 30 days)
+- **First projected "tight day" callout** when balance dips below the buffer — "Tight day on Sep 23 (5d away, projected -$X)"
+- **Paycheck / bill detail list** (6 rows, full mode only)
+- **Status pill**: `[OK] HEALTHY` / `[WARN] TIGHT DAYS AHEAD` / `[PENDING] NO PAY SCHEDULE` / `[PENDING] NO ACCOUNT` / `[OK] NO BILLS TO PROJECT`
+
+Plus cleanup: 2 remaining React 19 `<title>` array-children warnings on reachable surfaces (`/vault/audit` ActivityStrip, `/allocation` and `/period` SankeyFlow) collapsed to single template-string children.
+
+## Why this cluster number
+
+HANDOVER had reserved 7.20–7.25 for vault-related work (dynamic pool address resolution, Monto adapter, multi-chain, refund flow, etc.) which are deferred per the 2026-09-22 user direction ("vault is experimental and out of scope for the mom-launch"). 7.26 keeps the budget-focused cluster sequence (7.15 sparkline → 7.15.2 fix → 7.18 vault bypass → 7.19 retention banner → 7.26 cash flow) intact.
+
+## Implementation notes
+
+- **`loadCashFlowForecast({ userId, horizonDays, today })`** in `src/lib/forecast/cash-flow.ts` (~280 LOC): pure read of existing `PaySchedule`, `Account`, `Bill`, `AllocationPlan`, `Envelope` tables. Day-by-day walk with paychecks and bills at each occurrence, envelope allocation per paycheck (excluding bill-shaped `sol`/`mercury` envelopes to avoid double-counting), first "tight day" flagged when running balance dips below `bufferFloorCents` (sum of bills in next 30 days). Sampled at every pay-period boundary so the chart stays readable.
+- **Honest pending states**: `pending_no_pay_schedule` (CTA to `/accounts`), `pending_no_account` (CTA to `/accounts`), `pending_no_bills` (CTA to `/obligations`). No fake timestamps, no fake projections.
+- **`CashFlowForecastCard`** in `src/components/dashboard/cards/cash-flow-forecast.tsx` (~600 LOC): visual treatment matches `NetTrajectoryCard`. Reuses `--vessel-*` design tokens (no `--surface` / `--line` / `--terminal-cyan` / `--warn`) so the existing `smoke-visual-finish` invariant on the dashboard remains green.
+- **Compact mode** (`<CashFlowForecastCard compact />`) hides the per-pay-period detail list. Used on `/insights` where vertical space is at a premium.
+- **Mounts**:
+  - `/dashboard` — full mode, full-width section above the Must-Have Tools strip (between `SwipeableDashboardHeader` and `<MustHaveToolsStrip />`)
+  - `/insights` — compact mode, between the Ouroboros/Trajectory grid and the 12-month Trajectory
+- **`tests/smoke-cash-flow-forecast.mjs`** (22 checks): DOM hooks in both states, math invariants on start balance (`data-start-balance-cents === Account.currentBalance`), paycheck count, bill count, end balance envelope, dual-payload consistency across `/insights` and `/dashboard`. Uses DOM `data-*` attributes (not prose) so it doesn't drift on copy edits.
+
+### Title-warning cleanup (bundled)
+
+- `src/app/(app)/vault/audit/ActivityStrip.tsx:289` — `{cond ? \`...\` : "literal"}` template string wrapped in multi-line JSX. React saw whitespace text + expression children. Collapsed to a single inline template string.
+- `src/components/viz/SankeyFlow.tsx:452` — same pattern: `{isInteractive && (<title>...{`...`}...</title>)}`. Collapsed.
+
+The 4th site (`src/app/(app)/_deprecated/recurring/page.tsx:535`) was skipped — unreachable per `_deprecated/README.md` (the live path is `/obligations?tab=bills`).
+
+No schema change. No env change. No middleware change. No new API routes (the data flow is server-side at the page level).
+
+## Verification
+
+- `pnpm tsc`: clean
+- `pnpm smoke` (data layer, 21 stages incl. new): **1,003 / 0 miss** (was 981, +22 from new smoke)
+- `tests/integration-vault.mjs`: 345 / 0 miss (unchanged)
+- `tests/smoke-deploy.mjs`: 145 / 0 miss (unchanged)
+- `smoke:ui` (13 stages): 432 / 0 miss (unchanged)
+- `tests/smoke-visual-finish.mjs` re-run after the `--vessel-*` token migration: 20 / 0 miss (was 16 / 4 miss before; the 4 misses were the regressions that prompted the migration)
+- **Total smoke surface: 1,925 / 0 miss** across 36 stages
+
+## Files changed in this session
+
+Added:
+- `00-CLUSTER-7.26-CASH-FLOW-FORECAST.md` (spec)
+- `src/lib/forecast/cash-flow.ts` (~280 LOC)
+- `src/components/dashboard/cards/cash-flow-forecast.tsx` (~600 LOC)
+- `tests/smoke-cash-flow-forecast.mjs` (22 checks)
+
+Modified:
+- `src/app/page.tsx` (dashboard mount)
+- `src/app/(app)/insights/page.tsx` (compact mount)
+- `src/app/(app)/vault/audit/ActivityStrip.tsx` (title wrap)
+- `src/components/viz/SankeyFlow.tsx` (title wrap)
+- `package.json` (`smoke` chain extended)
+- `HANDOVER.md` (this section)
 
