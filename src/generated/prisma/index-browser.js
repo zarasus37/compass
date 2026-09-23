@@ -178,6 +178,20 @@ exports.Prisma.EnvelopeScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.EnvelopeSinkScalarFieldEnum = {
+  id: 'id',
+  envelopeId: 'envelopeId',
+  userId: 'userId',
+  name: 'name',
+  targetCents: 'targetCents',
+  cadence: 'cadence',
+  source: 'source',
+  sortOrder: 'sortOrder',
+  isArchived: 'isArchived',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.TransactionScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -590,6 +604,7 @@ exports.Prisma.ModelName = {
   Session: 'Session',
   Account: 'Account',
   Envelope: 'Envelope',
+  EnvelopeSink: 'EnvelopeSink',
   Transaction: 'Transaction',
   PaySchedule: 'PaySchedule',
   Bill: 'Bill',

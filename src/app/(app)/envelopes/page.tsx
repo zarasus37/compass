@@ -6,6 +6,8 @@ import { VesselGlyph, type PlanetId } from "@/components/alchemy/VesselGlyph";
 import { EnvelopeMiniBar } from "@/components/viz/EnvelopeMiniBar";
 import { BudgetVsActual, type BudgetVsActualRow } from "@/components/viz/BudgetVsActual";
 import { RebalanceForm } from "@/components/envelopes/RebalanceForm";
+import { ensureUserSinksSeeded, monthlyFillCents } from "@/lib/seed-sinks";
+import { prisma } from "@/server/db";
 import {
   liveEnvelopes,
   liveEnvelopesFromDb,
@@ -39,6 +41,20 @@ export default async function EnvelopesPage() {
   // Live reads: the bar chart and over-limit count reflect the current
   // store state, including any allocations from the paycheck simulator.
   const ENVELOPES = await liveEnvelopesFromDb(user.id);
+  // Cluster 7.28 — Lazy-seed sinking funds (1-2 per envelope on
+  // first visit). Idempotent: re-running is a no-op once any
+  // sink exists for the user.
+  await ensureUserSinksSeeded(user.id);
+  const SINKS = await prisma.envelopeSink.findMany({
+    where: { userId: user.id, isArchived: false },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+  const sinksByEnvelope = new Map<string, typeof SINKS>();
+  for (const s of SINKS) {
+    const list = sinksByEnvelope.get(s.envelopeId) ?? [];
+    list.push(s);
+    sinksByEnvelope.set(s.envelopeId, list);
+  }
   const TRANSACTIONS = liveTransactions();
   const overLimit = ENVELOPES.filter((e) => e.current > e.target && e.target > 0);
   const nearLimit = ENVELOPES.filter(
@@ -202,16 +218,21 @@ export default async function EnvelopesPage() {
           {ENVELOPES.map((e, i) => {
             const pct = e.target > 0 ? Math.min((e.current / e.target) * 100, 100) : 0;
             const isOver = e.current > e.target && e.target > 0;
+            const envelopeSinks = sinksByEnvelope.get(e.id) ?? [];
             return (
               <div
                 key={e.id}
+                style={{
+                  borderBottom: i < ENVELOPES.length - 1 ? "1px solid var(--line-soft)" : "none",
+                }}
+              >
+              <div
                 style={{
                   display: "grid",
                   gridTemplateColumns: "32px 1fr 100px 100px 160px 60px",
                   alignItems: "center",
                   gap: 20,
                   padding: "16px 24px",
-                  borderBottom: i < ENVELOPES.length - 1 ? "1px solid var(--line-soft)" : "none",
                   fontSize: 14,
                 }}
               >
@@ -275,6 +296,63 @@ export default async function EnvelopesPage() {
                 >
                   {Math.round(pct)}%
                 </span>
+              </div>
+                {/* Cluster 7.28 — sinking funds inline under each envelope row */}
+                {envelopeSinks.length > 0 && (
+                  <div
+                    data-testid={`envelope-sinks-${e.id}`}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "32px 1fr 100px 100px 160px 60px",
+                      gap: 20,
+                      padding: "0 24px 12px 72px",
+                      fontSize: 11,
+                    }}
+                  >
+                    <span aria-hidden />
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 2,
+                        color: "var(--ink-3)",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontFamily: "var(--font-jetbrains), monospace",
+                          fontSize: 9.5,
+                          letterSpacing: "0.18em",
+                          textTransform: "uppercase",
+                          color: "var(--ink-4)",
+                        }}
+                      >
+                        // sinks
+                      </span>
+                      {envelopeSinks.map((s) => (
+                        <span
+                          key={s.id}
+                          data-testid={`envelope-sink-row-${s.id}`}
+                          style={{
+                            fontFamily: "var(--font-jetbrains), monospace",
+                            fontSize: 11,
+                            color: "var(--ink-2)",
+                          }}
+                        >
+                          · {s.name}{" "}
+                          <span style={{ color: "var(--ink-4)" }}>
+                            ({formatMoney(s.targetCents)} / {s.cadence} ·{" "}
+                            {formatMoney(monthlyFillCents(s.targetCents, s.cadence))}/mo)
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                    <span aria-hidden />
+                    <span aria-hidden />
+                    <span aria-hidden />
+                    <span aria-hidden />
+                  </div>
+                )}
               </div>
             );
           })}

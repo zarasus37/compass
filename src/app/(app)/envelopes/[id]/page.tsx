@@ -5,6 +5,11 @@ import { PageHead } from "@/components/alchemy/PageHead";
 import { VesselGlyph } from "@/components/alchemy/VesselGlyph";
 import { EnvelopeMiniBar } from "@/components/viz/EnvelopeMiniBar";
 import { EnvelopeCadenceChart } from "@/components/viz/EnvelopeCadenceChart";
+import { SinkList } from "@/components/envelopes/SinkList";
+import { AddSinkForm } from "@/components/envelopes/AddSinkForm";
+import { ensureUserSinksSeeded, monthlyFillCents } from "@/lib/seed-sinks";
+import { requireUser } from "@/server/auth/user";
+import { prisma } from "@/server/db";
 import {
   liveEnvelopes,
   liveTransactions,
@@ -26,12 +31,13 @@ export const dynamic = "force-dynamic";
  * (semantic — pacing is a key datum). The vessel-glyph big circle
  * gets a 2px planet-color left rail.
  */
-export default function EnvelopeDetailPage({
+export default async function EnvelopeDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = React.use(params);
+  const { id } = await params;
+  const user = await requireUser();
   const ENVELOPES = liveEnvelopes();
   const TRANSACTIONS = liveTransactions();
   const envelope = ENVELOPES.find((e) => e.id === id);
@@ -41,6 +47,14 @@ export default function EnvelopeDetailPage({
   }
 
   const e = envelope;
+
+  // Cluster 7.28 — Sinking funds for this envelope. Lazy-seed
+  // the user's first visit, then read the (now populated) list.
+  await ensureUserSinksSeeded(user.id);
+  const SINKS = await prisma.envelopeSink.findMany({
+    where: { envelopeId: id, isArchived: false },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+  });
   const pct = e.target > 0 ? Math.min((e.current / e.target) * 100, 100) : 0;
   const isOver = e.current > e.target && e.target > 0;
   const overage = isOver ? e.current - e.target : 0;
@@ -309,6 +323,37 @@ export default function EnvelopeDetailPage({
           envelopeName={e.name}
           startDate={cadenceStart}
         />
+      </section>
+
+      {/* Cluster 7.28 — Sinking funds */}
+      <section
+        style={{ marginBottom: 48 }}
+        data-testid="envelope-sinks-section"
+      >
+        <SectionHeader
+          title="Sinking funds"
+          em="known-but-irregular expenses inside this vessel."
+          meta={`${SINKS.length} sink${SINKS.length === 1 ? "" : "s"} · auto-fill ${formatMoney(SINKS.reduce((s, sn) => s + monthlyFillCents(sn.targetCents, sn.cadence), 0))}/mo`}
+        />
+        <div
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--line)",
+            borderRadius: 4,
+            padding: SINKS.length > 0 ? 0 : 0,
+          }}
+        >
+          <SinkList
+            envelopeId={id}
+            sinks={SINKS.map((s) => ({
+              id: s.id,
+              name: s.name,
+              targetCents: s.targetCents,
+              cadence: s.cadence,
+            }))}
+          />
+        </div>
+        <AddSinkForm envelopeId={id} />
       </section>
 
       <section style={{ marginBottom: 48 }}>

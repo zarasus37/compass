@@ -53,6 +53,15 @@ export type Account = $Result.DefaultSelection<Prisma.$AccountPayload>
  */
 export type Envelope = $Result.DefaultSelection<Prisma.$EnvelopePayload>
 /**
+ * Model EnvelopeSink
+ * Sinking fund (Cluster 7.28) — a sub-allocation inside an Envelope.
+ * "Groceries has a $200/wk base + a $300 'Holiday food' sink that fills
+ * $25/mo." A sink is a known-but-irregular expense that mom is saving
+ * up for inside an envelope (insurance, annual subscriptions, holiday
+ * gifts, etc.). Same data shape as a budget-app "sinking fund" line.
+ */
+export type EnvelopeSink = $Result.DefaultSelection<Prisma.$EnvelopeSinkPayload>
+/**
  * Model Transaction
  * The atomic money event. Amount is signed: +income, -expense, integer cents.
  * `isPrimaMateria` is true for income transactions that trigger auto-allocate.
@@ -526,6 +535,16 @@ export class PrismaClient<
     * ```
     */
   get envelope(): Prisma.EnvelopeDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.envelopeSink`: Exposes CRUD operations for the **EnvelopeSink** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more EnvelopeSinks
+    * const envelopeSinks = await prisma.envelopeSink.findMany()
+    * ```
+    */
+  get envelopeSink(): Prisma.EnvelopeSinkDelegate<ExtArgs, ClientOptions>;
 
   /**
    * `prisma.transaction`: Exposes CRUD operations for the **Transaction** model.
@@ -1257,6 +1276,7 @@ export namespace Prisma {
     Session: 'Session',
     Account: 'Account',
     Envelope: 'Envelope',
+    EnvelopeSink: 'EnvelopeSink',
     Transaction: 'Transaction',
     PaySchedule: 'PaySchedule',
     Bill: 'Bill',
@@ -1300,7 +1320,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "session" | "account" | "envelope" | "transaction" | "paySchedule" | "bill" | "goal" | "allocationPlan" | "allocationRule" | "auditLog" | "auditLogDailyRollup" | "systemSettings" | "payPeriod" | "financialIdentity" | "identityIncome" | "identityExpense" | "identityDebt" | "identityAsset" | "identityGoal" | "identityEvent" | "identitySpendingHabit" | "identityHouseholdMember" | "onboardingMessage" | "vaultAccount" | "vaultEnvelope" | "scheduledBill" | "yieldEvent" | "paymentAttempt" | "providerEvent" | "vaultPreferences" | "vaultSchedule"
+      modelProps: "user" | "session" | "account" | "envelope" | "envelopeSink" | "transaction" | "paySchedule" | "bill" | "goal" | "allocationPlan" | "allocationRule" | "auditLog" | "auditLogDailyRollup" | "systemSettings" | "payPeriod" | "financialIdentity" | "identityIncome" | "identityExpense" | "identityDebt" | "identityAsset" | "identityGoal" | "identityEvent" | "identitySpendingHabit" | "identityHouseholdMember" | "onboardingMessage" | "vaultAccount" | "vaultEnvelope" | "scheduledBill" | "yieldEvent" | "paymentAttempt" | "providerEvent" | "vaultPreferences" | "vaultSchedule"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1597,6 +1617,80 @@ export namespace Prisma {
           count: {
             args: Prisma.EnvelopeCountArgs<ExtArgs>
             result: $Utils.Optional<EnvelopeCountAggregateOutputType> | number
+          }
+        }
+      }
+      EnvelopeSink: {
+        payload: Prisma.$EnvelopeSinkPayload<ExtArgs>
+        fields: Prisma.EnvelopeSinkFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.EnvelopeSinkFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$EnvelopeSinkPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.EnvelopeSinkFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$EnvelopeSinkPayload>
+          }
+          findFirst: {
+            args: Prisma.EnvelopeSinkFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$EnvelopeSinkPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.EnvelopeSinkFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$EnvelopeSinkPayload>
+          }
+          findMany: {
+            args: Prisma.EnvelopeSinkFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$EnvelopeSinkPayload>[]
+          }
+          create: {
+            args: Prisma.EnvelopeSinkCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$EnvelopeSinkPayload>
+          }
+          createMany: {
+            args: Prisma.EnvelopeSinkCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.EnvelopeSinkCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$EnvelopeSinkPayload>[]
+          }
+          delete: {
+            args: Prisma.EnvelopeSinkDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$EnvelopeSinkPayload>
+          }
+          update: {
+            args: Prisma.EnvelopeSinkUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$EnvelopeSinkPayload>
+          }
+          deleteMany: {
+            args: Prisma.EnvelopeSinkDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.EnvelopeSinkUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.EnvelopeSinkUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$EnvelopeSinkPayload>[]
+          }
+          upsert: {
+            args: Prisma.EnvelopeSinkUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$EnvelopeSinkPayload>
+          }
+          aggregate: {
+            args: Prisma.EnvelopeSinkAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateEnvelopeSink>
+          }
+          groupBy: {
+            args: Prisma.EnvelopeSinkGroupByArgs<ExtArgs>
+            result: $Utils.Optional<EnvelopeSinkGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.EnvelopeSinkCountArgs<ExtArgs>
+            result: $Utils.Optional<EnvelopeSinkCountAggregateOutputType> | number
           }
         }
       }
@@ -3799,6 +3893,7 @@ export namespace Prisma {
     session?: SessionOmit
     account?: AccountOmit
     envelope?: EnvelopeOmit
+    envelopeSink?: EnvelopeSinkOmit
     transaction?: TransactionOmit
     paySchedule?: PayScheduleOmit
     bill?: BillOmit
@@ -3917,6 +4012,7 @@ export namespace Prisma {
     bills: number
     auditLog: number
     auditLogRollup: number
+    envelopeSinks: number
   }
 
   export type UserCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -3930,6 +4026,7 @@ export namespace Prisma {
     bills?: boolean | UserCountOutputTypeCountBillsArgs
     auditLog?: boolean | UserCountOutputTypeCountAuditLogArgs
     auditLogRollup?: boolean | UserCountOutputTypeCountAuditLogRollupArgs
+    envelopeSinks?: boolean | UserCountOutputTypeCountEnvelopeSinksArgs
   }
 
   // Custom InputTypes
@@ -4013,6 +4110,13 @@ export namespace Prisma {
     where?: AuditLogDailyRollupWhereInput
   }
 
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountEnvelopeSinksArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: EnvelopeSinkWhereInput
+  }
+
 
   /**
    * Count Type AccountCountOutputType
@@ -4061,11 +4165,13 @@ export namespace Prisma {
   export type EnvelopeCountOutputType = {
     transactions: number
     allocationRules: number
+    envelopeSinks: number
   }
 
   export type EnvelopeCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     transactions?: boolean | EnvelopeCountOutputTypeCountTransactionsArgs
     allocationRules?: boolean | EnvelopeCountOutputTypeCountAllocationRulesArgs
+    envelopeSinks?: boolean | EnvelopeCountOutputTypeCountEnvelopeSinksArgs
   }
 
   // Custom InputTypes
@@ -4091,6 +4197,13 @@ export namespace Prisma {
    */
   export type EnvelopeCountOutputTypeCountAllocationRulesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: AllocationRuleWhereInput
+  }
+
+  /**
+   * EnvelopeCountOutputType without action
+   */
+  export type EnvelopeCountOutputTypeCountEnvelopeSinksArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: EnvelopeSinkWhereInput
   }
 
 
@@ -4635,6 +4748,7 @@ export namespace Prisma {
     bills?: boolean | User$billsArgs<ExtArgs>
     auditLog?: boolean | User$auditLogArgs<ExtArgs>
     auditLogRollup?: boolean | User$auditLogRollupArgs<ExtArgs>
+    envelopeSinks?: boolean | User$envelopeSinksArgs<ExtArgs>
     identity?: boolean | User$identityArgs<ExtArgs>
     vaultAccount?: boolean | User$vaultAccountArgs<ExtArgs>
     vaultPreferences?: boolean | User$vaultPreferencesArgs<ExtArgs>
@@ -4693,6 +4807,7 @@ export namespace Prisma {
     bills?: boolean | User$billsArgs<ExtArgs>
     auditLog?: boolean | User$auditLogArgs<ExtArgs>
     auditLogRollup?: boolean | User$auditLogRollupArgs<ExtArgs>
+    envelopeSinks?: boolean | User$envelopeSinksArgs<ExtArgs>
     identity?: boolean | User$identityArgs<ExtArgs>
     vaultAccount?: boolean | User$vaultAccountArgs<ExtArgs>
     vaultPreferences?: boolean | User$vaultPreferencesArgs<ExtArgs>
@@ -4715,6 +4830,7 @@ export namespace Prisma {
       bills: Prisma.$BillPayload<ExtArgs>[]
       auditLog: Prisma.$AuditLogPayload<ExtArgs>[]
       auditLogRollup: Prisma.$AuditLogDailyRollupPayload<ExtArgs>[]
+      envelopeSinks: Prisma.$EnvelopeSinkPayload<ExtArgs>[]
       identity: Prisma.$FinancialIdentityPayload<ExtArgs> | null
       /**
        * Phase 2.0 — Vault (self-custodial bill-reserve). One vault per
@@ -5163,6 +5279,7 @@ export namespace Prisma {
     bills<T extends User$billsArgs<ExtArgs> = {}>(args?: Subset<T, User$billsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BillPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     auditLog<T extends User$auditLogArgs<ExtArgs> = {}>(args?: Subset<T, User$auditLogArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AuditLogPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     auditLogRollup<T extends User$auditLogRollupArgs<ExtArgs> = {}>(args?: Subset<T, User$auditLogRollupArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AuditLogDailyRollupPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    envelopeSinks<T extends User$envelopeSinksArgs<ExtArgs> = {}>(args?: Subset<T, User$envelopeSinksArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$EnvelopeSinkPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     identity<T extends User$identityArgs<ExtArgs> = {}>(args?: Subset<T, User$identityArgs<ExtArgs>>): Prisma__FinancialIdentityClient<$Result.GetResult<Prisma.$FinancialIdentityPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     vaultAccount<T extends User$vaultAccountArgs<ExtArgs> = {}>(args?: Subset<T, User$vaultAccountArgs<ExtArgs>>): Prisma__VaultAccountClient<$Result.GetResult<Prisma.$VaultAccountPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     vaultPreferences<T extends User$vaultPreferencesArgs<ExtArgs> = {}>(args?: Subset<T, User$vaultPreferencesArgs<ExtArgs>>): Prisma__VaultPreferencesClient<$Result.GetResult<Prisma.$VaultPreferencesPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
@@ -5836,6 +5953,30 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: AuditLogDailyRollupScalarFieldEnum | AuditLogDailyRollupScalarFieldEnum[]
+  }
+
+  /**
+   * User.envelopeSinks
+   */
+  export type User$envelopeSinksArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the EnvelopeSink
+     */
+    select?: EnvelopeSinkSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the EnvelopeSink
+     */
+    omit?: EnvelopeSinkOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: EnvelopeSinkInclude<ExtArgs> | null
+    where?: EnvelopeSinkWhereInput
+    orderBy?: EnvelopeSinkOrderByWithRelationInput | EnvelopeSinkOrderByWithRelationInput[]
+    cursor?: EnvelopeSinkWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: EnvelopeSinkScalarFieldEnum | EnvelopeSinkScalarFieldEnum[]
   }
 
   /**
@@ -8620,6 +8761,7 @@ export namespace Prisma {
     transactions?: boolean | Envelope$transactionsArgs<ExtArgs>
     allocationRules?: boolean | Envelope$allocationRulesArgs<ExtArgs>
     vaultEnvelope?: boolean | Envelope$vaultEnvelopeArgs<ExtArgs>
+    envelopeSinks?: boolean | Envelope$envelopeSinksArgs<ExtArgs>
     _count?: boolean | EnvelopeCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["envelope"]>
 
@@ -8685,6 +8827,7 @@ export namespace Prisma {
     transactions?: boolean | Envelope$transactionsArgs<ExtArgs>
     allocationRules?: boolean | Envelope$allocationRulesArgs<ExtArgs>
     vaultEnvelope?: boolean | Envelope$vaultEnvelopeArgs<ExtArgs>
+    envelopeSinks?: boolean | Envelope$envelopeSinksArgs<ExtArgs>
     _count?: boolean | EnvelopeCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type EnvelopeIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -8706,6 +8849,11 @@ export namespace Prisma {
        * from the live envelopes, so losing the vault row is recoverable).
        */
       vaultEnvelope: Prisma.$VaultEnvelopePayload<ExtArgs> | null
+      /**
+       * Cluster 7.28 — Sinking funds. Sub-allocations inside this envelope.
+       * Cascaded on envelope delete (sinks don't outlive their envelope).
+       */
+      envelopeSinks: Prisma.$EnvelopeSinkPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -9153,6 +9301,7 @@ export namespace Prisma {
     transactions<T extends Envelope$transactionsArgs<ExtArgs> = {}>(args?: Subset<T, Envelope$transactionsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TransactionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     allocationRules<T extends Envelope$allocationRulesArgs<ExtArgs> = {}>(args?: Subset<T, Envelope$allocationRulesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AllocationRulePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     vaultEnvelope<T extends Envelope$vaultEnvelopeArgs<ExtArgs> = {}>(args?: Subset<T, Envelope$vaultEnvelopeArgs<ExtArgs>>): Prisma__VaultEnvelopeClient<$Result.GetResult<Prisma.$VaultEnvelopePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    envelopeSinks<T extends Envelope$envelopeSinksArgs<ExtArgs> = {}>(args?: Subset<T, Envelope$envelopeSinksArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$EnvelopeSinkPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -9665,6 +9814,30 @@ export namespace Prisma {
   }
 
   /**
+   * Envelope.envelopeSinks
+   */
+  export type Envelope$envelopeSinksArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the EnvelopeSink
+     */
+    select?: EnvelopeSinkSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the EnvelopeSink
+     */
+    omit?: EnvelopeSinkOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: EnvelopeSinkInclude<ExtArgs> | null
+    where?: EnvelopeSinkWhereInput
+    orderBy?: EnvelopeSinkOrderByWithRelationInput | EnvelopeSinkOrderByWithRelationInput[]
+    cursor?: EnvelopeSinkWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: EnvelopeSinkScalarFieldEnum | EnvelopeSinkScalarFieldEnum[]
+  }
+
+  /**
    * Envelope without action
    */
   export type EnvelopeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -9680,6 +9853,1213 @@ export namespace Prisma {
      * Choose, which related nodes to fetch as well
      */
     include?: EnvelopeInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model EnvelopeSink
+   */
+
+  export type AggregateEnvelopeSink = {
+    _count: EnvelopeSinkCountAggregateOutputType | null
+    _avg: EnvelopeSinkAvgAggregateOutputType | null
+    _sum: EnvelopeSinkSumAggregateOutputType | null
+    _min: EnvelopeSinkMinAggregateOutputType | null
+    _max: EnvelopeSinkMaxAggregateOutputType | null
+  }
+
+  export type EnvelopeSinkAvgAggregateOutputType = {
+    targetCents: number | null
+    sortOrder: number | null
+  }
+
+  export type EnvelopeSinkSumAggregateOutputType = {
+    targetCents: number | null
+    sortOrder: number | null
+  }
+
+  export type EnvelopeSinkMinAggregateOutputType = {
+    id: string | null
+    envelopeId: string | null
+    userId: string | null
+    name: string | null
+    targetCents: number | null
+    cadence: string | null
+    source: string | null
+    sortOrder: number | null
+    isArchived: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type EnvelopeSinkMaxAggregateOutputType = {
+    id: string | null
+    envelopeId: string | null
+    userId: string | null
+    name: string | null
+    targetCents: number | null
+    cadence: string | null
+    source: string | null
+    sortOrder: number | null
+    isArchived: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type EnvelopeSinkCountAggregateOutputType = {
+    id: number
+    envelopeId: number
+    userId: number
+    name: number
+    targetCents: number
+    cadence: number
+    source: number
+    sortOrder: number
+    isArchived: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type EnvelopeSinkAvgAggregateInputType = {
+    targetCents?: true
+    sortOrder?: true
+  }
+
+  export type EnvelopeSinkSumAggregateInputType = {
+    targetCents?: true
+    sortOrder?: true
+  }
+
+  export type EnvelopeSinkMinAggregateInputType = {
+    id?: true
+    envelopeId?: true
+    userId?: true
+    name?: true
+    targetCents?: true
+    cadence?: true
+    source?: true
+    sortOrder?: true
+    isArchived?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type EnvelopeSinkMaxAggregateInputType = {
+    id?: true
+    envelopeId?: true
+    userId?: true
+    name?: true
+    targetCents?: true
+    cadence?: true
+    source?: true
+    sortOrder?: true
+    isArchived?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type EnvelopeSinkCountAggregateInputType = {
+    id?: true
+    envelopeId?: true
+    userId?: true
+    name?: true
+    targetCents?: true
+    cadence?: true
+    source?: true
+    sortOrder?: true
+    isArchived?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type EnvelopeSinkAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which EnvelopeSink to aggregate.
+     */
+    where?: EnvelopeSinkWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of EnvelopeSinks to fetch.
+     */
+    orderBy?: EnvelopeSinkOrderByWithRelationInput | EnvelopeSinkOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: EnvelopeSinkWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` EnvelopeSinks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` EnvelopeSinks.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned EnvelopeSinks
+    **/
+    _count?: true | EnvelopeSinkCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: EnvelopeSinkAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: EnvelopeSinkSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: EnvelopeSinkMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: EnvelopeSinkMaxAggregateInputType
+  }
+
+  export type GetEnvelopeSinkAggregateType<T extends EnvelopeSinkAggregateArgs> = {
+        [P in keyof T & keyof AggregateEnvelopeSink]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateEnvelopeSink[P]>
+      : GetScalarType<T[P], AggregateEnvelopeSink[P]>
+  }
+
+
+
+
+  export type EnvelopeSinkGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: EnvelopeSinkWhereInput
+    orderBy?: EnvelopeSinkOrderByWithAggregationInput | EnvelopeSinkOrderByWithAggregationInput[]
+    by: EnvelopeSinkScalarFieldEnum[] | EnvelopeSinkScalarFieldEnum
+    having?: EnvelopeSinkScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: EnvelopeSinkCountAggregateInputType | true
+    _avg?: EnvelopeSinkAvgAggregateInputType
+    _sum?: EnvelopeSinkSumAggregateInputType
+    _min?: EnvelopeSinkMinAggregateInputType
+    _max?: EnvelopeSinkMaxAggregateInputType
+  }
+
+  export type EnvelopeSinkGroupByOutputType = {
+    id: string
+    envelopeId: string
+    userId: string
+    name: string
+    targetCents: number
+    cadence: string
+    source: string
+    sortOrder: number
+    isArchived: boolean
+    createdAt: Date
+    updatedAt: Date
+    _count: EnvelopeSinkCountAggregateOutputType | null
+    _avg: EnvelopeSinkAvgAggregateOutputType | null
+    _sum: EnvelopeSinkSumAggregateOutputType | null
+    _min: EnvelopeSinkMinAggregateOutputType | null
+    _max: EnvelopeSinkMaxAggregateOutputType | null
+  }
+
+  type GetEnvelopeSinkGroupByPayload<T extends EnvelopeSinkGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<EnvelopeSinkGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof EnvelopeSinkGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], EnvelopeSinkGroupByOutputType[P]>
+            : GetScalarType<T[P], EnvelopeSinkGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type EnvelopeSinkSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    envelopeId?: boolean
+    userId?: boolean
+    name?: boolean
+    targetCents?: boolean
+    cadence?: boolean
+    source?: boolean
+    sortOrder?: boolean
+    isArchived?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    envelope?: boolean | EnvelopeDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["envelopeSink"]>
+
+  export type EnvelopeSinkSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    envelopeId?: boolean
+    userId?: boolean
+    name?: boolean
+    targetCents?: boolean
+    cadence?: boolean
+    source?: boolean
+    sortOrder?: boolean
+    isArchived?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    envelope?: boolean | EnvelopeDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["envelopeSink"]>
+
+  export type EnvelopeSinkSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    envelopeId?: boolean
+    userId?: boolean
+    name?: boolean
+    targetCents?: boolean
+    cadence?: boolean
+    source?: boolean
+    sortOrder?: boolean
+    isArchived?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    envelope?: boolean | EnvelopeDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["envelopeSink"]>
+
+  export type EnvelopeSinkSelectScalar = {
+    id?: boolean
+    envelopeId?: boolean
+    userId?: boolean
+    name?: boolean
+    targetCents?: boolean
+    cadence?: boolean
+    source?: boolean
+    sortOrder?: boolean
+    isArchived?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type EnvelopeSinkOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "envelopeId" | "userId" | "name" | "targetCents" | "cadence" | "source" | "sortOrder" | "isArchived" | "createdAt" | "updatedAt", ExtArgs["result"]["envelopeSink"]>
+  export type EnvelopeSinkInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    envelope?: boolean | EnvelopeDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type EnvelopeSinkIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    envelope?: boolean | EnvelopeDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type EnvelopeSinkIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    envelope?: boolean | EnvelopeDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+
+  export type $EnvelopeSinkPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "EnvelopeSink"
+    objects: {
+      envelope: Prisma.$EnvelopePayload<ExtArgs>
+      user: Prisma.$UserPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      envelopeId: string
+      userId: string
+      /**
+       * Human-readable name. e.g. "Holiday food", "Insurance (quarterly)",
+       * "Birthday gifts", "Annual property tax".
+       */
+      name: string
+      /**
+       * Total amount the sink fills to (in cents). E.g. $300 for a holiday
+       * dinner in November.
+       */
+      targetCents: number
+      /**
+       * How often the sink is spent. "weekly" | "monthly" | "quarterly" |
+       * "annual". The monthly fill rate is derived as targetCents × (12 /
+       * cadence_months).
+       */
+      cadence: string
+      /**
+       * Where this sink came from: "user" (added via the inline form on
+       * /envelopes/[id]) or "seed" (lazy-seeded by ensureUserSinksSeeded).
+       */
+      source: string
+      /**
+       * Display order within an envelope (smaller = earlier).
+       */
+      sortOrder: number
+      isArchived: boolean
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["envelopeSink"]>
+    composites: {}
+  }
+
+  type EnvelopeSinkGetPayload<S extends boolean | null | undefined | EnvelopeSinkDefaultArgs> = $Result.GetResult<Prisma.$EnvelopeSinkPayload, S>
+
+  type EnvelopeSinkCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<EnvelopeSinkFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: EnvelopeSinkCountAggregateInputType | true
+    }
+
+  export interface EnvelopeSinkDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['EnvelopeSink'], meta: { name: 'EnvelopeSink' } }
+    /**
+     * Find zero or one EnvelopeSink that matches the filter.
+     * @param {EnvelopeSinkFindUniqueArgs} args - Arguments to find a EnvelopeSink
+     * @example
+     * // Get one EnvelopeSink
+     * const envelopeSink = await prisma.envelopeSink.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends EnvelopeSinkFindUniqueArgs>(args: SelectSubset<T, EnvelopeSinkFindUniqueArgs<ExtArgs>>): Prisma__EnvelopeSinkClient<$Result.GetResult<Prisma.$EnvelopeSinkPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one EnvelopeSink that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {EnvelopeSinkFindUniqueOrThrowArgs} args - Arguments to find a EnvelopeSink
+     * @example
+     * // Get one EnvelopeSink
+     * const envelopeSink = await prisma.envelopeSink.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends EnvelopeSinkFindUniqueOrThrowArgs>(args: SelectSubset<T, EnvelopeSinkFindUniqueOrThrowArgs<ExtArgs>>): Prisma__EnvelopeSinkClient<$Result.GetResult<Prisma.$EnvelopeSinkPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first EnvelopeSink that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {EnvelopeSinkFindFirstArgs} args - Arguments to find a EnvelopeSink
+     * @example
+     * // Get one EnvelopeSink
+     * const envelopeSink = await prisma.envelopeSink.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends EnvelopeSinkFindFirstArgs>(args?: SelectSubset<T, EnvelopeSinkFindFirstArgs<ExtArgs>>): Prisma__EnvelopeSinkClient<$Result.GetResult<Prisma.$EnvelopeSinkPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first EnvelopeSink that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {EnvelopeSinkFindFirstOrThrowArgs} args - Arguments to find a EnvelopeSink
+     * @example
+     * // Get one EnvelopeSink
+     * const envelopeSink = await prisma.envelopeSink.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends EnvelopeSinkFindFirstOrThrowArgs>(args?: SelectSubset<T, EnvelopeSinkFindFirstOrThrowArgs<ExtArgs>>): Prisma__EnvelopeSinkClient<$Result.GetResult<Prisma.$EnvelopeSinkPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more EnvelopeSinks that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {EnvelopeSinkFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all EnvelopeSinks
+     * const envelopeSinks = await prisma.envelopeSink.findMany()
+     * 
+     * // Get first 10 EnvelopeSinks
+     * const envelopeSinks = await prisma.envelopeSink.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const envelopeSinkWithIdOnly = await prisma.envelopeSink.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends EnvelopeSinkFindManyArgs>(args?: SelectSubset<T, EnvelopeSinkFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$EnvelopeSinkPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a EnvelopeSink.
+     * @param {EnvelopeSinkCreateArgs} args - Arguments to create a EnvelopeSink.
+     * @example
+     * // Create one EnvelopeSink
+     * const EnvelopeSink = await prisma.envelopeSink.create({
+     *   data: {
+     *     // ... data to create a EnvelopeSink
+     *   }
+     * })
+     * 
+     */
+    create<T extends EnvelopeSinkCreateArgs>(args: SelectSubset<T, EnvelopeSinkCreateArgs<ExtArgs>>): Prisma__EnvelopeSinkClient<$Result.GetResult<Prisma.$EnvelopeSinkPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many EnvelopeSinks.
+     * @param {EnvelopeSinkCreateManyArgs} args - Arguments to create many EnvelopeSinks.
+     * @example
+     * // Create many EnvelopeSinks
+     * const envelopeSink = await prisma.envelopeSink.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends EnvelopeSinkCreateManyArgs>(args?: SelectSubset<T, EnvelopeSinkCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many EnvelopeSinks and returns the data saved in the database.
+     * @param {EnvelopeSinkCreateManyAndReturnArgs} args - Arguments to create many EnvelopeSinks.
+     * @example
+     * // Create many EnvelopeSinks
+     * const envelopeSink = await prisma.envelopeSink.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many EnvelopeSinks and only return the `id`
+     * const envelopeSinkWithIdOnly = await prisma.envelopeSink.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends EnvelopeSinkCreateManyAndReturnArgs>(args?: SelectSubset<T, EnvelopeSinkCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$EnvelopeSinkPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a EnvelopeSink.
+     * @param {EnvelopeSinkDeleteArgs} args - Arguments to delete one EnvelopeSink.
+     * @example
+     * // Delete one EnvelopeSink
+     * const EnvelopeSink = await prisma.envelopeSink.delete({
+     *   where: {
+     *     // ... filter to delete one EnvelopeSink
+     *   }
+     * })
+     * 
+     */
+    delete<T extends EnvelopeSinkDeleteArgs>(args: SelectSubset<T, EnvelopeSinkDeleteArgs<ExtArgs>>): Prisma__EnvelopeSinkClient<$Result.GetResult<Prisma.$EnvelopeSinkPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one EnvelopeSink.
+     * @param {EnvelopeSinkUpdateArgs} args - Arguments to update one EnvelopeSink.
+     * @example
+     * // Update one EnvelopeSink
+     * const envelopeSink = await prisma.envelopeSink.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends EnvelopeSinkUpdateArgs>(args: SelectSubset<T, EnvelopeSinkUpdateArgs<ExtArgs>>): Prisma__EnvelopeSinkClient<$Result.GetResult<Prisma.$EnvelopeSinkPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more EnvelopeSinks.
+     * @param {EnvelopeSinkDeleteManyArgs} args - Arguments to filter EnvelopeSinks to delete.
+     * @example
+     * // Delete a few EnvelopeSinks
+     * const { count } = await prisma.envelopeSink.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends EnvelopeSinkDeleteManyArgs>(args?: SelectSubset<T, EnvelopeSinkDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more EnvelopeSinks.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {EnvelopeSinkUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many EnvelopeSinks
+     * const envelopeSink = await prisma.envelopeSink.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends EnvelopeSinkUpdateManyArgs>(args: SelectSubset<T, EnvelopeSinkUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more EnvelopeSinks and returns the data updated in the database.
+     * @param {EnvelopeSinkUpdateManyAndReturnArgs} args - Arguments to update many EnvelopeSinks.
+     * @example
+     * // Update many EnvelopeSinks
+     * const envelopeSink = await prisma.envelopeSink.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more EnvelopeSinks and only return the `id`
+     * const envelopeSinkWithIdOnly = await prisma.envelopeSink.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends EnvelopeSinkUpdateManyAndReturnArgs>(args: SelectSubset<T, EnvelopeSinkUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$EnvelopeSinkPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one EnvelopeSink.
+     * @param {EnvelopeSinkUpsertArgs} args - Arguments to update or create a EnvelopeSink.
+     * @example
+     * // Update or create a EnvelopeSink
+     * const envelopeSink = await prisma.envelopeSink.upsert({
+     *   create: {
+     *     // ... data to create a EnvelopeSink
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the EnvelopeSink we want to update
+     *   }
+     * })
+     */
+    upsert<T extends EnvelopeSinkUpsertArgs>(args: SelectSubset<T, EnvelopeSinkUpsertArgs<ExtArgs>>): Prisma__EnvelopeSinkClient<$Result.GetResult<Prisma.$EnvelopeSinkPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of EnvelopeSinks.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {EnvelopeSinkCountArgs} args - Arguments to filter EnvelopeSinks to count.
+     * @example
+     * // Count the number of EnvelopeSinks
+     * const count = await prisma.envelopeSink.count({
+     *   where: {
+     *     // ... the filter for the EnvelopeSinks we want to count
+     *   }
+     * })
+    **/
+    count<T extends EnvelopeSinkCountArgs>(
+      args?: Subset<T, EnvelopeSinkCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], EnvelopeSinkCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a EnvelopeSink.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {EnvelopeSinkAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends EnvelopeSinkAggregateArgs>(args: Subset<T, EnvelopeSinkAggregateArgs>): Prisma.PrismaPromise<GetEnvelopeSinkAggregateType<T>>
+
+    /**
+     * Group by EnvelopeSink.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {EnvelopeSinkGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends EnvelopeSinkGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: EnvelopeSinkGroupByArgs['orderBy'] }
+        : { orderBy?: EnvelopeSinkGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, EnvelopeSinkGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetEnvelopeSinkGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the EnvelopeSink model
+   */
+  readonly fields: EnvelopeSinkFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for EnvelopeSink.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__EnvelopeSinkClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    envelope<T extends EnvelopeDefaultArgs<ExtArgs> = {}>(args?: Subset<T, EnvelopeDefaultArgs<ExtArgs>>): Prisma__EnvelopeClient<$Result.GetResult<Prisma.$EnvelopePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the EnvelopeSink model
+   */
+  interface EnvelopeSinkFieldRefs {
+    readonly id: FieldRef<"EnvelopeSink", 'String'>
+    readonly envelopeId: FieldRef<"EnvelopeSink", 'String'>
+    readonly userId: FieldRef<"EnvelopeSink", 'String'>
+    readonly name: FieldRef<"EnvelopeSink", 'String'>
+    readonly targetCents: FieldRef<"EnvelopeSink", 'Int'>
+    readonly cadence: FieldRef<"EnvelopeSink", 'String'>
+    readonly source: FieldRef<"EnvelopeSink", 'String'>
+    readonly sortOrder: FieldRef<"EnvelopeSink", 'Int'>
+    readonly isArchived: FieldRef<"EnvelopeSink", 'Boolean'>
+    readonly createdAt: FieldRef<"EnvelopeSink", 'DateTime'>
+    readonly updatedAt: FieldRef<"EnvelopeSink", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * EnvelopeSink findUnique
+   */
+  export type EnvelopeSinkFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the EnvelopeSink
+     */
+    select?: EnvelopeSinkSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the EnvelopeSink
+     */
+    omit?: EnvelopeSinkOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: EnvelopeSinkInclude<ExtArgs> | null
+    /**
+     * Filter, which EnvelopeSink to fetch.
+     */
+    where: EnvelopeSinkWhereUniqueInput
+  }
+
+  /**
+   * EnvelopeSink findUniqueOrThrow
+   */
+  export type EnvelopeSinkFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the EnvelopeSink
+     */
+    select?: EnvelopeSinkSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the EnvelopeSink
+     */
+    omit?: EnvelopeSinkOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: EnvelopeSinkInclude<ExtArgs> | null
+    /**
+     * Filter, which EnvelopeSink to fetch.
+     */
+    where: EnvelopeSinkWhereUniqueInput
+  }
+
+  /**
+   * EnvelopeSink findFirst
+   */
+  export type EnvelopeSinkFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the EnvelopeSink
+     */
+    select?: EnvelopeSinkSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the EnvelopeSink
+     */
+    omit?: EnvelopeSinkOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: EnvelopeSinkInclude<ExtArgs> | null
+    /**
+     * Filter, which EnvelopeSink to fetch.
+     */
+    where?: EnvelopeSinkWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of EnvelopeSinks to fetch.
+     */
+    orderBy?: EnvelopeSinkOrderByWithRelationInput | EnvelopeSinkOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for EnvelopeSinks.
+     */
+    cursor?: EnvelopeSinkWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` EnvelopeSinks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` EnvelopeSinks.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of EnvelopeSinks.
+     */
+    distinct?: EnvelopeSinkScalarFieldEnum | EnvelopeSinkScalarFieldEnum[]
+  }
+
+  /**
+   * EnvelopeSink findFirstOrThrow
+   */
+  export type EnvelopeSinkFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the EnvelopeSink
+     */
+    select?: EnvelopeSinkSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the EnvelopeSink
+     */
+    omit?: EnvelopeSinkOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: EnvelopeSinkInclude<ExtArgs> | null
+    /**
+     * Filter, which EnvelopeSink to fetch.
+     */
+    where?: EnvelopeSinkWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of EnvelopeSinks to fetch.
+     */
+    orderBy?: EnvelopeSinkOrderByWithRelationInput | EnvelopeSinkOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for EnvelopeSinks.
+     */
+    cursor?: EnvelopeSinkWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` EnvelopeSinks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` EnvelopeSinks.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of EnvelopeSinks.
+     */
+    distinct?: EnvelopeSinkScalarFieldEnum | EnvelopeSinkScalarFieldEnum[]
+  }
+
+  /**
+   * EnvelopeSink findMany
+   */
+  export type EnvelopeSinkFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the EnvelopeSink
+     */
+    select?: EnvelopeSinkSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the EnvelopeSink
+     */
+    omit?: EnvelopeSinkOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: EnvelopeSinkInclude<ExtArgs> | null
+    /**
+     * Filter, which EnvelopeSinks to fetch.
+     */
+    where?: EnvelopeSinkWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of EnvelopeSinks to fetch.
+     */
+    orderBy?: EnvelopeSinkOrderByWithRelationInput | EnvelopeSinkOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing EnvelopeSinks.
+     */
+    cursor?: EnvelopeSinkWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` EnvelopeSinks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` EnvelopeSinks.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of EnvelopeSinks.
+     */
+    distinct?: EnvelopeSinkScalarFieldEnum | EnvelopeSinkScalarFieldEnum[]
+  }
+
+  /**
+   * EnvelopeSink create
+   */
+  export type EnvelopeSinkCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the EnvelopeSink
+     */
+    select?: EnvelopeSinkSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the EnvelopeSink
+     */
+    omit?: EnvelopeSinkOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: EnvelopeSinkInclude<ExtArgs> | null
+    /**
+     * The data needed to create a EnvelopeSink.
+     */
+    data: XOR<EnvelopeSinkCreateInput, EnvelopeSinkUncheckedCreateInput>
+  }
+
+  /**
+   * EnvelopeSink createMany
+   */
+  export type EnvelopeSinkCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many EnvelopeSinks.
+     */
+    data: EnvelopeSinkCreateManyInput | EnvelopeSinkCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * EnvelopeSink createManyAndReturn
+   */
+  export type EnvelopeSinkCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the EnvelopeSink
+     */
+    select?: EnvelopeSinkSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the EnvelopeSink
+     */
+    omit?: EnvelopeSinkOmit<ExtArgs> | null
+    /**
+     * The data used to create many EnvelopeSinks.
+     */
+    data: EnvelopeSinkCreateManyInput | EnvelopeSinkCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: EnvelopeSinkIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * EnvelopeSink update
+   */
+  export type EnvelopeSinkUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the EnvelopeSink
+     */
+    select?: EnvelopeSinkSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the EnvelopeSink
+     */
+    omit?: EnvelopeSinkOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: EnvelopeSinkInclude<ExtArgs> | null
+    /**
+     * The data needed to update a EnvelopeSink.
+     */
+    data: XOR<EnvelopeSinkUpdateInput, EnvelopeSinkUncheckedUpdateInput>
+    /**
+     * Choose, which EnvelopeSink to update.
+     */
+    where: EnvelopeSinkWhereUniqueInput
+  }
+
+  /**
+   * EnvelopeSink updateMany
+   */
+  export type EnvelopeSinkUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update EnvelopeSinks.
+     */
+    data: XOR<EnvelopeSinkUpdateManyMutationInput, EnvelopeSinkUncheckedUpdateManyInput>
+    /**
+     * Filter which EnvelopeSinks to update
+     */
+    where?: EnvelopeSinkWhereInput
+    /**
+     * Limit how many EnvelopeSinks to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * EnvelopeSink updateManyAndReturn
+   */
+  export type EnvelopeSinkUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the EnvelopeSink
+     */
+    select?: EnvelopeSinkSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the EnvelopeSink
+     */
+    omit?: EnvelopeSinkOmit<ExtArgs> | null
+    /**
+     * The data used to update EnvelopeSinks.
+     */
+    data: XOR<EnvelopeSinkUpdateManyMutationInput, EnvelopeSinkUncheckedUpdateManyInput>
+    /**
+     * Filter which EnvelopeSinks to update
+     */
+    where?: EnvelopeSinkWhereInput
+    /**
+     * Limit how many EnvelopeSinks to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: EnvelopeSinkIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * EnvelopeSink upsert
+   */
+  export type EnvelopeSinkUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the EnvelopeSink
+     */
+    select?: EnvelopeSinkSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the EnvelopeSink
+     */
+    omit?: EnvelopeSinkOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: EnvelopeSinkInclude<ExtArgs> | null
+    /**
+     * The filter to search for the EnvelopeSink to update in case it exists.
+     */
+    where: EnvelopeSinkWhereUniqueInput
+    /**
+     * In case the EnvelopeSink found by the `where` argument doesn't exist, create a new EnvelopeSink with this data.
+     */
+    create: XOR<EnvelopeSinkCreateInput, EnvelopeSinkUncheckedCreateInput>
+    /**
+     * In case the EnvelopeSink was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<EnvelopeSinkUpdateInput, EnvelopeSinkUncheckedUpdateInput>
+  }
+
+  /**
+   * EnvelopeSink delete
+   */
+  export type EnvelopeSinkDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the EnvelopeSink
+     */
+    select?: EnvelopeSinkSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the EnvelopeSink
+     */
+    omit?: EnvelopeSinkOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: EnvelopeSinkInclude<ExtArgs> | null
+    /**
+     * Filter which EnvelopeSink to delete.
+     */
+    where: EnvelopeSinkWhereUniqueInput
+  }
+
+  /**
+   * EnvelopeSink deleteMany
+   */
+  export type EnvelopeSinkDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which EnvelopeSinks to delete
+     */
+    where?: EnvelopeSinkWhereInput
+    /**
+     * Limit how many EnvelopeSinks to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * EnvelopeSink without action
+   */
+  export type EnvelopeSinkDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the EnvelopeSink
+     */
+    select?: EnvelopeSinkSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the EnvelopeSink
+     */
+    omit?: EnvelopeSinkOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: EnvelopeSinkInclude<ExtArgs> | null
   }
 
 
@@ -43385,6 +44765,23 @@ export namespace Prisma {
   export type EnvelopeScalarFieldEnum = (typeof EnvelopeScalarFieldEnum)[keyof typeof EnvelopeScalarFieldEnum]
 
 
+  export const EnvelopeSinkScalarFieldEnum: {
+    id: 'id',
+    envelopeId: 'envelopeId',
+    userId: 'userId',
+    name: 'name',
+    targetCents: 'targetCents',
+    cadence: 'cadence',
+    source: 'source',
+    sortOrder: 'sortOrder',
+    isArchived: 'isArchived',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type EnvelopeSinkScalarFieldEnum = (typeof EnvelopeSinkScalarFieldEnum)[keyof typeof EnvelopeSinkScalarFieldEnum]
+
+
   export const TransactionScalarFieldEnum: {
     id: 'id',
     userId: 'userId',
@@ -43999,6 +45396,7 @@ export namespace Prisma {
     bills?: BillListRelationFilter
     auditLog?: AuditLogListRelationFilter
     auditLogRollup?: AuditLogDailyRollupListRelationFilter
+    envelopeSinks?: EnvelopeSinkListRelationFilter
     identity?: XOR<FinancialIdentityNullableScalarRelationFilter, FinancialIdentityWhereInput> | null
     vaultAccount?: XOR<VaultAccountNullableScalarRelationFilter, VaultAccountWhereInput> | null
     vaultPreferences?: XOR<VaultPreferencesNullableScalarRelationFilter, VaultPreferencesWhereInput> | null
@@ -44026,6 +45424,7 @@ export namespace Prisma {
     bills?: BillOrderByRelationAggregateInput
     auditLog?: AuditLogOrderByRelationAggregateInput
     auditLogRollup?: AuditLogDailyRollupOrderByRelationAggregateInput
+    envelopeSinks?: EnvelopeSinkOrderByRelationAggregateInput
     identity?: FinancialIdentityOrderByWithRelationInput
     vaultAccount?: VaultAccountOrderByWithRelationInput
     vaultPreferences?: VaultPreferencesOrderByWithRelationInput
@@ -44056,6 +45455,7 @@ export namespace Prisma {
     bills?: BillListRelationFilter
     auditLog?: AuditLogListRelationFilter
     auditLogRollup?: AuditLogDailyRollupListRelationFilter
+    envelopeSinks?: EnvelopeSinkListRelationFilter
     identity?: XOR<FinancialIdentityNullableScalarRelationFilter, FinancialIdentityWhereInput> | null
     vaultAccount?: XOR<VaultAccountNullableScalarRelationFilter, VaultAccountWhereInput> | null
     vaultPreferences?: XOR<VaultPreferencesNullableScalarRelationFilter, VaultPreferencesWhereInput> | null
@@ -44292,6 +45692,7 @@ export namespace Prisma {
     transactions?: TransactionListRelationFilter
     allocationRules?: AllocationRuleListRelationFilter
     vaultEnvelope?: XOR<VaultEnvelopeNullableScalarRelationFilter, VaultEnvelopeWhereInput> | null
+    envelopeSinks?: EnvelopeSinkListRelationFilter
   }
 
   export type EnvelopeOrderByWithRelationInput = {
@@ -44314,6 +45715,7 @@ export namespace Prisma {
     transactions?: TransactionOrderByRelationAggregateInput
     allocationRules?: AllocationRuleOrderByRelationAggregateInput
     vaultEnvelope?: VaultEnvelopeOrderByWithRelationInput
+    envelopeSinks?: EnvelopeSinkOrderByRelationAggregateInput
   }
 
   export type EnvelopeWhereUniqueInput = Prisma.AtLeast<{
@@ -44339,6 +45741,7 @@ export namespace Prisma {
     transactions?: TransactionListRelationFilter
     allocationRules?: AllocationRuleListRelationFilter
     vaultEnvelope?: XOR<VaultEnvelopeNullableScalarRelationFilter, VaultEnvelopeWhereInput> | null
+    envelopeSinks?: EnvelopeSinkListRelationFilter
   }, "id">
 
   export type EnvelopeOrderByWithAggregationInput = {
@@ -44383,6 +45786,96 @@ export namespace Prisma {
     isArchived?: BoolWithAggregatesFilter<"Envelope"> | boolean
     createdAt?: DateTimeWithAggregatesFilter<"Envelope"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Envelope"> | Date | string
+  }
+
+  export type EnvelopeSinkWhereInput = {
+    AND?: EnvelopeSinkWhereInput | EnvelopeSinkWhereInput[]
+    OR?: EnvelopeSinkWhereInput[]
+    NOT?: EnvelopeSinkWhereInput | EnvelopeSinkWhereInput[]
+    id?: StringFilter<"EnvelopeSink"> | string
+    envelopeId?: StringFilter<"EnvelopeSink"> | string
+    userId?: StringFilter<"EnvelopeSink"> | string
+    name?: StringFilter<"EnvelopeSink"> | string
+    targetCents?: IntFilter<"EnvelopeSink"> | number
+    cadence?: StringFilter<"EnvelopeSink"> | string
+    source?: StringFilter<"EnvelopeSink"> | string
+    sortOrder?: IntFilter<"EnvelopeSink"> | number
+    isArchived?: BoolFilter<"EnvelopeSink"> | boolean
+    createdAt?: DateTimeFilter<"EnvelopeSink"> | Date | string
+    updatedAt?: DateTimeFilter<"EnvelopeSink"> | Date | string
+    envelope?: XOR<EnvelopeScalarRelationFilter, EnvelopeWhereInput>
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }
+
+  export type EnvelopeSinkOrderByWithRelationInput = {
+    id?: SortOrder
+    envelopeId?: SortOrder
+    userId?: SortOrder
+    name?: SortOrder
+    targetCents?: SortOrder
+    cadence?: SortOrder
+    source?: SortOrder
+    sortOrder?: SortOrder
+    isArchived?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    envelope?: EnvelopeOrderByWithRelationInput
+    user?: UserOrderByWithRelationInput
+  }
+
+  export type EnvelopeSinkWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: EnvelopeSinkWhereInput | EnvelopeSinkWhereInput[]
+    OR?: EnvelopeSinkWhereInput[]
+    NOT?: EnvelopeSinkWhereInput | EnvelopeSinkWhereInput[]
+    envelopeId?: StringFilter<"EnvelopeSink"> | string
+    userId?: StringFilter<"EnvelopeSink"> | string
+    name?: StringFilter<"EnvelopeSink"> | string
+    targetCents?: IntFilter<"EnvelopeSink"> | number
+    cadence?: StringFilter<"EnvelopeSink"> | string
+    source?: StringFilter<"EnvelopeSink"> | string
+    sortOrder?: IntFilter<"EnvelopeSink"> | number
+    isArchived?: BoolFilter<"EnvelopeSink"> | boolean
+    createdAt?: DateTimeFilter<"EnvelopeSink"> | Date | string
+    updatedAt?: DateTimeFilter<"EnvelopeSink"> | Date | string
+    envelope?: XOR<EnvelopeScalarRelationFilter, EnvelopeWhereInput>
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }, "id">
+
+  export type EnvelopeSinkOrderByWithAggregationInput = {
+    id?: SortOrder
+    envelopeId?: SortOrder
+    userId?: SortOrder
+    name?: SortOrder
+    targetCents?: SortOrder
+    cadence?: SortOrder
+    source?: SortOrder
+    sortOrder?: SortOrder
+    isArchived?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: EnvelopeSinkCountOrderByAggregateInput
+    _avg?: EnvelopeSinkAvgOrderByAggregateInput
+    _max?: EnvelopeSinkMaxOrderByAggregateInput
+    _min?: EnvelopeSinkMinOrderByAggregateInput
+    _sum?: EnvelopeSinkSumOrderByAggregateInput
+  }
+
+  export type EnvelopeSinkScalarWhereWithAggregatesInput = {
+    AND?: EnvelopeSinkScalarWhereWithAggregatesInput | EnvelopeSinkScalarWhereWithAggregatesInput[]
+    OR?: EnvelopeSinkScalarWhereWithAggregatesInput[]
+    NOT?: EnvelopeSinkScalarWhereWithAggregatesInput | EnvelopeSinkScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"EnvelopeSink"> | string
+    envelopeId?: StringWithAggregatesFilter<"EnvelopeSink"> | string
+    userId?: StringWithAggregatesFilter<"EnvelopeSink"> | string
+    name?: StringWithAggregatesFilter<"EnvelopeSink"> | string
+    targetCents?: IntWithAggregatesFilter<"EnvelopeSink"> | number
+    cadence?: StringWithAggregatesFilter<"EnvelopeSink"> | string
+    source?: StringWithAggregatesFilter<"EnvelopeSink"> | string
+    sortOrder?: IntWithAggregatesFilter<"EnvelopeSink"> | number
+    isArchived?: BoolWithAggregatesFilter<"EnvelopeSink"> | boolean
+    createdAt?: DateTimeWithAggregatesFilter<"EnvelopeSink"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"EnvelopeSink"> | Date | string
   }
 
   export type TransactionWhereInput = {
@@ -46856,6 +48349,7 @@ export namespace Prisma {
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -46883,6 +48377,7 @@ export namespace Prisma {
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -46910,6 +48405,7 @@ export namespace Prisma {
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -46937,6 +48433,7 @@ export namespace Prisma {
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -47196,6 +48693,7 @@ export namespace Prisma {
     transactions?: TransactionCreateNestedManyWithoutEnvelopeInput
     allocationRules?: AllocationRuleCreateNestedManyWithoutEnvelopeInput
     vaultEnvelope?: VaultEnvelopeCreateNestedOneWithoutCompassEnvelopeInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutEnvelopeInput
   }
 
   export type EnvelopeUncheckedCreateInput = {
@@ -47217,6 +48715,7 @@ export namespace Prisma {
     transactions?: TransactionUncheckedCreateNestedManyWithoutEnvelopeInput
     allocationRules?: AllocationRuleUncheckedCreateNestedManyWithoutEnvelopeInput
     vaultEnvelope?: VaultEnvelopeUncheckedCreateNestedOneWithoutCompassEnvelopeInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutEnvelopeInput
   }
 
   export type EnvelopeUpdateInput = {
@@ -47238,6 +48737,7 @@ export namespace Prisma {
     transactions?: TransactionUpdateManyWithoutEnvelopeNestedInput
     allocationRules?: AllocationRuleUpdateManyWithoutEnvelopeNestedInput
     vaultEnvelope?: VaultEnvelopeUpdateOneWithoutCompassEnvelopeNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutEnvelopeNestedInput
   }
 
   export type EnvelopeUncheckedUpdateInput = {
@@ -47259,6 +48759,7 @@ export namespace Prisma {
     transactions?: TransactionUncheckedUpdateManyWithoutEnvelopeNestedInput
     allocationRules?: AllocationRuleUncheckedUpdateManyWithoutEnvelopeNestedInput
     vaultEnvelope?: VaultEnvelopeUncheckedUpdateOneWithoutCompassEnvelopeNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutEnvelopeNestedInput
   }
 
   export type EnvelopeCreateManyInput = {
@@ -47308,6 +48809,102 @@ export namespace Prisma {
     icon?: NullableStringFieldUpdateOperationsInput | string | null
     destinationAccountId?: NullableStringFieldUpdateOperationsInput | string | null
     enforceHardCap?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type EnvelopeSinkCreateInput = {
+    id?: string
+    name: string
+    targetCents: number
+    cadence: string
+    source?: string
+    sortOrder?: number
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    envelope: EnvelopeCreateNestedOneWithoutEnvelopeSinksInput
+    user: UserCreateNestedOneWithoutEnvelopeSinksInput
+  }
+
+  export type EnvelopeSinkUncheckedCreateInput = {
+    id?: string
+    envelopeId: string
+    userId: string
+    name: string
+    targetCents: number
+    cadence: string
+    source?: string
+    sortOrder?: number
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type EnvelopeSinkUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    targetCents?: IntFieldUpdateOperationsInput | number
+    cadence?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    envelope?: EnvelopeUpdateOneRequiredWithoutEnvelopeSinksNestedInput
+    user?: UserUpdateOneRequiredWithoutEnvelopeSinksNestedInput
+  }
+
+  export type EnvelopeSinkUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    envelopeId?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    targetCents?: IntFieldUpdateOperationsInput | number
+    cadence?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type EnvelopeSinkCreateManyInput = {
+    id?: string
+    envelopeId: string
+    userId: string
+    name: string
+    targetCents: number
+    cadence: string
+    source?: string
+    sortOrder?: number
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type EnvelopeSinkUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    targetCents?: IntFieldUpdateOperationsInput | number
+    cadence?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type EnvelopeSinkUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    envelopeId?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    targetCents?: IntFieldUpdateOperationsInput | number
+    cadence?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
     sortOrder?: IntFieldUpdateOperationsInput | number
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -50142,6 +51739,12 @@ export namespace Prisma {
     none?: AuditLogDailyRollupWhereInput
   }
 
+  export type EnvelopeSinkListRelationFilter = {
+    every?: EnvelopeSinkWhereInput
+    some?: EnvelopeSinkWhereInput
+    none?: EnvelopeSinkWhereInput
+  }
+
   export type FinancialIdentityNullableScalarRelationFilter = {
     is?: FinancialIdentityWhereInput | null
     isNot?: FinancialIdentityWhereInput | null
@@ -50204,6 +51807,10 @@ export namespace Prisma {
   }
 
   export type AuditLogDailyRollupOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type EnvelopeSinkOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -50509,6 +52116,63 @@ export namespace Prisma {
   export type EnvelopeSumOrderByAggregateInput = {
     targetBalance?: SortOrder
     currentBalance?: SortOrder
+    sortOrder?: SortOrder
+  }
+
+  export type EnvelopeScalarRelationFilter = {
+    is?: EnvelopeWhereInput
+    isNot?: EnvelopeWhereInput
+  }
+
+  export type EnvelopeSinkCountOrderByAggregateInput = {
+    id?: SortOrder
+    envelopeId?: SortOrder
+    userId?: SortOrder
+    name?: SortOrder
+    targetCents?: SortOrder
+    cadence?: SortOrder
+    source?: SortOrder
+    sortOrder?: SortOrder
+    isArchived?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type EnvelopeSinkAvgOrderByAggregateInput = {
+    targetCents?: SortOrder
+    sortOrder?: SortOrder
+  }
+
+  export type EnvelopeSinkMaxOrderByAggregateInput = {
+    id?: SortOrder
+    envelopeId?: SortOrder
+    userId?: SortOrder
+    name?: SortOrder
+    targetCents?: SortOrder
+    cadence?: SortOrder
+    source?: SortOrder
+    sortOrder?: SortOrder
+    isArchived?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type EnvelopeSinkMinOrderByAggregateInput = {
+    id?: SortOrder
+    envelopeId?: SortOrder
+    userId?: SortOrder
+    name?: SortOrder
+    targetCents?: SortOrder
+    cadence?: SortOrder
+    source?: SortOrder
+    sortOrder?: SortOrder
+    isArchived?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type EnvelopeSinkSumOrderByAggregateInput = {
+    targetCents?: SortOrder
     sortOrder?: SortOrder
   }
 
@@ -50891,11 +52555,6 @@ export namespace Prisma {
   export type AllocationPlanScalarRelationFilter = {
     is?: AllocationPlanWhereInput
     isNot?: AllocationPlanWhereInput
-  }
-
-  export type EnvelopeScalarRelationFilter = {
-    is?: EnvelopeWhereInput
-    isNot?: EnvelopeWhereInput
   }
 
   export type AllocationRuleCountOrderByAggregateInput = {
@@ -52326,6 +53985,13 @@ export namespace Prisma {
     connect?: AuditLogDailyRollupWhereUniqueInput | AuditLogDailyRollupWhereUniqueInput[]
   }
 
+  export type EnvelopeSinkCreateNestedManyWithoutUserInput = {
+    create?: XOR<EnvelopeSinkCreateWithoutUserInput, EnvelopeSinkUncheckedCreateWithoutUserInput> | EnvelopeSinkCreateWithoutUserInput[] | EnvelopeSinkUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: EnvelopeSinkCreateOrConnectWithoutUserInput | EnvelopeSinkCreateOrConnectWithoutUserInput[]
+    createMany?: EnvelopeSinkCreateManyUserInputEnvelope
+    connect?: EnvelopeSinkWhereUniqueInput | EnvelopeSinkWhereUniqueInput[]
+  }
+
   export type FinancialIdentityCreateNestedOneWithoutUserInput = {
     create?: XOR<FinancialIdentityCreateWithoutUserInput, FinancialIdentityUncheckedCreateWithoutUserInput>
     connectOrCreate?: FinancialIdentityCreateOrConnectWithoutUserInput
@@ -52418,6 +54084,13 @@ export namespace Prisma {
     connectOrCreate?: AuditLogDailyRollupCreateOrConnectWithoutUserInput | AuditLogDailyRollupCreateOrConnectWithoutUserInput[]
     createMany?: AuditLogDailyRollupCreateManyUserInputEnvelope
     connect?: AuditLogDailyRollupWhereUniqueInput | AuditLogDailyRollupWhereUniqueInput[]
+  }
+
+  export type EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput = {
+    create?: XOR<EnvelopeSinkCreateWithoutUserInput, EnvelopeSinkUncheckedCreateWithoutUserInput> | EnvelopeSinkCreateWithoutUserInput[] | EnvelopeSinkUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: EnvelopeSinkCreateOrConnectWithoutUserInput | EnvelopeSinkCreateOrConnectWithoutUserInput[]
+    createMany?: EnvelopeSinkCreateManyUserInputEnvelope
+    connect?: EnvelopeSinkWhereUniqueInput | EnvelopeSinkWhereUniqueInput[]
   }
 
   export type FinancialIdentityUncheckedCreateNestedOneWithoutUserInput = {
@@ -52604,6 +54277,20 @@ export namespace Prisma {
     deleteMany?: AuditLogDailyRollupScalarWhereInput | AuditLogDailyRollupScalarWhereInput[]
   }
 
+  export type EnvelopeSinkUpdateManyWithoutUserNestedInput = {
+    create?: XOR<EnvelopeSinkCreateWithoutUserInput, EnvelopeSinkUncheckedCreateWithoutUserInput> | EnvelopeSinkCreateWithoutUserInput[] | EnvelopeSinkUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: EnvelopeSinkCreateOrConnectWithoutUserInput | EnvelopeSinkCreateOrConnectWithoutUserInput[]
+    upsert?: EnvelopeSinkUpsertWithWhereUniqueWithoutUserInput | EnvelopeSinkUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: EnvelopeSinkCreateManyUserInputEnvelope
+    set?: EnvelopeSinkWhereUniqueInput | EnvelopeSinkWhereUniqueInput[]
+    disconnect?: EnvelopeSinkWhereUniqueInput | EnvelopeSinkWhereUniqueInput[]
+    delete?: EnvelopeSinkWhereUniqueInput | EnvelopeSinkWhereUniqueInput[]
+    connect?: EnvelopeSinkWhereUniqueInput | EnvelopeSinkWhereUniqueInput[]
+    update?: EnvelopeSinkUpdateWithWhereUniqueWithoutUserInput | EnvelopeSinkUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: EnvelopeSinkUpdateManyWithWhereWithoutUserInput | EnvelopeSinkUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: EnvelopeSinkScalarWhereInput | EnvelopeSinkScalarWhereInput[]
+  }
+
   export type FinancialIdentityUpdateOneWithoutUserNestedInput = {
     create?: XOR<FinancialIdentityCreateWithoutUserInput, FinancialIdentityUncheckedCreateWithoutUserInput>
     connectOrCreate?: FinancialIdentityCreateOrConnectWithoutUserInput
@@ -52782,6 +54469,20 @@ export namespace Prisma {
     update?: AuditLogDailyRollupUpdateWithWhereUniqueWithoutUserInput | AuditLogDailyRollupUpdateWithWhereUniqueWithoutUserInput[]
     updateMany?: AuditLogDailyRollupUpdateManyWithWhereWithoutUserInput | AuditLogDailyRollupUpdateManyWithWhereWithoutUserInput[]
     deleteMany?: AuditLogDailyRollupScalarWhereInput | AuditLogDailyRollupScalarWhereInput[]
+  }
+
+  export type EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput = {
+    create?: XOR<EnvelopeSinkCreateWithoutUserInput, EnvelopeSinkUncheckedCreateWithoutUserInput> | EnvelopeSinkCreateWithoutUserInput[] | EnvelopeSinkUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: EnvelopeSinkCreateOrConnectWithoutUserInput | EnvelopeSinkCreateOrConnectWithoutUserInput[]
+    upsert?: EnvelopeSinkUpsertWithWhereUniqueWithoutUserInput | EnvelopeSinkUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: EnvelopeSinkCreateManyUserInputEnvelope
+    set?: EnvelopeSinkWhereUniqueInput | EnvelopeSinkWhereUniqueInput[]
+    disconnect?: EnvelopeSinkWhereUniqueInput | EnvelopeSinkWhereUniqueInput[]
+    delete?: EnvelopeSinkWhereUniqueInput | EnvelopeSinkWhereUniqueInput[]
+    connect?: EnvelopeSinkWhereUniqueInput | EnvelopeSinkWhereUniqueInput[]
+    update?: EnvelopeSinkUpdateWithWhereUniqueWithoutUserInput | EnvelopeSinkUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: EnvelopeSinkUpdateManyWithWhereWithoutUserInput | EnvelopeSinkUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: EnvelopeSinkScalarWhereInput | EnvelopeSinkScalarWhereInput[]
   }
 
   export type FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput = {
@@ -52966,6 +54667,13 @@ export namespace Prisma {
     connect?: VaultEnvelopeWhereUniqueInput
   }
 
+  export type EnvelopeSinkCreateNestedManyWithoutEnvelopeInput = {
+    create?: XOR<EnvelopeSinkCreateWithoutEnvelopeInput, EnvelopeSinkUncheckedCreateWithoutEnvelopeInput> | EnvelopeSinkCreateWithoutEnvelopeInput[] | EnvelopeSinkUncheckedCreateWithoutEnvelopeInput[]
+    connectOrCreate?: EnvelopeSinkCreateOrConnectWithoutEnvelopeInput | EnvelopeSinkCreateOrConnectWithoutEnvelopeInput[]
+    createMany?: EnvelopeSinkCreateManyEnvelopeInputEnvelope
+    connect?: EnvelopeSinkWhereUniqueInput | EnvelopeSinkWhereUniqueInput[]
+  }
+
   export type TransactionUncheckedCreateNestedManyWithoutEnvelopeInput = {
     create?: XOR<TransactionCreateWithoutEnvelopeInput, TransactionUncheckedCreateWithoutEnvelopeInput> | TransactionCreateWithoutEnvelopeInput[] | TransactionUncheckedCreateWithoutEnvelopeInput[]
     connectOrCreate?: TransactionCreateOrConnectWithoutEnvelopeInput | TransactionCreateOrConnectWithoutEnvelopeInput[]
@@ -52984,6 +54692,13 @@ export namespace Prisma {
     create?: XOR<VaultEnvelopeCreateWithoutCompassEnvelopeInput, VaultEnvelopeUncheckedCreateWithoutCompassEnvelopeInput>
     connectOrCreate?: VaultEnvelopeCreateOrConnectWithoutCompassEnvelopeInput
     connect?: VaultEnvelopeWhereUniqueInput
+  }
+
+  export type EnvelopeSinkUncheckedCreateNestedManyWithoutEnvelopeInput = {
+    create?: XOR<EnvelopeSinkCreateWithoutEnvelopeInput, EnvelopeSinkUncheckedCreateWithoutEnvelopeInput> | EnvelopeSinkCreateWithoutEnvelopeInput[] | EnvelopeSinkUncheckedCreateWithoutEnvelopeInput[]
+    connectOrCreate?: EnvelopeSinkCreateOrConnectWithoutEnvelopeInput | EnvelopeSinkCreateOrConnectWithoutEnvelopeInput[]
+    createMany?: EnvelopeSinkCreateManyEnvelopeInputEnvelope
+    connect?: EnvelopeSinkWhereUniqueInput | EnvelopeSinkWhereUniqueInput[]
   }
 
   export type UserUpdateOneRequiredWithoutEnvelopesNestedInput = {
@@ -53032,6 +54747,20 @@ export namespace Prisma {
     update?: XOR<XOR<VaultEnvelopeUpdateToOneWithWhereWithoutCompassEnvelopeInput, VaultEnvelopeUpdateWithoutCompassEnvelopeInput>, VaultEnvelopeUncheckedUpdateWithoutCompassEnvelopeInput>
   }
 
+  export type EnvelopeSinkUpdateManyWithoutEnvelopeNestedInput = {
+    create?: XOR<EnvelopeSinkCreateWithoutEnvelopeInput, EnvelopeSinkUncheckedCreateWithoutEnvelopeInput> | EnvelopeSinkCreateWithoutEnvelopeInput[] | EnvelopeSinkUncheckedCreateWithoutEnvelopeInput[]
+    connectOrCreate?: EnvelopeSinkCreateOrConnectWithoutEnvelopeInput | EnvelopeSinkCreateOrConnectWithoutEnvelopeInput[]
+    upsert?: EnvelopeSinkUpsertWithWhereUniqueWithoutEnvelopeInput | EnvelopeSinkUpsertWithWhereUniqueWithoutEnvelopeInput[]
+    createMany?: EnvelopeSinkCreateManyEnvelopeInputEnvelope
+    set?: EnvelopeSinkWhereUniqueInput | EnvelopeSinkWhereUniqueInput[]
+    disconnect?: EnvelopeSinkWhereUniqueInput | EnvelopeSinkWhereUniqueInput[]
+    delete?: EnvelopeSinkWhereUniqueInput | EnvelopeSinkWhereUniqueInput[]
+    connect?: EnvelopeSinkWhereUniqueInput | EnvelopeSinkWhereUniqueInput[]
+    update?: EnvelopeSinkUpdateWithWhereUniqueWithoutEnvelopeInput | EnvelopeSinkUpdateWithWhereUniqueWithoutEnvelopeInput[]
+    updateMany?: EnvelopeSinkUpdateManyWithWhereWithoutEnvelopeInput | EnvelopeSinkUpdateManyWithWhereWithoutEnvelopeInput[]
+    deleteMany?: EnvelopeSinkScalarWhereInput | EnvelopeSinkScalarWhereInput[]
+  }
+
   export type TransactionUncheckedUpdateManyWithoutEnvelopeNestedInput = {
     create?: XOR<TransactionCreateWithoutEnvelopeInput, TransactionUncheckedCreateWithoutEnvelopeInput> | TransactionCreateWithoutEnvelopeInput[] | TransactionUncheckedCreateWithoutEnvelopeInput[]
     connectOrCreate?: TransactionCreateOrConnectWithoutEnvelopeInput | TransactionCreateOrConnectWithoutEnvelopeInput[]
@@ -53068,6 +54797,48 @@ export namespace Prisma {
     delete?: VaultEnvelopeWhereInput | boolean
     connect?: VaultEnvelopeWhereUniqueInput
     update?: XOR<XOR<VaultEnvelopeUpdateToOneWithWhereWithoutCompassEnvelopeInput, VaultEnvelopeUpdateWithoutCompassEnvelopeInput>, VaultEnvelopeUncheckedUpdateWithoutCompassEnvelopeInput>
+  }
+
+  export type EnvelopeSinkUncheckedUpdateManyWithoutEnvelopeNestedInput = {
+    create?: XOR<EnvelopeSinkCreateWithoutEnvelopeInput, EnvelopeSinkUncheckedCreateWithoutEnvelopeInput> | EnvelopeSinkCreateWithoutEnvelopeInput[] | EnvelopeSinkUncheckedCreateWithoutEnvelopeInput[]
+    connectOrCreate?: EnvelopeSinkCreateOrConnectWithoutEnvelopeInput | EnvelopeSinkCreateOrConnectWithoutEnvelopeInput[]
+    upsert?: EnvelopeSinkUpsertWithWhereUniqueWithoutEnvelopeInput | EnvelopeSinkUpsertWithWhereUniqueWithoutEnvelopeInput[]
+    createMany?: EnvelopeSinkCreateManyEnvelopeInputEnvelope
+    set?: EnvelopeSinkWhereUniqueInput | EnvelopeSinkWhereUniqueInput[]
+    disconnect?: EnvelopeSinkWhereUniqueInput | EnvelopeSinkWhereUniqueInput[]
+    delete?: EnvelopeSinkWhereUniqueInput | EnvelopeSinkWhereUniqueInput[]
+    connect?: EnvelopeSinkWhereUniqueInput | EnvelopeSinkWhereUniqueInput[]
+    update?: EnvelopeSinkUpdateWithWhereUniqueWithoutEnvelopeInput | EnvelopeSinkUpdateWithWhereUniqueWithoutEnvelopeInput[]
+    updateMany?: EnvelopeSinkUpdateManyWithWhereWithoutEnvelopeInput | EnvelopeSinkUpdateManyWithWhereWithoutEnvelopeInput[]
+    deleteMany?: EnvelopeSinkScalarWhereInput | EnvelopeSinkScalarWhereInput[]
+  }
+
+  export type EnvelopeCreateNestedOneWithoutEnvelopeSinksInput = {
+    create?: XOR<EnvelopeCreateWithoutEnvelopeSinksInput, EnvelopeUncheckedCreateWithoutEnvelopeSinksInput>
+    connectOrCreate?: EnvelopeCreateOrConnectWithoutEnvelopeSinksInput
+    connect?: EnvelopeWhereUniqueInput
+  }
+
+  export type UserCreateNestedOneWithoutEnvelopeSinksInput = {
+    create?: XOR<UserCreateWithoutEnvelopeSinksInput, UserUncheckedCreateWithoutEnvelopeSinksInput>
+    connectOrCreate?: UserCreateOrConnectWithoutEnvelopeSinksInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type EnvelopeUpdateOneRequiredWithoutEnvelopeSinksNestedInput = {
+    create?: XOR<EnvelopeCreateWithoutEnvelopeSinksInput, EnvelopeUncheckedCreateWithoutEnvelopeSinksInput>
+    connectOrCreate?: EnvelopeCreateOrConnectWithoutEnvelopeSinksInput
+    upsert?: EnvelopeUpsertWithoutEnvelopeSinksInput
+    connect?: EnvelopeWhereUniqueInput
+    update?: XOR<XOR<EnvelopeUpdateToOneWithWhereWithoutEnvelopeSinksInput, EnvelopeUpdateWithoutEnvelopeSinksInput>, EnvelopeUncheckedUpdateWithoutEnvelopeSinksInput>
+  }
+
+  export type UserUpdateOneRequiredWithoutEnvelopeSinksNestedInput = {
+    create?: XOR<UserCreateWithoutEnvelopeSinksInput, UserUncheckedCreateWithoutEnvelopeSinksInput>
+    connectOrCreate?: UserCreateOrConnectWithoutEnvelopeSinksInput
+    upsert?: UserUpsertWithoutEnvelopeSinksInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutEnvelopeSinksInput, UserUpdateWithoutEnvelopeSinksInput>, UserUncheckedUpdateWithoutEnvelopeSinksInput>
   }
 
   export type UserCreateNestedOneWithoutTransactionsInput = {
@@ -54645,6 +56416,7 @@ export namespace Prisma {
     transactions?: TransactionCreateNestedManyWithoutEnvelopeInput
     allocationRules?: AllocationRuleCreateNestedManyWithoutEnvelopeInput
     vaultEnvelope?: VaultEnvelopeCreateNestedOneWithoutCompassEnvelopeInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutEnvelopeInput
   }
 
   export type EnvelopeUncheckedCreateWithoutUserInput = {
@@ -54665,6 +56437,7 @@ export namespace Prisma {
     transactions?: TransactionUncheckedCreateNestedManyWithoutEnvelopeInput
     allocationRules?: AllocationRuleUncheckedCreateNestedManyWithoutEnvelopeInput
     vaultEnvelope?: VaultEnvelopeUncheckedCreateNestedOneWithoutCompassEnvelopeInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutEnvelopeInput
   }
 
   export type EnvelopeCreateOrConnectWithoutUserInput = {
@@ -54932,6 +56705,42 @@ export namespace Prisma {
 
   export type AuditLogDailyRollupCreateManyUserInputEnvelope = {
     data: AuditLogDailyRollupCreateManyUserInput | AuditLogDailyRollupCreateManyUserInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type EnvelopeSinkCreateWithoutUserInput = {
+    id?: string
+    name: string
+    targetCents: number
+    cadence: string
+    source?: string
+    sortOrder?: number
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    envelope: EnvelopeCreateNestedOneWithoutEnvelopeSinksInput
+  }
+
+  export type EnvelopeSinkUncheckedCreateWithoutUserInput = {
+    id?: string
+    envelopeId: string
+    name: string
+    targetCents: number
+    cadence: string
+    source?: string
+    sortOrder?: number
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type EnvelopeSinkCreateOrConnectWithoutUserInput = {
+    where: EnvelopeSinkWhereUniqueInput
+    create: XOR<EnvelopeSinkCreateWithoutUserInput, EnvelopeSinkUncheckedCreateWithoutUserInput>
+  }
+
+  export type EnvelopeSinkCreateManyUserInputEnvelope = {
+    data: EnvelopeSinkCreateManyUserInput | EnvelopeSinkCreateManyUserInput[]
     skipDuplicates?: boolean
   }
 
@@ -55456,6 +57265,39 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"AuditLogDailyRollup"> | Date | string
   }
 
+  export type EnvelopeSinkUpsertWithWhereUniqueWithoutUserInput = {
+    where: EnvelopeSinkWhereUniqueInput
+    update: XOR<EnvelopeSinkUpdateWithoutUserInput, EnvelopeSinkUncheckedUpdateWithoutUserInput>
+    create: XOR<EnvelopeSinkCreateWithoutUserInput, EnvelopeSinkUncheckedCreateWithoutUserInput>
+  }
+
+  export type EnvelopeSinkUpdateWithWhereUniqueWithoutUserInput = {
+    where: EnvelopeSinkWhereUniqueInput
+    data: XOR<EnvelopeSinkUpdateWithoutUserInput, EnvelopeSinkUncheckedUpdateWithoutUserInput>
+  }
+
+  export type EnvelopeSinkUpdateManyWithWhereWithoutUserInput = {
+    where: EnvelopeSinkScalarWhereInput
+    data: XOR<EnvelopeSinkUpdateManyMutationInput, EnvelopeSinkUncheckedUpdateManyWithoutUserInput>
+  }
+
+  export type EnvelopeSinkScalarWhereInput = {
+    AND?: EnvelopeSinkScalarWhereInput | EnvelopeSinkScalarWhereInput[]
+    OR?: EnvelopeSinkScalarWhereInput[]
+    NOT?: EnvelopeSinkScalarWhereInput | EnvelopeSinkScalarWhereInput[]
+    id?: StringFilter<"EnvelopeSink"> | string
+    envelopeId?: StringFilter<"EnvelopeSink"> | string
+    userId?: StringFilter<"EnvelopeSink"> | string
+    name?: StringFilter<"EnvelopeSink"> | string
+    targetCents?: IntFilter<"EnvelopeSink"> | number
+    cadence?: StringFilter<"EnvelopeSink"> | string
+    source?: StringFilter<"EnvelopeSink"> | string
+    sortOrder?: IntFilter<"EnvelopeSink"> | number
+    isArchived?: BoolFilter<"EnvelopeSink"> | boolean
+    createdAt?: DateTimeFilter<"EnvelopeSink"> | Date | string
+    updatedAt?: DateTimeFilter<"EnvelopeSink"> | Date | string
+  }
+
   export type FinancialIdentityUpsertWithoutUserInput = {
     update: XOR<FinancialIdentityUpdateWithoutUserInput, FinancialIdentityUncheckedUpdateWithoutUserInput>
     create: XOR<FinancialIdentityCreateWithoutUserInput, FinancialIdentityUncheckedCreateWithoutUserInput>
@@ -55686,6 +57528,7 @@ export namespace Prisma {
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -55712,6 +57555,7 @@ export namespace Prisma {
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -55754,6 +57598,7 @@ export namespace Prisma {
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -55780,6 +57625,7 @@ export namespace Prisma {
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -55806,6 +57652,7 @@ export namespace Prisma {
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -55832,6 +57679,7 @@ export namespace Prisma {
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -55952,6 +57800,7 @@ export namespace Prisma {
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -55978,6 +57827,7 @@ export namespace Prisma {
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -56036,6 +57886,7 @@ export namespace Prisma {
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -56062,6 +57913,7 @@ export namespace Prisma {
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -56190,6 +58042,42 @@ export namespace Prisma {
     create: XOR<VaultEnvelopeCreateWithoutCompassEnvelopeInput, VaultEnvelopeUncheckedCreateWithoutCompassEnvelopeInput>
   }
 
+  export type EnvelopeSinkCreateWithoutEnvelopeInput = {
+    id?: string
+    name: string
+    targetCents: number
+    cadence: string
+    source?: string
+    sortOrder?: number
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutEnvelopeSinksInput
+  }
+
+  export type EnvelopeSinkUncheckedCreateWithoutEnvelopeInput = {
+    id?: string
+    userId: string
+    name: string
+    targetCents: number
+    cadence: string
+    source?: string
+    sortOrder?: number
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type EnvelopeSinkCreateOrConnectWithoutEnvelopeInput = {
+    where: EnvelopeSinkWhereUniqueInput
+    create: XOR<EnvelopeSinkCreateWithoutEnvelopeInput, EnvelopeSinkUncheckedCreateWithoutEnvelopeInput>
+  }
+
+  export type EnvelopeSinkCreateManyEnvelopeInputEnvelope = {
+    data: EnvelopeSinkCreateManyEnvelopeInput | EnvelopeSinkCreateManyEnvelopeInput[]
+    skipDuplicates?: boolean
+  }
+
   export type UserUpsertWithoutEnvelopesInput = {
     update: XOR<UserUpdateWithoutEnvelopesInput, UserUncheckedUpdateWithoutEnvelopesInput>
     create: XOR<UserCreateWithoutEnvelopesInput, UserUncheckedCreateWithoutEnvelopesInput>
@@ -56221,6 +58109,7 @@ export namespace Prisma {
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -56247,6 +58136,7 @@ export namespace Prisma {
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -56346,6 +58236,246 @@ export namespace Prisma {
     yieldEvents?: YieldEventUncheckedUpdateManyWithoutEnvelopeNestedInput
   }
 
+  export type EnvelopeSinkUpsertWithWhereUniqueWithoutEnvelopeInput = {
+    where: EnvelopeSinkWhereUniqueInput
+    update: XOR<EnvelopeSinkUpdateWithoutEnvelopeInput, EnvelopeSinkUncheckedUpdateWithoutEnvelopeInput>
+    create: XOR<EnvelopeSinkCreateWithoutEnvelopeInput, EnvelopeSinkUncheckedCreateWithoutEnvelopeInput>
+  }
+
+  export type EnvelopeSinkUpdateWithWhereUniqueWithoutEnvelopeInput = {
+    where: EnvelopeSinkWhereUniqueInput
+    data: XOR<EnvelopeSinkUpdateWithoutEnvelopeInput, EnvelopeSinkUncheckedUpdateWithoutEnvelopeInput>
+  }
+
+  export type EnvelopeSinkUpdateManyWithWhereWithoutEnvelopeInput = {
+    where: EnvelopeSinkScalarWhereInput
+    data: XOR<EnvelopeSinkUpdateManyMutationInput, EnvelopeSinkUncheckedUpdateManyWithoutEnvelopeInput>
+  }
+
+  export type EnvelopeCreateWithoutEnvelopeSinksInput = {
+    id?: string
+    name: string
+    source?: string
+    targetBalance?: number
+    currentBalance?: number
+    planet?: string | null
+    color?: string | null
+    icon?: string | null
+    destinationAccountId?: string | null
+    enforceHardCap?: boolean
+    sortOrder?: number
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutEnvelopesInput
+    transactions?: TransactionCreateNestedManyWithoutEnvelopeInput
+    allocationRules?: AllocationRuleCreateNestedManyWithoutEnvelopeInput
+    vaultEnvelope?: VaultEnvelopeCreateNestedOneWithoutCompassEnvelopeInput
+  }
+
+  export type EnvelopeUncheckedCreateWithoutEnvelopeSinksInput = {
+    id?: string
+    userId: string
+    name: string
+    source?: string
+    targetBalance?: number
+    currentBalance?: number
+    planet?: string | null
+    color?: string | null
+    icon?: string | null
+    destinationAccountId?: string | null
+    enforceHardCap?: boolean
+    sortOrder?: number
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    transactions?: TransactionUncheckedCreateNestedManyWithoutEnvelopeInput
+    allocationRules?: AllocationRuleUncheckedCreateNestedManyWithoutEnvelopeInput
+    vaultEnvelope?: VaultEnvelopeUncheckedCreateNestedOneWithoutCompassEnvelopeInput
+  }
+
+  export type EnvelopeCreateOrConnectWithoutEnvelopeSinksInput = {
+    where: EnvelopeWhereUniqueInput
+    create: XOR<EnvelopeCreateWithoutEnvelopeSinksInput, EnvelopeUncheckedCreateWithoutEnvelopeSinksInput>
+  }
+
+  export type UserCreateWithoutEnvelopeSinksInput = {
+    id?: string
+    name: string
+    email: string
+    passwordHash: string
+    aiTier?: number
+    routingLevel?: number
+    defaultViewId?: string | null
+    settings?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    sessions?: SessionCreateNestedManyWithoutUserInput
+    accounts?: AccountCreateNestedManyWithoutUserInput
+    envelopes?: EnvelopeCreateNestedManyWithoutUserInput
+    transactions?: TransactionCreateNestedManyWithoutUserInput
+    paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
+    goals?: GoalCreateNestedManyWithoutUserInput
+    allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    bills?: BillCreateNestedManyWithoutUserInput
+    auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutEnvelopeSinksInput = {
+    id?: string
+    name: string
+    email: string
+    passwordHash: string
+    aiTier?: number
+    routingLevel?: number
+    defaultViewId?: string | null
+    settings?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
+    accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
+    envelopes?: EnvelopeUncheckedCreateNestedManyWithoutUserInput
+    transactions?: TransactionUncheckedCreateNestedManyWithoutUserInput
+    paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
+    goals?: GoalUncheckedCreateNestedManyWithoutUserInput
+    allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutEnvelopeSinksInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutEnvelopeSinksInput, UserUncheckedCreateWithoutEnvelopeSinksInput>
+  }
+
+  export type EnvelopeUpsertWithoutEnvelopeSinksInput = {
+    update: XOR<EnvelopeUpdateWithoutEnvelopeSinksInput, EnvelopeUncheckedUpdateWithoutEnvelopeSinksInput>
+    create: XOR<EnvelopeCreateWithoutEnvelopeSinksInput, EnvelopeUncheckedCreateWithoutEnvelopeSinksInput>
+    where?: EnvelopeWhereInput
+  }
+
+  export type EnvelopeUpdateToOneWithWhereWithoutEnvelopeSinksInput = {
+    where?: EnvelopeWhereInput
+    data: XOR<EnvelopeUpdateWithoutEnvelopeSinksInput, EnvelopeUncheckedUpdateWithoutEnvelopeSinksInput>
+  }
+
+  export type EnvelopeUpdateWithoutEnvelopeSinksInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
+    targetBalance?: IntFieldUpdateOperationsInput | number
+    currentBalance?: IntFieldUpdateOperationsInput | number
+    planet?: NullableStringFieldUpdateOperationsInput | string | null
+    color?: NullableStringFieldUpdateOperationsInput | string | null
+    icon?: NullableStringFieldUpdateOperationsInput | string | null
+    destinationAccountId?: NullableStringFieldUpdateOperationsInput | string | null
+    enforceHardCap?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutEnvelopesNestedInput
+    transactions?: TransactionUpdateManyWithoutEnvelopeNestedInput
+    allocationRules?: AllocationRuleUpdateManyWithoutEnvelopeNestedInput
+    vaultEnvelope?: VaultEnvelopeUpdateOneWithoutCompassEnvelopeNestedInput
+  }
+
+  export type EnvelopeUncheckedUpdateWithoutEnvelopeSinksInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
+    targetBalance?: IntFieldUpdateOperationsInput | number
+    currentBalance?: IntFieldUpdateOperationsInput | number
+    planet?: NullableStringFieldUpdateOperationsInput | string | null
+    color?: NullableStringFieldUpdateOperationsInput | string | null
+    icon?: NullableStringFieldUpdateOperationsInput | string | null
+    destinationAccountId?: NullableStringFieldUpdateOperationsInput | string | null
+    enforceHardCap?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    transactions?: TransactionUncheckedUpdateManyWithoutEnvelopeNestedInput
+    allocationRules?: AllocationRuleUncheckedUpdateManyWithoutEnvelopeNestedInput
+    vaultEnvelope?: VaultEnvelopeUncheckedUpdateOneWithoutCompassEnvelopeNestedInput
+  }
+
+  export type UserUpsertWithoutEnvelopeSinksInput = {
+    update: XOR<UserUpdateWithoutEnvelopeSinksInput, UserUncheckedUpdateWithoutEnvelopeSinksInput>
+    create: XOR<UserCreateWithoutEnvelopeSinksInput, UserUncheckedCreateWithoutEnvelopeSinksInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutEnvelopeSinksInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutEnvelopeSinksInput, UserUncheckedUpdateWithoutEnvelopeSinksInput>
+  }
+
+  export type UserUpdateWithoutEnvelopeSinksInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    aiTier?: IntFieldUpdateOperationsInput | number
+    routingLevel?: IntFieldUpdateOperationsInput | number
+    defaultViewId?: NullableStringFieldUpdateOperationsInput | string | null
+    settings?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    sessions?: SessionUpdateManyWithoutUserNestedInput
+    accounts?: AccountUpdateManyWithoutUserNestedInput
+    envelopes?: EnvelopeUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUpdateManyWithoutUserNestedInput
+    paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
+    goals?: GoalUpdateManyWithoutUserNestedInput
+    allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    bills?: BillUpdateManyWithoutUserNestedInput
+    auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutEnvelopeSinksInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    aiTier?: IntFieldUpdateOperationsInput | number
+    routingLevel?: IntFieldUpdateOperationsInput | number
+    defaultViewId?: NullableStringFieldUpdateOperationsInput | string | null
+    settings?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
+    accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
+    envelopes?: EnvelopeUncheckedUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUncheckedUpdateManyWithoutUserNestedInput
+    paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
+    goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
+    allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
+  }
+
   export type UserCreateWithoutTransactionsInput = {
     id?: string
     name: string
@@ -56366,6 +58496,7 @@ export namespace Prisma {
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -56392,6 +58523,7 @@ export namespace Prisma {
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -56460,6 +58592,7 @@ export namespace Prisma {
     user: UserCreateNestedOneWithoutEnvelopesInput
     allocationRules?: AllocationRuleCreateNestedManyWithoutEnvelopeInput
     vaultEnvelope?: VaultEnvelopeCreateNestedOneWithoutCompassEnvelopeInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutEnvelopeInput
   }
 
   export type EnvelopeUncheckedCreateWithoutTransactionsInput = {
@@ -56480,6 +58613,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     allocationRules?: AllocationRuleUncheckedCreateNestedManyWithoutEnvelopeInput
     vaultEnvelope?: VaultEnvelopeUncheckedCreateNestedOneWithoutCompassEnvelopeInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutEnvelopeInput
   }
 
   export type EnvelopeCreateOrConnectWithoutTransactionsInput = {
@@ -56518,6 +58652,7 @@ export namespace Prisma {
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -56544,6 +58679,7 @@ export namespace Prisma {
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -56624,6 +58760,7 @@ export namespace Prisma {
     user?: UserUpdateOneRequiredWithoutEnvelopesNestedInput
     allocationRules?: AllocationRuleUpdateManyWithoutEnvelopeNestedInput
     vaultEnvelope?: VaultEnvelopeUpdateOneWithoutCompassEnvelopeNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutEnvelopeNestedInput
   }
 
   export type EnvelopeUncheckedUpdateWithoutTransactionsInput = {
@@ -56644,6 +58781,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     allocationRules?: AllocationRuleUncheckedUpdateManyWithoutEnvelopeNestedInput
     vaultEnvelope?: VaultEnvelopeUncheckedUpdateOneWithoutCompassEnvelopeNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutEnvelopeNestedInput
   }
 
   export type UserCreateWithoutPaySchedulesInput = {
@@ -56666,6 +58804,7 @@ export namespace Prisma {
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -56692,6 +58831,7 @@ export namespace Prisma {
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -56773,6 +58913,7 @@ export namespace Prisma {
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -56799,6 +58940,7 @@ export namespace Prisma {
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -56870,6 +59012,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -56896,6 +59039,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -56938,6 +59082,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -56964,6 +59109,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -56990,6 +59136,7 @@ export namespace Prisma {
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -57016,6 +59163,7 @@ export namespace Prisma {
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -57058,6 +59206,7 @@ export namespace Prisma {
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -57084,6 +59233,7 @@ export namespace Prisma {
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -57110,6 +59260,7 @@ export namespace Prisma {
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -57136,6 +59287,7 @@ export namespace Prisma {
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -57208,6 +59360,7 @@ export namespace Prisma {
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -57234,6 +59387,7 @@ export namespace Prisma {
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -57301,6 +59455,7 @@ export namespace Prisma {
     user: UserCreateNestedOneWithoutEnvelopesInput
     transactions?: TransactionCreateNestedManyWithoutEnvelopeInput
     vaultEnvelope?: VaultEnvelopeCreateNestedOneWithoutCompassEnvelopeInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutEnvelopeInput
   }
 
   export type EnvelopeUncheckedCreateWithoutAllocationRulesInput = {
@@ -57321,6 +59476,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     transactions?: TransactionUncheckedCreateNestedManyWithoutEnvelopeInput
     vaultEnvelope?: VaultEnvelopeUncheckedCreateNestedOneWithoutCompassEnvelopeInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutEnvelopeInput
   }
 
   export type EnvelopeCreateOrConnectWithoutAllocationRulesInput = {
@@ -57390,6 +59546,7 @@ export namespace Prisma {
     user?: UserUpdateOneRequiredWithoutEnvelopesNestedInput
     transactions?: TransactionUpdateManyWithoutEnvelopeNestedInput
     vaultEnvelope?: VaultEnvelopeUpdateOneWithoutCompassEnvelopeNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutEnvelopeNestedInput
   }
 
   export type EnvelopeUncheckedUpdateWithoutAllocationRulesInput = {
@@ -57410,6 +59567,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     transactions?: TransactionUncheckedUpdateManyWithoutEnvelopeNestedInput
     vaultEnvelope?: VaultEnvelopeUncheckedUpdateOneWithoutCompassEnvelopeNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutEnvelopeNestedInput
   }
 
   export type UserCreateWithoutAuditLogInput = {
@@ -57432,6 +59590,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -57458,6 +59617,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -57500,6 +59660,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -57526,6 +59687,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -57552,6 +59714,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -57578,6 +59741,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -57620,6 +59784,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -57646,6 +59811,7 @@ export namespace Prisma {
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -57673,6 +59839,7 @@ export namespace Prisma {
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
     vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
@@ -57699,6 +59866,7 @@ export namespace Prisma {
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
     vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
@@ -58023,6 +60191,7 @@ export namespace Prisma {
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
     vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
@@ -58049,6 +60218,7 @@ export namespace Prisma {
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
     vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
@@ -59719,6 +61889,7 @@ export namespace Prisma {
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
     vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
@@ -59745,6 +61916,7 @@ export namespace Prisma {
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
     vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
@@ -59923,6 +62095,7 @@ export namespace Prisma {
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
     vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
@@ -59949,6 +62122,7 @@ export namespace Prisma {
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
     vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
@@ -60135,6 +62309,7 @@ export namespace Prisma {
     user: UserCreateNestedOneWithoutEnvelopesInput
     transactions?: TransactionCreateNestedManyWithoutEnvelopeInput
     allocationRules?: AllocationRuleCreateNestedManyWithoutEnvelopeInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutEnvelopeInput
   }
 
   export type EnvelopeUncheckedCreateWithoutVaultEnvelopeInput = {
@@ -60155,6 +62330,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     transactions?: TransactionUncheckedCreateNestedManyWithoutEnvelopeInput
     allocationRules?: AllocationRuleUncheckedCreateNestedManyWithoutEnvelopeInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutEnvelopeInput
   }
 
   export type EnvelopeCreateOrConnectWithoutVaultEnvelopeInput = {
@@ -60340,6 +62516,7 @@ export namespace Prisma {
     user?: UserUpdateOneRequiredWithoutEnvelopesNestedInput
     transactions?: TransactionUpdateManyWithoutEnvelopeNestedInput
     allocationRules?: AllocationRuleUpdateManyWithoutEnvelopeNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutEnvelopeNestedInput
   }
 
   export type EnvelopeUncheckedUpdateWithoutVaultEnvelopeInput = {
@@ -60360,6 +62537,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     transactions?: TransactionUncheckedUpdateManyWithoutEnvelopeNestedInput
     allocationRules?: AllocationRuleUncheckedUpdateManyWithoutEnvelopeNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutEnvelopeNestedInput
   }
 
   export type ScheduledBillUpsertWithWhereUniqueWithoutEnvelopeInput = {
@@ -61131,6 +63309,7 @@ export namespace Prisma {
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
@@ -61157,6 +63336,7 @@ export namespace Prisma {
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
@@ -61199,6 +63379,7 @@ export namespace Prisma {
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
@@ -61225,6 +63406,7 @@ export namespace Prisma {
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
@@ -61251,6 +63433,7 @@ export namespace Prisma {
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
@@ -61277,6 +63460,7 @@ export namespace Prisma {
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
     vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
     vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
@@ -61319,6 +63503,7 @@ export namespace Prisma {
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
@@ -61345,6 +63530,7 @@ export namespace Prisma {
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
     vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
     vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
@@ -61485,6 +63671,19 @@ export namespace Prisma {
     updatedAt?: Date | string
   }
 
+  export type EnvelopeSinkCreateManyUserInput = {
+    id?: string
+    envelopeId: string
+    name: string
+    targetCents: number
+    cadence: string
+    source?: string
+    sortOrder?: number
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
   export type SessionUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
     tokenHash?: StringFieldUpdateOperationsInput | string
@@ -61582,6 +63781,7 @@ export namespace Prisma {
     transactions?: TransactionUpdateManyWithoutEnvelopeNestedInput
     allocationRules?: AllocationRuleUpdateManyWithoutEnvelopeNestedInput
     vaultEnvelope?: VaultEnvelopeUpdateOneWithoutCompassEnvelopeNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutEnvelopeNestedInput
   }
 
   export type EnvelopeUncheckedUpdateWithoutUserInput = {
@@ -61602,6 +63802,7 @@ export namespace Prisma {
     transactions?: TransactionUncheckedUpdateManyWithoutEnvelopeNestedInput
     allocationRules?: AllocationRuleUncheckedUpdateManyWithoutEnvelopeNestedInput
     vaultEnvelope?: VaultEnvelopeUncheckedUpdateOneWithoutCompassEnvelopeNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutEnvelopeNestedInput
   }
 
   export type EnvelopeUncheckedUpdateManyWithoutUserInput = {
@@ -61902,6 +64103,45 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type EnvelopeSinkUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    targetCents?: IntFieldUpdateOperationsInput | number
+    cadence?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    envelope?: EnvelopeUpdateOneRequiredWithoutEnvelopeSinksNestedInput
+  }
+
+  export type EnvelopeSinkUncheckedUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    envelopeId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    targetCents?: IntFieldUpdateOperationsInput | number
+    cadence?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type EnvelopeSinkUncheckedUpdateManyWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    envelopeId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    targetCents?: IntFieldUpdateOperationsInput | number
+    cadence?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type TransactionCreateManyAccountInput = {
     id?: string
     userId: string
@@ -62046,6 +64286,19 @@ export namespace Prisma {
     createdAt?: Date | string
   }
 
+  export type EnvelopeSinkCreateManyEnvelopeInput = {
+    id?: string
+    userId: string
+    name: string
+    targetCents: number
+    cadence: string
+    source?: string
+    sortOrder?: number
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
   export type TransactionUpdateWithoutEnvelopeInput = {
     id?: StringFieldUpdateOperationsInput | string
     amount?: IntFieldUpdateOperationsInput | number
@@ -62128,6 +64381,45 @@ export namespace Prisma {
     source?: StringFieldUpdateOperationsInput | string
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type EnvelopeSinkUpdateWithoutEnvelopeInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    targetCents?: IntFieldUpdateOperationsInput | number
+    cadence?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutEnvelopeSinksNestedInput
+  }
+
+  export type EnvelopeSinkUncheckedUpdateWithoutEnvelopeInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    targetCents?: IntFieldUpdateOperationsInput | number
+    cadence?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type EnvelopeSinkUncheckedUpdateManyWithoutEnvelopeInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    targetCents?: IntFieldUpdateOperationsInput | number
+    cadence?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type AllocationRuleCreateManyPlanInput = {
