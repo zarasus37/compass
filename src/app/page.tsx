@@ -743,6 +743,11 @@ export default async function Dashboard() {
           <TopAppBar
             engineLevel={engineLevel}
             payPeriod={payPeriod}
+            quickAddEnvelopes={ENVELOPES.map((e) => ({
+              id: e.id,
+              name: e.name,
+              planet: e.planet,
+            }))}
           />
         <div style={{ padding: "32px 80px 112px", maxWidth: 1480, position: "relative", flex: 1 }}>
         {/* Contextual rebalance alert bay — only renders when an envelope

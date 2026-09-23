@@ -92,6 +92,11 @@ export default async function AppLayout({
           <TopAppBar
             engineLevel={engineLevel}
             payPeriod={{ startDate: payPeriod.startDate, endDate: payPeriod.endDate }}
+            quickAddEnvelopes={ENVELOPES.map((e) => ({
+              id: e.id,
+              name: e.name,
+              planet: e.planet,
+            }))}
           />
           <main
             style={{

@@ -28,15 +28,18 @@ import {
 } from "@/app/(app)/settings/engine-actions";
 import { EnginePillButton } from "./EnginePillButton";
 import { SearchButton } from "./SearchButton";
+import { QuickAddTransaction, type QuickAddEnvelopeOption } from "./QuickAddTransaction";
 
 export interface TopAppBarProps {
   /** Active engine level read from SystemSettings (L1 = rules, L2 = AI). */
   engineLevel: EngineLevel;
   /** The active pay period (from Prisma PayPeriod, or constants fallback). */
   payPeriod: { startDate: Date; endDate: Date };
+  /** Envelopes for the quick-add transaction dropdown (Cluster 7.27). */
+  quickAddEnvelopes?: QuickAddEnvelopeOption[];
 }
 
-export function TopAppBar({ engineLevel, payPeriod }: TopAppBarProps) {
+export function TopAppBar({ engineLevel, payPeriod, quickAddEnvelopes = [] }: TopAppBarProps) {
   // Pay-period metrics.
   const start = payPeriod.startDate;
   const end = payPeriod.endDate;
@@ -190,6 +193,7 @@ export function TopAppBar({ engineLevel, payPeriod }: TopAppBarProps) {
         }}
       >
         <SearchButton />
+        <QuickAddTransaction envelopes={quickAddEnvelopes} />
         <form
           action={toggleEngineAction}
           style={{ margin: 0, padding: 0, display: "inline-flex" }}
