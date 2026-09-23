@@ -443,6 +443,22 @@
 }
 
 /* ============================================================================
+   MOBILE SIDEBAR TOGGLE (Cluster 7.30a)
+   The hamburger button + sheet. Visible only on mobile viewports.
+   On desktop the desktop sidebar is inline; the hamburger is hidden.
+   We use CSS (not a JS check) for hiding so there's no SSR/CSR
+   mismatch on the button's existence — only on its display state.
+   ============================================================================ */
+.mobile-sidebar-toggle {
+  display: none;
+}
+@media (max-width: 880px) {
+  .mobile-sidebar-toggle {
+    display: grid;
+  }
+}
+
+/* ============================================================================
    CALENDAR (Cluster 2.0.2 — Month view)
    ============================================================================ */
 .month-calendar-day:hover {
@@ -465,5 +481,31 @@
   100% {
     background-color: transparent;
     box-shadow: inset 0 0 0 2px transparent;
+  }
+}
+
+/* ============================================================================
+   RESPONSIVE SHELL (Cluster 7.30a)
+   The outer (app) layout grid collapses from `auto 1fr` to `1fr`
+   when the viewport is in mobile range (<= 880px). The padding of
+   the <main> element tightens from 80px horizontal at desktop to
+   16px at mobile so cards in the dashboard grid get more room.
+
+   These rules are class-scoped (not on bare elements) so they
+   don't affect other layouts. They sit next to the .mobile-sidebar-toggle
+   rules above — both Cluster 7.30a.
+   ============================================================================ */
+@media (max-width: 880px) {
+  .responsive-cols-shell {
+    grid-template-columns: 1fr !important;
+  }
+  .responsive-main-padding {
+    padding: 16px 16px 96px !important;
+  }
+}
+
+@media (min-width: 881px) and (max-width: 1280px) {
+  .responsive-main-padding {
+    padding: 32px 24px 112px !important;
   }
 }

@@ -83,7 +83,25 @@ export default async function AppLayout({
 
   return (
     <CommandPaletteProvider searchIndex={searchIndex}>
-      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", minHeight: "100vh" }}>
+      {/*
+        Cluster 7.30a — responsive shell.
+        On desktop (>880px) the layout is grid with two columns: the
+        AppSidebar (auto width) + the main column (1fr).
+        On mobile (<=880px) the AppSidebar returns null; the grid
+        collapses to a single column so the main area fills the
+        viewport. The MobileSidebarSheet is rendered by TopAppBar's
+        hamburger button — that component handles its own open state
+        independently of this layout.
+
+        The outer div uses the (responsive-cols-shell) class, defined
+        in globals.css, which carries the @media query for the
+        grid-template-columns change. Class-driven so the breakpoint
+        is in one place.
+      */}
+      <div
+        className="responsive-cols-shell"
+        style={{ display: "grid", gridTemplateColumns: "auto 1fr", minHeight: "100vh" }}
+      >
         <AppSidebar
           user={{ name: user.name, email: user.email }}
           tickerInitialRows={tickerRows}
@@ -99,6 +117,7 @@ export default async function AppLayout({
             }))}
           />
           <main
+            className="responsive-main-padding"
             style={{
               padding: "40px 80px 112px", // 16px extra for BottomNav
               maxWidth: 1480,

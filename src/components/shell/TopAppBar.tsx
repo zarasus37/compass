@@ -29,6 +29,7 @@ import {
 import { EnginePillButton } from "./EnginePillButton";
 import { SearchButton } from "./SearchButton";
 import { QuickAddTransaction, type QuickAddEnvelopeOption } from "./QuickAddTransaction";
+import { MobileSidebarToggle } from "./MobileSidebarToggle";
 
 export interface TopAppBarProps {
   /** Active engine level read from SystemSettings (L1 = rules, L2 = AI). */
@@ -89,6 +90,13 @@ export function TopAppBar({ engineLevel, payPeriod, quickAddEnvelopes = [] }: To
         boxShadow: "0 4px 20px rgba(0, 0, 0, 0.5)",
       }}
     >
+      {/* Cluster 7.30a — mobile-sidebar hamburger (hidden on desktop
+          via the .mobile-sidebar-toggle CSS rule). On mobile (<
+          880px) this is the first thing in the bar so the user can
+          reach nav with their thumb. The button is the server-side
+          rendered entrypoint — its child island `<MobileSidebarToggle>`
+          owns the open/close state. */}
+      <MobileSidebarToggle />
       {/* ─────────── LEFT: SYSTEM METRIC SIGNATURE ───────────
           Pulsing accent dot + Sora wordmark. The dot uses
           vessel-accent + a soft neon-glow halo. */}

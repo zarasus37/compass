@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LiveActivityTicker } from "@/components/shell/LiveActivityTicker";
 import type { AuditLogRow } from "@/lib/vault/audit-log-shared";
+import { NAV, isActive } from "./nav";
+import { useIsMobile } from "@/hooks/useMediaQuery";
 
 /**
  * AppSidebar — the 4-chapter navigation rail (Component Oracle Terminal).
@@ -60,48 +62,6 @@ interface NavChapter {
   slot?: React.ReactNode;
 }
 
-const NAV: NavChapter[] = [
-  {
-    label: "// Overview",
-    items: [
-      { href: "/",         label: "Dashboard" },
-      { href: "/period",   label: "Period",    badge: { text: "5D", tone: "count" } },
-      { href: "/calendar", label: "Calendar" },
-      { href: "/insights", label: "Insights" },
-    ],
-  },
-  {
-    label: "// Ledger",
-    items: [
-      { href: "/accounts",     label: "Accounts" },
-      { href: "/transactions", label: "Transactions" },
-      { href: "/envelopes",    label: "Envelopes" },
-      { href: "/allocation",   label: "Allocation", badge: { text: "AUTO", tone: "auto" } },
-      { href: "/obligations",  label: "Obligations" },
-      { href: "/vault",        label: "Vault",   badge: { text: "BETA", tone: "auto" }, match: "exact" },
-      { href: "/vault/preferences", label: "Preferences" },
-      { href: "/debts",        label: "Debts" },
-      { href: "/holdings",     label: "Holdings" },
-    ],
-  },
-  {
-    label: "// Aims",
-    items: [
-      { href: "/goals", label: "Goals" },
-    ],
-  },
-  {
-    label: "// Learn",
-    items: [
-      { href: "/learn/field-guide", label: "Field Guide" },
-      { href: "/learn/your-numbers", label: "Your Numbers" },
-      { href: "/advisor",            label: "Advisor", badge: { text: "NEW", tone: "auto" } },
-      { href: "/learn/glossary",   label: "Glossary" },
-      { href: "/learn/habit-quiz", label: "Habit Quiz" },
-    ],
-  },
-];
-
 export interface AppSidebarProps {
   user: { name: string; email: string };
   /**
@@ -118,6 +78,13 @@ export interface AppSidebarProps {
 export function AppSidebar({ user, tickerInitialRows = [] }: AppSidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = React.useState(false);
+  const isMobile = useIsMobile();
+
+  // Cluster 7.30a — on mobile the desktop rail is replaced by the
+  // MobileSidebarSheet overlay drawer (rendered in (app)/layout).
+  // Render `null` so the inline column disappears entirely; the
+  // main column then gets the full viewport width.
+  if (isMobile) return null;
 
   return (
     <aside
@@ -377,13 +344,13 @@ function NavChapterView({
         />
       )}
       {chapter.items.map((item) => {
-        const isActive = isItemActive(pathname, item.href, item.match);
+        const itemIsActive = isActive(pathname, item);
         return (
           <Link
             key={item.href}
             href={item.href}
             title={collapsed ? item.label : undefined}
-            aria-current={isActive ? "page" : undefined}
+            aria-current={itemIsActive ? "page" : undefined}
             style={{
               position: "relative",
               display: "flex",
@@ -391,13 +358,13 @@ function NavChapterView({
               gap: 10,
               padding: collapsed ? "8px 0" : "7px 10px",
               borderRadius: 2,
-              color: isActive ? "var(--vessel-accent)" : "var(--ink-2)",
+              color: itemIsActive ? "var(--vessel-accent)" : "var(--ink-2)",
               fontFamily: "var(--font-jetbrains), monospace",
               fontSize: 12.5,
-              fontWeight: isActive ? 600 : 500,
+              fontWeight: itemIsActive ? 600 : 500,
               textDecoration: "none",
-              background: isActive ? "var(--vessel-surface)" : "transparent",
-              border: isActive
+              background: itemIsActive ? "var(--vessel-surface)" : "transparent",
+              border: itemIsActive
                 ? "1px solid var(--vessel-accent-soft)"
                 : "1px solid transparent",
               whiteSpace: "nowrap",
@@ -406,7 +373,7 @@ function NavChapterView({
             }}
           >
             {/* The teal connection indicator — left rail for active items */}
-            {isActive && !collapsed && (
+            {itemIsActive && !collapsed && (
               <span
                 aria-hidden
                 style={{
@@ -427,11 +394,11 @@ function NavChapterView({
                 style={{
                   width: 10,
                   flexShrink: 0,
-                  color: isActive ? "var(--vessel-accent)" : "var(--ink-5)",
+                  color: itemIsActive ? "var(--vessel-accent)" : "var(--ink-5)",
                   fontSize: 11,
                 }}
               >
-                {isActive ? "›" : " "}
+                {itemIsActive ? "›" : " "}
               </span>
             )}
             <span
@@ -488,23 +455,3 @@ function NavChapterView({
   );
 }
 
-/**
- * isItemActive — match a sidebar item to the current pathname.
- * - Exact match for "/" (dashboard home).
- * - "exact" items: only match when the pathname equals href.
- *   Used for /vault, which has its own sub-pages that should
- *   light up their own sidebar items.
- * - "prefix" items (the default): match when the pathname
- *   equals href OR starts with href + "/" — this lights up
- *   detail pages like /envelopes/[id] under the /envelopes
- *   sidebar item.
- */
-function isItemActive(
-  pathname: string,
-  href: string,
-  match: "exact" | "prefix" = "prefix",
-): boolean {
-  if (href === "/") return pathname === "/";
-  if (match === "exact") return pathname === href;
-  return pathname === href || pathname.startsWith(href + "/");
-}

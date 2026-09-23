@@ -730,7 +730,10 @@ export default async function Dashboard() {
 
   return (
     <CommandPaletteProvider searchIndex={searchIndex}>
-      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", minHeight: "100vh" }}>
+      <div
+        className="responsive-cols-shell"
+        style={{ display: "grid", gridTemplateColumns: "auto 1fr", minHeight: "100vh" }}
+      >
         <AppSidebar
           user={{ name: user.name, email: user.email }}
           tickerInitialRows={tickerRows}
@@ -749,7 +752,9 @@ export default async function Dashboard() {
               planet: e.planet,
             }))}
           />
-        <div style={{ padding: "32px 80px 112px", maxWidth: 1480, position: "relative", flex: 1 }}>
+        <div
+          className="responsive-main-padding"
+          style={{ padding: "32px 80px 112px", maxWidth: 1480, position: "relative", flex: 1 }}>
         {/* Contextual rebalance alert bay — only renders when an envelope
             is over its target. Surfaces the worst overage with a
             [ Balance Envelope ] button that opens a slide-in drawer. */}
