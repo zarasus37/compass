@@ -220,6 +220,25 @@ This is a read-only surface — there's no toggle here, no button to click. The 
 
 ---
 
+### Step 6.7 — Confirm the cash flow forecast card (5 sec)
+
+Mom can see "what's my balance next month?" on her dashboard. Cluster 7.26 added a `// cash flow · 60d` card to `/dashboard` (and a compact 60-day chip to `/insights`) above the must-have tools strip. It shows:
+
+- **Now vs N-day balance headline** — e.g. "$8,421 now / $8,747 in 60 days"
+- **A line chart** of the projected balance over the next 60 days, with gold dots on pay-day and amber dots on bill-day
+- **A buffer reference line** (gold dashed) at the sum of bills in the next 30 days
+- **A "tight day" callout** when the projection dips below the buffer — "Tight day on Oct 23 (15d away, projected -$X)" — so mom can plan ahead
+- **A pill** at the top: `[OK] HEALTHY`, `[WARN] TIGHT DAYS AHEAD`, or `[PENDING] ...`
+
+Pending states render honestly (no fake projection):
+- `[PENDING] NO PAY SCHEDULE` — mom hasn't added her pay schedule to `/accounts` yet. CTA links to `/accounts`.
+- `[PENDING] NO ACCOUNT` — no checking account in `/accounts`. CTA links to `/accounts`.
+- `[OK] NO BILLS TO PROJECT` — paychecks project cleanly but mom has no bills yet. CTA links to `/obligations?tab=bills`.
+
+The card reads the same `PaySchedule` and `Bill` data mom already entered elsewhere, so there are no new fields to fill out — just verify she sees the card and the pill is one of the three states above.
+
+---
+
 ## Step 8 — Set up the dev workflow (5 min)
 
 Your local work is unchanged. To develop a new cluster:
