@@ -1344,3 +1344,34 @@ User explicitly directed:
 > "I don't want you to do all of it, just to have to do it all over again."
 
 If the shell feels wrong (different overlay behavior, padding values, hamburger position), we'd be undoing 6 files instead of 8. So 7.30a = shell only, 7.30b = inner pages once shell is signed off.
+
+# Cluster 7.31 audit (2026-09-23, session 12) — Compass Rose logo
+
+**Status: SHIPPED.** Commit `6b1d47a` Cluster 7.31, pushed to `origin/main` on top of `a97c8e8`.
+
+## What shipped
+
+Brand identity swap. Operator brought a generated asset (1024×1024 compass rose, Flow-Google) and asked for it to become the home-screen install icon. The cluster:
+
+- **`public/icon-{192,512}.png`** — full-bleed rose, ready for `/manifest.json`
+- **`public/icon-maskable-512.png`** — rose composited on `#060A12` (the page theme color), 410×410 inside a 512×512 canvas so the top loop + bottom diamond survive Android's ~80% safe-area crop
+- **`public/apple-touch-icon.png`** — 180×180, iOS auto-rounds corners
+- **`src/components/sidebar/AppSidebar.tsx::BrandMark`** — was a 28px `[C]` JetBrains Mono glyph; now an inline SVG (8-point compass outline + center gem + suspension loop), `currentColor` → `var(--vessel-accent)` so it picks up the theme
+- **`tests/smoke-live-ticker.mjs`** — one regex updated to read NAV from either `nav.ts` or `AppSidebar.tsx` (Cluster 7.30a extracted NAV; the original smoke only read `AppSidebar.tsx`)
+
+### What I did NOT touch
+
+- `TopAppBar`'s "Compass" wordmark + pulsing accent dot (chrome-level brand; the rose is system-level)
+- `src/components/alchemy/CompassRose.tsx` + `Mandala.tsx` (full-ornate SVG components used inside alchemy cards / onboarding; that's a different decorative abstraction, intentionally more elaborate than the PNG icon)
+
+### Verification
+
+- `pnpm tsc`: clean
+- `pnpm smoke-deploy`: 145 / 0 (manifest still has 3 icons, all served 200)
+- `pnpm smoke-mobile-shell`: 54 / 0
+- `pnpm smoke-live-ticker`: 64 / 64 after the regex fix
+- `pnpm smoke:all` (full chain): transient Playwright `networkidle` timeout on `/insights` chart-heavy page mid-run; resolves on retry
+
+### Phone-verification gap (important for mom)
+
+iOS caches the home-screen install icon until the user **removes and re-adds** it. Mom will only see the new rose if she taps and holds the Compass icon → Remove App → then re-installs via Safari. Otherwise she'll see the old placeholder and conclude "nothing changed."
