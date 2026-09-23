@@ -255,6 +255,21 @@ The "Full form →" link routes to `/transactions/new` for the rare case where m
 
 ---
 
+### Step 6.9 — Confirm the sinking funds surface (10 sec)
+
+Mom can save for known-but-irregular expenses inside an envelope. Cluster 7.28 added a "Sinking funds" section to each envelope's detail page (`/envelopes/[id]`) and inline sink labels under each envelope row on `/envelopes`. The first time mom visits `/envelopes`, 5 canonical sinks get seeded automatically (one per seedable envelope: `Groceries → Holiday food`, `Utilities → Annual subscription`, `Dining & Joy → Birthday gifts`, `Buffer → Annual deductible`, `Savings → Property tax`).
+
+To verify:
+1. Log in as mom and visit `/envelopes`. Each envelope row should show its sinks inline (Groceries, Utilities, Dining & Joy, Buffer, Savings all have 1 sink each; Rent and Debt have none — intentional, those aren't sinking-fund candidates).
+2. Click into any seeded envelope (e.g. `/envelopes/<groceries-id>`). The new "Sinking funds" section should appear between the Cadence chart and the Activity section, listing the seeded sink(s) with target + cadence + monthly fill (`$300 / annual · $25/mo to fund by November`).
+3. Try the inline "Add a sink" form at the bottom of that section: enter a name (`Emergency tires`), a target (`$600`), and pick a cadence (e.g. `annual`). Submit. The new row should appear in the list immediately. Use the "Delete" button on the row to remove it.
+
+The math: a $300 annual sink needs `$25/mo` to fully fund by year-end. A $600 quarterly sink needs `$200/mo`. The UI shows this so mom has actionable guidance without doing the arithmetic.
+
+If mom has zero envelopes, the seed has nothing to attach to (each sink needs an envelope). Add an envelope first via `/envelopes/new`.
+
+---
+
 ## Step 8 — Set up the dev workflow (5 min)
 
 Your local work is unchanged. To develop a new cluster:
