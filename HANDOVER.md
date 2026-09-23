@@ -1,8 +1,8 @@
 ﻿# Compass â€” Fresh-Session Handoff
 
 **Date**: 2026-09-22
-**Last commit**: `9a77ea0` (HANDOVER chain fixes) â†’ `84df3cc` (HANDOVER 7.19) â†’ `ee8ef19` (Cluster 7.19) â†’ `778b124` (HANDOVER 7.18) â†’ `12cdce7` (Cluster 7.15.2 fix) â†’ `fd9676e` (7.15.1.1) â†’ `79eeaff` (7.15.1) â†’ `aa28f21` (HANDOVER audit) â†’ `c4c566d` (Cluster 7.15 sparkline).
-**Predecessor commit chain (post-7.14)**: `07b34b0` (HANDOVER 7.26) â†’ `33033e5` (7.26) â†’ `3191c55` (HANDOVER cleanup) â†’ `c248d18` (runbook 6.6) â†’ `84df3cc` (HANDOVER 7.19) â†’ `ee8ef19` (Cluster 7.19) â†’ `778b124` (HANDOVER 7.18) â†’ `e2b60d5` (Cluster 7.18) â†’ `12cdce7` (7.15.2 fix) â†’ `fd9676e` (7.15.1.1) â†’ `79eeaff` (7.15.1) â†’ `aa28f21` (HANDOVER audit) â†’ `c4c566d` (7.15) â†’ `617bab7` (7.17) â†’ `7748f70` (HANDOVER 7.16) â†’ `9c3e4cc` (7.15 prep docs) â†’ `dbfe461` (CI Node 22) â†’ `8ee96a9` (Mavis env) â†’ `5641b4d` (merge) â†’ `ea1d49a` (Hobby cron) â†’ `680db8f` (7.16) â†’ `eb0843b` (7.14) â†’ `8b13660` (7.11.1) â†’ `a8639d6` (7.11) â†’ `1f21ea1` (7.10) â†’ `bec5d5c` (7.9) â†’ `52bb94c` (7.8.2) â†’ `b7ef8cf` (7.8.1) â†’ `8f7b23b` (7.8) â†’ `ef0982a` (7.7) â†’ `3af7566` (7.6) â†’ `eb7c1f9` (7.5) â†’ `ee405f8` (7.4)
+**Last commit**: `<NEW-HANDOVER>` (HANDOVER Cluster 7.27 audit) — on top of `2d5c540` (Cluster 7.27: quick-add transaction popover) — on top of `5c22afe` (runbook Step 6.7) — on top of `f07b215` (HANDOVER chain fixes) — on top of `9a77ea0` (HANDOVER 7.26 audit) — on top of `ad6beea` (HANDOVER 7.26 placeholder fix) — on top of `07b34b0` (HANDOVER 7.26 audit) — on top of `33033e5` (Cluster 7.26 cash flow) — on top of `3191c55` (HANDOVER cleanup).
+**Predecessor commit chain (post-7.14)**: `07b34b0` (HANDOVER 7.26) â†’ `<NEW-HANDOVER>` (HANDOVER 7.27) â†’ `2d5c540` (7.27) â†’ `33033e5` (7.26) â†’ `3191c55` (HANDOVER cleanup) â†’ `c248d18` (runbook 6.6) â†’ `84df3cc` (HANDOVER 7.19) â†’ `ee8ef19` (Cluster 7.19) â†’ `778b124` (HANDOVER 7.18) â†’ `e2b60d5` (Cluster 7.18) â†’ `12cdce7` (7.15.2 fix) â†’ `fd9676e` (7.15.1.1) â†’ `79eeaff` (7.15.1) â†’ `aa28f21` (HANDOVER audit) â†’ `c4c566d` (7.15) â†’ `617bab7` (7.17) â†’ `7748f70` (HANDOVER 7.16) â†’ `9c3e4cc` (7.15 prep docs) â†’ `dbfe461` (CI Node 22) â†’ `8ee96a9` (Mavis env) â†’ `5641b4d` (merge) â†’ `ea1d49a` (Hobby cron) â†’ `680db8f` (7.16) â†’ `eb0843b` (7.14) â†’ `8b13660` (7.11.1) â†’ `a8639d6` (7.11) â†’ `1f21ea1` (7.10) â†’ `bec5d5c` (7.9) â†’ `52bb94c` (7.8.2) â†’ `b7ef8cf` (7.8.1) â†’ `8f7b23b` (7.8) â†’ `ef0982a` (7.7) â†’ `3af7566` (7.6) â†’ `eb7c1f9` (7.5) â†’ `ee405f8` (7.4)
 **ðŸŽ¯ NEXT CLUSTER**: **Cluster 7.15 â€” Per-bill payment history sparkline.** Spec is on disk at `00-CLUSTER-7.15-PAYMENT-HISTORY-SPARKLINE.md`. Polar prompt is at `00-POLAR-PROMPT-NEXT-CLUSTER.md`. Mom is live (per `00-MOM-LAUNCH-RUNBOOK.md`) â€” 7.15 is unblocked.
 **ðŸš€ LAUNCH POSTURE**: xKryptic's mom is the v1 single user â€” **LIVE** on Vercel + Neon since the 7.16 commit (`680db8f`, 2026-09-06). Runbook at `00-MOM-LAUNCH-RUNBOOK.md` covers the external-account work (GitHub repo, Neon, Vercel env vars, deploy, send mom the URL). Local dev (`pnpm dev` on `localhost:3000`) is unchanged for cluster work. Each cluster commit on a feature branch gets a Vercel preview URL; merge to `main` to ship to mom.
 
@@ -984,3 +984,67 @@ Modified:
 - `package.json` (`smoke` chain extended)
 - `HANDOVER.md` (this section)
 
+
+---
+
+# Cluster 7.27 audit (2026-09-23, session 7)
+
+**Status: SHIPPED.** Commit `2d5c540` Cluster 7.27: quick-add transaction popover on TopAppBar, pushed to `origin/main` on top of `5c22afe`.
+
+## What shipped
+
+A "+" button on `TopAppBar` (between Search and the engine pill) that opens a 3-field popover (`amount` + `envelope` + optional `payee`) reachable from any signed-in page. Mom spends ~30 sec on each transaction log today (navigate to `/transactions/new`, fill the full form, submit); this brings it to ~5 sec with one keyboard hop to the amount input.
+
+The popover:
+- Auto-focuses the amount input on open
+- Defaults to last-used envelope (persists in `localStorage`)
+- Accepts `+5`, `-5`, or `5` — sign is inferred (negative = spend, positive = income)
+- `payee` is optional; defaults to "Quick log" so mom doesn't have to type "H-E-B" ten times
+- On success: popover closes, brief `−$X → Envelope` flash on TopAppBar (2.5s), dashboard revalidates so the cash-flow card sees the new transaction
+- Dismisses on: click outside, Escape, submit success
+- "Full form →" link routes to `/transactions/new` for the rare long-form entry
+
+## Why this cluster
+
+- Tier 2 (user direction, 2026-09-22): sinking funds, quick-add transaction, spending trends — standard budget-app features any Mint/YNAB/Copilot Money clone has.
+- Quick-add has the highest mom-visible ROI of the three (daily-use frequency × friction saved). Cluster 7.28 will be sinking funds, 7.29 will be spending trends.
+- Pairs naturally with the just-shipped cash-flow card (Cluster 7.26): the projection's accuracy depends on mom logging transactions promptly; reducing entry friction is the natural follow-on.
+
+## Implementation notes
+
+- **`src/components/shell/QuickAddTransaction.tsx`** (~370 LOC): client component with a CSS-positioned popover (no portal needed — sticky header keeps it on top). Reuses `var(--vessel-*)` design tokens. Three controls (amount + envelope + payee), `Log` button, "Full form →" link.
+- **Reuses `logTransaction()` server action** unchanged. Just adds `source="quick-add"` to identify the entry path. No new server code, no new API routes.
+- **Persistence**: `localStorage["quick-add-last-envelope"]` so the next popover pre-selects the same envelope. Silent catch on `localStorage` errors (private mode).
+- **`TopAppBar`**: added `quickAddEnvelopes` prop; the layout and dashboard page both pass `ENVELOPES.map(...)`.
+- **`tests/smoke-quick-add.mjs`** (7 checks): trigger renders on `/` and `/envelopes`, popover dialog role is wired, mom has 1+ envelope for the dropdown, empty-state link does NOT render (count > 0), and a sanity check on TopAppBar wiring.
+
+### Honest pending states
+
+- **0 envelopes**: the "+" button becomes a plain `<Link>` to `/envelopes` (`data-testid="quick-add-trigger-empty"`). No fake submit.
+- **Submit in flight**: button label flips to `Logging…`, color desaturates, cursor becomes `wait`.
+- **Validation fail** (e.g. amount is 0 or non-numeric): inline error pill below the form (`data-testid="quick-add-error"`), popover stays open.
+
+No schema change. No env change. No middleware change. No new API routes. The `Transaction.source` column already accepts free-form strings; this cluster writes `"quick-add"` so future analytics can distinguish quick vs full-form entries.
+
+## Verification
+
+- `pnpm tsc`: clean
+- `pnpm smoke` (data layer, 22 stages incl. new): **1,010 / 0 miss** (was 1,003, +7 from new smoke)
+- `tests/integration-vault.mjs`: 345 / 0 miss (unchanged)
+- `tests/smoke-deploy.mjs`: 145 / 0 miss (unchanged)
+- `smoke:ui` (13 stages): 432 / 0 miss (unchanged)
+- **Total smoke surface: 1,932 / 0 miss** across 37 stages
+
+## Files changed in this session
+
+Added:
+- `00-CLUSTER-7.27-QUICK-ADD.md` (spec)
+- `src/components/shell/QuickAddTransaction.tsx` (~370 LOC)
+- `tests/smoke-quick-add.mjs` (7 checks)
+
+Modified:
+- `src/components/shell/TopAppBar.tsx` (mount trigger + new prop)
+- `src/app/(app)/layout.tsx` (pass envelopes)
+- `src/app/page.tsx` (pass envelopes to dashboard TopAppBar)
+- `package.json` (`smoke` chain extended)
+- `HANDOVER.md` (this section)
