@@ -1375,3 +1375,46 @@ Brand identity swap. Operator brought a generated asset (1024×1024 compass rose
 ### Phone-verification gap (important for mom)
 
 iOS caches the home-screen install icon until the user **removes and re-adds** it. Mom will only see the new rose if she taps and holds the Compass icon → Remove App → then re-installs via Safari. Otherwise she'll see the old placeholder and conclude "nothing changed."
+
+# Cluster 7.32a audit (2026-09-23, session 13) — Auth refactor cleanup
+
+**Status: SHIPPED.** Commit `ecfc2fb` Cluster 7.32a, pushed to `origin/main` on top of `ac74547`.
+
+## What shipped
+
+First stage of the multi-user plan (`00-CLUSTER-7.32-OPEN-SIGNUP.md`). **No behavior change** — purely structural cleanup so that 7.32b (drop the countUsers guard) can land safely. The gate still redirects `/welcome` to `/login` when any user exists; only the internals are tidied.
+
+### Files touched
+
+| File | Change |
+|---|---|
+| `src/lib/auth/password-policy.ts` (new, ~107 LOC) | Single source of truth for password strength. Exports `isWeakPassword(pw, mode, email?)` + `assertPasswordOk`. Dev (8 chars min) vs prod (12 chars min). 13 dictionary-weak patterns. Email-local-part echo check. |
+| `scripts/seed-admin.mjs` (-60 LOC, +20 LOC) | Removed the inline `WEAK_PATTERNS`/`isWeak()` helpers. Imports `isWeakPassword` from the shared module. CLI now enforces same rules as the signupAction. |
+| `src/app/(auth)/actions.ts::signupAction` (+14 LOC) | Adds shared `isWeakPassword` check after the Zod length check. Catches dictionary-weak passwords that the length-only Zod check missed. Doesn't affect mom (her password was set via seed-admin, never went through signupAction). |
+| `tests/smoke-auth-refactor.mjs` (new, 16 checks) | Module existence, weak-pattern rejection (12/12 known patterns + email-local-part echo), strong acceptance, dev-vs-prod minimums, signupAction imports the shared policy, seed-admin imports the shared policy, seed-admin no longer has its own WEAK_PATTERNS, countUsers helper still exists, `/welcome` redirects to `/login` when users > 0 (gate intact, status quo). |
+| `package.json` | `smoke` chain extended. |
+
+### Verification
+
+- `pnpm tsc` clean
+- `node tests/smoke-auth-refactor.mjs`: **16 / 0**
+- `scripts/seed-admin.mjs` with mom + same test password: succeeds (mom re-seeded, schema migrated, FinancialIdentity created)
+- Other smoke contracts: not touched this turn
+
+### Honest risks (still pending for 7.32b)
+
+- `countUsers()` in `src/server/auth/user.ts` and the `countUsers() > 0` checks in `signupAction`, `/welcome`, `/login` are still in place. 7.32b removes them.
+- `createFirstUser` (transactional `count + create + throw on count > 0`) still has its single-user guard. 7.32b renames to `createUser` and drops the throw.
+- `signupAction` has a dev-only branch that pre-seeds a `FinancialIdentity` for smokes. When 7.32b opens signup, that branch will need to be gated differently (only first signup or only when `--smoke` flag passed).
+
+### Next steps (7.32b)
+
+Drop the single-user guards:
+- Remove `countUsers() > 0` check in `signupAction`
+- Rename `createFirstUser` → `createUser` (delete the inner throw)
+- `/welcome` becomes the always-on signup form (no `if (countUsers() > 0) redirect`)
+- `/login` loses the `if (countUsers() === 0) redirect("/welcome")` — it stays for existing users
+- Add `/settings → Switch account` logout-and-rediscover button
+- Add `tests/smoke-open-signup.mjs` (~10 checks): second signup succeeds, duplicate email returns DB unique error, two-session isolation, `/welcome` open to anyone
+
+After 7.32b: a second user can sign up via the UI. Email verification + password reset (Cluster 7.32c) is a separate feature requiring a transactional email provider.
