@@ -262,10 +262,20 @@ export function AppSidebar({ user, tickerInitialRows = [] }: AppSidebarProps) {
 // Brand mark — a square with a [C] and a tiny cursor. Terminal-flavored.
 // ---------------------------------------------------------------------------
 
+// Brand mark — a stylized compass rose, matching the system PWA icon
+// (the ornate Compass Rose from Cluster 7.31). Renders as a clean SVG
+// silhouette at small sizes; the inner constellation / runes would
+// be unreadable at 28px, so the abstraction is two diamonds + a center
+// circle + the suspension loop.
+//
+// Cluster 7.31 — replaces the prior placeholder `[C]` glyph with a
+// consistent visual identity. Color follows the existing vessel
+// tokens so the rose matches the system brand.
 function BrandMark() {
   return (
     <div
       aria-hidden
+      data-testid="brand-mark-compass-rose"
       style={{
         width: 28,
         height: 28,
@@ -277,17 +287,27 @@ function BrandMark() {
         position: "relative",
       }}
     >
-      <span
-        style={{
-          fontFamily: "var(--font-jetbrains), monospace",
-          fontSize: 13,
-          fontWeight: 700,
-          color: "var(--vessel-accent)",
-          letterSpacing: "-0.02em",
-        }}
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 28 28"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ color: "var(--vessel-accent)" }}
       >
-        [C]
-      </span>
+        {/* suspension loop */}
+        <circle cx="14" cy="2.2" r="1.4" />
+        <path d="M14 3.6 L14 6.4" />
+        {/* outer 4-point compass rose */}
+        <path d="M14 6.4 L21 14 L14 21.6 L7 14 Z" />
+        {/* inner 4-point compass rose (diamond), 90° offset */}
+        <path d="M7 14 L14 7 L21 14 L14 21 Z" />
+        {/* center gem */}
+        <circle cx="14" cy="14" r="1.4" fill="currentColor" />
+      </svg>
     </div>
   );
 }

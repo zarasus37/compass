@@ -645,7 +645,18 @@ async function main() {
   );
   check(
     "src: AppSidebar passes ticker to // Ledger chapter slot",
-    /label: "\/\/ Ledger"[\s\S]*LiveActivityTicker/.test(sidebarSrc),
+    // Cluster 7.30a: NAV lives in src/components/sidebar/nav.ts
+    // (extracted from AppSidebar for the mobile drawer).
+    // The slot wiring can be in either AppSidebar.tsx (the ternary
+    // that builds the slot per chapter) or nav.ts (the NAV const
+    // with a pre-defined slot). Both are valid.
+    (() => {
+      const navSrc = readFileSync(join(ROOT, "src/components/sidebar/nav.ts"), "utf8");
+      const inNavSrc = /label:\s*"\/\/ Ledger"[\s\S]*LiveActivityTicker/.test(navSrc);
+      const inSidebarSrc =
+        /chapter\.label\s*===\s*"\/\/ Ledger"[\s\S]*LiveActivityTicker/.test(sidebarSrc);
+      return inNavSrc || inSidebarSrc;
+    })(),
   );
 
   const appLayoutSrc = readFileSync(join(ROOT, "src/app/(app)/layout.tsx"), "utf8");
