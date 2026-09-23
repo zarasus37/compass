@@ -1,8 +1,8 @@
 ﻿# Compass â€” Fresh-Session Handoff
 
 **Date**: 2026-09-22
-**Last commit**: `886554f` (HANDOVER Cluster 7.27 audit) — on top of `2d5c540` (Cluster 7.27: quick-add transaction popover) — on top of `5c22afe` (runbook Step 6.7) — on top of `f07b215` (HANDOVER chain fixes) — on top of `9a77ea0` (HANDOVER 7.26 audit) — on top of `ad6beea` (HANDOVER 7.26 placeholder fix) — on top of `07b34b0` (HANDOVER 7.26 audit) — on top of `33033e5` (Cluster 7.26 cash flow) — on top of `3191c55` (HANDOVER cleanup).
-**Predecessor commit chain (post-7.14)**: `07b34b0` (HANDOVER 7.26) â†’ `886554f` (HANDOVER 7.27) â†’ `2d5c540` (7.27) â†’ `33033e5` (7.26) â†’ `3191c55` (HANDOVER cleanup) â†’ `c248d18` (runbook 6.6) â†’ `84df3cc` (HANDOVER 7.19) â†’ `ee8ef19` (Cluster 7.19) â†’ `778b124` (HANDOVER 7.18) â†’ `e2b60d5` (Cluster 7.18) â†’ `12cdce7` (7.15.2 fix) â†’ `fd9676e` (7.15.1.1) â†’ `79eeaff` (7.15.1) â†’ `aa28f21` (HANDOVER audit) â†’ `c4c566d` (7.15) â†’ `617bab7` (7.17) â†’ `7748f70` (HANDOVER 7.16) â†’ `9c3e4cc` (7.15 prep docs) â†’ `dbfe461` (CI Node 22) â†’ `8ee96a9` (Mavis env) â†’ `5641b4d` (merge) â†’ `ea1d49a` (Hobby cron) â†’ `680db8f` (7.16) â†’ `eb0843b` (7.14) â†’ `8b13660` (7.11.1) â†’ `a8639d6` (7.11) â†’ `1f21ea1` (7.10) â†’ `bec5d5c` (7.9) â†’ `52bb94c` (7.8.2) â†’ `b7ef8cf` (7.8.1) â†’ `8f7b23b` (7.8) â†’ `ef0982a` (7.7) â†’ `3af7566` (7.6) â†’ `eb7c1f9` (7.5) â†’ `ee405f8` (7.4)
+**Last commit**: `<NEW-HANDOVER>` (HANDOVER Cluster 7.28 audit) — on top of `f299705` (Cluster 7.28) — on top of `d7f033a` (runbook Step 6.8) — on top of `37992df` (HANDOVER hash fix) — on top of `886554f` (HANDOVER 7.27) — on top of `2d5c540` (Cluster 7.27: quick-add transaction popover) — on top of `5c22afe` (runbook Step 6.7) — on top of `f07b215` (HANDOVER chain fixes) — on top of `9a77ea0` (HANDOVER 7.26 audit) — on top of `ad6beea` (HANDOVER 7.26 placeholder fix) — on top of `07b34b0` (HANDOVER 7.26 audit) — on top of `33033e5` (Cluster 7.26 cash flow) — on top of `3191c55` (HANDOVER cleanup).
+**Predecessor commit chain (post-7.14)**: `<NEW-HANDOVER>` (HANDOVER 7.28) â†’ `f299705` (7.28) â†’ `07b34b0` (HANDOVER 7.26) â†’ `886554f` (HANDOVER 7.27) â†’ `2d5c540` (7.27) â†’ `33033e5` (7.26) â†’ `3191c55` (HANDOVER cleanup) â†’ `c248d18` (runbook 6.6) â†’ `84df3cc` (HANDOVER 7.19) â†’ `ee8ef19` (Cluster 7.19) â†’ `778b124` (HANDOVER 7.18) â†’ `e2b60d5` (Cluster 7.18) â†’ `12cdce7` (7.15.2 fix) â†’ `fd9676e` (7.15.1.1) â†’ `79eeaff` (7.15.1) â†’ `aa28f21` (HANDOVER audit) â†’ `c4c566d` (7.15) â†’ `617bab7` (7.17) â†’ `7748f70` (HANDOVER 7.16) â†’ `9c3e4cc` (7.15 prep docs) â†’ `dbfe461` (CI Node 22) â†’ `8ee96a9` (Mavis env) â†’ `5641b4d` (merge) â†’ `ea1d49a` (Hobby cron) â†’ `680db8f` (7.16) â†’ `eb0843b` (7.14) â†’ `8b13660` (7.11.1) â†’ `a8639d6` (7.11) â†’ `1f21ea1` (7.10) â†’ `bec5d5c` (7.9) â†’ `52bb94c` (7.8.2) â†’ `b7ef8cf` (7.8.1) â†’ `8f7b23b` (7.8) â†’ `ef0982a` (7.7) â†’ `3af7566` (7.6) â†’ `eb7c1f9` (7.5) â†’ `ee405f8` (7.4)
 **ðŸŽ¯ NEXT CLUSTER**: **Cluster 7.15 â€” Per-bill payment history sparkline.** Spec is on disk at `00-CLUSTER-7.15-PAYMENT-HISTORY-SPARKLINE.md`. Polar prompt is at `00-POLAR-PROMPT-NEXT-CLUSTER.md`. Mom is live (per `00-MOM-LAUNCH-RUNBOOK.md`) â€” 7.15 is unblocked.
 **ðŸš€ LAUNCH POSTURE**: xKryptic's mom is the v1 single user â€” **LIVE** on Vercel + Neon since the 7.16 commit (`680db8f`, 2026-09-06). Runbook at `00-MOM-LAUNCH-RUNBOOK.md` covers the external-account work (GitHub repo, Neon, Vercel env vars, deploy, send mom the URL). Local dev (`pnpm dev` on `localhost:3000`) is unchanged for cluster work. Each cluster commit on a feature branch gets a Vercel preview URL; merge to `main` to ship to mom.
 
@@ -1047,4 +1047,82 @@ Modified:
 - `src/app/(app)/layout.tsx` (pass envelopes)
 - `src/app/page.tsx` (pass envelopes to dashboard TopAppBar)
 - `package.json` (`smoke` chain extended)
+- `HANDOVER.md` (this section)
+
+---
+
+# Cluster 7.28 audit (2026-09-23, session 8)
+
+**Status: SHIPPED.** Commit `f299705` Cluster 7.28: sinking funds, pushed to `origin/main` on top of `d7f033a`.
+
+## What shipped
+
+The standard budget-app "sinking fund" concept: each envelope can have a sub-allocation like `Holiday food · $300 / annual · $25/mo to fund by November`. Lets mom save for known-but-irregular expenses (insurance, annual subscriptions, holiday gifts) without juggling separate envelopes or spreadsheets.
+
+Surfaces:
+- **`/envelopes`** — each envelope row now shows its sinks inline: `// sinks` eyebrow + per-sink `$target / $cadence · $X/mo` summary
+- **`/envelopes/[id]`** — new "Sinking funds" section between Cadence and Activity. Per-row list with target + cadence + monthly fill + delete button. Inline "Add a sink" form (name + target + cadence).
+- **Lazy seed**: 1 canonical sink per seedable envelope on first visit (`Groceries → Holiday food`, `Utilities → Annual subscription`, `Dining & Joy → Birthday gifts`, `Buffer → Annual deductible`, `Savings → Property tax`).
+
+## Why this cluster
+
+- Tier 2 (user direction, 2026-09-22): sinking funds, quick-add, spending trends. Quick-add shipped in 7.27.
+- Sinking funds is the heaviest design call of the tier — schema change (new table) + lazy seed + UI on two pages + per-sink math. Worth its own cluster.
+
+## Implementation notes
+
+- **`prisma/schema.prisma`**: new `EnvelopeSink` model with the back-relations on `User` and `Envelope`. Cascades on user/envelope delete.
+- **`prisma/migrations/20260923053736_add_envelope_sinks/`**: `CREATE TABLE "EnvelopeSink"` + indexes on `envelopeId`, `userId`, `(userId, isArchived)` + FK constraints.
+- **`src/lib/seed-sinks.ts`** (server-only): `ensureUserSinksSeeded(userId)` — idempotent lazy seed. Returns counts so the caller can render a "just seeded" toast if desired.
+- **`src/lib/forecast/sink-math.ts`** (client-safe): pure `monthlyFillCents(targetCents, cadence)` formula. Kept separate from `seed-sinks.ts` so the `SinkList` client component can compute the same per-month fill rate without dragging the Prisma client into the browser bundle (which is what would happen if it imported the server-only file — pg → dns/net/fs).
+- **`src/app/actions/sinks.ts`**: `addSink(prev, formData)` + `deleteSink(prev, formData)`. Both do defense-in-depth user-id checks (a forged action id can't write to another user's envelope).
+- **`src/components/envelopes/AddSinkForm.tsx`** (~140 LOC): inline form with name + target + cadence. Uses `useActionState` for inline error rendering.
+- **`src/components/envelopes/SinkList.tsx`** (~150 LOC): per-row render with a per-row delete form (so deletes are isolated to the row).
+- **`src/app/(app)/envelopes/page.tsx`**: sinks inline under each envelope row.
+- **`src/app/(app)/envelopes/[id]/page.tsx`**: now async server component (added `await requireUser()` for the seed; fixed an earlier `React.use(params)` inside async function bug that produced the "Expected a suspended thenable" React 19 errors).
+- **`tests/smoke-sinking-funds.mjs`** (15 checks): table exists, lazy-seed inserts expected rows, all 3 named seed rows present, DOM hooks on both `/envelopes` and `/envelopes/[id]`, addSink server-action contract via direct Prisma write, math formula handles all 4 cadences.
+
+### Math
+
+```
+monthlyFillCents = targetCents × (12 / cadence_months)
+  weekly     (0.25mo) → targetCents × 48 / 12  (rounded)
+  monthly    (1mo)    → targetCents
+  quarterly  (3mo)    → round(targetCents / 3)
+  annual     (12mo)   → round(targetCents / 12)
+```
+
+So `$300 / annual → $25/mo`, `$600 / quarterly → $200/mo`, etc.
+
+### Cash flow impact: zero
+
+Cluster 7.26's cash-flow card reads `envelope.targetCents` as the top-level target. Sinks are sub-allocations; the visible target stays the same. We just split the visible target into "base + sink sum" on `/envelopes`.
+
+## Verification
+
+- `pnpm tsc`: clean
+- `pnpm smoke` (data layer, 23 stages incl. new): **1,025 / 0 miss** (was 1,010, +15 from new smoke)
+- `tests/integration-vault.mjs`: 345 / 0 miss (unchanged)
+- `tests/smoke-deploy.mjs`: 145 / 0 miss (unchanged)
+- `smoke:ui` (13 stages): 432 / 0 miss (unchanged)
+- **Total smoke surface: 1,947 / 0 miss** across 38 stages
+
+## Files changed in this session
+
+Added:
+- `00-CLUSTER-7.28-SINKING-FUNDS.md` (spec)
+- `prisma/migrations/20260923053736_add_envelope_sinks/migration.sql`
+- `src/lib/seed-sinks.ts` (~120 LOC)
+- `src/lib/forecast/sink-math.ts` (~50 LOC)
+- `src/app/actions/sinks.ts` (~120 LOC)
+- `src/components/envelopes/AddSinkForm.tsx` (~140 LOC)
+- `src/components/envelopes/SinkList.tsx` (~150 LOC)
+- `tests/smoke-sinking-funds.mjs` (15 checks)
+
+Modified:
+- `prisma/schema.prisma` (EnvelopeSink model + back-relations)
+- `src/app/(app)/envelopes/page.tsx` (inline sinks under each row)
+- `src/app/(app)/envelopes/[id]/page.tsx` (full Sinking funds section + async conversion)
+- `package.json` (`smoke` chain extended)
+- `src/generated/prisma/*` (auto-generated from `prisma generate`)
 - `HANDOVER.md` (this section)
