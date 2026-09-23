@@ -27,6 +27,7 @@ import {
   findUserByEmail,
 } from "@/server/auth/user";
 import { prisma } from "@/server/db";
+import { isWeakPassword } from "@/lib/auth/password-policy";
 
 const SignupSchema = z.object({
   name: z.string().min(1, "Please enter your name.").max(80).trim(),
@@ -98,6 +99,19 @@ export async function signupAction(
     return {
       ok: false,
       fieldErrors: { confirm: "Passwords don't match." },
+    };
+  }
+  // Cluster 7.32a — shared password-policy from src/lib/auth/password-policy.ts
+  // (same rules as scripts/seed-admin.mjs). Catches dictionary-weak
+  // passwords (e.g. "password12345") that the Zod length check missed.
+  const mode = process.env.NODE_ENV === "production" ? "production" : "development";
+  const weakReason = isWeakPassword(password, mode, email);
+  if (weakReason) {
+    return {
+      ok: false,
+      fieldErrors: {
+        password: `That's too easy to guess (${weakReason}). Try a stronger one.`,
+      },
     };
   }
 

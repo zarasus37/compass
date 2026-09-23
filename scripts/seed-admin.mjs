@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 /**
- * seed-admin — create the mom-ready user from env vars.
+ * seed-admin — create an admin user from env vars.
  *
  * Cluster 7.16. Idempotent: re-runs on every prod deploy, only creates
  * the user if no row exists for ADMIN_EMAIL. Safe to call against a
  * fresh DB (after `prisma migrate deploy`) or a populated DB.
+ *
+ * Cluster 7.32a: password policy is shared via
+ * `src/lib/auth/password-policy.ts::isWeakPassword` so signup + this
+ * CLI share the same rules. Single source of truth.
  *
  * This script creates the USER only. Demo data (envelopes, bills,
  * goals, allocation plan, accounts) is populated two ways:
@@ -18,7 +22,7 @@
  *   - DATABASE_URL          (Postgres pooled connection string)
  *   - ADMIN_EMAIL           (e.g. mom@example.com)
  *   - ADMIN_NAME            (display name; e.g. "Mom")
- *   - ADMIN_PASSWORD        (>= 16 chars in prod; 8+ in dev)
+ *   - ADMIN_PASSWORD        (>= 12 chars in prod; 8+ in dev)
  *
  * Optional:
  *   - ADMIN_ALLOW_OVERWRITE=1  re-create the user even if the row exists
@@ -27,8 +31,9 @@
  *
  * Safety:
  *   - In production (NODE_ENV=production), refuses to run if
- *     ADMIN_PASSWORD is shorter than 16 chars or matches common weak
+ *     ADMIN_PASSWORD is shorter than 12 chars or matches common weak
  *     patterns (e.g. "password", "mom12345", the ADMIN_EMAIL itself).
+ *     See src/lib/auth/password-policy.ts for the rule list.
  *   - The DB write is wrapped in a transaction so a partial failure
  *     leaves the database in a clean state.
  *
@@ -42,6 +47,7 @@ import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/index.js";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hash } from "@node-rs/argon2";
+import { isWeakPassword } from "../src/lib/auth/password-policy.ts";
 
 const ARGON2_OPTIONS = {
   memoryCost: 19_456,
@@ -49,25 +55,9 @@ const ARGON2_OPTIONS = {
   parallelism: 1,
 };
 
-const WEAK_PATTERNS = [
-  /^password/i,
-  /^mom\d*$/i,
-  /^admin\d*$/i,
-  /^compass\d*$/i,
-  /^12345/,
-  /^qwerty/i,
-  /^letmein/i,
-];
-
 function fail(msg, code = 1) {
   console.error(`[seed-admin] ${msg}`);
   process.exit(code);
-}
-
-function isWeak(p) {
-  if (p.length < 16) return "shorter than 16 chars";
-  for (const pat of WEAK_PATTERNS) if (pat.test(p)) return `matches weak pattern ${pat}`;
-  return null;
 }
 
 async function main() {
@@ -91,20 +81,14 @@ async function main() {
     fail(`ADMIN_EMAIL is not a valid email: ${ADMIN_EMAIL}`);
   }
 
-  if (NODE_ENV === "production") {
-    const weak = isWeak(ADMIN_PASSWORD);
-    if (weak) {
-      fail(
-        `ADMIN_PASSWORD is too weak for production: ${weak}. ` +
-          `Generate a 32-byte random one with: ` +
-          `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`,
-      );
-    }
-    if (ADMIN_PASSWORD.toLowerCase().includes(email.split("@")[0])) {
-      fail(`ADMIN_PASSWORD contains the email local-part. Use a random one.`);
-    }
-  } else if (ADMIN_PASSWORD.length < 8) {
-    fail(`ADMIN_PASSWORD is shorter than 8 chars (dev minimum).`);
+  const mode = NODE_ENV === "production" ? "production" : "development";
+  const weak = isWeakPassword(ADMIN_PASSWORD, mode, email);
+  if (weak) {
+    fail(
+      `ADMIN_PASSWORD is too weak for ${mode}: ${weak}. ` +
+        `Generate a 32-byte random one with: ` +
+        `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`,
+    );
   }
 
   const adapter = new PrismaPg({ connectionString: DATABASE_URL });
