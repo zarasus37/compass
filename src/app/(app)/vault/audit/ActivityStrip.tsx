@@ -286,15 +286,7 @@ export function ActivityStrip({
                 </text>
               ) : null}
               {/* Native tooltip */}
-              <title>
-                {d.dateKey
-                  ? `${d.dateKey} · ${d.count} event${d.count === 1 ? "" : "s"}${
-                      d.failedCount > 0
-                        ? ` · ${d.failedCount} failed`
-                        : ""
-                    }${!inRange ? " · out of range" : ""}`
-                  : "no data"}
-              </title>
+              <title>{`${d.dateKey ? `${d.dateKey} · ${d.count} event${d.count === 1 ? "" : "s"}${d.failedCount > 0 ? ` · ${d.failedCount} failed` : ""}${!inRange ? " · out of range" : ""}` : "no data"}`}</title>
             </g>
           );
         })}

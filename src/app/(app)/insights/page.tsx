@@ -3,6 +3,8 @@ import { PageHead } from "@/components/alchemy/PageHead";
 import { liveEnvelopesFromDb, liveGoalsFromDb, liveSnapshot, liveTransactions, TODAY } from "@/lib/mock";
 import { formatMoney, formatMoneyCompact, formatMoneySigned } from "@/lib/money";
 import { NetTrajectoryCard } from "@/components/dashboard/cards/net-trajectory";
+import { CashFlowForecastCard } from "@/components/dashboard/cards/cash-flow-forecast";
+import { loadCashFlowForecast } from "@/lib/forecast/cash-flow";
 import { PLANET_COLORS, type PlanetId } from "@/components/alchemy/VesselGlyph";
 import { requireUser } from "@/server/auth/user";
 
@@ -274,7 +276,37 @@ export default async function InsightsPage() {
             </div>
           </div>
         </section>
+      </div>
 
+      {/* CASH FLOW — 60-day balance projection (Cluster 7.26) */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr",
+          gap: 32,
+          marginBottom: 32,
+        }}
+      >
+        {/* The card is rendered here so it stays above the
+            12-month Trajectory. It answers "what's my balance
+            next month" before the longer-horizon chart. */}
+        <CashFlowForecastCard
+          data={await loadCashFlowForecast({
+            userId: user.id,
+            horizonDays: 60,
+          })}
+          compact
+        />
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1.1fr 1fr",
+          gap: 32,
+          marginBottom: 32,
+        }}
+      >
         {/* TRAJECTORY — 12-month net-worth projection (dynamic) */}
         <section
           style={{

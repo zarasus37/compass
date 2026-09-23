@@ -15,6 +15,8 @@ import { NextStepCard } from "@/components/dashboard/cards/next-step";
 import { SnapshotCard } from "@/components/dashboard/cards/snapshot";
 import { SpendRingCard } from "@/components/dashboard/cards/spend-ring";
 import { NetTrajectoryCard } from "@/components/dashboard/cards/net-trajectory";
+import { CashFlowForecastCard } from "@/components/dashboard/cards/cash-flow-forecast";
+import { loadCashFlowForecast } from "@/lib/forecast/cash-flow";
 import { PayDistributionCard } from "@/components/dashboard/cards/pay-distribution";
 import { IdentitySummaryCard } from "@/components/dashboard/cards/identity-summary";
 import { AllocationFeed, type AllocationRow } from "@/components/dashboard/AllocationFeed";
@@ -880,6 +882,20 @@ export default async function Dashboard() {
           }}
           horizonStripData={horizonStripData}
         />
+
+        {/* ============== CASH FLOW FORECAST — 60-day balance projection (Cluster 7.26) ============== */}
+        <section
+          aria-label="Cash flow forecast"
+          data-testid="dashboard-cash-flow-section"
+          style={{ marginBottom: 28 }}
+        >
+          <CashFlowForecastCard
+            data={await loadCashFlowForecast({
+              userId: user.id,
+              horizonDays: 60,
+            })}
+          />
+        </section>
 
         {/* ============== MUST-HAVE TOOLS INDEX ============== */}
         <MustHaveToolsStrip />

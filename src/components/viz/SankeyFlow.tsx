@@ -449,9 +449,7 @@ function CustomLinksLayer(props: SankeyLayerProps) {
             }}
           >
             {isInteractive && (
-              <title>
-                {`${formatMoney(link.value)} → ${targetLabel} (${pct.toFixed(1)}% of paycheck)${subtitle ? `\n${subtitle}` : ""}`}
-              </title>
+              <title>{`${formatMoney(link.value)} → ${targetLabel} (${pct.toFixed(1)}% of paycheck)${subtitle ? `\n${subtitle}` : ""}`}</title>
             )}
           </path>
         );
