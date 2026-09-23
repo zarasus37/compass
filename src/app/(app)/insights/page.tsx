@@ -4,7 +4,9 @@ import { liveEnvelopesFromDb, liveGoalsFromDb, liveSnapshot, liveTransactions, T
 import { formatMoney, formatMoneyCompact, formatMoneySigned } from "@/lib/money";
 import { NetTrajectoryCard } from "@/components/dashboard/cards/net-trajectory";
 import { CashFlowForecastCard } from "@/components/dashboard/cards/cash-flow-forecast";
+import { SpendingTrendsCard } from "@/components/dashboard/cards/spending-trends";
 import { loadCashFlowForecast } from "@/lib/forecast/cash-flow";
+import { loadSpendingTrends } from "@/lib/forecast/spending-trends";
 import { PLANET_COLORS, type PlanetId } from "@/components/alchemy/VesselGlyph";
 import { requireUser } from "@/server/auth/user";
 
@@ -296,6 +298,25 @@ export default async function InsightsPage() {
             horizonDays: 60,
           })}
           compact
+        />
+      </div>
+
+      {/* Cluster 7.29 — Spending trends (top expenses last 30 days).
+          Pairs with the cash flow card: flow answers "where am I
+          going", trends answers "where did it go". */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr",
+          gap: 32,
+          marginBottom: 32,
+        }}
+      >
+        <SpendingTrendsCard
+          data={await loadSpendingTrends({
+            userId: user.id,
+            windowDays: 30,
+          })}
         />
       </div>
 
