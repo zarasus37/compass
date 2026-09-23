@@ -268,6 +268,25 @@ The math: a $300 annual sink needs `$25/mo` to fully fund by year-end. A $600 qu
 
 If mom has zero envelopes, the seed has nothing to attach to (each sink needs an envelope). Add an envelope first via `/envelopes/new`.
 
+### Step 6.10 — Confirm the spending trends card (10 sec)
+
+The "Top expenses · last 30 days" card on `/insights` answers "where did my money go?" Cluster 7.29 added this card between the cash flow forecast (Step 6.7) and the 12-month Net Trajectory chart.
+
+To verify:
+1. Log in as mom and visit `/insights`.
+2. Scroll past the allocation donut, the trajectory chart, and the 60-day cash flow card. The new card is the next section down.
+3. The card has two ranked columns:
+   - **By envelope** (left) — top 5 envelopes by spend, with planet color dots and per-row `amount · percent of total`.
+   - **By payee** (right) — top 10 merchants by spend, with `transaction count · amount · percent of total`.
+4. The header shows the window: `Today minus 29d → Today`, plus a total spent line (`−$X across N transactions`).
+5. If mom hasn't logged any expenses in the last 30 days, the card renders the honest message **"No expenses logged in the last 30 days. Use the + button in the top bar, or visit /transactions to add one."** (with the + button highlighted in accent color). This is the expected first-run state.
+
+The card reads directly from the `Transaction` table; every transaction mom logs (via `/transactions/new`, the TopAppBar `+` popover, or the Vault bills scheduler) appears here within a page refresh. The numbers are real — no fabricated totals.
+
+If `pnpm smoke` is green, the card is wired correctly: 11 checks in `tests/smoke-spending-trends.mjs`.
+
+This is the **final cluster of Tier 2**. With Step 6.7 (cash flow forecast), Step 6.8 (quick-add), Step 6.9 (sinking funds), and Step 6.10 (spending trends) all live, mom has the full `/insights` page: where money goes (past 30d ranking), where money is going (60d forecast), and where mom wants it to go (allocation donut + 12-month trajectory). Plus she can log a tx without leaving whatever page she's on.
+
 ---
 
 ## Step 8 — Set up the dev workflow (5 min)
