@@ -1283,3 +1283,64 @@ And accepts:
 
 The HANDOVER call for the next session is: "verdict is green; proceed to mom-deploy when user gives the go-ahead."
 
+
+# Cluster 7.30a audit (2026-09-23, session 11) — Mobile shell polish
+
+**Status: SHIPPED + awaiting phone-checkpoint from user before 7.30b.** Commit `ca58e55` Cluster 7.30a, pushed to `origin/main` on top of `6c4bb69`.
+
+## What shipped
+
+Mobile shell changes only — the inner-page layouts (Accounts rows, Calendar grid, etc) remain in 7.30b.
+
+### The actual problem
+
+Per user feedback after deploying to Vercel + mom installed the PWA:
+> "The rendering on the phone needs a lot of work as far as the UI. It's all bunched up, it doesn't look clean."
+
+Verified via Playwright at iPhone-14 (393×852) and Pixel-7 (412×915) viewports:
+- Sidebar at 232px was eating ~30% of the viewport
+- Main padding at 80px horizontal left ~85px for content after the sidebar
+- Result: every card was crammed into a single word per line
+
+### Files changed (12)
+
+| File | Lines | Change |
+|---|---|---|
+| `src/components/sidebar/nav.ts` (new) | +84 | Extracted NAV + isActive from AppSidebar so the desktop rail and mobile overlay drawer share source of truth |
+| `src/hooks/useMediaQuery.ts` (new) | +45 | SSR-safe media-query hook + useIsMobile() |
+| `src/components/shell/MobileSidebarSheet.tsx` (new) | +258 | Overlay drawer: backdrop, slide-in animation, body-scroll lock, Escape close, auto-close on navigation |
+| `src/components/shell/MobileSidebarToggle.tsx` (new) | +66 | Client island — hamburger button + sheet state |
+| `src/components/sidebar/AppSidebar.tsx` | −64 | Returns null on mobile; imports NAV/isActive from `./nav` |
+| `src/components/shell/TopAppBar.tsx` | +8 | Mounts `<MobileSidebarToggle />` as first child of the bar |
+| `src/app/(app)/layout.tsx` | +21 | Outer grid → `.responsive-cols-shell`; main padding → `.responsive-main-padding` |
+| `src/app/page.tsx` | +9 | Same — the dashboard (`/`) lives outside the (app) route group and has its own padding/grid |
+| `src/app/globals.css` | +42 | @media rules for shell + main padding + hamburger visibility |
+| `tests/smoke-mobile-shell.mjs` (new) | +163 | 54 playwright-driven checks at iPhone-14 + Pixel-7 |
+| `package.json` | +1 | New smoke in the chain |
+| `00-CLUSTER-7.30-MOBILE-POLISH.md` (new) | +101 | Spec |
+
+### Verification
+
+- `pnpm tsc`: clean
+- `pnpm smoke` (now 26 stages, +smoke-mobile-shell): 1,036 → **1,090 (+54)**. Total smoke: 1,967 → **2,021**
+- `tests/integration-vault.mjs`: 345 / 0 miss (unchanged)
+- `tests/smoke-deploy.mjs`: 145 / 0 miss (unchanged)
+- `smoke:ui` (13 stages): 432 / 0 miss
+- **Total: 2,021 / 0 miss across 42 stages**
+
+### What's NOT in 7.30a (deferred to 7.30b)
+
+The mobile smoke confirmed these inner-page issues still need fixes:
+- RebalanceAlertBay on `/` — the `[ Balance Envelope ]` button + dismiss button take the full row width with `flex-shrink: 0`; the text middle container collapses to 0px wide; words wrap one per line
+- Pages with horizontal grids (Accounts 5-col, Envelopes 4-col, Calendar 7-col, Allocation 2-col, MustHaveToolsStrip N-col)
+- Bottom-nav touch targets (~24px icons, want 48px)
+- Inner pages potentially needing small font-size adjustments
+
+These all stay for 7.30b, which the user can confirm the shell feels right first.
+
+## Why this split
+
+User explicitly directed:
+> "I don't want you to do all of it, just to have to do it all over again."
+
+If the shell feels wrong (different overlay behavior, padding values, hamburger position), we'd be undoing 6 files instead of 8. So 7.30a = shell only, 7.30b = inner pages once shell is signed off.
