@@ -1347,7 +1347,7 @@ If the shell feels wrong (different overlay behavior, padding values, hamburger 
 
 # Cluster 7.31 audit (2026-09-23, session 12) — Compass Rose logo
 
-**Status: SHIPPED.** Commit `6b1d47a` Cluster 7.31, pushed to `origin/main` on top of `a97c8e8`.
+**Status: SHIPPED.** Commit `6b1d47a` Cluster 7.31, pushed to `origin/main` on top of `6b1d47a`.
 
 ## What shipped
 
