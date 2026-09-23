@@ -204,6 +204,37 @@ Two options:
 
 **Don't email the password.** Email is the #1 way accounts get compromised; the URL is fine (it's public anyway) but the password should go through a separate channel.
 
+### Step 7.5 — Install Compass on mom's phone (1 min, one-time)
+
+Compass is a PWA (Progressive Web App), not a native app. There is no App Store / Play Store entry — mom installs it from the browser, and it runs as a standalone app with its own icon, no browser chrome. Two paths, depending on her phone.
+
+**On iPhone (Safari — most likely for mom)**:
+1. Open `https://compass-mom.vercel.app` in **Safari** (not Chrome; iOS routes Chrome through Safari anyway, but starting in Safari is cleanest).
+2. Log in once with her email + password so the install prompt's autofill / saved-password story works.
+3. Tap the **Share** button (square with an arrow pointing up, bottom of the screen).
+4. Scroll the share menu down, tap **Add to Home Screen**.
+5. The icon is the compass glyph against `#060A12` background — confirm name is `Compass`, tap **Add**.
+6. Home screen now shows `Compass`. Tap it → app opens in standalone window. No Safari URL bar, no "<back" button. Looks and feels like a native app.
+
+**On Android (Chrome)**:
+1. Open the URL in Chrome.
+2. A small "Install Compass" chip appears at the bottom-right of the screen — tap it.
+3. Confirm. The icon lands in her app drawer and home screen.
+
+**Subsequent launches**: tap the home-screen icon → jumps straight to `/login` (session cookie persists for the session lifetime; she'll log in once per device unless she ticks "remember me" once that's wired — currently no remember-me, so it's "session cookie, log in once a day" on her phone, which is fine).
+
+**Why this matters**: a PWA installed on a phone shows up in iOS Spotlight and Android app drawers. To mom it IS the app — no need to explain "go to the website in the browser" each time.
+
+### Verify the install works in your own browser first
+
+Before sending mom the URL:
+1. Open `https://compass-mom.vercel.app` on your own phone (same path as Step 7.5).
+2. Confirm the icon installs.
+3. Confirm the standalone window loads `/dashboard` (or `/login` if she hasn't logged in yet).
+4. If the share sheet doesn't show "Add to Home Screen", the manifest didn't wire up — check `curl https://compass-mom.vercel.app/manifest.json | jq` returns the manifest, and `curl -I https://compass-mom.vercel.app/sw.js` returns 200 with `content-type: application/javascript`.
+
+This is the final test before handoff to mom. If your own phone installs and launches cleanly, mom's will too.
+
 ---
 
 ### Step 6.6 — Confirm the retention health banner (5 sec)
