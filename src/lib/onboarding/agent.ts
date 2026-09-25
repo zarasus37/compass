@@ -40,6 +40,10 @@ import {
   type ToolResult,
   type SaveResult,
 } from "./state";
+import {
+  shouldNudgeStuck,
+  maybeReviseStuckResponse,
+} from "./stuck-detector";
 
 // ──────────────────────────────────────────────────────────────────────
 // Public types
@@ -187,6 +191,35 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
       ...workingHistory,
       { role: "assistant", content: finalResponse.content },
     ];
+  }
+
+  // Cluster 7.33a — stuck-loop detector. If the last N assistant
+  // messages in workingHistory are textually identical AND none
+  // made a tool call, the LLM is asking the same question on loop.
+  // Replace the final response with a hand-written nudge that
+  // points at the demo-data button. (See stuck-detector.ts for
+  // the threshold and copy.)
+  if (shouldNudgeStuck(workingHistory)) {
+    finalResponse = {
+      content: maybeReviseStuckResponse(finalResponse.content, true),
+      toolCalls: [],
+      finishReason: finalResponse.finishReason,
+      provider: finalResponse.provider,
+      meta: { ...(finalResponse.meta ?? {}), stuckLoop: true },
+    };
+    // Replace the last assistant message in workingHistory so the
+    // saved conversation doesn't contain the duplicate original.
+    for (let i = workingHistory.length - 1; i >= 0; i--) {
+      const m = workingHistory[i];
+      if (m && m.role === "assistant") {
+        workingHistory[i] = {
+          role: "assistant",
+          content: finalResponse.content,
+          ...(m.toolCalls ? { toolCalls: m.toolCalls } : {}),
+        };
+        break;
+      }
+    }
   }
 
   // Persist the updated state. The new messages are the ones we

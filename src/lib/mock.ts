@@ -240,7 +240,7 @@ export async function liveEnvelopesFromDb(userId: string) {
   return rows.map((e) => ({
     id: e.id,
     name: e.name,
-    planet: e.planet as PlanetId | null,
+    planet: e.planet as PlanetId,
     current: e.currentBalance,
     target: e.targetBalance,
   }));

@@ -12,6 +12,7 @@ import { requireUser } from "@/server/auth/user";
 import { prisma } from "@/server/db";
 import {
   liveEnvelopes,
+  liveEnvelopesFromDb,
   liveTransactions,
   TODAY,
   PERIOD_START,
@@ -38,7 +39,13 @@ export default async function EnvelopeDetailPage({
 }) {
   const { id } = await params;
   const user = await requireUser();
-  const ENVELOPES = liveEnvelopes();
+  // Cluster 7.33b — read envelope rows from Prisma, not the in-memory
+  // mock store. Bug: in production (Vercel serverless), the
+  // in-memory store is per-invocation, so fresh requests couldn't
+  // see env-* IDs. Same pattern as Cluster 5.2.6 (the `/envelopes`
+  // list + dashboard widgets were already on this read path). This
+  // page was missed.
+  const ENVELOPES = await liveEnvelopesFromDb(user.id);
   const TRANSACTIONS = liveTransactions();
   const envelope = ENVELOPES.find((e) => e.id === id);
 
