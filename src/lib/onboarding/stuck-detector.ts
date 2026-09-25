@@ -26,6 +26,23 @@ import type { LLMMessage } from "../llm/types";
 export const STUCK_THRESHOLD = 3;
 
 /**
+ * Cluster 7.35b — minimum number of user turns before the detector
+ * can fire. Mom said "i currently get paid twice a month..." (TURN 1
+ * data) and the agent called saveIncomeSource with cadence-only.
+ * Then mom said "every check i receive 2,000" (TURN 2 data) but the
+ * extractor missed it and the agent fell through to the canned
+ * fallback. The detector was firing on TURN 3 ("ok" or "what do
+ * you need to know") because the agent's TURN 2 + TURN 3 assistant
+ * messages were both canned fallbacks.
+ *
+ * But mom was still mid-conversation. The 7.35 fix to the mock
+ * extractor resolves the root cause; the floor here is a safety net
+ * for any future extractor misses — give the user at least 2 turns
+ * of trying before we tell them to bail to demo data.
+ */
+export const MIN_TURNS_BEFORE_DETECT = 2;
+
+/**
  * Returns true when the last `STUCK_THRESHOLD` assistant messages in
  * `history` are all textually identical AND none of them contains a
  * tool call (a tool call means the agent IS making progress; it just
@@ -101,15 +118,88 @@ export function consecutiveNoProgressTurns(history: LLMMessage[]): number {
 }
 
 /**
+ * Cluster 7.35b — "agent asked a specific question last" check.
+ *
+ * If the most recent assistant message ended with a question mark,
+ * the agent is mid-flow asking for specific info — even if the
+ * question looks canned, the user is more likely to be answering
+ * than to be stuck. The detector should wait for the next user
+ * message + a follow-up assistant response before firing.
+ */
+export function lastAssistantAskedQuestion(history: LLMMessage[]): boolean {
+  const lastAssistant = [...history]
+    .reverse()
+    .find((m) => m.role === "assistant");
+  if (!lastAssistant) return false;
+  // Cluster 7.35b — look for "?" anywhere in the content, not just
+  // at the end. The agent's follow-up questions often end with a
+  // parenthetical aside ("What\'s the rough take-home per paycheck?
+  // (Doesn\'t have to be exact.)") which puts a period after the
+  // question mark. We want to detect "this is a question", not
+  // "ends with a question mark".
+  return /[?？]/.test(lastAssistant.content);
+}
+
+/**
  * Combined stuck check used by the agent.
  *
+ * - Returns `false` when the agent's most recent message asked a
+ *   specific question (caller is mid-flow, not stuck).
+ * - Returns `false` when fewer than `MIN_TURNS_BEFORE_DETECT` user
+ *   turns have occurred (need at least 2 attempts before bailing).
  * - Returns `true` if either the strict 3-identical pattern fires
  *   OR there are >= 2 consecutive no-progress assistant messages
  *   (the nudge has already fired; the loop is still stuck).
- *
- * Returns `false` when the conversation is making progress.
  */
 export function shouldNudgeStuck(history: LLMMessage[]): boolean {
+  const userTurns = history.filter((m) => m.role === "user").length;
+  if (userTurns < MIN_TURNS_BEFORE_DETECT) return false;
   if (detectStuckLoop(history)) return true;
+  // Cluster 7.35b — only treat the "agent asked a question" check
+  // as a bail-out guard when the agent's CURRENT question differs
+  // from its PREVIOUS question. If the agent asked the same
+  // canned question on two consecutive turns, the loop is still
+  // stuck even if both questions end with "?".
+  if (lastAssistantAskedQuestion(history) && !lastQuestionRepeated(history) && !postNudgeRegression(history)) return false;
   return consecutiveNoProgressTurns(history) >= 2;
+}
+
+/**
+ * Cluster 7.35b — true when the last 2 assistant messages have
+ * identical text content. Used to distinguish "agent asked a new
+ * question" (don't bail) from "agent asked the same canned question
+ * twice" (still stuck, do bail).
+ */
+function lastQuestionRepeated(history: LLMMessage[]): boolean {
+  const assistants = history.filter((m) => m.role === "assistant");
+  if (assistants.length < 2) return false;
+  const last = assistants[assistants.length - 1]?.content ?? "";
+  const prev = assistants[assistants.length - 2]?.content ?? "";
+  return last === prev && last.trim().length > 0;
+}
+
+/**
+ * Cluster 7.35b — true when the agent is back to asking a canned
+ * question that it asked before the nudge fired. Handles the
+ * "post-nudge regression" case where the nudge went out, the user
+ * said something, and the agent returned to the canned opener.
+ */
+function postNudgeRegression(history: LLMMessage[]): boolean {
+  const assistants = history.filter((m) => m.role === "assistant");
+  if (assistants.length < 3) return false;
+  const last = assistants[assistants.length - 1]?.content ?? "";
+  // Has a nudge fired earlier in the conversation?
+  const nudgeFiredEarlier = assistants.some(
+    (m) => m.content.includes("not making progress") || m.content.includes("skip ahead"),
+  );
+  if (!nudgeFiredEarlier) return false;
+  // The agent is back to asking a question that came BEFORE the nudge.
+  const beforeNudge = assistants.findIndex(
+    (m) => m.content.includes("not making progress") || m.content.includes("skip ahead"),
+  );
+  for (let i = 0; i < beforeNudge; i++) {
+    const a = assistants[i];
+    if (a && a.content === last) return true;
+  }
+  return false;
 }
