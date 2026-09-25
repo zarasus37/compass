@@ -1,7 +1,7 @@
 ﻿# Compass â€” Fresh-Session Handoff
 
 **Date**: 2026-09-22
-**Last commit**: `6dd2e2b` (HANDOVER Cluster 7.30a audit) — on top of `ca58e55` (Cluster 7.30a shell polish) — on top of `c417972` (runbook Step 6.10) — on top of `e84f439` (HANDOVER hash fix) — on top of `089841e` (HANDOVER 7.29 audit) — on top of `53d022e` (Cluster 7.29) — on top of `ea9c5e2` (runbook Step 6.9) — on top of `d7f033a` (runbook Step 6.8) — on top of `37992df` (HANDOVER hash fix) — on top of `886554f` (HANDOVER 7.27) — on top of `2d5c540` (Cluster 7.27: quick-add transaction popover) — on top of `5c22afe` (runbook Step 6.7) — on top of `f07b215` (HANDOVER chain fixes) — on top of `9a77ea0` (HANDOVER 7.26 audit) — on top of `ad6beea` (HANDOVER 7.26 placeholder fix) — on top of `07b34b0` (HANDOVER 7.26 audit) — on top of `33033e5` (Cluster 7.26 cash flow) — on top of `3191c55` (HANDOVER cleanup).
+**Last commit**: `38c2247` (Cluster 7.33 — onboarding-stuck nudge + envelope-detail reads from DB) — on top of `6c6cc47` (HANDOVER Cluster 7.32a audit) — on top of `ecfc2fb` (Cluster 7.32a — auth refactor cleanup) — on top of `ee8c2b2` (HANDOVER Cluster 7.31 audit) — on top of `6b1d47a` (Cluster 7.31 — Compass Rose logo) — on top of `a97c8e8` (operator: spawn-test-account.mjs) — on top of `6dd2e2b` (HANDOVER Cluster 7.30a audit) — on top of `ca58e55` (Cluster 7.30a shell polish) — on top of `c417972` (runbook Step 6.10) — on top of `e84f439` (HANDOVER hash fix) — on top of `089841e` (HANDOVER 7.29 audit) — on top of `53d022e` (Cluster 7.29) — on top of `ea9c5e2` (runbook Step 6.9) — on top of `d7f033a` (runbook Step 6.8) — on top of `37992df` (HANDOVER hash fix) — on top of `886554f` (HANDOVER 7.27) — on top of `2d5c540` (Cluster 7.27: quick-add transaction popover) — on top of `5c22afe` (runbook Step 6.7) — on top of `f07b215` (HANDOVER chain fixes) — on top of `9a77ea0` (HANDOVER 7.26 audit) — on top of `ad6beea` (HANDOVER 7.26 placeholder fix) — on top of `07b34b0` (HANDOVER 7.26 audit) — on top of `33033e5` (Cluster 7.26 cash flow) — on top of `3191c55` (HANDOVER cleanup).
 **Predecessor commit chain (post-7.14)**: `2c135bc` (HANDOVER 7.28) â†’ `f299705` (7.28) â†’ `07b34b0` (HANDOVER 7.26) â†’ `886554f` (HANDOVER 7.27) â†’ `2d5c540` (7.27) â†’ `33033e5` (7.26) â†’ `3191c55` (HANDOVER cleanup) â†’ `c248d18` (runbook 6.6) â†’ `84df3cc` (HANDOVER 7.19) â†’ `ee8ef19` (Cluster 7.19) â†’ `778b124` (HANDOVER 7.18) â†’ `e2b60d5` (Cluster 7.18) â†’ `12cdce7` (7.15.2 fix) â†’ `fd9676e` (7.15.1.1) â†’ `79eeaff` (7.15.1) â†’ `aa28f21` (HANDOVER audit) â†’ `c4c566d` (7.15) â†’ `617bab7` (7.17) â†’ `7748f70` (HANDOVER 7.16) â†’ `9c3e4cc` (7.15 prep docs) â†’ `dbfe461` (CI Node 22) â†’ `8ee96a9` (Mavis env) â†’ `5641b4d` (merge) â†’ `ea1d49a` (Hobby cron) â†’ `680db8f` (7.16) â†’ `eb0843b` (7.14) â†’ `8b13660` (7.11.1) â†’ `a8639d6` (7.11) â†’ `1f21ea1` (7.10) â†’ `bec5d5c` (7.9) â†’ `52bb94c` (7.8.2) â†’ `b7ef8cf` (7.8.1) â†’ `8f7b23b` (7.8) â†’ `ef0982a` (7.7) â†’ `3af7566` (7.6) â†’ `eb7c1f9` (7.5) â†’ `ee405f8` (7.4)
 **ðŸŽ¯ NEXT CLUSTER**: **Cluster 7.15 â€” Per-bill payment history sparkline.** Spec is on disk at `00-CLUSTER-7.15-PAYMENT-HISTORY-SPARKLINE.md`. Polar prompt is at `00-POLAR-PROMPT-NEXT-CLUSTER.md`. Mom is live (per `00-MOM-LAUNCH-RUNBOOK.md`) â€” 7.15 is unblocked.
 **ðŸš€ LAUNCH POSTURE**: xKryptic's mom is the v1 single user â€” **LIVE** on Vercel + Neon since the 7.16 commit (`680db8f`, 2026-09-06). Runbook at `00-MOM-LAUNCH-RUNBOOK.md` covers the external-account work (GitHub repo, Neon, Vercel env vars, deploy, send mom the URL). Local dev (`pnpm dev` on `localhost:3000`) is unchanged for cluster work. Each cluster commit on a feature branch gets a Vercel preview URL; merge to `main` to ship to mom.
@@ -1418,3 +1418,78 @@ Drop the single-user guards:
 - Add `tests/smoke-open-signup.mjs` (~10 checks): second signup succeeds, duplicate email returns DB unique error, two-session isolation, `/welcome` open to anyone
 
 After 7.32b: a second user can sign up via the UI. Email verification + password reset (Cluster 7.32c) is a separate feature requiring a transactional email provider.
+
+# Cluster 7.33 audit (2026-09-24, session 14) — Onboarding UX bugs from mom phone testing
+
+**Status: SHIPPED.** Commit `38c2247` Cluster 7.33, on top of `6c6cc47` (HANDOVER 7.32a audit). Pushed to `origin/main`.
+
+## Bug 1 — Onboarding stuck on same question (7.33a)
+
+**Symptom (real-user, mom on iPhone, 2026-09-24):** Mom types "ok" / "yes" repeatedly. The agent re-asks the exact same question every turn ("Tell me a bit more — what kind of work do you do, and how often does the money come in?"). Five consecutive turns of low-info input produce five identical agent responses, no tool calls.
+
+**Reproduced in sandbox:** `tests/smoke-onboarding-stuck-detector.mjs::e2e` does exactly this with the mock LLM and confirms the same DB pattern: 5 user "ok" rows interleaved with 5 assistant rows, all assistant messages identical content, no `toolCallsJson`.
+
+**Root cause:**
+- The mock LLM's default fallback (when no keywords match canned responses) returns the same hard-coded question every time.
+- In production with Mavis, the same loop appears because the user provides nothing for the LLM to ground on → no tool call → canned re-prompt.
+- Persistence is correct (the bug is purely behavioral — the loop doesn't lose state).
+
+**Fix — new `src/lib/onboarding/stuck-detector.ts` (Cluster 7.33a):**
+- `detectStuckLoop(history)` — strict 3-identical-assistant-messages-without-tool-calls check.
+- `consecutiveNoProgressTurns(history)` — counts trailing assistant messages that didn't make tool-call progress.
+- `shouldNudgeStuck(history)` — combined: 3-identical OR ≥ 2 consecutive no-progress turns (covers the post-nudge regression case).
+- `STUCK_NUDGE` — hand-written message that names the situation and points at the demo-data button (which is already on `/onboarding`).
+- `src/lib/onboarding/agent.ts` — after the loop exits and the final response is determined, call `shouldNudgeStuck(workingHistory)`. If true, replace `finalResponse.content` with `STUCK_NUDGE`, mark `meta.stuckLoop: true`, and patch the last assistant message in `workingHistory` so the saved conversation doesn't contain the duplicate.
+
+## Bug 2 — Envelope detail page 404 in production (7.33b)
+
+**Symptom:** Mom clicks an envelope from `/envelopes`. The detail page `(/envelopes/[id])` shows an error page (notFound).
+
+**Cannot reproduce in sandbox** (single-process Next.js keeps in-memory store stable).
+
+**Root cause hypothesis (production-only):**
+- `src/app/(app)/envelopes/[id]/page.tsx` was reading `liveEnvelopes()` — the in-memory mock state seeded from `mock-seed.ts`.
+- `/envelopes` list page and the dashboard widgets were switched to `liveEnvelopesFromDb(user.id)` in Cluster 5.2.6. The `[id]/page.tsx` was missed.
+- In Vercel production (serverless), the in-memory store is **per-invocation** and can be empty between requests. The detail page would then `notFound()` even though the Prisma row exists.
+- Sandbox doesn't repro because the single long-running Next.js process keeps the in-memory state stable across requests.
+
+**Fix:** switch `src/app/(app)/envelopes/[id]/page.tsx` from `liveEnvelopes()` to `await liveEnvelopesFromDb(user.id)`. Same pattern as Cluster 5.2.6 (the read-side migration already exists, this page was missed).
+
+Also: `liveEnvelopesFromDb` previously typed `planet` as `PlanetId | null`, but `liveEnvelopes()` types it as `PlanetId`. The seeded envelopes always have a planet — narrowed the type to `PlanetId` to keep the call sites type-compatible.
+
+## Files
+
+| File | Change |
+|---|---|
+| `src/lib/onboarding/stuck-detector.ts` (new, ~80 LOC) | `detectStuckLoop`, `consecutiveNoProgressTurns`, `shouldNudgeStuck`, `STUCK_NUDGE`, `maybeReviseStuckResponse` |
+| `src/lib/onboarding/agent.ts` (+33 LOC) | Imports stuck-detector, calls `shouldNudgeStuck(workingHistory)` after the loop, replaces final response with `STUCK_NUDGE` + meta flag, patches `workingHistory` to keep the saved conversation clean |
+| `src/app/(app)/envelopes/[id]/page.tsx` (+9 LOC) | `liveEnvelopes()` → `await liveEnvelopesFromDb(user.id)` |
+| `src/lib/mock.ts` (1 line) | `liveEnvelopesFromDb` types `planet` as `PlanetId` (was `PlanetId \| null`) — seeded envelopes always have a planet |
+| `tests/smoke-onboarding-stuck-detector.mjs` (new, 11 checks) | `detectStuckLoop` unit cases (4), `shouldNudgeStuck` + tool-call escape hatches (2), `STUCK_NUDGE` invariants (2), e2e fresh-conversation not stuck (1), e2e 5-"ok"-turns triggered nudge + persisted to state (2) |
+| `tests/smoke-envelope-detail-db.mjs` (new, 9 checks) | mom user + 7 envelopes present, `/envelopes/env-rent` returns 200, no visible 404 content, page text mentions Rent + "one vessel", unknown envelope id returns 404, `[id]/page.tsx` source uses `liveEnvelopesFromDb` |
+| `package.json` | `smoke` chain extended |
+| `00-CLUSTER-7.33-UX-BUGS.md` (new spec, ~95 LOC) | Bug 1 / Bug 2 specs, fix notes, scope |
+
+## Verification
+
+- `pnpm tsc` clean
+- `node tests/smoke-envelope-detail-db.mjs`: **9 / 0**
+- `/tmp/runners/node_modules/.bin/tsx tests/smoke-onboarding-stuck-detector.mjs`: **11 / 0**
+- Adjacent smokes (`smoke-mobile-shell`, `smoke-auth-refactor`, `smoke-spawn-test-account`): all green
+- Idempotency: smoke-onboarding-stuck-detector passes 3 back-to-back runs (self-cleans identity + messages at start)
+
+## Honest risks (still open)
+
+- The production behavior of the mock-LLM canned fallback in `src/lib/llm/providers/mock.ts` is unchanged — the **detector** catches the loop and swaps in the nudge, but if Mavis (the real provider) returns identical-content, our detector catches it the same way. If Mavis returns *similar-but-not-identical* canned text (e.g. "I see. What kind of work..."), `consecutiveNoProgressTurns` still catches it because each turn adds a no-progress message to the trailing count. If Mavis starts *rephrasing* the question creatively, the strict `detectStuckLoop` won't fire but `consecutiveNoProgressTurns >= 2` will (the assistant messages still have no tool calls). The detector is robust to rephrasing.
+- The envelope detail page now reads from Prisma on every render. The lazy-seed `ensureUserEnvelopesSeeded` runs alongside — costs one cheap `COUNT` query. No measurable regression.
+- The `liveEnvelopesFromDb` type narrowing (`PlanetId | null` → `PlanetId`) is a contract change for any external caller that relied on the union. Internal callers (the page, dashboard widgets) treat it as non-null because the seed always sets one. Future-proof: the seed pattern should not allow null planets; if it ever does, this narrows back.
+
+## Next steps
+
+- Cluster 7.30b (mobile inner pages) — still owed a phone-checkpoint from 7.30a before this can ship. Mom can run 7.33 first.
+- Cluster 7.32b — drop `countUsers` guards, `/welcome` always-on signup, `/settings → Switch account`. Operator-approved.
+- Cluster 7.32c — email verification + password reset UI (needs Resend API key + Vercel env). Operator-approved.
+
+### Mom test reminder (from Cluster 7.31)
+
+iOS caches home-screen icons. If mom is testing on iPhone and the rose logo isn't showing: remove + re-add the PWA via Safari. (Independent of this cluster.)
