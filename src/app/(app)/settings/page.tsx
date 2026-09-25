@@ -7,6 +7,7 @@ import {
   loadRetentionHealth,
 } from "@/components/settings/RetentionHealthBanner";
 import { getCurrentUser } from "@/server/auth/user";
+import { RedoOnboardingCard } from "@/components/settings/RedoOnboardingCard";
 
 export const dynamic = "force-dynamic";
 
@@ -95,6 +96,12 @@ export default async function SettingsPage() {
       </div>
 
       <ResetSeedButton />
+
+      {/* Cluster 7.34 — Re-do onboarding card. Sits between the
+          ResetSeedButton (envelopes/transactions reset) and the
+          retention-health banner so the two destructive settings
+          actions are visually adjacent. */}
+      <RedoOnboardingCard />
 
       {retentionHealth && (
         <RetentionHealthBanner data={retentionHealth} />

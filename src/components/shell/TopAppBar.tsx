@@ -30,6 +30,7 @@ import { EnginePillButton } from "./EnginePillButton";
 import { SearchButton } from "./SearchButton";
 import { QuickAddTransaction, type QuickAddEnvelopeOption } from "./QuickAddTransaction";
 import { MobileSidebarToggle } from "./MobileSidebarToggle";
+import { SignOutButton } from "./SignOutButton";
 
 export interface TopAppBarProps {
   /** Active engine level read from SystemSettings (L1 = rules, L2 = AI). */
@@ -226,6 +227,8 @@ export function TopAppBar({ engineLevel, payPeriod, quickAddEnvelopes = [] }: To
         >
           ⚙
         </Link>
+        {/* Cluster 7.34 — sign-out escape hatch on the main app shell */}
+        <SignOutButton />
       </div>
     </header>
   );
