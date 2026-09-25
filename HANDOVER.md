@@ -1562,3 +1562,86 @@ New `src/components/settings/RedoOnboardingCard.tsx` (~75 LOC). Lives between `R
 - 7.30b — mobile inner pages (still owed a phone-checkpoint from 7.30a)
 - 7.32b — drop countUsers guards (operator-approved, deferred)
 - 7.32c — email verify + password reset (operator-approved, deferred)
+
+# Cluster 7.35 audit (2026-09-24, session 14) — Onboarding extractor fixes + stuck-detector refinement
+
+**Status: SHIPPED.** Commit `8774c9f` Cluster 7.35, on top of `02a0813` (HANDOVER 7.34 placeholder substitute). Pushed to `origin/main`.
+
+## Mom's report (2026-09-24, screenshot)
+
+Two messages, three turns, agent is still looping:
+- Mom: "i currently get paid twice a month. first check on the 10th and second check on the 25th"
+- Agent: "Cadence noted — semi_monthly. What's the rough take-home per paycheck?" [calls `saveIncomeSource` with cadence only]
+- Mom: "every check i receive 2,000"
+- Agent: "Tell me a bit more — what kind of work do you do, and how often does the money come in?" [canned fallback, no tool call]
+- Mom: "ok" → "what do you need to know" → kept getting "I'm not making progress" nudges.
+
+## Bug A — extractDollars + extractCadence don't parse natural phrasing (THE ACTUAL BUG)
+
+### Root cause
+
+`src/lib/llm/providers/mock.ts` had three issues:
+
+1. `extractDollars` required a `$` prefix or `dollars/bucks` suffix. Bare numerals like "2,000" in "I receive 2,000 per paycheck" silently failed.
+2. `extractCadence` only matched keywords like "biweekly" / "monthly" / "weekly" / "twice a month". "every check" / "each paycheck" / "per pay period" didn't match.
+3. The income branch was gated by `!state.topicsCovered.has("income")` — so it could only fire ONCE. After TURN 1 captured cadence-only, TURN 2 with the amount had nowhere to go.
+
+### Fix
+
+- `extractDollars` (mock.ts:264-296): added a third pattern `(\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d{4,})` for bare numerals in the $50-$1M income band. Also widened the dollars-suffix pattern to accept 4+ digit numbers ("1500 dollars" was silently failing).
+- `extractCadence` (mock.ts:302-322): added "twice a month" + "Nth and Nth" (e.g. "10th and 25th"). Deliberately left "each paycheck" / "per paycheck" / "every check" out of cadence detection — those phrases are ambiguous and should trigger the "how often does that hit?" follow-up question, not commit to a cadence.
+- `looksLikeIncome` (mock.ts:235-247): added "twice a month", "make ... dollars", "earn ... dollars", "yearly", "annually", and per-check phrasings.
+- **Partial-income state** (mock.ts:31-46, 165-220): new `state.partialIncome` field. When TURN 1 captures cadence-only (or amount-only), the partial is saved. TURN 2 with the missing piece completes the record via a new branch at the top of `callMock` that fires BEFORE the topicsCovered gate.
+
+## Bug B — stuck detector is too aggressive (made worse by 7.33)
+
+### Root cause
+
+`shouldNudgeStuck` from Cluster 7.33 was firing on the 2nd consecutive no-progress turn. After Bug A's silent extraction failure, mom saw:
+
+- Agent TURN 1: "Cadence noted — semi_monthly. What's the rough take-home per paycheck?"
+- Agent TURN 2: "Tell me a bit more — what kind of work do you do?" (canned fallback)
+
+Two no-progress assistant messages + mom types "ok" → detector fires immediately, even though mom was mid-flow trying to figure out what the agent needed.
+
+### Fix (`src/lib/onboarding/stuck-detector.ts`)
+
+- `MIN_TURNS_BEFORE_DETECT = 2` (new): detector won't fire until the user has sent at least 2 messages. One bad turn isn't enough to bail them out.
+- `lastAssistantAskedQuestion(history)` (new): true when the last assistant message contains a "?". Renamed from the strict "ends-with-?" because the agent's question is often followed by a parenthetical aside ("...the rough take-home per paycheck? (Doesn't have to be exact.)").
+- `lastQuestionRepeated(history)` (new): true when the last 2 assistant messages are identical. Distinguishes "agent asked a new question" (don't bail) from "agent asked the same canned question twice" (still stuck).
+- `postNudgeRegression(history)` (new): true when the nudge has fired AND the agent has gone back to asking a previous canned question. Catches the "nudge → user says something → canned again" loop.
+- `shouldNudgeStuck` (stuck-detector.ts:142-153) updated:
+  1. userTurns < MIN → false (need at least 2 attempts)
+  2. detectStuckLoop (3-identical-or-no-progress) → true
+  3. lastAssistantAskedQuestion AND !lastQuestionRepeated AND !postNudgeRegression → false (agent is mid-flow)
+  4. consecutiveNoProgressTurns >= 2 → true (catches the nudge-and-still-canned case)
+
+## Files
+
+| File | Change |
+|---|---|
+| `src/lib/llm/providers/mock.ts` | `extractDollars` widened (~30 LOC), `extractCadence` widened (~20 LOC), `looksLikeIncome` widened (~13 LOC), `MockState.partialIncome` field (~5 LOC), new "complete partial" branch in `callMock` (~25 LOC), `state.partialIncome = { cadence }` / `{ amountDollars }` saved in cadence-only / amount-only sub-branches (~3 LOC) |
+| `src/lib/onboarding/stuck-detector.ts` | `MIN_TURNS_BEFORE_DETECT` export (~6 LOC), `lastAssistantAskedQuestion` rewrite (~5 LOC), `lastQuestionRepeated` new (~7 LOC), `postNudgeRegression` new (~17 LOC), `shouldNudgeStuck` updated (~10 LOC) |
+| `tests/smoke-extract-fix.mjs` (new, 22 checks) | Bug A: 13 checks covering `extractDollars` (bare numerals, $300K, $300,000, 1500 dollars, reject bare-5), `extractCadence` (twice a month, every week, each paycheck + amount, 10th and 25th), `looksLikeIncome` end-to-end; e2e TURN 1 cadence → TURN 2 amount completes record (4 checks), e2e TURN 1 amount → TURN 2 cadence completes record (4 checks); Bug B: 7 checks covering min-turns floor, last-question guard, lastQuestionRepeated, postNudgeRegression, MIN_TURNS_BEFORE_DETECT export, lastAssistantAskedQuestion utility (both directions) |
+| `package.json` | `smoke` chain extended with `smoke-extract-fix` |
+| `00-CLUSTER-7.35-EXTRACT-FIX.md` (new spec, ~95 LOC) | Spec |
+
+## Verification
+
+- `pnpm tsc` clean
+- `/tmp/runners/node_modules/.bin/tsx tests/smoke-extract-fix.mjs`: **22 / 0**
+- Adjacent smokes (smoke-onboarding-stuck-detector: 11/0, smoke-escape-hatches: 15/0, smoke-envelope-detail-db: 9/0) all green
+- Idempotency: extract-fix smoke passes 3 back-to-back runs (each test uses a unique seed so the mock state is isolated)
+
+## Honest risks (still open)
+
+- `extractDollars` accepts ANY bare numeral in $50-$1M as income. A user with "$300K mortgage" (debt, not income) on the same turn could trip the extractor. The fix would be topic-aware — only extract dollars if the income-topic detector fired. For now the mock treats each topic independently; if the user pastes their full financial summary, the agent will misclassify. The real Mavis provider doesn't have this issue (it does entity extraction with topic context).
+- `lastQuestionRepeated` compares assistant content exactly. If the agent adds a single space or newline between two identical questions, the detector doesn't fire. Acceptable for now — the agent's templated content should be deterministic.
+- `postNudgeRegression` matches on "not making progress" / "skip ahead" substrings. If the nudge copy is reworded, the detector won't catch the regression. Could expose a `STUCK_NUDGE_INDICATORS` constant for safer matching.
+- Production (Mavis) behavior: the mock's regexes are intentionally permissive to handle natural phrasing. The real Mavis provider uses a different extraction pipeline and shouldn't need this widening. The detector refinement is universal — it improves both mock and production.
+
+## Next steps
+
+- Mom should retest the onboarding flow with the new extracts. If she hits another extraction miss, Cluster 7.35.1 widens the regexes further (specific to the new phrasing).
+- Still owed a phone-checkpoint for Cluster 7.30b (mobile inner pages).
+- Still pending: 7.32b (drop countUsers guards), 7.32c (email verification + password reset — needs Resend).
