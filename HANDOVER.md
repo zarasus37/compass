@@ -1493,3 +1493,72 @@ Also: `liveEnvelopesFromDb` previously typed `planet` as `PlanetId | null`, but 
 ### Mom test reminder (from Cluster 7.31)
 
 iOS caches home-screen icons. If mom is testing on iPhone and the rose logo isn't showing: remove + re-add the PWA via Safari. (Independent of this cluster.)
+
+# Cluster 7.34 audit (2026-09-24, session 14) — Escape hatches for mom (sign-out + re-onboard)
+
+**Status: SHIPPED.** Commit `9e89e99` Cluster 7.34, on top of `cad6b58` (HANDOVER 7.33 placeholder substitute). Pushed to `origin/main`.
+
+## Mom's report
+
+Two pieces of feedback from mom testing on the iPhone:
+1. "How do I exit demo mode, to return back to the onboarding process?"
+2. "…as well as a sign-out button"
+
+Both gaps were real but small. The `OnboardingTopBar` on `/onboarding` had a sign-out form (Cluster 5.1), and the `/onboarding` page itself had a "Start over" button (only visible after `markOnboardingComplete`). But the main app shell (the `(app)` route group's `TopAppBar`) had neither — once mom entered the dashboard, she had no UI path to sign out, and no UI path to re-enter the chat without manually editing the URL.
+
+## Fix
+
+### 1. Sign-out button on TopAppBar
+
+New `src/components/shell/SignOutButton.tsx` (~50 LOC). Mirrors the OnboardingTopBar pattern:
+- Real `<form action={logoutAction}>` so it works without JS.
+- 32×32 button matching the settings cog next to it, vessel-surface background, vessel-border outline, `↩` glyph (terminal-feel egress icon).
+- `window.confirm()` gate when JS is on (sign-out is destructive — clears the session cookie + redirects to `/login`).
+- aria-label="Sign out", title="Sign out".
+
+Mounted in `TopAppBar.tsx` immediately after the settings cog link, in the same right-side flex container.
+
+### 2. Re-do onboarding card on /settings
+
+New `src/components/settings/RedoOnboardingCard.tsx` (~75 LOC). Lives between `ResetSeedButton` (which wipes envelopes/transactions) and `RetentionHealthBanner` — keeps the two destructive settings actions visually adjacent.
+
+- Vessel-surface background, vessel-accent border-left + button border (matches the rest of the page's accent).
+- Heading: "Re-do onboarding". Caption explains: wipes chat history + financial identity, leaves envelopes/transactions/dashboard data untouched.
+- Form posts to `/api/onboarding/reset` (existing endpoint from Cluster 5.1, used by the chat completion panel's "Start over" button). The endpoint wipes the identity (cascades to messages + income/expense/debt/asset/goal rows) and redirects 303 to `/onboarding`.
+- `window.confirm()` gate when JS is on.
+
+## Files
+
+| File | Change |
+|---|---|
+| `src/components/shell/SignOutButton.tsx` (new, ~50 LOC) | Client component, 32×32 button, confirm-gated form posting to `logoutAction` |
+| `src/components/shell/TopAppBar.tsx` (+2 LOC) | Imports + renders `<SignOutButton />` after the settings cog |
+| `src/components/settings/RedoOnboardingCard.tsx` (new, ~75 LOC) | Client component, vessel-accent bordered card, confirm-gated form posting to `/api/onboarding/reset` |
+| `src/app/(app)/settings/page.tsx` (+2 LOC) | Imports + renders `<RedoOnboardingCard />` after `<ResetSeedButton />` |
+| `tests/smoke-escape-hatches.mjs` (new, 15 checks) | Component file existence (2), TopAppBar source-import + JSX-render (2), /settings source-import + JSX-render (2), RedoOnboardingCard form action attribute (1), live dashboard renders `aria-label="Sign out"` + `aria-label="Open settings"` (2), live /settings renders `data-testid="redo-onboarding-card"` + `data-testid="redo-onboarding-submit"` (2), identity present before reset (1), POST /api/onboarding/reset returns 303 with location `/onboarding` (2), identity wiped after reset (1) |
+| `package.json` | `smoke` chain extended |
+| `00-CLUSTER-7.34-ESCAPE-HATCHES.md` (new spec, ~75 LOC) | Spec |
+
+## Verification
+
+- `pnpm tsc` clean
+- `node tests/smoke-escape-hatches.mjs`: **15 / 0**
+- Existing smokes (smoke-auth-refactor, smoke-onboarding-stuck-detector, smoke-envelope-detail-db) unaffected
+
+## Honest risks (still open)
+
+- The sign-out button uses `window.confirm()` — older browsers may have a different prompt UI. Acceptable for now (it's the same pattern as OnboardingTopBar).
+- The re-do onboarding card doesn't show what state the user is currently in ("you have a demo identity" vs "you completed the chat"). Could be added as a future polish, but the card's description is honest about what gets wiped + what's preserved.
+- The reset endpoint is destructive (no undo). The confirm dialog helps, but a misclick after the confirm is gone. Acceptable trade-off for the mom-persona use case ("I want to re-do this"); the data she wants to preserve (envelopes/transactions) is NOT in the wipe path.
+
+## Next steps (mom-tested now)
+
+1. Mom can sign out from any page using the new ↩ button on the top bar.
+2. Mom can re-do onboarding from `/settings` → "Re-do onboarding" → confirm → redirected to `/onboarding` with empty chat.
+3. Mom should test both flows on her phone + confirm the iOS PWA cache hasn't broken anything (Cluster 7.31 reminder: she may need to remove + re-add the PWA on iPhone if the rose logo didn't render on her first install).
+
+### Cluster queue (next)
+
+- 7.30b — mobile inner pages (still owed a phone-checkpoint from 7.30a)
+- 7.32b — drop countUsers guards (operator-approved, deferred)
+- 7.32c — email verify + password reset (operator-approved, deferred)
