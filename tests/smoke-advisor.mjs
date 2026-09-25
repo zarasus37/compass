@@ -307,11 +307,17 @@ async function main() {
   // which is the right UX — same outcome as the in-page panel
   // (get the user to /onboarding) but consistent with the rest
   // of the dashboard's gating.
-  log("test gate", "set identity.completedAt = null");
+  log("test gate", "set identity.completedAt = null AND clear setupState.activatedAt");
   await prisma.financialIdentity.update({
     where: { userId: user.id },
     data: { completedAt: null },
   });
+  // Cluster 7.36: onboarding gate accepts EITHER FinancialIdentity.completedAt OR 
+  // SetupState.activatedAt. Clear both to test the "incomplete" path.
+  await prisma.setupState.update({
+    where: { userId: user.id },
+    data: { activatedAt: null },
+  }).catch(() => null);  // SetupState may not exist; that's OK
   // Page: 307 redirect to /onboarding is the expected behavior
   // (the (app) layout's gate fires before the page renders).
   const a3 = await get("/advisor");

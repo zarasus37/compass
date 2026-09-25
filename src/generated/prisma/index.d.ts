@@ -345,6 +345,26 @@ export type VaultPreferences = $Result.DefaultSelection<Prisma.$VaultPreferences
  * src/lib/vault/scheduler.ts; this table is just the state.
  */
 export type VaultSchedule = $Result.DefaultSelection<Prisma.$VaultSchedulePayload>
+/**
+ * Model SetupState
+ * Cluster 7.36 — Setup wizard state.
+ * 
+ * The /setup wizard is a 5-step flow that captures the canonical
+ * financial state (per the vision document, Phase 1). This model
+ * tracks the user's progress through the wizard so they can leave
+ * mid-way and resume.
+ * 
+ * Step 1 — Pay schedule (cadence, amount, account, direct-deposit flag)
+ * Step 2 — Accounts (checking + savings + credit, with editable balances)
+ * Step 3 — Envelopes (7 canonical vessels pre-seeded, user-editable)
+ * Step 4 — Bills (recurring obligations, user-editable)
+ * Step 5 — Goals (emergency fund, debt payoff, retirement)
+ * 
+ * `completedStep` is the highest step the user has finished. `0` means
+ * they haven't started. `5` means all 5 done — they can hit the
+ * "Activate plan" CTA on the review screen and the engine takes over.
+ */
+export type SetupState = $Result.DefaultSelection<Prisma.$SetupStatePayload>
 
 /**
  * Enums
@@ -825,6 +845,16 @@ export class PrismaClient<
     * ```
     */
   get vaultSchedule(): Prisma.VaultScheduleDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.setupState`: Exposes CRUD operations for the **SetupState** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more SetupStates
+    * const setupStates = await prisma.setupState.findMany()
+    * ```
+    */
+  get setupState(): Prisma.SetupStateDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -1304,7 +1334,8 @@ export namespace Prisma {
     PaymentAttempt: 'PaymentAttempt',
     ProviderEvent: 'ProviderEvent',
     VaultPreferences: 'VaultPreferences',
-    VaultSchedule: 'VaultSchedule'
+    VaultSchedule: 'VaultSchedule',
+    SetupState: 'SetupState'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -1320,7 +1351,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "session" | "account" | "envelope" | "envelopeSink" | "transaction" | "paySchedule" | "bill" | "goal" | "allocationPlan" | "allocationRule" | "auditLog" | "auditLogDailyRollup" | "systemSettings" | "payPeriod" | "financialIdentity" | "identityIncome" | "identityExpense" | "identityDebt" | "identityAsset" | "identityGoal" | "identityEvent" | "identitySpendingHabit" | "identityHouseholdMember" | "onboardingMessage" | "vaultAccount" | "vaultEnvelope" | "scheduledBill" | "yieldEvent" | "paymentAttempt" | "providerEvent" | "vaultPreferences" | "vaultSchedule"
+      modelProps: "user" | "session" | "account" | "envelope" | "envelopeSink" | "transaction" | "paySchedule" | "bill" | "goal" | "allocationPlan" | "allocationRule" | "auditLog" | "auditLogDailyRollup" | "systemSettings" | "payPeriod" | "financialIdentity" | "identityIncome" | "identityExpense" | "identityDebt" | "identityAsset" | "identityGoal" | "identityEvent" | "identitySpendingHabit" | "identityHouseholdMember" | "onboardingMessage" | "vaultAccount" | "vaultEnvelope" | "scheduledBill" | "yieldEvent" | "paymentAttempt" | "providerEvent" | "vaultPreferences" | "vaultSchedule" | "setupState"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -3766,6 +3797,80 @@ export namespace Prisma {
           }
         }
       }
+      SetupState: {
+        payload: Prisma.$SetupStatePayload<ExtArgs>
+        fields: Prisma.SetupStateFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.SetupStateFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SetupStatePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.SetupStateFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SetupStatePayload>
+          }
+          findFirst: {
+            args: Prisma.SetupStateFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SetupStatePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.SetupStateFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SetupStatePayload>
+          }
+          findMany: {
+            args: Prisma.SetupStateFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SetupStatePayload>[]
+          }
+          create: {
+            args: Prisma.SetupStateCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SetupStatePayload>
+          }
+          createMany: {
+            args: Prisma.SetupStateCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.SetupStateCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SetupStatePayload>[]
+          }
+          delete: {
+            args: Prisma.SetupStateDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SetupStatePayload>
+          }
+          update: {
+            args: Prisma.SetupStateUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SetupStatePayload>
+          }
+          deleteMany: {
+            args: Prisma.SetupStateDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.SetupStateUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.SetupStateUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SetupStatePayload>[]
+          }
+          upsert: {
+            args: Prisma.SetupStateUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SetupStatePayload>
+          }
+          aggregate: {
+            args: Prisma.SetupStateAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateSetupState>
+          }
+          groupBy: {
+            args: Prisma.SetupStateGroupByArgs<ExtArgs>
+            result: $Utils.Optional<SetupStateGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.SetupStateCountArgs<ExtArgs>
+            result: $Utils.Optional<SetupStateCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -3922,6 +4027,7 @@ export namespace Prisma {
     providerEvent?: ProviderEventOmit
     vaultPreferences?: VaultPreferencesOmit
     vaultSchedule?: VaultScheduleOmit
+    setupState?: SetupStateOmit
   }
 
   /* Types for Logging */
@@ -44682,6 +44788,1078 @@ export namespace Prisma {
 
 
   /**
+   * Model SetupState
+   */
+
+  export type AggregateSetupState = {
+    _count: SetupStateCountAggregateOutputType | null
+    _avg: SetupStateAvgAggregateOutputType | null
+    _sum: SetupStateSumAggregateOutputType | null
+    _min: SetupStateMinAggregateOutputType | null
+    _max: SetupStateMaxAggregateOutputType | null
+  }
+
+  export type SetupStateAvgAggregateOutputType = {
+    completedStep: number | null
+  }
+
+  export type SetupStateSumAggregateOutputType = {
+    completedStep: number | null
+  }
+
+  export type SetupStateMinAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    completedStep: number | null
+    draftJson: string | null
+    activatedAt: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type SetupStateMaxAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    completedStep: number | null
+    draftJson: string | null
+    activatedAt: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type SetupStateCountAggregateOutputType = {
+    id: number
+    userId: number
+    completedStep: number
+    draftJson: number
+    activatedAt: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type SetupStateAvgAggregateInputType = {
+    completedStep?: true
+  }
+
+  export type SetupStateSumAggregateInputType = {
+    completedStep?: true
+  }
+
+  export type SetupStateMinAggregateInputType = {
+    id?: true
+    userId?: true
+    completedStep?: true
+    draftJson?: true
+    activatedAt?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type SetupStateMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    completedStep?: true
+    draftJson?: true
+    activatedAt?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type SetupStateCountAggregateInputType = {
+    id?: true
+    userId?: true
+    completedStep?: true
+    draftJson?: true
+    activatedAt?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type SetupStateAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which SetupState to aggregate.
+     */
+    where?: SetupStateWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SetupStates to fetch.
+     */
+    orderBy?: SetupStateOrderByWithRelationInput | SetupStateOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: SetupStateWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SetupStates from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SetupStates.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned SetupStates
+    **/
+    _count?: true | SetupStateCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: SetupStateAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: SetupStateSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: SetupStateMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: SetupStateMaxAggregateInputType
+  }
+
+  export type GetSetupStateAggregateType<T extends SetupStateAggregateArgs> = {
+        [P in keyof T & keyof AggregateSetupState]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateSetupState[P]>
+      : GetScalarType<T[P], AggregateSetupState[P]>
+  }
+
+
+
+
+  export type SetupStateGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: SetupStateWhereInput
+    orderBy?: SetupStateOrderByWithAggregationInput | SetupStateOrderByWithAggregationInput[]
+    by: SetupStateScalarFieldEnum[] | SetupStateScalarFieldEnum
+    having?: SetupStateScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: SetupStateCountAggregateInputType | true
+    _avg?: SetupStateAvgAggregateInputType
+    _sum?: SetupStateSumAggregateInputType
+    _min?: SetupStateMinAggregateInputType
+    _max?: SetupStateMaxAggregateInputType
+  }
+
+  export type SetupStateGroupByOutputType = {
+    id: string
+    userId: string
+    completedStep: number
+    draftJson: string | null
+    activatedAt: Date | null
+    createdAt: Date
+    updatedAt: Date
+    _count: SetupStateCountAggregateOutputType | null
+    _avg: SetupStateAvgAggregateOutputType | null
+    _sum: SetupStateSumAggregateOutputType | null
+    _min: SetupStateMinAggregateOutputType | null
+    _max: SetupStateMaxAggregateOutputType | null
+  }
+
+  type GetSetupStateGroupByPayload<T extends SetupStateGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<SetupStateGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof SetupStateGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], SetupStateGroupByOutputType[P]>
+            : GetScalarType<T[P], SetupStateGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type SetupStateSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    completedStep?: boolean
+    draftJson?: boolean
+    activatedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["setupState"]>
+
+  export type SetupStateSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    completedStep?: boolean
+    draftJson?: boolean
+    activatedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["setupState"]>
+
+  export type SetupStateSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    completedStep?: boolean
+    draftJson?: boolean
+    activatedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["setupState"]>
+
+  export type SetupStateSelectScalar = {
+    id?: boolean
+    userId?: boolean
+    completedStep?: boolean
+    draftJson?: boolean
+    activatedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type SetupStateOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "completedStep" | "draftJson" | "activatedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["setupState"]>
+
+  export type $SetupStatePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "SetupState"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      userId: string
+      /**
+       * Highest step completed: 0 = not started, 5 = all done.
+       */
+      completedStep: number
+      /**
+       * Optional JSON blob with the in-progress form values for the
+       * current step. Lets the user leave mid-step and resume without
+       * losing entered values. Cleared on step completion.
+       */
+      draftJson: string | null
+      /**
+       * Set to `true` after the user clicks "Activate plan" — the
+       * wizard is finished and the engine is now in charge.
+       */
+      activatedAt: Date | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["setupState"]>
+    composites: {}
+  }
+
+  type SetupStateGetPayload<S extends boolean | null | undefined | SetupStateDefaultArgs> = $Result.GetResult<Prisma.$SetupStatePayload, S>
+
+  type SetupStateCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<SetupStateFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: SetupStateCountAggregateInputType | true
+    }
+
+  export interface SetupStateDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['SetupState'], meta: { name: 'SetupState' } }
+    /**
+     * Find zero or one SetupState that matches the filter.
+     * @param {SetupStateFindUniqueArgs} args - Arguments to find a SetupState
+     * @example
+     * // Get one SetupState
+     * const setupState = await prisma.setupState.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends SetupStateFindUniqueArgs>(args: SelectSubset<T, SetupStateFindUniqueArgs<ExtArgs>>): Prisma__SetupStateClient<$Result.GetResult<Prisma.$SetupStatePayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one SetupState that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {SetupStateFindUniqueOrThrowArgs} args - Arguments to find a SetupState
+     * @example
+     * // Get one SetupState
+     * const setupState = await prisma.setupState.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends SetupStateFindUniqueOrThrowArgs>(args: SelectSubset<T, SetupStateFindUniqueOrThrowArgs<ExtArgs>>): Prisma__SetupStateClient<$Result.GetResult<Prisma.$SetupStatePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first SetupState that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SetupStateFindFirstArgs} args - Arguments to find a SetupState
+     * @example
+     * // Get one SetupState
+     * const setupState = await prisma.setupState.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends SetupStateFindFirstArgs>(args?: SelectSubset<T, SetupStateFindFirstArgs<ExtArgs>>): Prisma__SetupStateClient<$Result.GetResult<Prisma.$SetupStatePayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first SetupState that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SetupStateFindFirstOrThrowArgs} args - Arguments to find a SetupState
+     * @example
+     * // Get one SetupState
+     * const setupState = await prisma.setupState.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends SetupStateFindFirstOrThrowArgs>(args?: SelectSubset<T, SetupStateFindFirstOrThrowArgs<ExtArgs>>): Prisma__SetupStateClient<$Result.GetResult<Prisma.$SetupStatePayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more SetupStates that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SetupStateFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all SetupStates
+     * const setupStates = await prisma.setupState.findMany()
+     * 
+     * // Get first 10 SetupStates
+     * const setupStates = await prisma.setupState.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const setupStateWithIdOnly = await prisma.setupState.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends SetupStateFindManyArgs>(args?: SelectSubset<T, SetupStateFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SetupStatePayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a SetupState.
+     * @param {SetupStateCreateArgs} args - Arguments to create a SetupState.
+     * @example
+     * // Create one SetupState
+     * const SetupState = await prisma.setupState.create({
+     *   data: {
+     *     // ... data to create a SetupState
+     *   }
+     * })
+     * 
+     */
+    create<T extends SetupStateCreateArgs>(args: SelectSubset<T, SetupStateCreateArgs<ExtArgs>>): Prisma__SetupStateClient<$Result.GetResult<Prisma.$SetupStatePayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many SetupStates.
+     * @param {SetupStateCreateManyArgs} args - Arguments to create many SetupStates.
+     * @example
+     * // Create many SetupStates
+     * const setupState = await prisma.setupState.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends SetupStateCreateManyArgs>(args?: SelectSubset<T, SetupStateCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many SetupStates and returns the data saved in the database.
+     * @param {SetupStateCreateManyAndReturnArgs} args - Arguments to create many SetupStates.
+     * @example
+     * // Create many SetupStates
+     * const setupState = await prisma.setupState.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many SetupStates and only return the `id`
+     * const setupStateWithIdOnly = await prisma.setupState.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends SetupStateCreateManyAndReturnArgs>(args?: SelectSubset<T, SetupStateCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SetupStatePayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a SetupState.
+     * @param {SetupStateDeleteArgs} args - Arguments to delete one SetupState.
+     * @example
+     * // Delete one SetupState
+     * const SetupState = await prisma.setupState.delete({
+     *   where: {
+     *     // ... filter to delete one SetupState
+     *   }
+     * })
+     * 
+     */
+    delete<T extends SetupStateDeleteArgs>(args: SelectSubset<T, SetupStateDeleteArgs<ExtArgs>>): Prisma__SetupStateClient<$Result.GetResult<Prisma.$SetupStatePayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one SetupState.
+     * @param {SetupStateUpdateArgs} args - Arguments to update one SetupState.
+     * @example
+     * // Update one SetupState
+     * const setupState = await prisma.setupState.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends SetupStateUpdateArgs>(args: SelectSubset<T, SetupStateUpdateArgs<ExtArgs>>): Prisma__SetupStateClient<$Result.GetResult<Prisma.$SetupStatePayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more SetupStates.
+     * @param {SetupStateDeleteManyArgs} args - Arguments to filter SetupStates to delete.
+     * @example
+     * // Delete a few SetupStates
+     * const { count } = await prisma.setupState.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends SetupStateDeleteManyArgs>(args?: SelectSubset<T, SetupStateDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more SetupStates.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SetupStateUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many SetupStates
+     * const setupState = await prisma.setupState.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends SetupStateUpdateManyArgs>(args: SelectSubset<T, SetupStateUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more SetupStates and returns the data updated in the database.
+     * @param {SetupStateUpdateManyAndReturnArgs} args - Arguments to update many SetupStates.
+     * @example
+     * // Update many SetupStates
+     * const setupState = await prisma.setupState.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more SetupStates and only return the `id`
+     * const setupStateWithIdOnly = await prisma.setupState.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends SetupStateUpdateManyAndReturnArgs>(args: SelectSubset<T, SetupStateUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SetupStatePayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one SetupState.
+     * @param {SetupStateUpsertArgs} args - Arguments to update or create a SetupState.
+     * @example
+     * // Update or create a SetupState
+     * const setupState = await prisma.setupState.upsert({
+     *   create: {
+     *     // ... data to create a SetupState
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the SetupState we want to update
+     *   }
+     * })
+     */
+    upsert<T extends SetupStateUpsertArgs>(args: SelectSubset<T, SetupStateUpsertArgs<ExtArgs>>): Prisma__SetupStateClient<$Result.GetResult<Prisma.$SetupStatePayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of SetupStates.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SetupStateCountArgs} args - Arguments to filter SetupStates to count.
+     * @example
+     * // Count the number of SetupStates
+     * const count = await prisma.setupState.count({
+     *   where: {
+     *     // ... the filter for the SetupStates we want to count
+     *   }
+     * })
+    **/
+    count<T extends SetupStateCountArgs>(
+      args?: Subset<T, SetupStateCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], SetupStateCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a SetupState.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SetupStateAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends SetupStateAggregateArgs>(args: Subset<T, SetupStateAggregateArgs>): Prisma.PrismaPromise<GetSetupStateAggregateType<T>>
+
+    /**
+     * Group by SetupState.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SetupStateGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends SetupStateGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: SetupStateGroupByArgs['orderBy'] }
+        : { orderBy?: SetupStateGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, SetupStateGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetSetupStateGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the SetupState model
+   */
+  readonly fields: SetupStateFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for SetupState.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__SetupStateClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the SetupState model
+   */
+  interface SetupStateFieldRefs {
+    readonly id: FieldRef<"SetupState", 'String'>
+    readonly userId: FieldRef<"SetupState", 'String'>
+    readonly completedStep: FieldRef<"SetupState", 'Int'>
+    readonly draftJson: FieldRef<"SetupState", 'String'>
+    readonly activatedAt: FieldRef<"SetupState", 'DateTime'>
+    readonly createdAt: FieldRef<"SetupState", 'DateTime'>
+    readonly updatedAt: FieldRef<"SetupState", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * SetupState findUnique
+   */
+  export type SetupStateFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SetupState
+     */
+    select?: SetupStateSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SetupState
+     */
+    omit?: SetupStateOmit<ExtArgs> | null
+    /**
+     * Filter, which SetupState to fetch.
+     */
+    where: SetupStateWhereUniqueInput
+  }
+
+  /**
+   * SetupState findUniqueOrThrow
+   */
+  export type SetupStateFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SetupState
+     */
+    select?: SetupStateSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SetupState
+     */
+    omit?: SetupStateOmit<ExtArgs> | null
+    /**
+     * Filter, which SetupState to fetch.
+     */
+    where: SetupStateWhereUniqueInput
+  }
+
+  /**
+   * SetupState findFirst
+   */
+  export type SetupStateFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SetupState
+     */
+    select?: SetupStateSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SetupState
+     */
+    omit?: SetupStateOmit<ExtArgs> | null
+    /**
+     * Filter, which SetupState to fetch.
+     */
+    where?: SetupStateWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SetupStates to fetch.
+     */
+    orderBy?: SetupStateOrderByWithRelationInput | SetupStateOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for SetupStates.
+     */
+    cursor?: SetupStateWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SetupStates from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SetupStates.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of SetupStates.
+     */
+    distinct?: SetupStateScalarFieldEnum | SetupStateScalarFieldEnum[]
+  }
+
+  /**
+   * SetupState findFirstOrThrow
+   */
+  export type SetupStateFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SetupState
+     */
+    select?: SetupStateSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SetupState
+     */
+    omit?: SetupStateOmit<ExtArgs> | null
+    /**
+     * Filter, which SetupState to fetch.
+     */
+    where?: SetupStateWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SetupStates to fetch.
+     */
+    orderBy?: SetupStateOrderByWithRelationInput | SetupStateOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for SetupStates.
+     */
+    cursor?: SetupStateWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SetupStates from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SetupStates.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of SetupStates.
+     */
+    distinct?: SetupStateScalarFieldEnum | SetupStateScalarFieldEnum[]
+  }
+
+  /**
+   * SetupState findMany
+   */
+  export type SetupStateFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SetupState
+     */
+    select?: SetupStateSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SetupState
+     */
+    omit?: SetupStateOmit<ExtArgs> | null
+    /**
+     * Filter, which SetupStates to fetch.
+     */
+    where?: SetupStateWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SetupStates to fetch.
+     */
+    orderBy?: SetupStateOrderByWithRelationInput | SetupStateOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing SetupStates.
+     */
+    cursor?: SetupStateWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SetupStates from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SetupStates.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of SetupStates.
+     */
+    distinct?: SetupStateScalarFieldEnum | SetupStateScalarFieldEnum[]
+  }
+
+  /**
+   * SetupState create
+   */
+  export type SetupStateCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SetupState
+     */
+    select?: SetupStateSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SetupState
+     */
+    omit?: SetupStateOmit<ExtArgs> | null
+    /**
+     * The data needed to create a SetupState.
+     */
+    data: XOR<SetupStateCreateInput, SetupStateUncheckedCreateInput>
+  }
+
+  /**
+   * SetupState createMany
+   */
+  export type SetupStateCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many SetupStates.
+     */
+    data: SetupStateCreateManyInput | SetupStateCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * SetupState createManyAndReturn
+   */
+  export type SetupStateCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SetupState
+     */
+    select?: SetupStateSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the SetupState
+     */
+    omit?: SetupStateOmit<ExtArgs> | null
+    /**
+     * The data used to create many SetupStates.
+     */
+    data: SetupStateCreateManyInput | SetupStateCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * SetupState update
+   */
+  export type SetupStateUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SetupState
+     */
+    select?: SetupStateSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SetupState
+     */
+    omit?: SetupStateOmit<ExtArgs> | null
+    /**
+     * The data needed to update a SetupState.
+     */
+    data: XOR<SetupStateUpdateInput, SetupStateUncheckedUpdateInput>
+    /**
+     * Choose, which SetupState to update.
+     */
+    where: SetupStateWhereUniqueInput
+  }
+
+  /**
+   * SetupState updateMany
+   */
+  export type SetupStateUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update SetupStates.
+     */
+    data: XOR<SetupStateUpdateManyMutationInput, SetupStateUncheckedUpdateManyInput>
+    /**
+     * Filter which SetupStates to update
+     */
+    where?: SetupStateWhereInput
+    /**
+     * Limit how many SetupStates to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * SetupState updateManyAndReturn
+   */
+  export type SetupStateUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SetupState
+     */
+    select?: SetupStateSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the SetupState
+     */
+    omit?: SetupStateOmit<ExtArgs> | null
+    /**
+     * The data used to update SetupStates.
+     */
+    data: XOR<SetupStateUpdateManyMutationInput, SetupStateUncheckedUpdateManyInput>
+    /**
+     * Filter which SetupStates to update
+     */
+    where?: SetupStateWhereInput
+    /**
+     * Limit how many SetupStates to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * SetupState upsert
+   */
+  export type SetupStateUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SetupState
+     */
+    select?: SetupStateSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SetupState
+     */
+    omit?: SetupStateOmit<ExtArgs> | null
+    /**
+     * The filter to search for the SetupState to update in case it exists.
+     */
+    where: SetupStateWhereUniqueInput
+    /**
+     * In case the SetupState found by the `where` argument doesn't exist, create a new SetupState with this data.
+     */
+    create: XOR<SetupStateCreateInput, SetupStateUncheckedCreateInput>
+    /**
+     * In case the SetupState was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<SetupStateUpdateInput, SetupStateUncheckedUpdateInput>
+  }
+
+  /**
+   * SetupState delete
+   */
+  export type SetupStateDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SetupState
+     */
+    select?: SetupStateSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SetupState
+     */
+    omit?: SetupStateOmit<ExtArgs> | null
+    /**
+     * Filter which SetupState to delete.
+     */
+    where: SetupStateWhereUniqueInput
+  }
+
+  /**
+   * SetupState deleteMany
+   */
+  export type SetupStateDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which SetupStates to delete
+     */
+    where?: SetupStateWhereInput
+    /**
+     * Limit how many SetupStates to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * SetupState without action
+   */
+  export type SetupStateDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SetupState
+     */
+    select?: SetupStateSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SetupState
+     */
+    omit?: SetupStateOmit<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -45247,6 +46425,19 @@ export namespace Prisma {
   };
 
   export type VaultScheduleScalarFieldEnum = (typeof VaultScheduleScalarFieldEnum)[keyof typeof VaultScheduleScalarFieldEnum]
+
+
+  export const SetupStateScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    completedStep: 'completedStep',
+    draftJson: 'draftJson',
+    activatedAt: 'activatedAt',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type SetupStateScalarFieldEnum = (typeof SetupStateScalarFieldEnum)[keyof typeof SetupStateScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -48326,6 +49517,70 @@ export namespace Prisma {
     nextRunAt?: DateTimeNullableWithAggregatesFilter<"VaultSchedule"> | Date | string | null
     createdAt?: DateTimeWithAggregatesFilter<"VaultSchedule"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"VaultSchedule"> | Date | string
+  }
+
+  export type SetupStateWhereInput = {
+    AND?: SetupStateWhereInput | SetupStateWhereInput[]
+    OR?: SetupStateWhereInput[]
+    NOT?: SetupStateWhereInput | SetupStateWhereInput[]
+    id?: StringFilter<"SetupState"> | string
+    userId?: StringFilter<"SetupState"> | string
+    completedStep?: IntFilter<"SetupState"> | number
+    draftJson?: StringNullableFilter<"SetupState"> | string | null
+    activatedAt?: DateTimeNullableFilter<"SetupState"> | Date | string | null
+    createdAt?: DateTimeFilter<"SetupState"> | Date | string
+    updatedAt?: DateTimeFilter<"SetupState"> | Date | string
+  }
+
+  export type SetupStateOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    completedStep?: SortOrder
+    draftJson?: SortOrderInput | SortOrder
+    activatedAt?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SetupStateWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    userId?: string
+    AND?: SetupStateWhereInput | SetupStateWhereInput[]
+    OR?: SetupStateWhereInput[]
+    NOT?: SetupStateWhereInput | SetupStateWhereInput[]
+    completedStep?: IntFilter<"SetupState"> | number
+    draftJson?: StringNullableFilter<"SetupState"> | string | null
+    activatedAt?: DateTimeNullableFilter<"SetupState"> | Date | string | null
+    createdAt?: DateTimeFilter<"SetupState"> | Date | string
+    updatedAt?: DateTimeFilter<"SetupState"> | Date | string
+  }, "id" | "userId">
+
+  export type SetupStateOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    completedStep?: SortOrder
+    draftJson?: SortOrderInput | SortOrder
+    activatedAt?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: SetupStateCountOrderByAggregateInput
+    _avg?: SetupStateAvgOrderByAggregateInput
+    _max?: SetupStateMaxOrderByAggregateInput
+    _min?: SetupStateMinOrderByAggregateInput
+    _sum?: SetupStateSumOrderByAggregateInput
+  }
+
+  export type SetupStateScalarWhereWithAggregatesInput = {
+    AND?: SetupStateScalarWhereWithAggregatesInput | SetupStateScalarWhereWithAggregatesInput[]
+    OR?: SetupStateScalarWhereWithAggregatesInput[]
+    NOT?: SetupStateScalarWhereWithAggregatesInput | SetupStateScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"SetupState"> | string
+    userId?: StringWithAggregatesFilter<"SetupState"> | string
+    completedStep?: IntWithAggregatesFilter<"SetupState"> | number
+    draftJson?: StringNullableWithAggregatesFilter<"SetupState"> | string | null
+    activatedAt?: DateTimeNullableWithAggregatesFilter<"SetupState"> | Date | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"SetupState"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"SetupState"> | Date | string
   }
 
   export type UserCreateInput = {
@@ -51627,6 +52882,76 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type SetupStateCreateInput = {
+    id?: string
+    userId: string
+    completedStep?: number
+    draftJson?: string | null
+    activatedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SetupStateUncheckedCreateInput = {
+    id?: string
+    userId: string
+    completedStep?: number
+    draftJson?: string | null
+    activatedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SetupStateUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    completedStep?: IntFieldUpdateOperationsInput | number
+    draftJson?: NullableStringFieldUpdateOperationsInput | string | null
+    activatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SetupStateUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    completedStep?: IntFieldUpdateOperationsInput | number
+    draftJson?: NullableStringFieldUpdateOperationsInput | string | null
+    activatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SetupStateCreateManyInput = {
+    id?: string
+    userId: string
+    completedStep?: number
+    draftJson?: string | null
+    activatedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SetupStateUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    completedStep?: IntFieldUpdateOperationsInput | number
+    draftJson?: NullableStringFieldUpdateOperationsInput | string | null
+    activatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SetupStateUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    completedStep?: IntFieldUpdateOperationsInput | number
+    draftJson?: NullableStringFieldUpdateOperationsInput | string | null
+    activatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type StringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -53913,6 +55238,44 @@ export namespace Prisma {
     lookAheadDays?: SortOrder
     minReserveCents?: SortOrder
     lastRunBillsAffected?: SortOrder
+  }
+
+  export type SetupStateCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    completedStep?: SortOrder
+    draftJson?: SortOrder
+    activatedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SetupStateAvgOrderByAggregateInput = {
+    completedStep?: SortOrder
+  }
+
+  export type SetupStateMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    completedStep?: SortOrder
+    draftJson?: SortOrder
+    activatedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SetupStateMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    completedStep?: SortOrder
+    draftJson?: SortOrder
+    activatedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SetupStateSumOrderByAggregateInput = {
+    completedStep?: SortOrder
   }
 
   export type SessionCreateNestedManyWithoutUserInput = {

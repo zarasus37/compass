@@ -18,17 +18,27 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/server/db";
 
 /**
- * Returns true if the user has a FinancialIdentity with completedAt set.
- * Use this when you want to branch on the gate's result without
- * triggering a redirect (e.g. to show a "finish onboarding" link on
- * the dashboard for a partially-completed identity).
+ * Returns true if the user has either:
+ *   - completed the setup wizard (SetupState.activatedAt set), OR
+ *   - completed the chat onboarding (FinancialIdentity.completedAt set)
+ *
+ * Either path is sufficient to pass the gate. Cluster 7.36 makes the
+ * setup wizard the primary path; the chat is the optional parallel path.
+ * This function is used when you want to branch on the gate's result
+ * without triggering a redirect.
  */
 export async function isOnboardingComplete(userId: string): Promise<boolean> {
-  const identity = await prisma.financialIdentity.findUnique({
-    where: { userId },
-    select: { completedAt: true },
-  });
-  return identity?.completedAt != null;
+  const [identity, setupState] = await Promise.all([
+    prisma.financialIdentity.findUnique({
+      where: { userId },
+      select: { completedAt: true },
+    }),
+    prisma.setupState.findUnique({
+      where: { userId },
+      select: { activatedAt: true },
+    }),
+  ]);
+  return identity?.completedAt != null || setupState?.activatedAt != null;
 }
 
 /**
@@ -51,5 +61,5 @@ export async function requireCompletedOnboarding(userId: string): Promise<void> 
     return;
   }
   const ok = await isOnboardingComplete(userId);
-  if (!ok) redirect("/onboarding");
+  if (!ok) redirect("/setup");
 }

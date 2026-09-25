@@ -575,6 +575,16 @@ exports.Prisma.VaultScheduleScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.SetupStateScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  completedStep: 'completedStep',
+  draftJson: 'draftJson',
+  activatedAt: 'activatedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -632,7 +642,8 @@ exports.Prisma.ModelName = {
   PaymentAttempt: 'PaymentAttempt',
   ProviderEvent: 'ProviderEvent',
   VaultPreferences: 'VaultPreferences',
-  VaultSchedule: 'VaultSchedule'
+  VaultSchedule: 'VaultSchedule',
+  SetupState: 'SetupState'
 };
 
 /**

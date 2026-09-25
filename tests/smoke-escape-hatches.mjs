@@ -144,7 +144,6 @@ async function resetTests() {
         auditPlan: "smoke-seed",
         auditFirstStep: "smoke-seed",
         auditTeaching: "smoke-seed",
-        auditTier: "assistive",
       },
     });
   }

@@ -1225,3 +1225,35 @@ model VaultSchedule {
   @@index([userId])
   @@index([enabled, nextRunAt])
 }
+
+/// Cluster 7.36 — Setup wizard state.
+///
+/// The /setup wizard is a 5-step flow that captures the canonical
+/// financial state (per the vision document, Phase 1). This model
+/// tracks the user's progress through the wizard so they can leave
+/// mid-way and resume.
+///
+/// Step 1 — Pay schedule (cadence, amount, account, direct-deposit flag)
+/// Step 2 — Accounts (checking + savings + credit, with editable balances)
+/// Step 3 — Envelopes (7 canonical vessels pre-seeded, user-editable)
+/// Step 4 — Bills (recurring obligations, user-editable)
+/// Step 5 — Goals (emergency fund, debt payoff, retirement)
+///
+/// `completedStep` is the highest step the user has finished. `0` means
+/// they haven't started. `5` means all 5 done — they can hit the
+/// "Activate plan" CTA on the review screen and the engine takes over.
+model SetupState {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  /// Highest step completed: 0 = not started, 5 = all done.
+  completedStep Int      @default(0)
+  /// Optional JSON blob with the in-progress form values for the
+  /// current step. Lets the user leave mid-step and resume without
+  /// losing entered values. Cleared on step completion.
+  draftJson     String?
+  /// Set to `true` after the user clicks "Activate plan" — the
+  /// wizard is finished and the engine is now in charge.
+  activatedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
