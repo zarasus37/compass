@@ -66,6 +66,15 @@ export default function SettingsPage() {
           caption="Tell Compass how you tag each merchant. The rules engine runs on every new transaction. Edit anytime; rules are versioned per vessel."
         />
         <SettingsRow
+          num="02.5"
+          name="Change Password"
+          href="/settings/password"
+          glyph="⚿"
+          accent="var(--terminal-cyan)"
+          tag="[OK] SELF-SERVICE"
+          caption="Rotate your password. Signs out everywhere else (this device stays open via a fresh session cookie). 12-character minimum; the new password must differ from the current one."
+        />
+        <SettingsRow
           num="03"
           name="Receipt Scan"
           href="/settings/receipt-scan"
