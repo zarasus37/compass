@@ -87,4 +87,9 @@ _dev_*
 .next-pid.txt
 
 .vercel
+
+# Vercel staging env files (env vars not yet uploaded to Vercel
+# during the runbook env-setup flow). Contains CRON_SECRET, ADMIN_*,
+# MAVIS_API_KEY — must never be committed.
+.vercel-*.env
 .env*

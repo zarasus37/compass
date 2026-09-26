@@ -4139,9 +4139,9 @@ async function main() {
 
     // Spec + smoke chain
     check(
-      "M14: spec file 00-CLUSTER-7.16-CHANGE-PASSWORD.md exists",
+      "M14: spec file 00-CLUSTER-7.16.1-CHANGE-PASSWORD.md exists",
       existsSync14(
-        join14(PROJECT_ROOT, "00-CLUSTER-7.16-CHANGE-PASSWORD.md"),
+        join14(PROJECT_ROOT, "00-CLUSTER-7.16.1-CHANGE-PASSWORD.md"),
       ),
     );
     const pkg14 = JSON.parse(
@@ -4304,9 +4304,9 @@ async function runM14SourceOnly() {
 
   // Spec + smoke chain
   check(
-    "M14: spec file 00-CLUSTER-7.16-CHANGE-PASSWORD.md exists",
+    "M14: spec file 00-CLUSTER-7.16.1-CHANGE-PASSWORD.md exists",
     existsSync14(
-      join14(PROJECT_ROOT, "00-CLUSTER-7.16-CHANGE-PASSWORD.md"),
+      join14(PROJECT_ROOT, "00-CLUSTER-7.16.1-CHANGE-PASSWORD.md"),
     ),
   );
   const pkg14 = JSON.parse(
