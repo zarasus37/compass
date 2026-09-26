@@ -3824,6 +3824,135 @@ async function main() {
     );
   }
 
+  // ── Phase 4.0 M13 — Per-bill payment history sparkline (Cluster 7.15) ────
+  // The sparkline is the chart-first view of the bill's audit
+  // events (per xKryptic's 2026-08-23 directive). It sits between
+  // BillSummaryStrip ("headline numbers") and BillTimeline ("state
+  // progression") on /vault/bills/[id]/history. The dedicated
+  // `tests/smoke-bill-history.mjs` covers the page surface + dot
+  // count + tone distribution + click-anchor; this section
+  // verifies the wiring + the cross-file contracts that don't
+  // require a running server.
+  console.log("\n--- Phase 4.0 M13 — Per-bill payment history sparkline ---\n");
+  {
+    const { readFileSync: readFileSync13, existsSync: existsSync13 } =
+      await import("node:fs");
+    const { join: join13 } = await import("node:path");
+
+    // The component itself.
+    const sparklinePath = join13(
+      PROJECT_ROOT,
+      "src/app/(app)/vault/bills/[id]/history/_components/PaymentHistorySparkline.tsx",
+    );
+    const sparklineSrc = readFileSync13(sparklinePath, "utf8");
+    check(
+      "M13: PaymentHistorySparkline.tsx exists",
+      existsSync13(sparklinePath),
+    );
+    check(
+      "M13: sparkline is a client component (interactive hover + click)",
+      /"use client"/.test(sparklineSrc),
+    );
+    check(
+      "M13: sparkline imports TONE_COLOR from audit-log-shared (single source of truth from 7.11.1)",
+      /import\s*\{[\s\S]*TONE_COLOR[\s\S]*\}\s*from\s*["']@\/lib\/vault\/audit-log-shared["']/.test(
+        sparklineSrc,
+      ),
+    );
+    check(
+      "M13: sparkline imports formatRelativeTime for the tooltip",
+      /formatRelativeTime/.test(sparklineSrc),
+    );
+    check(
+      "M13: sparkline renders the dot testid with tone + aria-label",
+      /data-testid="vault-bill-history-sparkline-dot"[\s\S]*?data-tone=\{d\.tone\}/.test(
+        sparklineSrc,
+      ) && /aria-label=\{`\$\{d\.actionType\}/.test(sparklineSrc),
+    );
+    check(
+      "M13: sparkline renders the legend with per-tone count testids",
+      /data-testid=\{`vault-bill-history-sparkline-legend-\$\{t\}`\}/.test(
+        sparklineSrc,
+      ) && /data-count=\{count\}/.test(sparklineSrc),
+    );
+    check(
+      "M13: sparkline handles the 0-event empty state",
+      /dots\.length === 0[\s\S]*?vault-bill-history-sparkline[\s\S]*?no events yet/.test(
+        sparklineSrc,
+      ),
+    );
+    check(
+      "M13: sparkline bins by day when events > 80 (long-bill fallback)",
+      /BIN_THRESHOLD\s*=\s*80/.test(sparklineSrc) &&
+        /useBins\s*=\s*dots\.length\s*>\s*BIN_THRESHOLD/.test(sparklineSrc),
+    );
+    check(
+      "M13: sparkline handles same-timestamp collisions with a stack",
+      /stackByMs/.test(sparklineSrc) &&
+        /stackIndex/.test(sparklineSrc),
+    );
+    check(
+      "M13: sparkline click-anchor scrolls to row id and flashes for 1.5s",
+      /scrollIntoView/.test(sparklineSrc) &&
+        /setFlashId/.test(sparklineSrc) &&
+        /FLASH_DURATION_MS\s*=\s*1500/.test(sparklineSrc),
+    );
+    check(
+      "M13: sparkline exports SparklineDot type",
+      /export type SparklineDot/.test(sparklineSrc),
+    );
+
+    // Page wiring — server-side computation of the dot array.
+    const histPageSrc = readFileSync13(
+      join13(PROJECT_ROOT, "src/app/(app)/vault/bills/[id]/history/page.tsx"),
+      "utf8",
+    );
+    check(
+      "M13: history page imports PaymentHistorySparkline + SparklineDot",
+      /import\s*\{[\s\S]*PaymentHistorySparkline[\s\S]*SparklineDot[\s\S]*\}\s*from\s*["']\.\/_components\/PaymentHistorySparkline["']/.test(
+        histPageSrc,
+      ),
+    );
+    check(
+      "M13: history page maps tableRows → SparklineDot via humanizeVaultAction",
+      /const sparklineDots: SparklineDot\[\] = tableRows\.map\(\(r\)[\s\S]*?humanizeVaultAction/.test(
+        histPageSrc,
+      ),
+    );
+    check(
+      "M13: history page renders sparkline between BillSummaryStrip and the timeline section",
+      histPageSrc.indexOf("<BillSummaryStrip") <
+        histPageSrc.indexOf("<PaymentHistorySparkline") &&
+        histPageSrc.indexOf("<PaymentHistorySparkline") <
+          histPageSrc.indexOf('id="vault-bill-history-timeline"'),
+    );
+
+    // BillEventTableView rows carry id={r.id} so the click-to-jump
+    // anchor (#{row.id}) actually finds its target.
+    const betvSrc13 = readFileSync13(
+      join13(
+        PROJECT_ROOT,
+        "src/app/(app)/vault/bills/[id]/history/BillEventTableView.tsx",
+      ),
+      "utf8",
+    );
+    check(
+      "M13: BillEventTableView rows have id={r.id} for click-anchor",
+      /<tr[\s\S]*?key=\{r\.id\}[\s\S]*?id=\{r\.id\}/.test(betvSrc13),
+    );
+
+    // The dedicated smoke covers the page surface + dot count +
+    // tone distribution + click-anchor. Verify it's wired into
+    // the smoke chain.
+    const pkg13 = JSON.parse(
+      readFileSync13(join13(PROJECT_ROOT, "package.json"), "utf8"),
+    );
+    check(
+      "M13: smoke-bill-history.mjs covers the sparkline section",
+      (pkg13.scripts.smoke ?? "").includes("smoke-bill-history.mjs"),
+    );
+  }
+
   // ── Final summary ─────────────────────────────────────────────
   console.log("\n--- checks ---");
   console.log(`checks: ${pass} pass / ${miss} miss`);

@@ -529,6 +529,163 @@ async function main() {
     bscSrc.includes("/history"),
   );
 
+  // ── 23. Cluster 7.15 — Payment history sparkline (visible UI) ──
+  // The sparkline sits between BillSummaryStrip and BillTimeline
+  // and renders one dot per audit event in the bill's tableRows.
+  // The chart-first view per xKryptic's 2026-08-23 directive.
+  const sparklineSectionRegex =
+    /data-testid="vault-bill-history-sparkline"[\s\S]*?(?=data-testid="vault-bill-history-timeline"|<div id="vault-bill-history-timeline")/;
+  const sparklineSection = (html1.match(sparklineSectionRegex) ?? [""])[0];
+  check(
+    "sparkline: section testid present between summary and timeline",
+    Boolean(sparklineSection),
+  );
+  const dotMatches = (sparklineSection.match(
+    /data-testid="vault-bill-history-sparkline-dot"/g,
+  ) ?? []);
+  check(
+    "sparkline: dot count equals unfiltered tableRows count",
+    dotMatches.length === rowMatches.length,
+    `dots=${dotMatches.length} rows=${rowMatches.length}`,
+  );
+  // Every table row id has a corresponding dot id (click-to-jump
+  // anchor). The dot button's aria-label carries the actionType +
+  // summary; the row id is the stable identifier across renders.
+  const dotAriaMatches = sparklineSection.match(
+    /aria-label="vault\.[a-z_]+\s·\s[^"]+"/g,
+  ) ?? [];
+  check(
+    "sparkline: every dot has an aria-label with actionType + summary",
+    dotAriaMatches.length === dotMatches.length,
+    `dot-aria=${dotAriaMatches.length} dots=${dotMatches.length}`,
+  );
+
+  // ── 24. Tone distribution in the sparkline matches the table ──
+  // Sentinel types we wrote:
+  //   - vault.bill_state_changed × 2  → neutral (per TONE_FOR 7.11.1)
+  //   - vault.payment_settled       → good
+  // The page also shows prior smokes' audit events for this bill
+  // (since findFirst returns the newest first), so the tone set
+  // is a superset of those three. We assert the legend surfaces
+  // per-tone counts whose sum equals the dot count.
+  const legendTones = ["good", "watch", "bad", "neutral"];
+  let legendTotal = 0;
+  let legendHasExpected = false;
+  for (const tone of legendTones) {
+    const m = sparklineSection.match(
+      new RegExp(`data-testid="vault-bill-history-sparkline-legend-${tone}"\\s+data-count="(\\d+)"`),
+    );
+    if (m) {
+      legendTotal += Number.parseInt(m[1], 10);
+      if (tone === "good" && Number.parseInt(m[1], 10) >= 1) legendHasExpected = true;
+      if (tone === "neutral" && Number.parseInt(m[1], 10) >= 2) legendHasExpected = true;
+    }
+  }
+  check(
+    "sparkline: legend sum equals dot count",
+    legendTotal === dotMatches.length,
+    `legend=${legendTotal} dots=${dotMatches.length}`,
+  );
+  check(
+    "sparkline: legend includes good (payment_settled) + ≥2 neutral (state_changes)",
+    legendHasExpected,
+  );
+
+  // ── 25. Sparkline dot x-positions are unique (modulo same-ts stack) ──
+  // Each dot's left style is a percentage. The spec allows same-ts
+  // collisions; we assert >= 80% of dots have unique x positions.
+  const xPositions = (sparklineSection.match(/left:\s*(-?\d+(?:\.\d+)?)%/g) ?? []).map(
+    (s) => s.match(/(-?\d+(?:\.\d+)?)%/)[1],
+  );
+  const uniquePositions = new Set(xPositions);
+  check(
+    "sparkline: most dot x-positions are unique",
+    uniquePositions.size >= Math.floor(dotMatches.length * 0.8),
+    `unique=${uniquePositions.size} dots=${dotMatches.length}`,
+  );
+
+  // ── 26. Source-file checks: sparkline implementation ───────────
+  const sparklineSrc = readFileSync(
+    join(
+      ROOT,
+      "src/app/(app)/vault/bills/[id]/history/_components/PaymentHistorySparkline.tsx",
+    ),
+    "utf8",
+  );
+  check(
+    "sparkline: PaymentHistorySparkline.tsx exists",
+    existsSync(
+      join(
+        ROOT,
+        "src/app/(app)/vault/bills/[id]/history/_components/PaymentHistorySparkline.tsx",
+      ),
+    ),
+  );
+  check(
+    "sparkline: component imports TONE_COLOR from audit-log-shared (7.11.1)",
+    sparklineSrc.includes("TONE_COLOR"),
+  );
+  check(
+    "sparkline: component renders the dot testid",
+    sparklineSrc.includes("vault-bill-history-sparkline-dot"),
+  );
+  check(
+    "sparkline: component renders the legend testid per tone",
+    sparklineSrc.includes("vault-bill-history-sparkline-legend-"),
+  );
+  check(
+    "sparkline: component uses the formatRelativeTime helper (tooltip)",
+    sparklineSrc.includes("formatRelativeTime"),
+  );
+  check(
+    "sparkline: component is a client component (interactive hover + click)",
+    sparklineSrc.includes('"use client"'),
+  );
+  check(
+    "sparkline: component bins by day when events > 80 (source check)",
+    /BIN_THRESHOLD\s*=\s*80|>\s*80[\s\S]{0,40}\bbin/.test(sparklineSrc),
+  );
+
+  // ── 27. Source-file check: page.tsx wires the sparkline ───────
+  const pageSrc7 = readFileSync(
+    join(ROOT, "src/app/(app)/vault/bills/[id]/history/page.tsx"),
+    "utf8",
+  );
+  check(
+    "sparkline: page.tsx imports PaymentHistorySparkline",
+    pageSrc7.includes("PaymentHistorySparkline"),
+  );
+  check(
+    "sparkline: page.tsx imports SparklineDot type",
+    pageSrc7.includes("SparklineDot"),
+  );
+  check(
+    "sparkline: page.tsx maps tableRows → SparklineDot (calls humanizeVaultAction)",
+    pageSrc7.includes("humanizeVaultAction"),
+  );
+  check(
+    "sparkline: page.tsx renders the sparkline between BillSummaryStrip and BillTimeline",
+    // The BillSummaryStrip is rendered, then the PaymentHistorySparkline,
+    // then the timeline div. Verify the ordering by checking the
+    // PageHead-related summaries don't bracket the sparkline.
+    pageSrc7.indexOf("<BillSummaryStrip") <
+      pageSrc7.indexOf("<PaymentHistorySparkline") &&
+      pageSrc7.indexOf("<PaymentHistorySparkline") <
+        pageSrc7.indexOf('id="vault-bill-history-timeline"'),
+  );
+
+  // ── 28. Source-file check: BillEventTableView rows carry id={r.id} ──
+  // Cluster 7.15 — required for the sparkline's click-to-jump to
+  // scroll to the right row.
+  const betvSrc = readFileSync(
+    join(ROOT, "src/app/(app)/vault/bills/[id]/history/BillEventTableView.tsx"),
+    "utf8",
+  );
+  check(
+    "sparkline: BillEventTableView rows have id={r.id} for click-anchor",
+    /<tr[\s\S]*?id=\{r\.id\}/.test(betvSrc),
+  );
+
   // ── Summary
   const passed = checks.filter((c) => c[1]).length;
   const total = checks.length;

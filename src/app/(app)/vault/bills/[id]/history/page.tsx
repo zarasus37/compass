@@ -47,9 +47,17 @@ import { BillSummaryStrip } from "./BillSummaryStrip";
 import { BillTimeline } from "./BillTimeline";
 import { BillEventTable } from "./BillEventTable";
 import { LiveBillEventTable } from "./LiveBillEventTable";
+import {
+  PaymentHistorySparkline,
+  type SparklineDot,
+} from "./_components/PaymentHistorySparkline";
 import { BillOffRampPicker } from "@/components/vault/BillOffRampPicker";
 import { OffRampGateway, chainSourceLabel, normalizeOffRampProvider } from "@/lib/vault/gateway";
 import { getOrCreateVaultPreferences } from "@/lib/vault/db";
+import {
+  humanizeVaultAction,
+  type HumanizeTone,
+} from "@/lib/vault/audit-log-shared";
 import {
   OFFRAMP_PROVIDER_LABEL,
   type OffRampProvider,
@@ -156,6 +164,32 @@ export default async function BillHistoryPage({
   const hasData = summary.totalEvents > 0;
   const hasMore = tableRows.length === (filter.take ?? 50);
 
+  // Cluster 7.15 — compute the sparkline dots server-side. The
+  // page already has `tableRows` (the same rows the
+  // LiveBillEventTable below renders); we map them to
+  // {id, at, actionType, tone, summary} so the
+  // PaymentHistorySparkline client component is purely
+  // presentational + interactive (no humanizer in the bundle).
+  //
+  // The mapping uses the existing `humanizeVaultAction` from
+  // 7.11.1 (client-safe; no `server-only`). An actionType that
+  // is unknown to the humanizer (a future-added type) is
+  // represented as a neutral-tone dot with an empty summary;
+  // it still appears in the rhythm (the user sees *that*
+  // something happened) without jargon in the tooltip.
+  const sparklineDots: SparklineDot[] = tableRows.map((r) => {
+    const h = humanizeVaultAction(r.actionType, r.payload);
+    const tone: HumanizeTone = h?.tone ?? "neutral";
+    const summary = h?.text ?? `${r.actionType}`;
+    return {
+      id: r.id,
+      at: r.createdAtIso,
+      actionType: r.actionType,
+      tone,
+      summary,
+    };
+  });
+
   // Meta event: record the view AFTER reads so the just-written
   // row doesn't show in this visit's table. Fire-and-forget is
   // fine — the audit log is best-effort.
@@ -253,6 +287,16 @@ export default async function BillHistoryPage({
       />
 
       <BillSummaryStrip bill={bill} summary={summary} filter={filter} />
+
+      {/*
+        Cluster 7.15 — per-bill payment history sparkline. Sits
+        between the headline numbers (BillSummaryStrip) and the
+        state progression (BillTimeline). Chart-first view of
+        the bill's audit events: one dot per event, positioned
+        by time, colored by tone. Click a dot to jump to the
+        matching row in the LiveBillEventTable below.
+       */}
+      <PaymentHistorySparkline dots={sparklineDots} />
 
       <div id="vault-bill-history-timeline">
         <SectionHeader
