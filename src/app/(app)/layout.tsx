@@ -5,7 +5,7 @@ import { AppSidebar } from "@/components/sidebar/AppSidebar";
 import { BottomNav } from "@/components/shell/BottomNav";
 import { TopAppBar } from "@/components/shell/TopAppBar";
 import { RebalanceAlertBay } from "@/components/alerts/RebalanceAlertBay";
-import { liveEnvelopes, getCurrentPayPeriod } from "@/lib/mock";
+import { liveEnvelopesFromDb, getCurrentPayPeriod } from "@/lib/mock";
 import { getActiveEngineLevel } from "@/app/(app)/settings/engine-actions";
 import { CommandPaletteProvider } from "@/components/command-palette/CommandPaletteProvider";
 import { getSearchIndex } from "@/lib/command-palette/search-index";
@@ -51,8 +51,11 @@ export default async function AppLayout({
   const user = await requireUser();
   await requireCompletedOnboarding(user.id);
 
-  // Live envelope state — drives the alert bay.
-  const ENVELOPES = liveEnvelopes();
+  // Live envelope state — drives the alert bay. Cluster 7.39 migrated
+  // this read from the in-memory mock seed to the DB-backed version so
+  // the alert bay surfaces real over-limit envelopes (was showing the
+  // 7 canonical seed vessels regardless of what mom added).
+  const ENVELOPES = await liveEnvelopesFromDb(user.id);
   const overLimit = ENVELOPES
     .filter((e) => e.target > 0 && e.current > e.target)
     .map((e) => ({

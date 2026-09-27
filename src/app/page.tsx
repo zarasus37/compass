@@ -29,13 +29,14 @@ import { getAuditLog } from "@/lib/vault/audit-log";
 import { CARD_META, type CardId } from "@/components/dashboard/catalog";
 import { loadIdentitySummary } from "@/lib/identity/identity-summary";
 import {
-  liveEnvelopes,
-  liveGoals,
   liveSnapshot,
   liveBills,
   liveBillsFromDb,
   livePlan,
   liveTransactions,
+  liveEnvelopesFromDb,
+  liveGoalsFromDb,
+  livePlanFromDb,
   getCurrentPayPeriod,
   TODAY,
   PERIOD_START,
@@ -81,22 +82,32 @@ export default async function Dashboard() {
   // (app) layout uses — keeps the gate logic in one place.
   await requireCompletedOnboarding(user.id);
 
-  // Live reads
-  const ENVELOPES = liveEnvelopes();
-  const GOALS = liveGoals();
+  // Live reads. Cluster 7.39 migrated envelopes/goals/plan from
+  // in-memory mock to DB-backed reads (the Cluster 5.2.6 widget
+  // switch missed the root dashboard). liveSnapshot() and
+  // liveTransactions() still read in-memory — see
+  // 00-CLUSTER-7.39-IN-APP-UX-BUGS.md B1b for the deferred follow-on.
+  const ENVELOPES = await liveEnvelopesFromDb(user.id);
+  const GOALS = await liveGoalsFromDb(user.id);
   const SNAPSHOT = liveSnapshot();
   // Cluster 5.2.6 widget switch: BILLS now come from the Prisma
   // Bill table (via liveBillsFromDb). The shape is a superset of
   // the legacy in-memory Bill type (it has cadence too), so the
   // paycheckBreakdown engine accepts it via structural typing.
   const BILLS = await liveBillsFromDb(user.id);
-  const PLAN = livePlan();
+  const PLAN = await livePlanFromDb(user.id);
   const TRANSACTIONS = liveTransactions();
   const NEXT_PAYCHECK_CENTS = SNAPSHOT.nextPaycheckCents;
 
   const totalDays = periodLength(PERIOD_START, PERIOD_END);
   const day = dayOfPeriod(TODAY, PERIOD_START, PERIOD_END);
-  const topGoal = GOALS.find((g) => g.isPrimary) ?? GOALS[0] ?? null;
+  // Cluster 7.39: prefer goals that have a planet set (the TopPriorityCard
+  // shape requires it). Falls through to any goal if none qualify.
+  const topGoal =
+    GOALS.find((g) => g.isPrimary && g.planet != null) ??
+    GOALS.find((g) => g.planet != null) ??
+    GOALS[0] ??
+    null;
 
   // -------------------------------------------------------------------------
   // Compute the data payload for every card. The client grid decides
@@ -181,9 +192,14 @@ export default async function Dashboard() {
     autopay: b.autopay,
   }));
 
-  // Goals whose targetDate falls within the current month.
+  // Goals whose targetDate falls within the current month. Cluster 7.39:
+  // liveGoalsFromDb returns nullable planet + targetDate (vs the legacy
+  // in-memory liveGoals which always set both). Goals without a targetDate
+  // or planet aren't calendar-eligible — filter them out.
   const calendarGoals = GOALS.filter(
-    (g) =>
+    (g): g is typeof g & { targetDate: Date; planet: NonNullable<typeof g.planet> } =>
+      g.targetDate != null &&
+      g.planet != null &&
       g.targetDate.getTime() >= monthStart.getTime() &&
       g.targetDate.getTime() < monthEnd.getTime(),
   ).map((g) => ({
@@ -286,7 +302,7 @@ export default async function Dashboard() {
     // TRANSFER vs MILESTONE tag in the HorizonStrip — no more name
     // regex.
     for (const g of GOALS) {
-      if (isSameDay(g.targetDate, date)) {
+      if (g.targetDate && isSameDay(g.targetDate, date)) {
         events.push({
           id: `goal-${g.id}-d${i + 1}`,
           kind: "goal",
@@ -611,7 +627,11 @@ export default async function Dashboard() {
       >
         <TopPriorityCard
           data={
-            topGoal
+            // Cluster 7.39: liveGoalsFromDb can return goals with null
+            // planet. The TopPriorityCard shape requires a non-null
+            // planet — fall back to the first planet-bearing goal, or
+            // null if none qualify.
+            topGoal && topGoal.planet != null && topGoal.targetDate != null
               ? {
                   id: topGoal.id,
                   name: topGoal.name,
