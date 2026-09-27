@@ -4,13 +4,14 @@ import { PageHead } from "@/components/alchemy/PageHead";
 import { formatMoney } from "@/lib/money";
 import {
   liveDebts,
-  liveEnvelopes,
-  livePlan,
+  liveEnvelopesFromDb,
+  livePlanFromDb,
   TODAY,
   PERIOD_START,
   PERIOD_END,
 } from "@/lib/mock";
 import { paycheckBreakdown } from "@/lib/store";
+import { requireUser } from "@/server/auth/user";
 import { DebtPayoffSimulator } from "@/components/debts/DebtPayoffSimulator";
 import { DebtSparkline } from "@/components/viz/DebtSparkline";
 import { liveBills, liveSnapshot } from "@/lib/mock";
@@ -25,11 +26,12 @@ export const dynamic = "force-dynamic";
  * Saturn planet color preserved for the debt-specific accent (semantic).
  * Primary CTA in terminal-cyan.
  */
-export default function DebtsPage() {
+export default async function DebtsPage() {
+  const user = await requireUser();
   const DEBTS = liveDebts();
   const BILLS = liveBills();
-  const ENVELOPES = liveEnvelopes();
-  const PLAN = livePlan();
+  const ENVELOPES = await liveEnvelopesFromDb(user.id);
+  const PLAN = await livePlanFromDb(user.id);
   const SNAPSHOT = liveSnapshot();
 
   // Compute the "Free" amount the same way the dashboard does.

@@ -1,7 +1,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
-import { liveEnvelopes } from "@/lib/mock";
+import { liveEnvelopesFromDb } from "@/lib/mock";
+import { requireUser } from "@/server/auth/user";
 
 export const dynamic = "force-dynamic";
 
@@ -37,8 +38,9 @@ const SEED_RULES: Rule[] = [
   { pattern: "Rent",          vessel: "Rent",       hits: 2  },
 ];
 
-export default function CategorizePage() {
-  const ENVELOPES = liveEnvelopes();
+export default async function CategorizePage() {
+  const user = await requireUser();
+  const ENVELOPES = await liveEnvelopesFromDb(user.id);
   const vesselNames = ENVELOPES.map((e) => e.name);
   return (
     <div>

@@ -2,7 +2,8 @@ import * as React from "react";
 import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { NewTransactionForm, type EnvelopeOption } from "./NewTransactionForm";
-import { liveEnvelopes } from "@/lib/mock";
+import { liveEnvelopesFromDb } from "@/lib/mock";
+import { requireUser } from "@/server/auth/user";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,8 @@ export default async function NewTransactionPage({
   searchParams: Promise<{ envelope?: string }>;
 }) {
   const sp = await searchParams;
-  const ENVELOPES = liveEnvelopes();
+  const user = await requireUser();
+  const ENVELOPES = await liveEnvelopesFromDb(user.id);
   const options: EnvelopeOption[] = ENVELOPES.map((e) => ({
     id: e.id,
     name: e.name,

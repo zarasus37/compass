@@ -2,7 +2,8 @@ import * as React from "react";
 import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { ReceiptScanForm } from "./ReceiptScanForm";
-import { liveEnvelopes } from "@/lib/mock";
+import { liveEnvelopesFromDb } from "@/lib/mock";
+import { requireUser } from "@/server/auth/user";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +18,9 @@ export const dynamic = "force-dynamic";
  * Component Oracle Terminal treatment: mono caps, teal CTA,
  * warm venetian-rose accent for the scanner panel.
  */
-export default function ReceiptScanPage() {
-  const ENVELOPES = liveEnvelopes();
+export default async function ReceiptScanPage() {
+  const user = await requireUser();
+  const ENVELOPES = await liveEnvelopesFromDb(user.id);
   return (
     <div>
       <PageHead

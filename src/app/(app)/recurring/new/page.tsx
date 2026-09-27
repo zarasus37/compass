@@ -2,7 +2,8 @@ import * as React from "react";
 import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { NewBillForm, type EnvelopeOption } from "./NewBillForm";
-import { liveEnvelopes } from "@/lib/mock";
+import { liveEnvelopesFromDb } from "@/lib/mock";
+import { requireUser } from "@/server/auth/user";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +13,9 @@ export const dynamic = "force-dynamic";
  * Add a new recurring bill. The bill will appear in the next
  * period's bill list and on the Plan My Next Check card.
  */
-export default function NewBillPage() {
-  const ENVELOPES = liveEnvelopes();
+export default async function NewBillPage() {
+  const user = await requireUser();
+  const ENVELOPES = await liveEnvelopesFromDb(user.id);
   const options: EnvelopeOption[] = ENVELOPES.map((e) => ({
     id: e.id,
     name: e.name,

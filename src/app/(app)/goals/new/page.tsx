@@ -2,7 +2,8 @@ import * as React from "react";
 import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { NewGoalForm, type EnvelopeOption } from "./NewGoalForm";
-import { liveEnvelopes } from "@/lib/mock";
+import { liveEnvelopesFromDb } from "@/lib/mock";
+import { requireUser } from "@/server/auth/user";
 
 export const dynamic = "force-dynamic";
 
@@ -13,8 +14,9 @@ export const dynamic = "force-dynamic";
  * envelope list so the vessel picker is always current. The form
  * itself is the client component.
  */
-export default function NewGoalPage() {
-  const ENVELOPES = liveEnvelopes();
+export default async function NewGoalPage() {
+  const user = await requireUser();
+  const ENVELOPES = await liveEnvelopesFromDb(user.id);
   const options: EnvelopeOption[] = ENVELOPES.map((e) => ({
     id: e.id,
     name: e.name,

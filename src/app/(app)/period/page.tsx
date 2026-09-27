@@ -9,7 +9,7 @@ import {
   PERIOD_START,
   PERIOD_END,
   NEXT_PAY_DATE,
-  liveEnvelopes,
+  liveEnvelopesFromDb,
   liveTransactions,
 } from "@/lib/mock";
 import { formatMoney, formatMoneySigned } from "@/lib/money";
@@ -22,6 +22,7 @@ import {
   daysBetween,
 } from "@/lib/format";
 import { PRIOR_PERIODS } from "@/lib/mock-seed";
+import { requireUser } from "@/server/auth/user";
 
 export const dynamic = "force-dynamic";
 
@@ -42,8 +43,9 @@ export const dynamic = "force-dynamic";
  *   3. Period comparison — a grouped bar chart of the last 3 periods'
  *      income / spending / carry.
  */
-export default function PeriodPage() {
-  const ENVELOPES = liveEnvelopes();
+export default async function PeriodPage() {
+  const user = await requireUser();
+  const ENVELOPES = await liveEnvelopesFromDb(user.id);
   const TRANSACTIONS = liveTransactions();
 
   const totalDays = periodLength(PERIOD_START, PERIOD_END);

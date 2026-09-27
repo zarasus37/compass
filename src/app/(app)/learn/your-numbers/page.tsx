@@ -2,8 +2,9 @@ import * as React from "react";
 import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { formatMoney } from "@/lib/money";
-import { liveEnvelopes, TODAY, PERIOD_START, PERIOD_END } from "@/lib/mock";
+import { liveEnvelopesFromDb, TODAY, PERIOD_START, PERIOD_END } from "@/lib/mock";
 import { topOpportunities } from "@/lib/opportunities";
+import { requireUser } from "@/server/auth/user";
 
 export const dynamic = "force-dynamic";
 
@@ -25,8 +26,9 @@ export const dynamic = "force-dynamic";
  * more rows when there's something to act on.
  */
 
-export default function YourNumbersPage() {
-  const envelopes = liveEnvelopes();
+export default async function YourNumbersPage() {
+  const user = await requireUser();
+  const envelopes = await liveEnvelopesFromDb(user.id);
   const opportunities = topOpportunities({ limit: 5 });
 
   // ── Headline ratios ─────────────────────────────────────────────
