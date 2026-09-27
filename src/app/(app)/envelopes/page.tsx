@@ -40,15 +40,51 @@ export default async function EnvelopesPage() {
   const user = await requireUser();
   // Live reads: the bar chart and over-limit count reflect the current
   // store state, including any allocations from the paycheck simulator.
-  const ENVELOPES = await liveEnvelopesFromDb(user.id);
+  //
+  // Cluster 7.44 — defensive read. The previous shape threw the entire
+  // page to (app)/error.tsx if `liveEnvelopesFromDb` failed (mig
+  // result of any transient Prisma hiccup). Now: if the read throws,
+  // log + render with an empty envelope list so the rest of the page
+  // (page head, summary strip, "no envelopes yet" empty state) still
+  // shows instead of the calm-error card. Mom's `compass-olive-mu`
+  // hit this on 2026-09-27 with digest 3789288087 — the same digest
+  // she saw on /envelopes/[id] before Cluster 7.43 wrapped that page's
+  // reads. This page was missed in 7.43.
+  let ENVELOPES: Awaited<ReturnType<typeof liveEnvelopesFromDb>> = [];
+  try {
+    ENVELOPES = await liveEnvelopesFromDb(user.id);
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.error("[envelopes-list] liveEnvelopesFromDb failed:", err);
+    }
+    ENVELOPES = [];
+  }
+
   // Cluster 7.28 — Lazy-seed sinking funds (1-2 per envelope on
   // first visit). Idempotent: re-running is a no-op once any
   // sink exists for the user.
-  await ensureUserSinksSeeded(user.id);
-  const SINKS = await prisma.envelopeSink.findMany({
-    where: { userId: user.id, isArchived: false },
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-  });
+  //
+  // Cluster 7.44 — wrap the seed + read in try/catch so a transient
+  // Prisma hiccup doesn't take the whole list page down. Mirrors the
+  // 7.43 defensive pattern on /envelopes/[id]. If the seed or read
+  // throws, SINKS degrades to [] and the sinks inline (Cluster 7.28)
+  // simply shows no sinks under each envelope row. The rest of the
+  // page (envelopes, summary, rebalance, budget vs actual) renders.
+  let SINKS: Awaited<ReturnType<typeof prisma.envelopeSink.findMany>> = [];
+  try {
+    await ensureUserSinksSeeded(user.id);
+    SINKS = await prisma.envelopeSink.findMany({
+      where: { userId: user.id, isArchived: false },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    });
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.error("[envelopes-list] sinks read failed:", err);
+    }
+    SINKS = [];
+  }
   const sinksByEnvelope = new Map<string, typeof SINKS>();
   for (const s of SINKS) {
     const list = sinksByEnvelope.get(s.envelopeId) ?? [];
