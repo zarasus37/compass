@@ -68,17 +68,20 @@ export function detectStuckLoop(history: LLMMessage[]): boolean {
 
 /**
  * The nudging prompt when stuck. Designed to be short, friendly, and
- * point at the demo-data button that's always on the page.
+ * point at BOTH escape routes — the form wizard (canonical per Cluster
+ * 7.36) and the demo-data button (for users who just want to see the
+ * dashboard).
  *
- * Cluster 7.33a — references the `DemoModeButton` rendered when the
- * user has zero user messages, but stays useful even after the user
- * has logged some answers (just redirects them to /onboarding's
- * reset-to-demo-data affordance).
+ * Cluster 7.41 — previous copy only mentioned "Load demo data", which
+ * is the wrong CTA for a real user who wants to configure her own
+ * numbers. The wizard is. New copy surfaces both, with the wizard
+ * mentioned first since /setup is the canonical setup path.
  */
 export const STUCK_NUDGE =
   "I'm not making progress with that one — let me write up what I have. " +
-  "If you're not sure where to start, you can skip ahead with the **Load demo data** button below " +
-  "and refine from the dashboard later. (Type anything to keep going.)";
+  "Two easier paths: tap **Use the form setup wizard** in the header (5 steps, no agent in the way), " +
+  "or **Load demo data** below to explore the dashboard with sample numbers. " +
+  "(Type anything to keep going.)";
 
 /**
  * Returns the response text to use given a stuck-loop detection. If

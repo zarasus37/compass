@@ -20,7 +20,7 @@ export default async function SetupLayout({
   const user = await requireUser();
   return (
     <div style={{ minHeight: "100vh", background: "var(--background)" }}>
-      <OnboardingTopBar userName={user.name} />
+      <OnboardingTopBar userName={user.name} hideWizardLink />
       <main
         style={{
           maxWidth: 720,
