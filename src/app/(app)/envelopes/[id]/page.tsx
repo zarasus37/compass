@@ -11,7 +11,6 @@ import { ensureUserSinksSeeded, monthlyFillCents } from "@/lib/seed-sinks";
 import { requireUser } from "@/server/auth/user";
 import { prisma } from "@/server/db";
 import {
-  liveEnvelopes,
   liveEnvelopesFromDb,
   liveTransactions,
   TODAY,
@@ -31,7 +30,94 @@ export const dynamic = "force-dynamic";
  * terminal-cyan. The big bar with the gold pacing tick is preserved
  * (semantic — pacing is a key datum). The vessel-glyph big circle
  * gets a 2px planet-color left rail.
+ *
+ * Cluster 7.43 — per-section error boundaries. Each major section
+ * is wrapped in its own try/catch so a single bad row (a malformed
+ * transaction, a null sink field, a planet-rendering downstream
+ * component that doesn't handle null) cannot crash the whole page.
+ * A throw in the Cadence section, for example, shows a soft
+ * "Section unavailable" card for just that section while the rest
+ * of the page renders normally. This is the visible-UI fix for
+ * the persistent [ERR] SOMETHING BROKE card xKryptic reported
+ * 2026-09-26 (error.digest 3789288087).
+ *
+ * Cluster 7.42 — defensive planet normalization still applies.
+ * `safePlanet` is computed once at the top and threaded through
+ * every section so the null-planet case doesn't surface anywhere.
  */
+
+/**
+ * SectionErrorFallback — when a section throws, render this instead
+ * of letting the error bubble to (app)/error.tsx. The page stays
+ * usable; only that section is dimmed. Mirrors the calm-error
+ * voice: terminal-orange left rail, monospace caps, no stack
+ * trace, no raw error.message exposed to the UI.
+ */
+function SectionErrorFallback({ section }: { section: string }) {
+  return (
+    <div
+      data-testid={`section-error-${section.toLowerCase().replace(/\s+/g, "-")}`}
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--line)",
+        borderLeft: "3px solid var(--vessel-watch)",
+        borderRadius: 4,
+        padding: "16px 20px",
+        marginBottom: 32,
+        fontFamily: "var(--font-jetbrains), monospace",
+        fontSize: 12,
+        color: "var(--ink-3)",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 9.5,
+          fontWeight: 600,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: "var(--vessel-watch)",
+          marginBottom: 4,
+        }}
+      >
+        [WARN] {section} unavailable
+      </div>
+      <div style={{ color: "var(--ink-2)" }}>
+        This section couldn&apos;t render. The rest of the envelope
+        detail is intact — try a hard refresh, or continue to{" "}
+        <Link href="/envelopes" style={{ color: "var(--vessel-accent)" }}>
+          all envelopes
+        </Link>{" "}
+        and come back.
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Helper: wrap a section's render in try/catch. Returns a function-
+ * shaped renderer so we can keep the page composition linear without
+ * losing the per-section isolation. Any error from `render()` is
+ * caught and converted to a SectionErrorFallback.
+ */
+async function safeSection(
+  section: string,
+  render: () => React.ReactNode | Promise<React.ReactNode>,
+): Promise<React.ReactNode> {
+  try {
+    return await render();
+  } catch (err) {
+    // Don't log to the user — keep the message visible in the
+    // server console via stderr (Next.js handles this), but the
+    // UI shows the calm fallback. Avoids the [ERR] SOMETHING BROKE
+    // card for one bad row.
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.error(`[envelope-detail] ${section} section failed:`, err);
+    }
+    return <SectionErrorFallback section={section} />;
+  }
+}
+
 export default async function EnvelopeDetailPage({
   params,
 }: {
@@ -67,15 +153,29 @@ export default async function EnvelopeDetailPage({
   // unknown lineage" which is the right vibe for "mom added this
   // without picking a planet."
   const safePlanet = (e.planet ?? "saturn") as PlanetId;
-  const planetSafeStyle = (suffix: string) => `var(--${safePlanet}${suffix})`;
 
   // Cluster 7.28 — Sinking funds for this envelope. Lazy-seed
   // the user's first visit, then read the (now populated) list.
-  await ensureUserSinksSeeded(user.id);
-  const SINKS = await prisma.envelopeSink.findMany({
-    where: { envelopeId: id, isArchived: false },
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-  });
+  // This is page-level (one-shot) so every section sees the same
+  // SINKS row. If the seed or read throws, the sinks section below
+  // shows the fallback; the rest of the page stays intact.
+  let SINKS: Awaited<ReturnType<typeof prisma.envelopeSink.findMany>> = [];
+  try {
+    await ensureUserSinksSeeded(user.id);
+    SINKS = await prisma.envelopeSink.findMany({
+      where: { envelopeId: id, isArchived: false },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    });
+  } catch (err) {
+    // Sinks are non-critical. Log + continue with empty list so the
+    // rest of the page still renders.
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.error("[envelope-detail] sinks read failed:", err);
+    }
+    SINKS = [];
+  }
+
   const pct = e.target > 0 ? Math.min((e.current / e.target) * 100, 100) : 0;
   const isOver = e.current > e.target && e.target > 0;
   const overage = isOver ? e.current - e.target : 0;
@@ -88,6 +188,10 @@ export default async function EnvelopeDetailPage({
   const onTrack = e.current <= expectedAtPace;
   const diff = e.current - expectedAtPace;
 
+  // Per-envelope transaction list. liveTransactions() is the
+  // in-memory mock (deferred to a DB reader in 7.41+). Even if a
+  // row has a malformed date / payee, the per-row rendering is
+  // wrapped in try/catch below.
   const txForEnv = TRANSACTIONS.filter((t) => t.envelope === e.id);
   const totalIn = txForEnv
     .filter((t) => t.amountCents > 0)
@@ -119,6 +223,381 @@ export default async function EnvelopeDetailPage({
       .reduce((s, t) => s + Math.abs(t.amountCents), 0);
   });
 
+  // ── Cluster 7.43: per-section error boundaries ────────────────
+  // Each section is wrapped in safeSection() so a throw in one
+  // section shows a soft fallback for that section only. The page
+  // header (PageHead) and the footer actions bar stay unguarded
+  // because they don't depend on derived data — if they throw,
+  // (app)/error.tsx catches it, which is the right behavior for a
+  // totally broken page.
+  const statsSection = await safeSection("Stats", () => (
+    <section
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(4, 1fr)",
+        gap: 0,
+        border: "1px solid var(--line)",
+        background: "var(--surface)",
+        marginBottom: 32,
+      }}
+    >
+      <Stat
+        label="current"
+        value={formatMoney(e.current)}
+        sub={`${Math.round(pct)}% of target`}
+        accent={isOver ? "neg" : undefined}
+      />
+      <Stat label="target" value={formatMoney(e.target)} sub="this period" />
+      <Stat
+        label="expected now"
+        value={formatMoney(Math.round(expectedAtPace))}
+        sub={`pacing day ${pacing.day} of ${pacing.total}`}
+      />
+      <Stat
+        label={onTrack ? "on pace" : isOver ? "over" : "ahead of pace"}
+        value={
+          isOver
+            ? `+${formatMoney(overage)}`
+            : `${formatMoneySigned(Math.round(-diff))}`
+        }
+        sub={
+          isOver
+            ? "over the target"
+            : onTrack
+            ? "tracking well"
+            : "ahead of the gold tick"
+        }
+        accent={isOver ? "neg" : onTrack ? "ok" : undefined}
+      />
+    </section>
+  ));
+
+  const vesselSection = await safeSection("Vessel", () => (
+    <section style={{ marginBottom: 48 }}>
+      <SectionHeader
+        title="The vessel"
+        em="current vs target."
+        meta="Gold tick = pacing (where you should be)."
+      />
+      <div
+        style={{
+          background: "var(--surface)",
+          border: "1px solid var(--line)",
+          borderLeft: `2px solid var(--${safePlanet})`,
+          borderRadius: 4,
+          padding: "32px 36px",
+        }}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "60px 1fr",
+            gap: 24,
+            alignItems: "center",
+            marginBottom: 24,
+          }}
+        >
+          <div
+            style={{
+              width: 60,
+              height: 60,
+              borderRadius: 2,
+              display: "grid",
+              placeItems: "center",
+              background: "var(--cosmos)",
+              border: `1px solid var(--${safePlanet})`,
+              boxShadow: `0 0 12px var(--${safePlanet})`,
+            }}
+          >
+            <VesselGlyph planet={safePlanet} size={32} />
+          </div>
+          <div>
+            <div
+              style={{
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 10.5,
+                fontWeight: 600,
+                color: `var(--${safePlanet})`,
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                marginBottom: 4,
+              }}
+            >
+              <span style={{ color: "var(--ink-4)" }}>//</span> {planetName(safePlanet)} · {e.target > 0 ? "FUNDING TARGET" : "NO TARGET"}
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 32,
+                fontWeight: 600,
+                color: isOver ? "var(--neg)" : "var(--ink)",
+                lineHeight: 1,
+                fontFeatureSettings: '"tnum" 1, "zero" 1',
+              }}
+            >
+              {formatMoney(e.current)}
+            </div>
+          </div>
+        </div>
+        {/* Custom bar with pacing tick — bigger than the row version. */}
+        <div
+          style={{
+            position: "relative",
+            height: 28,
+            background: "var(--cosmos)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: 3,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              bottom: 0,
+              left: 0,
+              width: `${Math.min(100, pct)}%`,
+              background: isOver
+                ? "repeating-linear-gradient(45deg, var(--neg) 0px, var(--neg) 6px, transparent 6px, transparent 12px)"
+                : `linear-gradient(90deg, var(--${safePlanet}) 0%, var(--${safePlanet}) 100%)`,
+              opacity: isOver ? 0.55 : 0.9,
+              boxShadow: `0 0 12px var(--${safePlanet})`,
+            }}
+          />
+          {/* Pacing tick */}
+          <div
+            style={{
+              position: "absolute",
+              top: -4,
+              bottom: -4,
+              left: `${Math.min(100, pacingPct)}%`,
+              width: 3,
+              background: "var(--terminal-cyan)",
+              boxShadow: "0 0 8px var(--gold)",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              top: 4,
+              left: `${Math.min(100, pacingPct) - 2}%`,
+              transform: "translateX(-50%)",
+              width: 0,
+              height: 0,
+              borderLeft: "5px solid transparent",
+              borderRight: "5px solid transparent",
+              borderTop: "6px solid var(--gold)",
+            }}
+          />
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 10,
+            fontWeight: 600,
+            color: "var(--ink-3)",
+            marginTop: 10,
+            letterSpacing: "0.10em",
+            textTransform: "uppercase",
+          }}
+        >
+          <span>$0</span>
+          <span style={{ color: "var(--gold)" }}>
+            ◆ DAY {pacing.day} / {pacing.total} (PACE)
+          </span>
+          <span>{formatMoney(e.target)}</span>
+        </div>
+      </div>
+    </section>
+  ));
+
+  const cadenceSection = await safeSection("Cadence", () => (
+    <section style={{ marginBottom: 48 }}>
+      <SectionHeader
+        title="Cadence"
+        em="last 14 days, by day."
+        meta="Match the trend against the transactions below."
+      />
+      <EnvelopeCadenceChart
+        burnCents={burnCents}
+        planet={safePlanet}
+        envelopeName={e.name}
+        startDate={cadenceStart}
+      />
+    </section>
+  ));
+
+  const sinksSection = await safeSection("Sinking funds", () => (
+    <section
+      style={{ marginBottom: 48 }}
+      data-testid="envelope-sinks-section"
+    >
+      <SectionHeader
+        title="Sinking funds"
+        em="known-but-irregular expenses inside this vessel."
+        meta={`${SINKS.length} sink${SINKS.length === 1 ? "" : "s"} · auto-fill ${formatMoney(SINKS.reduce((s, sn) => s + monthlyFillCents(sn.targetCents, sn.cadence), 0))}/mo`}
+      />
+      <div
+        style={{
+          background: "var(--surface)",
+          border: "1px solid var(--line)",
+          borderRadius: 4,
+          padding: SINKS.length > 0 ? 0 : 0,
+        }}
+      >
+        <SinkList
+          envelopeId={id}
+          sinks={SINKS.map((s) => ({
+            id: s.id,
+            name: s.name,
+            targetCents: s.targetCents,
+            cadence: s.cadence,
+          }))}
+        />
+      </div>
+      <AddSinkForm envelopeId={id} />
+    </section>
+  ));
+
+  // Activity section: per-row try/catch so a single malformed
+  // transaction can't take down the list. Uses a generator
+  // pattern — each row is rendered in isolation, errors fall back
+  // to a per-row error chip.
+  const activitySection = await safeSection("Activity", () => (
+    <section style={{ marginBottom: 48 }}>
+      <SectionHeader
+        title="Activity"
+        em="this period."
+        meta={`${txCount} transaction${txCount === 1 ? "" : "s"} · ${formatMoney(totalIn)} in, ${formatMoney(totalOut)} out`}
+      />
+      {txForEnv.length === 0 ? (
+        <div
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--line)",
+            borderRadius: 4,
+            padding: "40px 32px",
+            textAlign: "center",
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 13,
+            color: "var(--ink-3)",
+            letterSpacing: "0.04em",
+          }}
+        >
+          Nothing has hit this vessel yet this period.
+        </div>
+      ) : (
+        <div
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--line)",
+            borderRadius: 4,
+            overflow: "hidden",
+          }}
+        >
+          {txForEnv.map((t, i) => {
+            // Per-row try/catch: a malformed row renders a chip
+            // rather than crashing the list.
+            try {
+              const kind = t.source === "allocation"
+                ? "Allocation"
+                : t.isIncome
+                ? "Refund"
+                : "Spend";
+              return (
+                <div
+                  key={t.id}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 120px 140px",
+                    alignItems: "center",
+                    gap: 20,
+                    padding: "16px 24px",
+                    borderBottom: i < txForEnv.length - 1 ? "1px solid var(--line-soft)" : "none",
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        fontFamily: "var(--font-sora)",
+                        fontSize: 15,
+                        fontWeight: 500,
+                        color: "var(--ink)",
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {t.payee}
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "var(--font-jetbrains), monospace",
+                        fontSize: 11,
+                        color: "var(--ink-3)",
+                        marginTop: 4,
+                        letterSpacing: "0.04em",
+                      }}
+                    >
+                      {kind.toUpperCase()} · {formatShortDate(t.date)}
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-jetbrains), monospace",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color:
+                        t.amountCents > 0
+                          ? "var(--ok)"
+                          : "var(--ink-3)",
+                      letterSpacing: "0.18em",
+                      textTransform: "uppercase",
+                      textAlign: "right",
+                    }}
+                  >
+                    {t.amountCents > 0 ? "[+] IN" : "[−] OUT"}
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-jetbrains), monospace",
+                      fontSize: 16,
+                      fontWeight: 500,
+                      color: t.amountCents > 0 ? "var(--ok)" : "var(--ink)",
+                      textAlign: "right",
+                      fontFeatureSettings: '"tnum" 1, "zero" 1',
+                    }}
+                  >
+                    {formatMoneySigned(t.amountCents)}
+                  </div>
+                </div>
+              );
+            } catch {
+              return (
+                <div
+                  key={t.id ?? `bad-${i}`}
+                  style={{
+                    padding: "12px 24px",
+                    background: "var(--surface)",
+                    borderBottom: i < txForEnv.length - 1 ? "1px solid var(--line-soft)" : "none",
+                    fontFamily: "var(--font-jetbrains), monospace",
+                    fontSize: 11,
+                    color: "var(--ink-3)",
+                  }}
+                >
+                  [WARN] transaction row couldn&apos;t render
+                </div>
+              );
+            }
+          })}
+        </div>
+      )}
+    </section>
+  ));
+
+  // Footer action bar: simple Links, low-risk. Kept unguarded
+  // because they don't depend on derived data — if they throw,
+  // (app)/error.tsx is the right escalation.
   return (
     <div>
       <PageHead
@@ -153,337 +632,11 @@ export default async function EnvelopeDetailPage({
         }
       />
 
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 0,
-          border: "1px solid var(--line)",
-          background: "var(--surface)",
-          marginBottom: 32,
-        }}
-      >
-        <Stat
-          label="current"
-          value={formatMoney(e.current)}
-          sub={`${Math.round(pct)}% of target`}
-          accent={isOver ? "neg" : undefined}
-        />
-        <Stat label="target" value={formatMoney(e.target)} sub="this period" />
-        <Stat
-          label="expected now"
-          value={formatMoney(Math.round(expectedAtPace))}
-          sub={`pacing day ${pacing.day} of ${pacing.total}`}
-        />
-        <Stat
-          label={onTrack ? "on pace" : isOver ? "over" : "ahead of pace"}
-          value={
-            isOver
-              ? `+${formatMoney(overage)}`
-              : `${formatMoneySigned(Math.round(-diff))}`
-          }
-          sub={
-            isOver
-              ? "over the target"
-              : onTrack
-              ? "tracking well"
-              : "ahead of the gold tick"
-          }
-          accent={isOver ? "neg" : onTrack ? "ok" : undefined}
-        />
-      </section>
-
-      <section style={{ marginBottom: 48 }}>
-        <SectionHeader
-          title="The vessel"
-          em="current vs target."
-          meta="Gold tick = pacing (where you should be)."
-        />
-        <div
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--line)",
-            borderLeft: `2px solid var(--${e.planet ?? "ink-2"})`,
-            borderRadius: 4,
-            padding: "32px 36px",
-          }}
-        >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "60px 1fr",
-              gap: 24,
-              alignItems: "center",
-              marginBottom: 24,
-            }}
-          >
-            <div
-              style={{
-                width: 60,
-                height: 60,
-                borderRadius: 2,
-                display: "grid",
-                placeItems: "center",
-                background: "var(--cosmos)",
-                border: `1px solid var(--${e.planet ?? "ink-2"})`,
-                boxShadow: `0 0 12px var(--${e.planet ?? "ink-2"})`,
-              }}
-            >
-              <VesselGlyph planet={e.planet} size={32} />
-            </div>
-            <div>
-              <div
-                style={{
-                  fontFamily: "var(--font-jetbrains), monospace",
-                  fontSize: 10.5,
-                  fontWeight: 600,
-                  color: `var(--${e.planet ?? "ink-3"})`,
-                  letterSpacing: "0.18em",
-                  textTransform: "uppercase",
-                  marginBottom: 4,
-                }}
-              >
-                <span style={{ color: "var(--ink-4)" }}>//</span> {planetName(e.planet)} · {e.target > 0 ? "FUNDING TARGET" : "NO TARGET"}
-              </div>
-              <div
-                style={{
-                  fontFamily: "var(--font-jetbrains), monospace",
-                  fontSize: 32,
-                  fontWeight: 600,
-                  color: isOver ? "var(--neg)" : "var(--ink)",
-                  lineHeight: 1,
-                  fontFeatureSettings: '"tnum" 1, "zero" 1',
-                }}
-              >
-                {formatMoney(e.current)}
-              </div>
-            </div>
-          </div>
-          {/* Custom bar with pacing tick — bigger than the row version. */}
-          <div
-            style={{
-              position: "relative",
-              height: 28,
-              background: "var(--cosmos)",
-              border: "1px solid var(--line-soft)",
-              borderRadius: 3,
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                bottom: 0,
-                left: 0,
-                width: `${Math.min(100, pct)}%`,
-                background: isOver
-                  ? "repeating-linear-gradient(45deg, var(--neg) 0px, var(--neg) 6px, transparent 6px, transparent 12px)"
-                  : `linear-gradient(90deg, var(--${e.planet ?? "ink-2"}) 0%, var(--${e.planet ?? "ink-2"}) 100%)`,
-                opacity: isOver ? 0.55 : 0.9,
-                boxShadow: `0 0 12px var(--${e.planet ?? "ink-2"})`,
-              }}
-            />
-            {/* Pacing tick */}
-            <div
-              style={{
-                position: "absolute",
-                top: -4,
-                bottom: -4,
-                left: `${Math.min(100, pacingPct)}%`,
-                width: 3,
-                background: "var(--terminal-cyan)",
-                boxShadow: "0 0 8px var(--gold)",
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                top: 4,
-                left: `${Math.min(100, pacingPct) - 2}%`,
-                transform: "translateX(-50%)",
-                width: 0,
-                height: 0,
-                borderLeft: "5px solid transparent",
-                borderRight: "5px solid transparent",
-                borderTop: "6px solid var(--gold)",
-              }}
-            />
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontFamily: "var(--font-jetbrains), monospace",
-              fontSize: 10,
-              fontWeight: 600,
-              color: "var(--ink-3)",
-              marginTop: 10,
-              letterSpacing: "0.10em",
-              textTransform: "uppercase",
-            }}
-          >
-            <span>$0</span>
-            <span style={{ color: "var(--gold)" }}>
-              ◆ DAY {pacing.day} / {pacing.total} (PACE)
-            </span>
-            <span>{formatMoney(e.target)}</span>
-          </div>
-        </div>
-      </section>
-
-      <section style={{ marginBottom: 48 }}>
-        <SectionHeader
-          title="Cadence"
-          em="last 14 days, by day."
-          meta="Match the trend against the transactions below."
-        />
-        <EnvelopeCadenceChart
-          burnCents={burnCents}
-          planet={e.planet}
-          envelopeName={e.name}
-          startDate={cadenceStart}
-        />
-      </section>
-
-      {/* Cluster 7.28 — Sinking funds */}
-      <section
-        style={{ marginBottom: 48 }}
-        data-testid="envelope-sinks-section"
-      >
-        <SectionHeader
-          title="Sinking funds"
-          em="known-but-irregular expenses inside this vessel."
-          meta={`${SINKS.length} sink${SINKS.length === 1 ? "" : "s"} · auto-fill ${formatMoney(SINKS.reduce((s, sn) => s + monthlyFillCents(sn.targetCents, sn.cadence), 0))}/mo`}
-        />
-        <div
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--line)",
-            borderRadius: 4,
-            padding: SINKS.length > 0 ? 0 : 0,
-          }}
-        >
-          <SinkList
-            envelopeId={id}
-            sinks={SINKS.map((s) => ({
-              id: s.id,
-              name: s.name,
-              targetCents: s.targetCents,
-              cadence: s.cadence,
-            }))}
-          />
-        </div>
-        <AddSinkForm envelopeId={id} />
-      </section>
-
-      <section style={{ marginBottom: 48 }}>
-        <SectionHeader
-          title="Activity"
-          em="this period."
-          meta={`${txCount} transaction${txCount === 1 ? "" : "s"} · ${formatMoney(totalIn)} in, ${formatMoney(totalOut)} out`}
-        />
-        {txForEnv.length === 0 ? (
-          <div
-            style={{
-              background: "var(--surface)",
-              border: "1px solid var(--line)",
-              borderRadius: 4,
-              padding: "40px 32px",
-              textAlign: "center",
-              fontFamily: "var(--font-jetbrains), monospace",
-              fontSize: 13,
-              color: "var(--ink-3)",
-              letterSpacing: "0.04em",
-            }}
-          >
-            Nothing has hit this vessel yet this period.
-          </div>
-        ) : (
-          <div
-            style={{
-              background: "var(--surface)",
-              border: "1px solid var(--line)",
-              borderRadius: 4,
-              overflow: "hidden",
-            }}
-          >
-            {txForEnv.map((t, i) => {
-              const kind = t.source === "allocation"
-                ? "Allocation"
-                : t.isIncome
-                ? "Refund"
-                : "Spend";
-              return (
-              <div
-                key={t.id}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 120px 140px",
-                  alignItems: "center",
-                  gap: 20,
-                  padding: "16px 24px",
-                  borderBottom: i < txForEnv.length - 1 ? "1px solid var(--line-soft)" : "none",
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-sora)",
-                      fontSize: 15,
-                      fontWeight: 500,
-                      color: "var(--ink)",
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    {t.payee}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-jetbrains), monospace",
-                      fontSize: 11,
-                      color: "var(--ink-3)",
-                      marginTop: 4,
-                      letterSpacing: "0.04em",
-                    }}
-                  >
-                    {kind.toUpperCase()} · {formatShortDate(t.date)}
-                  </div>
-                </div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-jetbrains), monospace",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color:
-                      t.amountCents > 0
-                        ? "var(--ok)"
-                        : "var(--ink-3)",
-                    letterSpacing: "0.18em",
-                    textTransform: "uppercase",
-                    textAlign: "right",
-                  }}
-                >
-                  {t.amountCents > 0 ? "[+] IN" : "[−] OUT"}
-                </div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-jetbrains), monospace",
-                    fontSize: 16,
-                    fontWeight: 500,
-                    color: t.amountCents > 0 ? "var(--ok)" : "var(--ink)",
-                    textAlign: "right",
-                    fontFeatureSettings: '"tnum" 1, "zero" 1',
-                  }}
-                >
-                  {formatMoneySigned(t.amountCents)}
-                </div>
-              </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
+      {statsSection}
+      {vesselSection}
+      {cadenceSection}
+      {sinksSection}
+      {activitySection}
 
       <section>
         <div
@@ -573,6 +726,13 @@ export default async function EnvelopeDetailPage({
   );
 }
 
+// ──────────────────────────────────────────────────────────────────────
+// In-file helpers (Stat, SectionHeader, planetName) — Cluster 1.10
+// primitives that the page still owns locally rather than moving to
+// the components/alchemy directory. Kept here so the section
+// refactor in 7.43 doesn't fan out imports.
+// ──────────────────────────────────────────────────────────────────────
+
 function Stat({
   label,
   value,
@@ -581,22 +741,14 @@ function Stat({
 }: {
   label: string;
   value: string;
-  sub: string;
-  accent?: "ok" | "warn" | "neg";
+  sub?: string;
+  accent?: "neg" | "ok" | undefined;
 }) {
-  const color =
-    accent === "neg"
-      ? "var(--neg)"
-      : accent === "warn"
-      ? "var(--warn)"
-      : accent === "ok"
-      ? "var(--ok)"
-      : "var(--ink)";
   return (
     <div
       style={{
         padding: "20px 24px",
-        borderRight: "1px solid var(--line-soft)",
+        borderRight: "1px solid var(--line)",
       }}
     >
       <div
@@ -604,37 +756,44 @@ function Stat({
           fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 9.5,
           fontWeight: 600,
-          color: "var(--ink-3)",
           letterSpacing: "0.18em",
           textTransform: "uppercase",
-          marginBottom: 10,
+          color: "var(--ink-3)",
+          marginBottom: 8,
         }}
       >
-        <span style={{ color: "var(--ink-4)" }}>//</span> {label}
+        {label}
       </div>
       <div
         style={{
           fontFamily: "var(--font-jetbrains), monospace",
           fontSize: 22,
           fontWeight: 600,
-          lineHeight: 1,
-          color,
+          color:
+            accent === "neg"
+              ? "var(--neg)"
+              : accent === "ok"
+                ? "var(--ok)"
+                : "var(--ink)",
           fontFeatureSettings: '"tnum" 1, "zero" 1',
+          letterSpacing: "-0.01em",
         }}
       >
         {value}
       </div>
-      <div
-        style={{
-          fontFamily: "var(--font-jetbrains), monospace",
-          fontSize: 10.5,
-          color: "var(--ink-3)",
-          marginTop: 6,
-          letterSpacing: "0.04em",
-        }}
-      >
-        {sub}
-      </div>
+      {sub ? (
+        <div
+          style={{
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 10.5,
+            color: "var(--ink-3)",
+            marginTop: 4,
+            letterSpacing: "0.05em",
+          }}
+        >
+          {sub}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -649,80 +808,60 @@ function SectionHeader({
   meta?: string;
 }) {
   return (
-    <div
+    <header
       style={{
         display: "flex",
-        alignItems: "flex-end",
+        alignItems: "baseline",
         justifyContent: "space-between",
-        marginBottom: 20,
-        paddingBottom: 14,
-        borderBottom: "1px solid var(--line)",
+        gap: 16,
+        marginBottom: 14,
       }}
     >
-      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-        <span
-          style={{
-            fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 9.5,
-            fontWeight: 600,
-            color: "var(--terminal-cyan)",
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-          }}
-        >
-          <span style={{ color: "var(--ink-4)" }}>//</span>
-        </span>
+      <div>
         <h2
           style={{
             fontFamily: "var(--font-sora)",
+            fontSize: 17,
             fontWeight: 600,
-            fontSize: 22,
-            letterSpacing: "-0.01em",
-            margin: 0,
             color: "var(--ink)",
+            margin: 0,
+            letterSpacing: "-0.005em",
           }}
         >
           {title}
         </h2>
-        {em && (
-          <span
+        {em ? (
+          <p
             style={{
               fontFamily: "var(--font-sora)",
-              fontWeight: 400,
-              fontSize: 15,
+              fontSize: 12,
               color: "var(--ink-3)",
+              margin: "2px 0 0",
+              fontStyle: "italic",
             }}
           >
             {em}
-          </span>
-        )}
+          </p>
+        ) : null}
       </div>
-      {meta && (
+      {meta ? (
         <div
           style={{
             fontFamily: "var(--font-jetbrains), monospace",
             fontSize: 10,
             color: "var(--ink-3)",
-            letterSpacing: "0.10em",
-            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            textAlign: "right",
+            maxWidth: 360,
           }}
         >
           {meta}
         </div>
-      )}
-    </div>
+      ) : null}
+    </header>
   );
 }
 
-function planetName(planet: string | null | undefined): string {
-  const names: Record<string, string> = {
-    sol: "Sol · Rent",
-    luna: "Luna · Groceries",
-    mars: "Mars · Buffer",
-    mercury: "Mercury · Utilities",
-    jupiter: "Jupiter · Savings",
-    venus: "Venus · Joy",
-    saturn: "Saturn · Debt",
-  };
-  return (planet && names[planet]) || "Envelope";
+function planetName(p: PlanetId): string {
+  return p.charAt(0).toUpperCase() + p.slice(1);
 }
