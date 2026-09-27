@@ -1,0 +1,1067 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#060A12" />
+    <title>Compass — Your money, on a path.</title>
+    <meta
+      name="description"
+      content="Compass is the personal-finance cockpit built around the pay period, not the calendar month. Vessels, rules, an L1 routing engine, and an audit log — so the LLM never does your math."
+    />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Compass — Your money, on a path." />
+    <meta
+      property="og:description"
+      content="A personal-finance cockpit built around the pay period. Vessels, plan-as-policy, L1 rules with an audit log."
+    />
+    <meta property="og:type" content="website" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <!-- ============================ TOP NAV ============================ -->
+    <header class="nav" role="banner">
+      <div class="nav__inner">
+        <a class="nav__brand" href="#top" aria-label="Compass home">
+          <span class="brand__mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" width="22" height="22">
+              <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="1.5" />
+              <path d="M16 4 L19 16 L16 28 L13 16 Z" fill="currentColor" />
+              <circle cx="16" cy="16" r="1.5" fill="#060A12" />
+            </svg>
+          </span>
+          <span class="brand__name">COMPASS</span>
+          <span class="brand__ver">v4.0</span>
+        </a>
+
+        <nav class="nav__links" aria-label="Primary">
+          <a href="#manifesto">Manifesto</a>
+          <a href="#cockpit">Cockpit</a>
+          <a href="#plan">Plan</a>
+          <a href="#ai">Two-tier AI</a>
+          <a href="#voice">Voice</a>
+        </nav>
+
+        <div class="nav__cta">
+          <span class="status-pill" aria-live="polite">
+            <span class="status-pill__dot" aria-hidden="true"></span>
+            <span class="status-pill__label">PERIOD 14 · 5d REMAIN</span>
+          </span>
+          <a class="btn btn--primary btn--sm" href="#waitlist">REQUEST ACCESS →</a>
+        </div>
+      </div>
+      <div class="nav__rule" aria-hidden="true"></div>
+    </header>
+
+    <main id="main">
+      <!-- ============================ HERO ============================ -->
+      <section id="top" class="hero" aria-labelledby="hero-headline">
+        <div class="container hero__inner">
+          <div class="hero__meta">
+            <span class="badge"><span class="badge__sigil">[INDEXED]</span> COMPASS · SPEC v4.0</span>
+            <span class="badge badge--muted"><span class="badge__sigil">[SIGIL]</span> PERIOD-FIRST · L1 ROUTING</span>
+          </div>
+
+          <h1 id="hero-headline" class="hero__headline">
+            Your money,<br />
+            <span class="hero__headline--accent">on a path.</span>
+          </h1>
+
+          <p class="hero__sub">
+            Compass is the personal-finance cockpit built around the pay period — not the
+            calendar month. Every dollar has a vessel. The plan runs on every paycheck, no
+            confirm modal. The L1 rules engine does your math, the audit log keeps the receipt,
+            and the LLM never sees your numbers.
+          </p>
+
+          <div class="hero__cta">
+            <a class="btn btn--primary" href="#waitlist">
+              REQUEST ACCESS <span aria-hidden="true">→</span>
+            </a>
+            <a class="btn btn--ghost" href="#spec">
+              <span class="btn__sigil">[READ]</span> SPEC.md
+            </a>
+            <a class="btn btn--link" href="#cockpit">see the cockpit ↓</a>
+          </div>
+
+          <!-- Terminal status strip -->
+          <div class="terminal" role="figure" aria-label="System status">
+            <div class="terminal__bar">
+              <span class="terminal__dot" style="background: #F87171"></span>
+              <span class="terminal__dot" style="background: #C9A45C"></span>
+              <span class="terminal__dot" style="background: #4ADE80"></span>
+              <span class="terminal__title">compass@cockpit ~ /period/14</span>
+            </div>
+            <pre class="terminal__body"><code><span class="t-ok">[OK]</span>     unit_of_truth         <span class="t-em">pay_period · biweekly</span>
+<span class="t-sigil">[SIGIL]</span>  routing_level         <span class="t-em">L1 · plan-as-policy</span>
+<span class="t-idx">[INDEXED]</span> vessels              <span class="t-em">rent · groceries · buffer · utilities · growth · joy · debt</span>
+<span class="t-ok">[OK]</span>     auto_allocate         <span class="t-em">armed · fires on every paycheck · no modal</span>
+<span class="t-ok">[OK]</span>     ai_tier               <span class="t-em">mom:1 (assistive) · operator:3 (autonomous)</span>
+<span class="t-ok">[OK]</span>     audit_log             <span class="t-em">every automated action recorded</span>
+<span class="t-warn">[WARN]</span>  llm_math              <span class="t-em">disabled by design · L1 engine is the only writer</span></code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ MANIFESTO ============================ -->
+      <section id="manifesto" class="section" aria-labelledby="manifesto-h">
+        <div class="container">
+          <header class="section__head">
+            <span class="section__sigil">[01] MANIFESTO · FOUR PILLARS</span>
+            <h2 id="manifesto-h" class="section__title">
+              A finance cockpit built around the way money actually <em>arrives</em>.
+            </h2>
+          </header>
+
+          <div class="manifesto__grid">
+            <article class="manifesto__lead">
+              <p>
+                The spreadsheet doesn't know when you get paid. The budget app doesn't know that
+                Friday's check has to last until the check two Fridays from now. Compass does —
+                because the <strong class="teal">pay period</strong> is the unit of truth, and
+                everything else hangs from it.
+              </p>
+              <p class="muted">
+                Built for the next paycheck, not the next month. Mom-grade clarity at every
+                surface, world-class depth under the hood.
+              </p>
+            </article>
+
+            <article class="principle">
+              <div class="principle__head">
+                <span class="principle__sigil">[P1] · D11</span>
+                <h3>Period, not month</h3>
+              </div>
+              <p>
+                Everything is anchored to your pay schedule — biweekly by default. The cockpit
+                shows <em>period 14, May 3 → May 17, 5 days remain</em>, not "May 2026". Period
+                close writes a snapshot; the next period is a clean slate.
+              </p>
+            </article>
+
+            <article class="principle">
+              <div class="principle__head">
+                <span class="principle__sigil">[P2] · D14</span>
+                <h3>Vessels, not buckets</h3>
+              </div>
+              <p>
+                Seven planetary vessels with plain-English names: Rent, Groceries, Buffer,
+                Utilities, Growth, Joy, Debt. Every dollar has a home. The planetary glyph is
+                visual — the labels are mom-grade.
+              </p>
+            </article>
+
+            <article class="principle">
+              <div class="principle__head">
+                <span class="principle__sigil">[P3] · D12</span>
+                <h3>Plan-as-policy</h3>
+              </div>
+              <p>
+                Set the allocation plan once. The L1 routing engine fires on every paycheck,
+                silently, with no confirm modal. The audit log records the action. To change
+                behavior, edit the plan — not your Friday night.
+              </p>
+            </article>
+
+            <article class="principle">
+              <div class="principle__head">
+                <span class="principle__sigil">[P4] · D4 + audit</span>
+                <h3>L1 rules + audit log</h3>
+              </div>
+              <p>
+                The L1 engine computes. The LLM advises. The LLM <em>never</em> writes to your
+                ledger. Every automated action is journaled: amount, source, rule fired, when.
+                The receipt is always one click away.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ COCKPIT (Dashboard preview) ============================ -->
+      <section id="cockpit" class="section section--tight" aria-labelledby="cockpit-h">
+        <div class="container">
+          <header class="section__head section__head--row">
+            <div>
+              <span class="section__sigil">[02] COCKPIT · PREVIEW</span>
+              <h2 id="cockpit-h" class="section__title">
+                One screen. <em>Period 14.</em>
+              </h2>
+            </div>
+            <p class="section__lede">
+              The default landing surface — the same widgets your mom sees on Friday afternoon
+              when the check clears. Drag-and-drop to make it yours; save views for "bill-paying
+              mode", "monthly review", or whatever your rhythm needs.
+            </p>
+          </header>
+
+          <!-- Mock dashboard frame -->
+          <div class="dash" role="figure" aria-label="Compass cockpit preview">
+            <div class="dash__chrome">
+              <div class="dash__traffic">
+                <span style="background:#F87171"></span>
+                <span style="background:#C9A45C"></span>
+                <span style="background:#4ADE80"></span>
+              </div>
+              <div class="dash__addr">compass://cockpit · <span class="muted">daily glance</span></div>
+              <div class="dash__time" id="dash-time">— : — : —</div>
+            </div>
+
+            <div class="dash__grid">
+              <!-- Period header card -->
+              <div class="card card--headline">
+                <div class="card__head">
+                  <span class="card__label">PERIOD 14 · MAY 3 → MAY 17</span>
+                  <span class="badge badge--ok"><span class="badge__sigil">[OK]</span> 5 DAYS REMAIN</span>
+                </div>
+                <div class="card__amount">
+                  <span class="amount__currency">$</span>
+                  <span class="amount__major">1,847</span>
+                  <span class="amount__cents">.42</span>
+                </div>
+                <div class="card__sub muted">safe to spend · period runway</div>
+                <div class="card__suggest card__suggest--pulse">
+                  <span class="card__suggest-sigil">→</span>
+                  <span
+                    >L1 fires automatically on May 17 paycheck — no modal. Audit will record:
+                    <strong class="teal">+ $2,400</strong> → 7 vessels. Pause anytime by editing
+                    the plan.</span
+                  >
+                  <span class="card__suggest-pulse" aria-hidden="true"></span>
+                </div>
+                <div class="spark" id="spark" data-points="42,38,40,33,36,30,28,32,24,26,18,22,12">
+                  <svg viewBox="0 0 300 60" preserveAspectRatio="none" width="100%" height="60">
+                    <defs>
+                      <linearGradient id="sg1" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0%" stop-color="#2DD4BF" stop-opacity="0.45" />
+                        <stop offset="100%" stop-color="#2DD4BF" stop-opacity="0" />
+                      </linearGradient>
+                    </defs>
+                    <path
+                      d="M0,42 L25,38 L50,40 L75,33 L100,36 L125,30 L150,28 L175,32 L200,24 L225,26 L250,18 L275,22 L300,12 L300,60 L0,60 Z"
+                      fill="url(#sg1)"
+                    />
+                    <path
+                      d="M0,42 L25,38 L50,40 L75,33 L100,36 L125,30 L150,28 L175,32 L200,24 L225,26 L250,18 L275,22 L300,12"
+                      fill="none"
+                      stroke="#2DD4BF"
+                      stroke-width="1.5"
+                    />
+                    <circle
+                      id="spark-dot"
+                      cx="300"
+                      cy="12"
+                      r="3.5"
+                      fill="#2DD4BF"
+                      stroke="#060A12"
+                      stroke-width="1.5"
+                      opacity="0"
+                    />
+                    <line
+                      id="spark-cross"
+                      x1="300"
+                      x2="300"
+                      y1="0"
+                      y2="60"
+                      stroke="#2DD4BF"
+                      stroke-width="1"
+                      stroke-dasharray="2 3"
+                      opacity="0"
+                    />
+                  </svg>
+                  <div class="spark__tip" id="spark-tip" role="tooltip" aria-hidden="true">
+                    <span class="spark__tip-day">day 13</span>
+                    <span class="spark__tip-val">$1,847</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Plan-as-policy card -->
+              <div class="card card--net">
+                <div class="card__head">
+                  <span class="card__label">ALLOCATION PLAN</span>
+                  <span class="badge"><span class="badge__sigil">[ARMED]</span> AUTO</span>
+                </div>
+                <div class="card__amount card__amount--sm">
+                  <span class="amount__currency">$</span>
+                  <span class="amount__major">2,400</span>
+                </div>
+                <div class="card__sub muted">next paycheck · May 17</div>
+                <ul class="alloc">
+                  <li><span class="alloc__name">Rent</span><span class="alloc__pct">40%</span><span class="alloc__amt">$ 960</span></li>
+                  <li><span class="alloc__name">Groceries</span><span class="alloc__pct">20%</span><span class="alloc__amt">$ 480</span></li>
+                  <li><span class="alloc__name">Growth</span><span class="alloc__pct">18%</span><span class="alloc__amt">$ 432</span></li>
+                  <li><span class="alloc__name">Utilities</span><span class="alloc__pct">8%</span><span class="alloc__amt">$ 192</span></li>
+                  <li><span class="alloc__name">Buffer</span><span class="alloc__pct">6%</span><span class="alloc__amt">$ 144</span></li>
+                  <li><span class="alloc__name">Joy</span><span class="alloc__pct">4%</span><span class="alloc__amt">$ 96</span></li>
+                  <li><span class="alloc__name">Debt</span><span class="alloc__pct">4%</span><span class="alloc__amt">$ 96</span></li>
+                </ul>
+                <div class="card__suggest">
+                  <span class="card__suggest-sigil">→</span>
+                  Audit will write: <strong class="teal">L1 auto-distill · 7 transfers · $2,400</strong>.
+                </div>
+              </div>
+
+              <!-- Off-ramps (bills) card -->
+              <div class="card card--bills">
+                <div class="card__head">
+                  <span class="card__label">OFF-RAMPS · NEXT 7 DAYS</span>
+                  <span class="card__count">4</span>
+                </div>
+                <ul class="bills">
+                  <li>
+                    <span class="bills__name">Electric · Mercury</span>
+                    <span class="bills__date">in 1d</span>
+                    <span class="bills__amt">$ 84.20</span>
+                  </li>
+                  <li>
+                    <span class="bills__name">Internet · Mercury</span>
+                    <span class="bills__date">in 3d</span>
+                    <span class="bills__amt">$ 69.99</span>
+                  </li>
+                  <li>
+                    <span class="bills__name">Car insurance · Saturn</span>
+                    <span class="bills__date">in 5d</span>
+                    <span class="bills__amt">$ 142.00</span>
+                  </li>
+                  <li>
+                    <span class="bills__name">Streaming · Venus</span>
+                    <span class="bills__date">in 6d</span>
+                    <span class="bills__amt">$ 39.00</span>
+                  </li>
+                </ul>
+                <div class="card__suggest">
+                  <span class="card__suggest-sigil">→</span>
+                  All four covered by <strong class="teal">Mercury + Saturn + Venus</strong> vessels.
+                  No intervention needed.
+                </div>
+              </div>
+
+              <!-- Almanac card -->
+              <div class="card card--calendar">
+                <div class="card__head">
+                  <span class="card__label">ALMANAC · MAY 2026 · PERIOD 14</span>
+                  <div class="almanac__legend" aria-hidden="true">
+                    <span class="almanac__leg almanac__leg--period"><span class="almanac__leg-dot"></span>period 14</span>
+                    <span class="almanac__leg almanac__leg--today"><span class="almanac__leg-dot"></span>today</span>
+                    <span class="almanac__leg almanac__leg--payday"><span class="almanac__leg-dot"></span>payday</span>
+                    <span class="almanac__leg almanac__leg--goal"><span class="almanac__leg-dot"></span>goal</span>
+                  </div>
+                </div>
+
+                <!-- Day-of-week headers with planetary glyphs -->
+                <div class="almanac__grid">
+                  <div class="almanac__dow"><span class="almanac__planet">☉</span><span>SUN</span></div>
+                  <div class="almanac__dow"><span class="almanac__planet">☽</span><span>MON</span></div>
+                  <div class="almanac__dow"><span class="almanac__planet">♂</span><span>TUE</span></div>
+                  <div class="almanac__dow"><span class="almanac__planet">☿</span><span>WED</span></div>
+                  <div class="almanac__dow"><span class="almanac__planet">♃</span><span>THU</span></div>
+                  <div class="almanac__dow"><span class="almanac__planet">♀</span><span>FRI</span></div>
+                  <div class="almanac__dow"><span class="almanac__planet">♄</span><span>SAT</span></div>
+
+                  <!-- Week 1: Apr 26 ... May 2 (Apr cells dimmed) -->
+                  <div class="almanac__day almanac__day--off"><span class="almanac__num">26</span></div>
+                  <div class="almanac__day almanac__day--off"><span class="almanac__num">27</span></div>
+                  <div class="almanac__day almanac__day--off"><span class="almanac__num">28</span></div>
+                  <div class="almanac__day almanac__day--off"><span class="almanac__num">29</span></div>
+                  <div class="almanac__day almanac__day--off"><span class="almanac__num">30</span></div>
+                  <div class="almanac__day"><span class="almanac__num">1</span></div>
+                  <div class="almanac__day"><span class="almanac__num">2</span></div>
+
+                  <!-- Week 2: May 3-9 — period 14 begins (☉ 3) -->
+                  <div class="almanac__day almanac__day--period"><span class="almanac__num">3</span></div>
+                  <div class="almanac__day almanac__day--period"><span class="almanac__num">4</span></div>
+                  <div class="almanac__day almanac__day--period almanac__day--bill">
+                    <span class="almanac__num">5</span>
+                    <span class="almanac__tag">rent −$1,400</span>
+                  </div>
+                  <div class="almanac__day almanac__day--period"><span class="almanac__num">6</span></div>
+                  <div class="almanac__day almanac__day--period"><span class="almanac__num">7</span></div>
+                  <div class="almanac__day almanac__day--period almanac__day--bill">
+                    <span class="almanac__num">8</span>
+                    <span class="almanac__tag">insur. −$142</span>
+                  </div>
+                  <div class="almanac__day almanac__day--period"><span class="almanac__num">9</span></div>
+
+                  <!-- Week 3: May 10-16 — today (♂ 12), goals (♃ 13,14) -->
+                  <div class="almanac__day almanac__day--period"><span class="almanac__num">10</span></div>
+                  <div class="almanac__day almanac__day--period"><span class="almanac__num">11</span></div>
+                  <div class="almanac__day almanac__day--period almanac__day--today">
+                    <span class="almanac__num">12</span>
+                    <span class="almanac__tag almanac__tag--today">today</span>
+                  </div>
+                  <div class="almanac__day almanac__day--period almanac__day--goal">
+                    <span class="almanac__num">13</span>
+                    <span class="almanac__tag">+$80</span>
+                  </div>
+                  <div class="almanac__day almanac__day--period almanac__day--goal">
+                    <span class="almanac__num">14</span>
+                    <span class="almanac__tag">+$80</span>
+                  </div>
+                  <div class="almanac__day almanac__day--period"><span class="almanac__num">15</span></div>
+                  <div class="almanac__day almanac__day--period"><span class="almanac__num">16</span></div>
+
+                  <!-- Week 4: May 17-23 — payday (☉ 17), period 15 begins (☽ 18) -->
+                  <div class="almanac__day almanac__day--period almanac__day--payday">
+                    <span class="almanac__num">17</span>
+                    <span class="almanac__tag">+$2,400</span>
+                    <span class="almanac__cap">payday</span>
+                  </div>
+                  <div class="almanac__day"><span class="almanac__num">18</span></div>
+                  <div class="almanac__day"><span class="almanac__num">19</span></div>
+                  <div class="almanac__day"><span class="almanac__num">20</span></div>
+                  <div class="almanac__day"><span class="almanac__num">21</span></div>
+                  <div class="almanac__day"><span class="almanac__num">22</span></div>
+                  <div class="almanac__day"><span class="almanac__num">23</span></div>
+
+                  <!-- Week 5: May 24-30 -->
+                  <div class="almanac__day"><span class="almanac__num">24</span></div>
+                  <div class="almanac__day"><span class="almanac__num">25</span></div>
+                  <div class="almanac__day"><span class="almanac__num">26</span></div>
+                  <div class="almanac__day"><span class="almanac__num">27</span></div>
+                  <div class="almanac__day"><span class="almanac__num">28</span></div>
+                  <div class="almanac__day"><span class="almanac__num">29</span></div>
+                  <div class="almanac__day"><span class="almanac__num">30</span></div>
+
+                  <!-- Week 6: May 31 -->
+                  <div class="almanac__day"><span class="almanac__num">31</span></div>
+                  <div class="almanac__day almanac__day--off"></div>
+                  <div class="almanac__day almanac__day--off"></div>
+                  <div class="almanac__day almanac__day--off"></div>
+                  <div class="almanac__day almanac__day--off"></div>
+                  <div class="almanac__day almanac__day--off"></div>
+                  <div class="almanac__day almanac__day--off"></div>
+                </div>
+
+                <div class="card__suggest">
+                  <span class="card__suggest-sigil">→</span>
+                  <strong class="teal">☉ May 17</strong> is the period close — L1 fires, audit writes,
+                  Period 15 begins on ☽ May 18. <em>Plan-as-policy.</em>
+                </div>
+              </div>
+
+              <!-- Vessels card -->
+              <div class="card card--goals">
+                <div class="card__head">
+                  <span class="card__label">VESSELS · IN FLIGHT</span>
+                  <span class="badge badge--muted"><span class="badge__sigil">[INDEXED]</span> 7 ACTIVE</span>
+                </div>
+                <div class="goals">
+                  <div class="goal">
+                    <div class="goal__head">
+                      <span class="goal__name">☉ Rent</span>
+                      <span class="goal__pct">62%</span>
+                    </div>
+                    <div class="goal__bar"><span style="width:62%; background:#C9A45C"></span></div>
+                    <div class="goal__foot muted">$1,240 of $2,000 · Sol's vessel</div>
+                  </div>
+                  <div class="goal">
+                    <div class="goal__head">
+                      <span class="goal__name">☽ Groceries</span>
+                      <span class="goal__pct">88%</span>
+                    </div>
+                    <div class="goal__bar"><span style="width:88%"></span></div>
+                    <div class="goal__foot muted">$352 of $400 · Luna's vessel</div>
+                  </div>
+                  <div class="goal">
+                    <div class="goal__head">
+                      <span class="goal__name">♃ Growth</span>
+                      <span class="goal__pct">34%</span>
+                    </div>
+                    <div class="goal__bar"><span style="width:34%"></span></div>
+                    <div class="goal__foot muted">$1,360 of $4,000 · Jupiter's vessel</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Allocation donut -->
+              <div class="card card--donut">
+                <div class="card__head">
+                  <span class="card__label">ALLOCATION · LAST PERIOD</span>
+                  <span class="card__count">P13</span>
+                </div>
+                <div class="donut">
+                  <svg
+                    class="donut__svg"
+                    viewBox="0 0 100 100"
+                    width="140"
+                    height="140"
+                    aria-hidden="true"
+                  >
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      fill="none"
+                      stroke="#111A2A"
+                      stroke-width="14"
+                    />
+                    <!-- Rent: 40% — gold -->
+                    <circle
+                      class="donut__seg"
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      fill="none"
+                      stroke="#C9A45C"
+                      stroke-width="14"
+                      stroke-dasharray="95.50 238.76"
+                      stroke-dashoffset="0"
+                      transform="rotate(-90 50 50)"
+                      style="--seg-len: 95.50; --seg-offset: 0;"
+                      data-label="Rent (☉ Sol)"
+                      data-amt="$960"
+                      data-pct="40%"
+                    />
+                    <!-- Groceries: 20% — teal -->
+                    <circle
+                      class="donut__seg"
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      fill="none"
+                      stroke="#2DD4BF"
+                      stroke-width="14"
+                      stroke-dasharray="47.75 238.76"
+                      stroke-dashoffset="-95.50"
+                      transform="rotate(-90 50 50)"
+                      style="--seg-len: 47.75; --seg-offset: -95.50;"
+                      data-label="Groceries (☽ Luna)"
+                      data-amt="$480"
+                      data-pct="20%"
+                    />
+                    <!-- Growth: 18% — green -->
+                    <circle
+                      class="donut__seg"
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      fill="none"
+                      stroke="#4ADE80"
+                      stroke-width="14"
+                      stroke-dasharray="42.98 238.76"
+                      stroke-dashoffset="-143.25"
+                      transform="rotate(-90 50 50)"
+                      style="--seg-len: 42.98; --seg-offset: -143.25;"
+                      data-label="Growth (♃ Jupiter)"
+                      data-amt="$432"
+                      data-pct="18%"
+                    />
+                    <!-- Utilities: 8% — surface-2 -->
+                    <circle
+                      class="donut__seg"
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      fill="none"
+                      stroke="#5EEAD4"
+                      stroke-width="14"
+                      stroke-dasharray="19.10 238.76"
+                      stroke-dashoffset="-186.23"
+                      transform="rotate(-90 50 50)"
+                      style="--seg-len: 19.10; --seg-offset: -186.23;"
+                      data-label="Utilities (☿ Mercury)"
+                      data-amt="$192"
+                      data-pct="8%"
+                    />
+                    <!-- Buffer: 6% — warn -->
+                    <circle
+                      class="donut__seg"
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      fill="none"
+                      stroke="#F87171"
+                      stroke-width="14"
+                      stroke-dasharray="14.33 238.76"
+                      stroke-dashoffset="-205.33"
+                      transform="rotate(-90 50 50)"
+                      style="--seg-len: 14.33; --seg-offset: -205.33;"
+                      data-label="Buffer (♂ Mars)"
+                      data-amt="$144"
+                      data-pct="6%"
+                    />
+                    <!-- Joy: 4% — gold-dim -->
+                    <circle
+                      class="donut__seg"
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      fill="none"
+                      stroke="#a38445"
+                      stroke-width="14"
+                      stroke-dasharray="9.55 238.76"
+                      stroke-dashoffset="-219.66"
+                      transform="rotate(-90 50 50)"
+                      style="--seg-len: 9.55; --seg-offset: -219.66;"
+                      data-label="Joy (♀ Venus)"
+                      data-amt="$96"
+                      data-pct="4%"
+                    />
+                    <!-- Debt: 4% — surface-3 -->
+                    <circle
+                      class="donut__seg"
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      fill="none"
+                      stroke="#475569"
+                      stroke-width="14"
+                      stroke-dasharray="9.55 238.76"
+                      stroke-dashoffset="-229.21"
+                      transform="rotate(-90 50 50)"
+                      style="--seg-len: 9.55; --seg-offset: -229.21;"
+                      data-label="Debt (♄ Saturn)"
+                      data-amt="$96"
+                      data-pct="4%"
+                    />
+                  </svg>
+                  <div class="donut__center" aria-hidden="true">
+                    <span class="donut__center-amt">$2,400</span>
+                    <span class="donut__center-lbl muted">distilled · P13</span>
+                  </div>
+                </div>
+                <ul class="donut__legend" id="donut-legend">
+                  <li data-seg="0">
+                    <span class="donut__sw" style="background:#C9A45C"></span>
+                    <span class="donut__name">Rent</span>
+                    <span class="donut__amt">40%</span>
+                  </li>
+                  <li data-seg="1">
+                    <span class="donut__sw" style="background:#2DD4BF"></span>
+                    <span class="donut__name">Groceries</span>
+                    <span class="donut__amt">20%</span>
+                  </li>
+                  <li data-seg="2">
+                    <span class="donut__sw" style="background:#4ADE80"></span>
+                    <span class="donut__name">Growth</span>
+                    <span class="donut__amt">18%</span>
+                  </li>
+                  <li data-seg="3">
+                    <span class="donut__sw" style="background:#5EEAD4"></span>
+                    <span class="donut__name">Utilities</span>
+                    <span class="donut__amt">8%</span>
+                  </li>
+                  <li data-seg="4">
+                    <span class="donut__sw" style="background:#F87171"></span>
+                    <span class="donut__name">Buffer</span>
+                    <span class="donut__amt">6%</span>
+                  </li>
+                  <li data-seg="5">
+                    <span class="donut__sw" style="background:#a38445"></span>
+                    <span class="donut__name">Joy</span>
+                    <span class="donut__amt">4%</span>
+                  </li>
+                  <li data-seg="6">
+                    <span class="donut__sw" style="background:#475569"></span>
+                    <span class="donut__name">Debt</span>
+                    <span class="donut__amt">4%</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="dash__footer">
+              <span><span class="t-ok">[OK]</span> L1 engine · armed</span>
+              <span class="muted">·</span>
+              <span><span class="t-sigil">[SIGIL]</span> ai_tier · 1 assistive</span>
+              <span class="muted">·</span>
+              <span><span class="t-idx">[INDEXED]</span> 11 widgets on canvas</span>
+              <span class="muted">·</span>
+              <span><span class="t-ok">[OK]</span> audit_log · streaming</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ PLAN-AS-POLICY (replaces "Two-tier AI" lead-in) ============================ -->
+      <section id="plan" class="section" aria-labelledby="plan-h">
+        <div class="container">
+          <header class="section__head">
+            <span class="section__sigil">[03] PLAN-AS-POLICY</span>
+            <h2 id="plan-h" class="section__title">
+              The plan is the policy. The paycheck is the trigger. The audit log is the receipt.
+            </h2>
+            <p class="section__lede">
+              Every other budgeting app dies because payday requires a click. Compass runs the
+              plan silently, the moment income lands. The audit log is always one click away.
+              Two-tier AI lives <em>outside</em> the math path — it advises, it never writes.
+            </p>
+          </header>
+
+          <div class="plan__flow" aria-label="Auto-allocate flow">
+            <div class="plan__step">
+              <div class="plan__step-num">[01]</div>
+              <div class="plan__step-body">
+                <h3>Set the plan once</h3>
+                <p class="muted">
+                  Pick percentages per vessel. Arm it. That's it — until you change your mind.
+                </p>
+                <div class="plan__step-mock">
+                  <div class="plan__row">
+                    <span class="plan__row-label">☉ Rent</span>
+                    <div class="plan__row-bar"><span style="width:40%"></span></div>
+                    <span class="plan__row-amt">40%</span>
+                  </div>
+                  <div class="plan__row">
+                    <span class="plan__row-label">☽ Groceries</span>
+                    <div class="plan__row-bar"><span style="width:20%"></span></div>
+                    <span class="plan__row-amt">20%</span>
+                  </div>
+                  <div class="plan__row">
+                    <span class="plan__row-label">♃ Growth</span>
+                    <div class="plan__row-bar"><span style="width:18%"></span></div>
+                    <span class="plan__row-amt">18%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="plan__step">
+              <div class="plan__step-num">[02]</div>
+              <div class="plan__step-body">
+                <h3>Paycheck arrives · engine fires</h3>
+                <p class="muted">
+                  The L1 routing engine creates seven transfers the moment income lands.
+                  No modal, no prompt, no Friday-night decision.
+                </p>
+                <div class="terminal terminal--inline">
+                  <div class="terminal__bar">
+                    <span class="terminal__dot" style="background:#F87171"></span>
+                    <span class="terminal__dot" style="background:#C9A45C"></span>
+                    <span class="terminal__dot" style="background:#4ADE80"></span>
+                    <span class="terminal__title">compass@l1 ~ /audit</span>
+                  </div>
+                  <pre class="terminal__body"><code><span class="t-ok">[OK]</span> 2026-05-17 09:14 PT
+<span class="t-sigil">[L1]</span> auto-distill · $2,400 → 7 vessels
+   ☉ Rent       +$960   (40%)
+   ☽ Groceries  +$480   (20%)
+   ♃ Growth     +$432   (18%)
+   ☿ Utilities  +$192   (8%)
+   ♂ Buffer     +$144   (6%)
+   ♀ Joy        +$96    (4%)
+   ♄ Debt       +$96    (4%)
+<span class="t-ok">[OK]</span> audit · 7 transfers written</code></pre>
+                </div>
+              </div>
+            </div>
+
+            <div class="plan__step">
+              <div class="plan__step-num">[03]</div>
+              <div class="plan__step-body">
+                <h3>Vessels report · audit ledger</h3>
+                <p class="muted">
+                  Each vessel balance updates. The audit ledger records the whole sequence.
+                  Every step is reviewable, editable, reversible.
+                </p>
+                <div class="plan__audit">
+                  <div class="audit__row">
+                    <span class="audit__time muted">09:14:02 PT</span>
+                    <span class="audit__rule">L1 · auto-distill</span>
+                    <span class="audit__amount">+ $2,400.00</span>
+                  </div>
+                  <div class="audit__row">
+                    <span class="audit__time muted">09:14:02 PT</span>
+                    <span class="audit__rule">L1 → ☉ Rent</span>
+                    <span class="audit__amount">+ $960.00</span>
+                  </div>
+                  <div class="audit__row">
+                    <span class="audit__time muted">09:14:02 PT</span>
+                    <span class="audit__rule">L1 → ☽ Groceries</span>
+                    <span class="audit__amount">+ $480.00</span>
+                  </div>
+                  <div class="audit__row">
+                    <span class="audit__time muted">09:14:02 PT</span>
+                    <span class="audit__rule">L1 → ♃ Growth</span>
+                    <span class="audit__amount">+ $432.00</span>
+                  </div>
+                  <div class="audit__row audit__row--more muted">
+                    + 4 more transfers · view audit log →
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ TWO-TIER AI ============================ -->
+      <section id="ai" class="section" aria-labelledby="ai-h">
+        <div class="container">
+          <header class="section__head">
+            <span class="section__sigil">[04] TWO-TIER AI · OUTSIDE THE MATH PATH</span>
+            <h2 id="ai-h" class="section__title">
+              Two models. <em>Right job.</em> Never conflated.
+            </h2>
+            <p class="section__lede">
+              The L1 engine writes. The LLM advises. Compass runs a two-tier surface — a
+              <strong class="teal">production-grade</strong> tier for the work that has to be
+              right (onboarding extraction), and a <strong class="gold">lighter</strong> tier
+              for the daily "ask me anything" — read-only, fast, and over your data, never
+              your ledger.
+            </p>
+          </header>
+
+          <div class="tiers">
+            <article class="tier tier--extract">
+              <div class="tier__head">
+                <span class="tier__tag">TIER 1 · EXTRACTION</span>
+                <h3>Mavis-grade</h3>
+              </div>
+              <p class="tier__sub">Onboarding. Heavy edits. Rule proposals.</p>
+
+              <div class="tier__demo">
+                <div class="demo__user">
+                  <span class="demo__name">you</span>
+                  <span class="demo__bubble"
+                    >"I get paid $2,400 every other Friday, first one lands
+                    May 17. Rent is $1,400 on the 1st. Groceries run about
+                    $120 a week."</span
+                  >
+                </div>
+                <div class="demo__ai">
+                  <span class="demo__name demo__name--ai">Mavis</span>
+                  <div class="demo__bubble demo__bubble--ai">
+                    Here's how I'm encoding that — nothing is written to the
+                    ledger until you arm the plan:
+                    <ul>
+                      <li><strong>Pay schedule</strong> → biweekly · anchor May 17, 2026</li>
+                      <li><strong>Period</strong> → 14 days · derived from pay schedule</li>
+                      <li><strong>Rent rule</strong> → $1,400 → ☉ Sol vessel · day 1</li>
+                      <li><strong>Groceries rule</strong> → $480 → ☽ Luna vessel · per period</li>
+                      <li><strong>Plan proposal</strong> → 40/20/18/8/6/4/4 across 7 vessels</li>
+                    </ul>
+                    <span class="demo__hint"
+                      >Confirm with one tap. The L1 engine takes it from there.</span
+                    >
+                  </div>
+                </div>
+              </div>
+
+              <ul class="tier__props">
+                <li><span class="t-ok">[OK]</span> Natural, conversational</li>
+                <li><span class="t-ok">[OK]</span> Explains the "why" behind every rule</li>
+                <li><span class="t-ok">[OK]</span> <strong>Proposes</strong>, never writes</li>
+              </ul>
+            </article>
+
+            <article class="tier tier--advise">
+              <div class="tier__head">
+                <span class="tier__tag tier__tag--soft">TIER 2 · ADVISORY</span>
+                <h3>Ollama-grade</h3>
+              </div>
+              <p class="tier__sub">Daily. "Ask me anything." Read-only.</p>
+
+              <div class="tier__demo">
+                <div class="demo__user">
+                  <span class="demo__name">you</span>
+                  <span class="demo__bubble"
+                    >"Can I swing a $400 plane ticket this period?"</span
+                  >
+                </div>
+                <div class="demo__ai">
+                  <span class="demo__name demo__name--ai demo__name--soft">advisor</span>
+                  <div class="demo__bubble demo__bubble--soft">
+                    Yes — and here's the shape of the trade, computed from your
+                    vessels (the LLM didn't do the math; the L1 engine did):
+                    <ul>
+                      <li>Safe-to-spend this period: <strong class="teal">$1,847</strong></li>
+                      <li>After ticket: <strong>$1,447</strong> · still above your $1,200 floor</li>
+                      <li>☽ Groceries vessel: <strong>covered</strong> through May 17</li>
+                      <li>☉ Rent vessel: <strong>62%</strong> — next refill on May 17</li>
+                    </ul>
+                    No rebalance needed. Earmark as <em>Venus · Joy · travel</em>?
+                  </div>
+                </div>
+              </div>
+
+              <ul class="tier__props">
+                <li><span class="t-ok">[OK]</span> Read-only over full identity</li>
+                <li><span class="t-ok">[OK]</span> Lightweight, runs locally</li>
+                <li><span class="t-ok">[OK]</span> Tailored answers — value is in the data, not the LLM</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ VOICE / DESIGN SYSTEM ============================ -->
+      <section id="voice" class="section" aria-labelledby="voice-h">
+        <div class="container">
+          <header class="section__head">
+            <span class="section__sigil">[05] VOICE · ORACLE TERMINAL</span>
+            <h2 id="voice-h" class="section__title">
+              The cockpit's <em>voice.</em>
+            </h2>
+            <p class="section__lede">
+              Terminal-log markers, a teal + antique-gold palette, Sora for the words that
+              matter, JetBrains Mono for the numbers. Charts render in cyan over a faint grid.
+              <em>Mom-grade</em> at every primary label — the planetary system is visual only.
+            </p>
+          </header>
+
+          <div class="voice">
+            <div class="voice__palette">
+              <h3 class="voice__sub">PALETTE</h3>
+              <ul class="swatches">
+                <li>
+                  <span class="swatch" style="background:#060A12; border-color:#28404C"></span>
+                  <div>
+                    <div class="swatch__name">base · #060A12</div>
+                    <div class="swatch__role muted">the void · canvas</div>
+                  </div>
+                </li>
+                <li>
+                  <span class="swatch" style="background:#2DD4BF"></span>
+                  <div>
+                    <div class="swatch__name">primary · #2DD4BF</div>
+                    <div class="swatch__role muted">teal · signal</div>
+                  </div>
+                </li>
+                <li>
+                  <span class="swatch" style="background:#C9A45C"></span>
+                  <div>
+                    <div class="swatch__name">antique · #C9A45C</div>
+                    <div class="swatch__role muted">gold · ☉ Sol</div>
+                  </div>
+                </li>
+                <li>
+                  <span class="swatch" style="background:#4ADE80"></span>
+                  <div>
+                    <div class="swatch__name">system · #4ADE80</div>
+                    <div class="swatch__role muted">jade · [OK]</div>
+                  </div>
+                </li>
+                <li>
+                  <span class="swatch" style="background:#F87171"></span>
+                  <div>
+                    <div class="swatch__name">warn · #F87171</div>
+                    <div class="swatch__role muted">iron · ♂ Buffer</div>
+                  </div>
+                </li>
+                <li>
+                  <span class="swatch" style="background:#28404C"></span>
+                  <div>
+                    <div class="swatch__name">border · #28404C</div>
+                    <div class="swatch__role muted">structure</div>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            <div class="voice__markers">
+              <h3 class="voice__sub">MARKERS</h3>
+              <ul class="markers">
+                <li><span class="t-ok">[OK]</span> confirmed · jade</li>
+                <li><span class="t-warn">[WARN]</span> caution · iron</li>
+                <li><span class="t-sigil">[SIGIL]</span> ritual / brand · gold</li>
+                <li><span class="t-idx">[INDEXED]</span> catalogued · teal</li>
+                <li><span class="t-err">[ERR]</span> fault · loud</li>
+                <li><span class="t-sigil">[L1]</span> routing engine · gold</li>
+              </ul>
+            </div>
+
+            <div class="voice__type">
+              <h3 class="voice__sub">TYPOGRAPHY</h3>
+              <div class="type-sample">
+                <div class="type-sample__head" style="font-family:'Sora', sans-serif;">
+                  Sora · the words
+                </div>
+                <div class="type-sample__mono" style="font-family:'JetBrains Mono', monospace;">
+                  JetBrains Mono · the numbers
+                </div>
+                <div class="type-sample__line muted">
+                  period 14 · safe_to_spend · 5d_remain
+                </div>
+                <div class="type-sample__line type-sample__line--glyph">
+                  ☉ ☽ ☿ ♀ ♂ ♃ ♄ · the seven planetary glyphs
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ SPEC / CTA ============================ -->
+      <section id="spec" class="section section--cta" aria-labelledby="spec-h">
+        <div class="container cta">
+          <div class="cta__copy">
+            <span class="section__sigil">[06] JOIN THE NEXT COHORT</span>
+            <h2 id="spec-h" class="section__title">
+              Be first when the gates open.
+            </h2>
+            <p class="section__lede">
+              Compass is in private alpha with a small group of operators. We're opening the
+              next cohort to people who want to run their money around the <em>pay period</em>
+              — not play a game with it. Mom-grade surface, world-class depth. Plan-as-policy,
+              audit-by-default.
+            </p>
+          </div>
+
+          <form id="waitlist" class="cta__form" novalidate>
+            <label class="visually-hidden" for="email">Email</label>
+            <div class="form__row">
+              <span class="form__sigil" aria-hidden="true">→</span>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="you@somewhere"
+                autocomplete="email"
+                required
+              />
+              <button type="submit" class="btn btn--primary">REQUEST ACCESS</button>
+            </div>
+            <div class="form__feedback" id="form-feedback" role="status" aria-live="polite"></div>
+            <p class="form__legal muted">
+              We don't spam. We don't sell. You'll get the spec + one
+              <span class="t-idx">[INDEXED]</span> update when the next cohort opens.
+            </p>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <!-- ============================ FOOTER ============================ -->
+    <footer class="footer" role="contentinfo">
+      <div class="container footer__inner">
+        <div class="footer__brand">
+          <span class="brand__mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" width="18" height="18">
+              <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="1.5" />
+              <path d="M16 4 L19 16 L16 28 L13 16 Z" fill="currentColor" />
+            </svg>
+          </span>
+          <span>COMPASS</span>
+        </div>
+
+        <div class="footer__meta">
+          <span>SPEC v4.0</span>
+          <span class="muted">·</span>
+          <span>BUILD <code id="build-hash">—</code></span>
+          <span class="muted">·</span>
+          <span><span class="t-ok">[OK]</span> serving</span>
+        </div>
+
+        <div class="footer__legal muted">
+          Compass is a personal-finance cockpit, not a financial advisor.
+          Numbers on this page are illustrative.
+        </div>
+      </div>
+    </footer>
+
+    <script src="./script.js" defer></script>
+  </body>
+</html>

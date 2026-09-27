@@ -73,3 +73,4 @@ curl http://localhost:3000/api/health
 - [`00-DESIGN.md`](./00-DESIGN.md) — the locked design spec (vision, data model, features, stack)
 - [`COORDINATION.md`](./COORDINATION.md) — handoff contract between sessions, build order, decision revisions
 - [`AGENTS.md`](./AGENTS.md) — project-local guidance for AI coding agents
+- [`compass-landing/`](./compass-landing/) — public marketing site (static HTML/CSS/JS, no build). See `compass-landing/README.md` for deploy.
