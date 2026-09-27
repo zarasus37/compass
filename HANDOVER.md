@@ -1,10 +1,19 @@
 ﻿# Compass â€” Fresh-Session Handoff
 
 **Date**: 2026-09-26
-**Last commit**: `1fe64f6` (Cluster 7.16 — self-service change password, cherry-pick from this session's local work) — on top of `70cdaf5` (docs: vision memory archive) — on top of `0fd3050` (HANDOVER: Cluster 7.36 audit + commit-chain header refresh) — on top of `9fcdbd8` (Cluster 7.36 — form-first 5-step setup wizard at /setup) — on top of `76047b8` (HANDOVER substitute real hashes) — on top of `b1fa4c0` (HANDOVER Cluster 7.35 audit) — on top of `8774c9f` (Cluster 7.35 — onboarding extractor fixes + stuck-detector refinement) — on top of `9e89e99` (Cluster 7.34 — sign-out button + re-do onboarding card) — on top of `38c2247` (Cluster 7.33 — onboarding-stuck nudge + envelope-detail reads from DB) — on top of `6c6cc47` (HANDOVER Cluster 7.32a audit) — on top of `ecfc2fb` (Cluster 7.32a — auth refactor cleanup) — on top of `ee8c2b2` (HANDOVER Cluster 7.31 audit) — on top of `6b1d47a` (Cluster 7.31 — Compass Rose logo) — on top of `a97c8e8` (operator: spawn-test-account.mjs) — on top of `6dd2e2b` (HANDOVER Cluster 7.30a audit) — on top of `ca58e55` (Cluster 7.30a shell polish) — on top of `c417972` (runbook Step 6.10) — on top of `e84f439` (HANDOVER hash fix) — on top of `089841e` (HANDOVER 7.29 audit) — on top of `53d022e` (Cluster 7.29) — on top of `ea9c5e2` (runbook Step 6.9) — on top of `d7f033a` (runbook Step 6.8) — on top of `37992df` (HANDOVER hash fix) — on top of `886554f` (HANDOVER 7.27) — on top of `2d5c540` (Cluster 7.27: quick-add transaction popover) — on top of `5c22afe` (runbook Step 6.7) — on top of `f07b215` (HANDOVER chain fixes) — on top of `9a77ea0` (HANDOVER 7.26 audit) — on top of `ad6beea` (HANDOVER 7.26 placeholder fix) — on top of `07b34b0` (HANDOVER 7.26 audit) — on top of `33033e5` (Cluster 7.26 cash flow) — on top of `3191c55` (HANDOVER cleanup).
+**Last commit**: `594acb0` (housekeeping: gitignore .vercel-*.env + dedupe 7.16/7.36 spec filenames — **UN-PUSHED**, see "Pending" section) — on top of `1fe64f6` (Cluster 7.16 — self-service change password, cherry-pick from this session's local work) — on top of `70cdaf5` (docs: vision memory archive) — on top of `0fd3050` (HANDOVER: Cluster 7.36 audit + commit-chain header refresh) — on top of `9fcdbd8` (Cluster 7.36 — form-first 5-step setup wizard at /setup) — on top of `76047b8` (HANDOVER substitute real hashes) — on top of `b1fa4c0` (HANDOVER Cluster 7.35 audit) — on top of `8774c9f` (Cluster 7.35 — onboarding extractor fixes + stuck-detector refinement) — on top of `9e89e99` (Cluster 7.34 — sign-out button + re-do onboarding card) — on top of `38c2247` (Cluster 7.33 — onboarding-stuck nudge + envelope-detail reads from DB) — on top of `6c6cc47` (HANDOVER Cluster 7.32a audit) — on top of `ecfc2fb` (Cluster 7.32a — auth refactor cleanup) — on top of `ee8c2b2` (HANDOVER Cluster 7.31 audit) — on top of `6b1d47a` (Cluster 7.31 — Compass Rose logo) — on top of `a97c8e8` (operator: spawn-test-account.mjs) — on top of `6dd2e2b` (HANDOVER Cluster 7.30a audit) — on top of `ca58e55` (Cluster 7.30a shell polish) — on top of `c417972` (runbook Step 6.10) — on top of `e84f439` (HANDOVER hash fix) — on top of `089841e` (HANDOVER 7.29 audit) — on top of `53d022e` (Cluster 7.29) — on top of `ea9c5e2` (runbook Step 6.9) — on top of `d7f033a` (runbook Step 6.8) — on top of `37992df` (HANDOVER hash fix) — on top of `886554f` (HANDOVER 7.27) — on top of `2d5c540` (Cluster 7.27: quick-add transaction popover) — on top of `5c22afe` (runbook Step 6.7) — on top of `f07b215` (HANDOVER chain fixes) — on top of `9a77ea0` (HANDOVER 7.26 audit) — on top of `ad6beea` (HANDOVER 7.26 placeholder fix) — on top of `07b34b0` (HANDOVER 7.26 audit) — on top of `33033e5` (Cluster 7.26 cash flow) — on top of `3191c55` (HANDOVER cleanup).
 **Predecessor commit chain (post-7.36)**: For the full chain below `617bab7` (Cluster 7.17 production-readiness hardening), run `git log --oneline 617bab7^..HEAD | tail -40` from `main`. The 7.15 origin chain (`c4c566d` → `79eeaff` → `fd9676e` → `12cdce7`) is the canonical form of the sparkline — never write `c4c566d` as "the 7.15 commit," always reference the chain.
-**Feature branch (orphan of this session's 7.15-sparkline series)**: `cluster/7.15-sparkline` HEAD `3ba469b` was the prior local work containing my duplicate `b095092` sparkline + `4ccb4e1` change-password + `3ba469b` docs. The change-password commit was cherry-picked onto `main` as `1fe64f6`; the local 7.15 was dropped because origin/main already has a refined `7.15` chain (`c4c566d` → `79eeaff` → `fd9676e` → `12cdce7`). The branch is kept as a reference of the prior local work; safe to delete with `git branch -D cluster/7.15-sparkline` once the new main is verified live.
-**🎯 NEXT CLUSTER**: **TBD — operator’s choice.** The 7.15→7.36 chain is shipped. The Cluster 7.16 change-password cherry-pick is shipped. No cluster is mid-flight. The next ask comes from the operator.
+**Feature branch status**: `cluster/7.15-sparkline` was **deleted** in this session (was `3ba469b`, contained the prior local 7.15 work + `4ccb4e1` change-password). The change-password commit was cherry-picked onto `main` as `1fe64f6` earlier in the session; the local 7.15 was dropped because origin/main has a refined `7.15` chain. The branch was kept as a reference through the merge reconciliation, then deleted on 2026-09-26 (HANDOVER line 6 authorized this once main was verified live). No feature branches remain — only `main`.
+**🎯 NEXT CLUSTER**: **TBD — operator's choice.** The 7.15→7.36 chain is shipped. The Cluster 7.16 change-password cherry-pick is shipped. No cluster is mid-flight. The next ask comes from the operator.
+**⏳ PENDING (handoff decisions, not blocking next cluster)**:
+1. **Push `594acb0` to origin/main?** Local is 1 commit ahead of origin. Three options:
+   - (a) Push direct to main (matches `3a16618` docs-commit pattern; Vercel rebuild is a no-op for mom; smoke-deploy verifies the renames + gitignore)
+   - (b) Push to a `housekeeping/cleanup-2026-09-26` branch first, get a Vercel preview, merge after
+   - (c) Hold the commit and bundle with the next cluster's work
+2. **`compass-landing/` (untracked, ~100 KB static site, 9/20/2026)** — three options:
+   - (a) Commit it to the main repo (with a `compass-landing/README.md` documenting deploy + link from root README)
+   - (b) Move to a separate `compass-marketing/` repo with its own Vercel project
+   - (c) Leave untracked (current state; risk: could be lost in a session reset)
 **ðŸš€ LAUNCH POSTURE**: xKryptic's mom is the v1 single user â€” **LIVE** on Vercel + Neon since the 7.16 commit (`680db8f`, 2026-09-06). Runbook at `00-MOM-LAUNCH-RUNBOOK.md` covers the external-account work (GitHub repo, Neon, Vercel env vars, deploy, send mom the URL). Local dev (`pnpm dev` on `localhost:3000`) is unchanged for cluster work. Each cluster commit on a feature branch gets a Vercel preview URL; merge to `main` to ship to mom.
 
 > **Cluster 7.17 (production-readiness hardening, 2026-09-22, session 2)**: replaced stale SQLite-syntax migrations with a single Postgres-syntax init migration (`20260922072521_init`), added `db:migrate` / `db:migrate:deploy` scripts, fixed React 19 `<title>` array-children warnings, updated `integration-vault.mjs` M9 to accept both Vercel Pro (`*/N≤5`) and Hobby (`X H * * *`) vault cron cadences, added runbook Step 6.5 for the demo-data seed flow. Full audit + local-agent prompt at the bottom of this file (search for "Session 2026-09-22 (continued)").
@@ -1712,4 +1721,74 @@ Cluster 7.37 (Real Plaid integration) is unblocked. Operator needs to:
 2. Approve the build of Plaid Link UI integration + webhook handler + encrypted token storage.
 
 Then 7.38 Policy Engine (Stage C of vision) becomes the next code cluster.
+
+---
+
+# Session 2026-09-26 (continued) — housekeeping + handoff prep
+
+Session `mvs_f11d94a274db44e9ba83e8f37c27ce78` started by reading vision + design + HANDOVER + COORDINATION and verifying git/Vercel state (HEAD `3a16618`, origin/main in sync, mom live on prod, 20 Vercel deployments, Preview env has `LLM_PROVIDER=mavis` set 11h ago). After the verification, the operator asked for three housekeeping items, then asked for a clean handoff. No new cluster shipped; the work below is repo-state cleanup with zero mom-facing behavior change.
+
+## (a) Completed work
+
+**Commit `594acb0` (local only, un-pushed) — `housekeeping: gitignore .vercel-*.env + dedupe 7.16/7.36 spec filenames`**
+- `.gitignore` — added `.vercel-*.env` rule with explanatory comment. Was previously untracked despite holding secrets: `CRON_SECRET` (64-char hex), `ADMIN_EMAIL`, `MAVIS_API_BASE`, `MAVIS_MODEL`, `MAVIS_TOOL_FORMAT`, `LLM_PROVIDER=mock`, `LLM_PROVIDER_ADVISOR=ollama`, `ADMIN_NAME`. Untracked today; would have been caught by an over-broad `git add .`. Rule pattern is generic — matches any future `.vercel-*.env` files from the runbook flow.
+- `00-CLUSTER-7.16-CHANGE-PASSWORD.md` → `00-CLUSTER-7.16.1-CHANGE-PASSWORD.md` — sub-cluster pattern (matches the 7.11 → 7.11.1 convention from memory; same collision rule that drove 7.12 → 7.14 renumber). The MOM-READY-V1-LAUNCH keeps the canonical 7.16 number.
+- `00-CLUSTER-7.36-FORM-ONBOARDING.md` → `00-CLUSTER-7.36-FORM-ONBOARDING-SUPERSEDED.md` — the SETUP-WIZARD spec is the shipped revision at `/setup`; the FORM-ONBOARDING draft is preserved with lineage explicit.
+- `tests/integration-vault.mjs` — M14 file-existence check updated to point at `7.16.1`. Syntax-validated. `tests/smoke-deploy.mjs` already pointed at the canonical MOM-READY — untouched.
+
+**Branch `cluster/7.15-sparkline` — DELETED.** Was the prior local work containing `4ccb4e1` (change-password) + `3ba469b` (docs); the change-password was cherry-picked onto `main` as `1fe64f6`, the local 7.15 dropped because origin/main has a refined 7.15 chain. HANDOVER line 6 explicitly authorized deletion once main was verified live; mom is live, so deleted.
+
+**Memory updated** — appended agent-memory entry documenting the `.env*` gitignore pattern does NOT match `.vercel-*` files (durable cross-project lesson; useful for any future session that audits gitignore in a Vercel-using monorepo).
+
+**HANDOVER.md + COORDINATION.md updated** (see follow-on commit `594acb0`+1, un-pushed) — commit-chain header refreshed, `cluster/7.15-sparkline` paragraph rewritten as historical note, new `⏳ PENDING (handoff decisions)` section at top, new "Session 2026-09-26 (continued)" section at bottom with the HANDOVER contract (a)(b)(c).
+
+**Verification** — `node --check tests/integration-vault.mjs` clean (no syntax errors after the 4 ref updates). Smoke tests not run end-to-end (Windows + Turbopack PostCSS subprocess timeout, documented in agent memory; verify on Vercel preview after push). `pnpm tsc` not run this session (the changed files are zero-impact: .gitignore + renames + 4 string refs in one smoke).
+
+## (b) Next RANGE of tasks (handoff to fresh session)
+
+1. **Push `594acb0` to origin/main** — pick one:
+   - (a) Push direct to main (matches `3a16618` docs-commit pattern; Vercel rebuild is no-op for mom; smoke-deploy verifies the renames + gitignore)
+   - (b) Push to `housekeeping/cleanup-2026-09-26` branch first, Vercel preview, then merge
+   - (c) Hold and bundle with the next cluster's commits
+2. **Decide fate of `compass-landing/`** (untracked, ~100 KB static marketing site at repo root: `index.html` 52 KB + `script.js` 9.6 KB + `styles.css` 37.7 KB, branded Component Oracle Terminal, no README, no package.json):
+   - (a) Commit to main repo with a `compass-landing/README.md`
+   - (b) Move to a separate `compass-marketing/` repo with its own Vercel project
+   - (c) Leave untracked (risk: could be lost in a session reset)
+3. **Pick next cluster** — HANDOVER ⏳ PENDING says "TBD — operator's choice." Options visible from the vision doc + HANDOVER queue:
+   - **7.37 Real Plaid** — heavy (Plaid production creds + Link UI + webhook + encrypted token storage). Unblocked per HANDOVER. Maps to vision Stage A "Map APIs to actual workflows."
+   - **7.38 Policy Engine** — vision Stage C. "Connect allocation rules to financial state. Add conditions. Add priority. Add conflict resolution. Add insufficient-funds behavior." Highest-leverage for the §0 principle (if user disappeared → does Compass carry the plan?).
+   - **Lightweight options** — `.vercel-remaining.env` cleanup (still on disk even after gitignore), test-gap audit, smoke-deploy CI tightening, design-spec refresh.
+   - Or anything else from the operator's queue.
+
+## (c) Pickup briefing for next session
+
+**Pre-flight (read in this order)**:
+1. `HANDOVER.md` (this file) — start at line 1 for context, jump to "Session 2026-09-26 (continued)" for the most recent state
+2. `COORDINATION.md` line 15 area ("Last update:") for the broader session log
+3. `git log --oneline -5` for the actual commit chain
+4. `git status --short` — only untracked files should appear; no tracked modifications
+5. `vercel ls | head -3` — confirm prod URL + that no recent deployment is mid-build
+
+**Contract for next session**:
+- Pick one of the three push options for `594acb0` and execute. The commit is honest and zero-risk; delaying it lets `main` drift further from origin.
+- Pick one of the three `compass-landing/` options. If "leave untracked," add it to `.gitignore` so `git status` stays clean.
+- Pick the next cluster or say "next cluster: TBD" again.
+- Read the vision doc (`design/vision.docx` or `00-VISION.md` or `docs/compass-vision.md` — three forms of the same source) before scoping any Stage B+ work.
+
+**Stop conditions**:
+- **Don't push to main without explicit operator confirmation** (it's a "ship to mom" action, manual gate per the launch runbook workflow).
+- **Don't blanket `git add .`** in this repo until `compass-landing/` decision is resolved.
+- **Don't reset** the `594acb0` commit — it documents the spec-file renames that the integration-vault smoke relies on (M14 file-existence check at `00-CLUSTER-7.16.1-CHANGE-PASSWORD.md`).
+- **Don't delete `.vercel-remaining.env` or move secrets** without checking with the operator — the file may still hold the only copy of the production Mavis API key (memory says it was lost in the 7.4 truncation; this file may be its replacement).
+
+**Working environment**:
+- Windows + PowerShell. No `tail`, no `/dev/null`, no `&&` between commands; use `Select-Object -Last`, `2>$null`, separate statements.
+- Local dev server (`pnpm dev` on `localhost:3000`) is unreachable on Windows + Turbopack (PostCSS subprocess timeout — see agent memory). HTTP-only smoke sections skip cleanly via `[SKIP-NO-SERVER]`; source-only checks run normally. Verify any HTTP-touching change via Vercel preview URL after push.
+- DATABASE_URL points at Docker Postgres on host port `5433` (Windows native PostgreSQL 18 owns `5432`). Production Postgres (Neon) is the same schema, accessed via `DATABASE_URL` Secret in Vercel.
+
+---
+
+## Session 2026-09-22 (continued) — Cluster 7.17 production-readiness hardening (see top-of-file block)
+
+> see top-of-file block — same content.
 
