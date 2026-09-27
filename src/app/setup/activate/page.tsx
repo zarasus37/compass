@@ -9,8 +9,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { requireUser } from "@/server/auth/user";
-import { getOrCreateSetupState, isSetupActivated } from "@/lib/setup/state";
-import { SetupProgress } from "@/components/setup/SetupProgress";
+import { getOrCreateSetupState, isSetupActivated, type WizardStep } from "@/lib/setup/state";
+import { SetupProgress, stepSlug } from "@/components/setup/SetupProgress";
 import { activatePlanAction } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +22,12 @@ export default async function ActivatePage() {
 
   const state = await getOrCreateSetupState(user.id);
   if (state.completedStep < 5) {
-    redirect(`/setup/${state.completedStep === 0 ? "pay-schedule" : ""}`);
+    // Cluster 7.38 — route to the actual next incomplete step. Pre-7.38 the
+    // expression was `state.completedStep === 0 ? "pay-schedule" : ""`, which
+    // produced `/setup/` (404) for any completedStep in {1,2,3,4}. Use
+    // stepSlug so the user lands on the real next step instead of a 404.
+    const next = (state.completedStep + 1) as WizardStep;
+    redirect(`/setup/${stepSlug(next)}`);
   }
 
   return (

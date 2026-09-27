@@ -22,57 +22,10 @@ export default async function SetupIndexPage() {
     // All 5 steps done — show the activate CTA.
     return <ActivateCard />;
   }
-  // First step: route directly so the user lands on the form.
-  if (state.completedStep === 0) {
-    redirect("/setup/pay-schedule");
-  }
-  return (
-    <div>
-      <SetupProgress completedStep={state.completedStep} currentStep={nextStep} />
-      <h1
-        style={{
-          fontFamily: "var(--font-sora)",
-          fontSize: 28,
-          fontWeight: 700,
-          color: "var(--ink)",
-          margin: "0 0 12px",
-        }}
-      >
-        Pick up where you left off
-      </h1>
-      <p
-        style={{
-          fontFamily: "var(--font-sora)",
-          fontSize: 14,
-          color: "var(--ink-3)",
-          lineHeight: 1.6,
-          margin: "0 0 24px",
-        }}
-      >
-        You finished {state.completedStep} of 5 setup steps. Continue with the next one — or jump back to
-        any step you already finished to revise your answers.
-      </p>
-      <div style={{ display: "flex", gap: 12 }}>
-        <Link
-          href={`/setup/${stepSlug(nextStep)}`}
-          style={{
-            padding: "12px 24px",
-            background: "var(--vessel-accent)",
-            color: "var(--background)",
-            borderRadius: 6,
-            fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            textDecoration: "none",
-          }}
-        >
-          Continue step {nextStep}
-        </Link>
-      </div>
-    </div>
-  );
+  // Cluster 7.38 — auto-route to the next incomplete step. The index page is
+  // a router, not a manual Continue button. Any completedStep value routes
+  // the user straight to the form they should fill next.
+  redirect(`/setup/${stepSlug(nextStep)}`);
 }
 
 function ActivateCard() {

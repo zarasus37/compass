@@ -31,6 +31,7 @@
  */
 
 import { prisma } from "@/server/db";
+import { activateSetup } from "@/lib/setup/state";
 import type { LLMMessage, LLMToolCall } from "../llm/types";
 
 // ──────────────────────────────────────────────────────────────────────
@@ -223,6 +224,11 @@ export async function saveConversation(
       create: identityCreateFromState(state),
       update: identityUpdateFromState(state),
     });
+    // Cluster 7.38 — if the chat path completed onboarding, also activate
+    // the wizard state so downstream surfaces that read SetupState.activatedAt
+    // (e.g. /setup/activate's redirect, the dashboard's "plan active" badge)
+    // see the chat completion. activateSetup is idempotent (upsert).
+    if (state.completedAt) await activateSetup(state.userId);
     return;
   }
 
@@ -378,6 +384,14 @@ export async function saveConversation(
       });
     }
   });
+
+  // Cluster 7.38 — sync SetupState.activatedAt with FinancialIdentity.completedAt.
+  // Done OUTSIDE the transaction: the upserts are idempotent and a failure
+  // between the two writes leaves the user in a state where the gate still
+  // passes (either check is sufficient per `isOnboardingComplete` in
+  // src/lib/onboarding/gate.ts), and the next saveConversation call reconciles.
+  // Documented in 00-CLUSTER-7.38-ONBOARDING-COMPLETION.md as a known-acceptable race.
+  if (state.completedAt) await activateSetup(state.userId);
 }
 
 /** Test-only — wipe state for a single user. */

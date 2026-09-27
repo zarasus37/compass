@@ -28,11 +28,15 @@ import { getAuditLog } from "@/lib/vault/audit-log";
  * props. Force-dynamic so changes show up immediately after a
  * server action like toggleEngineAction.
  *
- * Onboarding gate (Cluster 5.1): if the user has no completed
- * FinancialIdentity, redirect to /onboarding. The check is a
- * single SELECT on FinancialIdentity.completedAt (indexed by
- * userId via the @unique constraint). Once the agent calls
- * markOnboardingComplete, the gate passes.
+ * Onboarding gate (Cluster 5.1 → Cluster 7.38): the user passes when EITHER
+ * `FinancialIdentity.completedAt` (chat path) OR `SetupState.activatedAt`
+ * (wizard path) is set. If neither is set, redirect to `/setup` (the form-
+ * first wizard is the primary setup surface per Cluster 7.36; the chat at
+ * `/onboarding` is the parallel optional surface). The check is a single
+ * SELECT on both rows (indexed by userId via the @unique constraint). Once
+ * the user finishes the wizard (`activatePlanAction`) OR the chat
+ * (`markOnboardingComplete` in `src/lib/onboarding/agent.ts`, which also
+ * calls `activateSetup` per Cluster 7.38), the gate passes.
  *
  * The dashboard (`/`) lives outside this group at the root and
  * applies the same gate in its own page body (the COORDINATION
