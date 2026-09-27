@@ -32,8 +32,16 @@ import { formatShortDate } from "@/lib/format";
 export interface EnvelopeCadenceChartProps {
   /** 14-element per-day spend, oldest first. Today is the last element. */
   burnCents: number[];
-  /** Vessel identifier for the line color. */
-  planet: PlanetId;
+  /**
+   * Vessel identifier for the line color. Nullable because the
+   * Prisma `Envelope.planet` column is nullable (envelopes mom
+   * creates via /envelopes/new may not pick a planet). Cluster 7.42
+   * (visible UI bug xKryptic reported 2026-09-26): the chart used
+   * to require a non-null PlanetId and crashed when clicked on an
+   * envelope with planet=null. Falls back to jupiter at render
+   * time via `PLANET_COLORS[planet] ?? PLANET_COLORS.jupiter`.
+   */
+  planet: PlanetId | null;
   /** Display name (for the eyebrow / tooltip). */
   envelopeName: string;
   /** Optional start date (oldest day). Defaults to today - 13d. */
@@ -113,7 +121,7 @@ export function EnvelopeCadenceChart({
     setHoverIdx(null);
   }
 
-  const planetColor = PLANET_COLORS[planet] ?? PLANET_COLORS.jupiter;
+  const planetColor = (planet ? PLANET_COLORS[planet] : null) ?? PLANET_COLORS.jupiter;
   const todayVal = burnCents[lastIdx] ?? 0;
   const totalCents = burnCents.reduce((s, v) => s + v, 0);
   const avgCents = Math.round(totalCents / n);

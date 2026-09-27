@@ -2,7 +2,7 @@ import * as React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHead } from "@/components/alchemy/PageHead";
-import { VesselGlyph } from "@/components/alchemy/VesselGlyph";
+import { VesselGlyph, type PlanetId } from "@/components/alchemy/VesselGlyph";
 import { EnvelopeMiniBar } from "@/components/viz/EnvelopeMiniBar";
 import { EnvelopeCadenceChart } from "@/components/viz/EnvelopeCadenceChart";
 import { SinkList } from "@/components/envelopes/SinkList";
@@ -54,6 +54,20 @@ export default async function EnvelopeDetailPage({
   }
 
   const e = envelope;
+
+  // Cluster 7.42 — defensive normalization. The Prisma `Envelope.planet`
+  // column is nullable, and several downstream components require a
+  // non-null PlanetId (or a fallback) to render the vessel glyph, the
+  // cadence chart's planet color, etc. Before this normalization, a
+  // click on an envelope with planet=null crashed the detail page
+  // (error.digest 3789288087, the [ERR] SOMETHING BROKE card). Normalize
+  // to "saturn" as the safest default — every other PlanetId mapping in
+  // the app has its own meaning (jupiter = strategic, mercury =
+  // transactional, etc.) and "saturn" reads as "long-cycle vessel,
+  // unknown lineage" which is the right vibe for "mom added this
+  // without picking a planet."
+  const safePlanet = (e.planet ?? "saturn") as PlanetId;
+  const planetSafeStyle = (suffix: string) => `var(--${safePlanet}${suffix})`;
 
   // Cluster 7.28 — Sinking funds for this envelope. Lazy-seed
   // the user's first visit, then read the (now populated) list.
