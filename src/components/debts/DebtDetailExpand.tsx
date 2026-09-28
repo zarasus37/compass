@@ -47,9 +47,21 @@ export interface DebtDetailExpandProps {
   /** Linked account (institution + last-4 + type). Optional. */
   account?: DebtCardAccount | null;
   anchor?: Date;
+  /**
+   * Cluster 7.50 — viewport-aware layout. When true, the 4-column
+   * stats grid collapses to 2 columns (or 1 column on phones
+   * <480px). Pass `useMediaQuery("(max-width: 768px)")` from the
+   * parent.
+   */
+  isMobile?: boolean;
 }
 
-export function DebtDetailExpand({ debt, account, anchor }: DebtDetailExpandProps) {
+export function DebtDetailExpand({
+  debt,
+  account,
+  anchor,
+  isMobile = false,
+}: DebtDetailExpandProps) {
   const a = anchor ?? new Date();
   const isPaidOff = debt.balanceCents === 0;
   const monthlyInterest = monthlyInterestCents(debt);
@@ -261,7 +273,11 @@ export function DebtDetailExpand({ debt, account, anchor }: DebtDetailExpandProp
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
+          // Cluster 7.50 — responsive stats grid. Desktop: 4 cols.
+          // Tablet (<768px): 2 cols. Phone (<480px): 1 col.
+          gridTemplateColumns: isMobile
+            ? "repeat(1, minmax(0, 1fr))"
+            : "repeat(4, 1fr)",
           gap: 12,
           marginBottom: 24,
         }}
@@ -782,6 +798,16 @@ function PayoffCurve({
   const PAD_T = 12;
   const PAD_B = 24;
 
+  // Cluster 7.50 — the SVG uses viewBox + 100% so it scales down
+  // on narrow viewports without overflow. Max width caps the
+  // desktop size at 360px.
+  const svgStyle: React.CSSProperties = {
+    display: "block",
+    width: "100%",
+    maxWidth: 360,
+    height: "auto",
+  };
+
   // Compute balance at each month (Cluster 7.49). Cap at 360
   // months (30 years) to avoid infinite loops on unpayable.
   const trajectory = React.useMemo(() => {
@@ -882,9 +908,9 @@ function PayoffCurve({
       </div>
 
       <svg
-        width={W}
-        height={H}
-        style={{ display: "block" }}
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="xMidYMid meet"
+        style={svgStyle}
         data-testid="payoff-curve-svg"
       >
         {/* Y-axis grid lines + tick labels */}

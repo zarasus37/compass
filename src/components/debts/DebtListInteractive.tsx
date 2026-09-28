@@ -32,6 +32,7 @@ import {
   worstTierAcrossDebts,
 } from "@/lib/debt-interest";
 import { aprTierColor } from "@/lib/debt-tier";
+import { useMediaQuery } from "@/lib/use-media-query";
 
 export interface DebtListInteractiveProps {
   debts: Debt[];
@@ -51,6 +52,10 @@ export function DebtListInteractive({
   anchor,
 }: DebtListInteractiveProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Cluster 7.50 — viewport-aware layout. The hook is SSR-safe
+  // (returns false until mount); the first client render flips
+  // the value if the viewport is actually narrow.
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   // Page-level waste aggregate (Cluster 7.47). Computed once per
   // render — these are O(n) over the debt list and run alongside the
@@ -195,11 +200,21 @@ export function DebtListInteractive({
               aria-controls={`debt-detail-${debt.id}`}
               style={{ outline: "none" }}
             >
-              <DebtCard debt={debt} account={account} isExpanded={isExpanded} />
+              <DebtCard
+                debt={debt}
+                account={account}
+                isExpanded={isExpanded}
+                isMobile={isMobile}
+              />
             </div>
             {isExpanded && (
               <div id={`debt-detail-${debt.id}`}>
-                <DebtDetailExpand debt={debt} account={account} anchor={anchor} />
+                <DebtDetailExpand
+                  debt={debt}
+                  account={account}
+                  anchor={anchor}
+                  isMobile={isMobile}
+                />
               </div>
             )}
           </div>

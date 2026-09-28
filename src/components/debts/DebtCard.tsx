@@ -39,9 +39,22 @@ export interface DebtCardProps {
   account?: DebtCardAccount | null;
   /** Visual state for the expansion indicator. */
   isExpanded?: boolean;
+  /**
+   * Cluster 7.50 — viewport-aware layout. When true, the card
+   * collapses from the desktop 3-column grid to a single stacked
+   * column. Pass `useMediaQuery("(max-width: 768px)")` from the
+   * parent. SSR-safe default = false (desktop layout until the
+   * client measures).
+   */
+  isMobile?: boolean;
 }
 
-export function DebtCard({ debt, account, isExpanded = false }: DebtCardProps) {
+export function DebtCard({
+  debt,
+  account,
+  isExpanded = false,
+  isMobile = false,
+}: DebtCardProps) {
   const isPaidOff = debt.balanceCents === 0;
   const paidPct =
     debt.originalBalanceCents > 0
@@ -120,26 +133,44 @@ export function DebtCard({ debt, account, isExpanded = false }: DebtCardProps) {
           isPaidOff ? "var(--ok)" : overpaid ? "var(--neg)" : tierColor
         }`,
         borderRadius: 4,
-        padding: "20px 24px",
+        padding: isMobile ? "14px 16px" : "20px 24px",
         display: "grid",
-        gridTemplateColumns: "120px minmax(0, 1.2fr) 140px",
-        gap: 24,
-        alignItems: "center",
+        // Cluster 7.50 — stacked single column on mobile,
+        // 3-column grid on desktop.
+        gridTemplateColumns: isMobile
+          ? "minmax(0, 1fr)"
+          : "120px minmax(0, 1.2fr) 140px",
+        gap: isMobile ? 12 : 24,
+        alignItems: isMobile ? "stretch" : "center",
         cursor: "pointer",
         transition: "border-color 120ms, box-shadow 120ms",
         boxShadow: isExpanded ? "0 0 24px rgba(168, 176, 200, 0.18)" : "none",
       }}
     >
-      {/* Donut chart — tier-colored stroke */}
-      <DonutProgress
-        pct={paidPct}
-        isPaidOff={isPaidOff}
-        overpaid={overpaid}
-        strokeColor={isPaidOff ? "var(--ok)" : overpaid ? "var(--neg)" : tierColor}
-      />
-
-      {/* Middle column: name + meta + progress bar */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
+      {/* Donut chart — tier-colored stroke. On mobile, the
+          donut + meta + right column stack vertically; on
+          desktop, the three render side by side. */}
+      {isMobile ? (
+        <MobileCardTopRow
+          debt={debt}
+          account={account}
+          isPaidOff={isPaidOff}
+          overpaid={overpaid}
+          paidPct={paidPct}
+          tierColor={tierColor}
+          yearlyInterest={yearlyInterest}
+          monthlyInterest={monthlyInterest}
+        />
+      ) : (
+        <>
+          <DonutProgress
+            pct={paidPct}
+            isPaidOff={isPaidOff}
+            overpaid={overpaid}
+            strokeColor={isPaidOff ? "var(--ok)" : overpaid ? "var(--neg)" : tierColor}
+          />
+          {/* Middle column: name + meta + progress bar */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
         <div
           style={{
             display: "flex",
@@ -317,8 +348,14 @@ export function DebtCard({ debt, account, isExpanded = false }: DebtCardProps) {
           </div>
         </div>
       </div>
+        </>
+      )}
 
-      {/* Right column: balance + min + monthly interest hint */}
+      {/* Right column: balance + min + monthly interest hint.
+          Cluster 7.50 — only renders on desktop. On mobile, the
+          MobileCardTopRow includes the balance + min + interest
+          stacked below the donut/name/meta — no right column. */}
+      {!isMobile && (
       <div
         style={{
           display: "flex",
@@ -423,6 +460,7 @@ export function DebtCard({ debt, account, isExpanded = false }: DebtCardProps) {
           {isExpanded ? "▴ Collapse" : "▾ Expand"}
         </div>
       </div>
+      )}
     </div>
   );
 }
@@ -440,13 +478,17 @@ function DonutProgress({
   isPaidOff,
   overpaid,
   strokeColor,
+  mobileSize,
 }: {
   pct: number;
   isPaidOff: boolean;
   overpaid: boolean;
   strokeColor: string;
+  /** Cluster 7.50 — smaller size on mobile so the donut doesn't
+   * dominate the stacked single-column layout. Default 96. */
+  mobileSize?: number;
 }) {
-  const size = 96;
+  const size = mobileSize ?? 96;
   const stroke = 6;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -512,6 +554,222 @@ function DonutProgress({
         }}
       >
         {isPaidOff ? "[OK]" : overpaid ? "[WARN]" : `${Math.round(pct)}%`}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * MobileCardTopRow — Cluster 7.50 stacked layout for viewports
+ * `<=768px`. Renders the donut, name, APR pill, due day, balance,
+ * min, interest hint, and utilization gauge as a single column.
+ *
+ * On desktop, the equivalent info is split across the 3-column
+ * grid (donut + middle column + right column). The mobile branch
+ * consolidates everything into a vertically-stacked block so
+ * the small mono numbers don't get squeezed at narrow widths.
+ */
+function MobileCardTopRow({
+  debt,
+  account,
+  isPaidOff,
+  overpaid,
+  paidPct,
+  tierColor,
+  yearlyInterest,
+  monthlyInterest,
+}: {
+  debt: Debt;
+  account?: DebtCardAccount | null;
+  isPaidOff: boolean;
+  overpaid: boolean;
+  paidPct: number;
+  tierColor: string;
+  yearlyInterest: number;
+  monthlyInterest: number;
+}) {
+  const hasAccount = !!account;
+  const institutionLabel = account
+    ? `${account.institution ?? account.name} · ··${account.mask ?? "—"}`
+    : null;
+  const accountTypeLabel = account
+    ? account.type === "credit"
+      ? "Credit"
+      : account.type === "savings"
+      ? "Savings"
+      : "Checking"
+    : null;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        minWidth: 0,
+      }}
+    >
+      {/* Row 1: donut + name + APR pill (single horizontal line) */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+        }}
+      >
+        <DonutProgress
+          pct={paidPct}
+          isPaidOff={isPaidOff}
+          overpaid={overpaid}
+          strokeColor={isPaidOff ? "var(--ok)" : overpaid ? "var(--neg)" : tierColor}
+          mobileSize={72}
+        />
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+            flex: 1,
+            minWidth: 0,
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "var(--font-sora)",
+              fontSize: 18,
+              fontWeight: 600,
+              color: "var(--ink)",
+              letterSpacing: "-0.005em",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {debt.name}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 10,
+              color: "var(--ink-3)",
+              letterSpacing: "0.10em",
+              textTransform: "uppercase",
+              flexWrap: "wrap",
+            }}
+          >
+            <span
+              style={{
+                fontWeight: 700,
+                color: tierColor,
+                fontSize: 12,
+                padding: "2px 8px",
+                border: `1px solid ${tierColor}`,
+                borderRadius: 2,
+                background: "transparent",
+                letterSpacing: "0.12em",
+              }}
+            >
+              {(debt.aprBps / 100).toFixed(2)}% APR
+            </span>
+            {debt.dueDay > 0 && (
+              <span style={{ color: "var(--ink-3)" }}>
+                <span style={{ color: "var(--ink-4)" }}>·</span> Due day {debt.dueDay}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Institution + account type (when linked) */}
+      {hasAccount && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 9.5,
+            color: "var(--ink-3)",
+            letterSpacing: "0.04em",
+            flexWrap: "wrap",
+          }}
+        >
+          <AccountTypeIcon type={accountTypeLabel ?? "Checking"} />
+          <span>{institutionLabel}</span>
+          {accountTypeLabel && (
+            <span
+              style={{
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 9,
+                color: "var(--ink-4)",
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                padding: "1px 5px",
+                border: "1px solid var(--line-soft)",
+                borderRadius: 2,
+              }}
+            >
+              {accountTypeLabel}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Row: balance + min + tap-to-expand */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        <div
+          style={{
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 26,
+            fontWeight: 600,
+            color: isPaidOff ? "var(--ok)" : "var(--ink)",
+            lineHeight: 1.05,
+            fontFeatureSettings: '"tnum" 1, "zero" 1',
+          }}
+        >
+          {formatMoney(debt.balanceCents)}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            gap: 2,
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 11,
+            color: "var(--ink-2)",
+            letterSpacing: "0.10em",
+            textTransform: "uppercase",
+          }}
+        >
+          <span>
+            <span style={{ color: "var(--ink-4)" }}>//</span> Min{" "}
+            {debt.minPaymentCents > 0 ? formatMoney(debt.minPaymentCents) : "—"}
+          </span>
+          {!isPaidOff && yearlyInterest > 0 && (
+            <>
+              <span style={{ color: tierColor, fontWeight: 700, fontSize: 12 }}>
+                ~{formatMoney(yearlyInterest)}/yr
+              </span>
+              {monthlyInterest > 0 && (
+                <span style={{ fontSize: 10, color: "var(--ink-3)" }}>
+                  ({formatMoney(monthlyInterest)}/mo)
+                </span>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
