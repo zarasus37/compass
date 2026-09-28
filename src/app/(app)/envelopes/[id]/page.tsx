@@ -8,6 +8,7 @@ import { EnvelopeCadenceChart } from "@/components/viz/EnvelopeCadenceChart";
 import { SinkList } from "@/components/envelopes/SinkList";
 import { AddSinkForm } from "@/components/envelopes/AddSinkForm";
 import { ensureUserSinksSeeded, monthlyFillCents } from "@/lib/seed-sinks";
+import { recordSectionThrow, SafeSectionFallback } from "@/lib/safe-section";
 import { requireUser } from "@/server/auth/user";
 import { prisma } from "@/server/db";
 import {
@@ -52,71 +53,12 @@ export const dynamic = "force-dynamic";
  * usable; only that section is dimmed. Mirrors the calm-error
  * voice: terminal-orange left rail, monospace caps, no stack
  * trace, no raw error.message exposed to the UI.
+ *
+ * Cluster 7.52 — aliased to the shared `SafeSectionFallback` in
+ * `@/lib/safe-section`. Behavior identical to the prior
+ * in-file version; one source of truth for both envelope pages.
  */
-function SectionErrorFallback({ section }: { section: string }) {
-  return (
-    <div
-      data-testid={`section-error-${section.toLowerCase().replace(/\s+/g, "-")}`}
-      style={{
-        background: "var(--surface)",
-        border: "1px solid var(--line)",
-        borderLeft: "3px solid var(--vessel-watch)",
-        borderRadius: 4,
-        padding: "16px 20px",
-        marginBottom: 32,
-        fontFamily: "var(--font-jetbrains), monospace",
-        fontSize: 12,
-        color: "var(--ink-3)",
-      }}
-    >
-      <div
-        style={{
-          fontSize: 9.5,
-          fontWeight: 600,
-          letterSpacing: "0.18em",
-          textTransform: "uppercase",
-          color: "var(--vessel-watch)",
-          marginBottom: 4,
-        }}
-      >
-        [WARN] {section} unavailable
-      </div>
-      <div style={{ color: "var(--ink-2)" }}>
-        This section couldn&apos;t render. The rest of the envelope
-        detail is intact — try a hard refresh, or continue to{" "}
-        <Link href="/envelopes" style={{ color: "var(--vessel-accent)" }}>
-          all envelopes
-        </Link>{" "}
-        and come back.
-      </div>
-    </div>
-  );
-}
-
-/**
- * Helper: wrap a section's render in try/catch. Returns a function-
- * shaped renderer so we can keep the page composition linear without
- * losing the per-section isolation. Any error from `render()` is
- * caught and converted to a SectionErrorFallback.
- */
-async function safeSection(
-  section: string,
-  render: () => React.ReactNode | Promise<React.ReactNode>,
-): Promise<React.ReactNode> {
-  try {
-    return await render();
-  } catch (err) {
-    // Don't log to the user — keep the message visible in the
-    // server console via stderr (Next.js handles this), but the
-    // UI shows the calm fallback. Avoids the [ERR] SOMETHING BROKE
-    // card for one bad row.
-    if (process.env.NODE_ENV !== "production") {
-      // eslint-disable-next-line no-console
-      console.error(`[envelope-detail] ${section} section failed:`, err);
-    }
-    return <SectionErrorFallback section={section} />;
-  }
-}
+const SectionErrorFallback = SafeSectionFallback;
 
 export default async function EnvelopeDetailPage({
   params,
@@ -140,6 +82,42 @@ export default async function EnvelopeDetailPage({
   }
 
   const e = envelope;
+
+  /**
+   * Helper: wrap a section's render in try/catch. Returns a function-
+   * shaped renderer so we can keep the page composition linear
+   * without losing the per-section isolation. Any error from
+   * `render()` is caught and converted to a SectionErrorFallback.
+   *
+   * Cluster 7.52 — also captures the throw to the ClientError
+   * table (source: "server-safe-section") so future reports
+   * surface in `npx tsx scripts/show-client-errors.mjs` without
+   * needing Vercel logs. Lives inside the page body so the
+   * closure captures `id` + `user.id` for the capture context.
+   *
+   * Function declarations are hoisted within their enclosing
+   * function scope, so the call sites below reference this
+   * regardless of textual position.
+   */
+  async function safeSection(
+    section: string,
+    render: () => React.ReactNode | Promise<React.ReactNode>,
+  ): Promise<React.ReactNode> {
+    try {
+      return await render();
+    } catch (err) {
+      recordSectionThrow(
+        { pathname: `/envelopes/${id}`, envelopeId: id, userId: user.id },
+        section,
+        err,
+      );
+      if (process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.error(`[envelope-detail] ${section} section failed:`, err);
+      }
+      return <SectionErrorFallback section={section} />;
+    }
+  }
 
   // Cluster 7.42 — defensive normalization. The Prisma `Envelope.planet`
   // column is nullable, and several downstream components require a
@@ -167,8 +145,19 @@ export default async function EnvelopeDetailPage({
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     });
   } catch (err) {
-    // Sinks are non-critical. Log + continue with empty list so the
-    // rest of the page still renders.
+    // Cluster 7.52 — capture to the ClientError table before
+    // swallowing. Sinks being empty is non-fatal (the page
+    // still renders) but the throw itself is the kind of
+    // bug we want to know about without needing Vercel logs.
+    recordSectionThrow(
+      {
+        pathname: `/envelopes/${id}`,
+        envelopeId: id,
+        userId: user.id,
+      },
+      "page-sinks-read",
+      err,
+    );
     if (process.env.NODE_ENV !== "production") {
       // eslint-disable-next-line no-console
       console.error("[envelope-detail] sinks read failed:", err);
@@ -572,7 +561,21 @@ export default async function EnvelopeDetailPage({
                   </div>
                 </div>
               );
-            } catch {
+            } catch (rowErr) {
+              // Cluster 7.52 — capture per-row throws too. Same
+              // context as the section catches, plus the row's
+              // own id when available. The dedup key includes
+              // the row index so a single bad row's spam is
+              // distinguishable from a section's spam.
+              recordSectionThrow(
+                {
+                  pathname: `/envelopes/${id}`,
+                  envelopeId: id,
+                  userId: user.id,
+                },
+                `activity-row-${i}-${t?.id ?? "?"}`,
+                rowErr,
+              );
               return (
                 <div
                   key={t.id ?? `bad-${i}`}

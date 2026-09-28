@@ -123,8 +123,14 @@ check(
   /!isPaidOff && \([\s\S]{0,200}?<PayoffCurve[\s\S]{0,200}?debt=\{debt\}/.test(detailSrc),
 );
 check(
-  "[9] PayoffCurve uses SVG with width + height",
-  /<svg\s+width=\{W\}[\s\S]{0,100}?height=\{H\}/.test(detailSrc),
+  "[9] PayoffCurve uses SVG with viewBox + preserveAspectRatio",
+  // Cluster 7.50 mobile polish — switched from
+  // `width={W} height={H}` to `viewBox={`0 0 ${W} ${H}`}` +
+  // `preserveAspectRatio="xMidYMid meet"` so the curve
+  // scales down on narrow viewports. Width/height are now
+  // in `style={svgStyle}` instead of as SVG attributes.
+  /<svg[\s\S]{0,200}?viewBox=\{`0 0 \$\{W\} \$\{H\}`\}/.test(detailSrc) &&
+    /<svg[\s\S]{0,400}?preserveAspectRatio="xMidYMid meet"/.test(detailSrc),
 );
 check(
   "[10] PayoffCurve builds an SVG path with L commands (real line, not flat)",

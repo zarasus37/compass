@@ -1257,3 +1257,92 @@ model SetupState {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
+
+/// Cluster 7.52 — Client error capture.
+///
+/// The persistent [ERR] digest 3789288087 mom reported on
+/// /envelopes and /envelopes/[id] kept being masked by Cluster 7.43/7.44
+/// defensive wraps without ever being pinpointed — Vercel's production
+/// logs are unreachable from this machine (the personal VERCEL_TOKEN
+/// doesn't have team-scope access to the sovereign-monad-ecosystem
+/// project) and `pnpm dev` times out on this Windows box (Turbopack
+/// subprocess issue), so we can't reproduce locally either.
+///
+/// This table makes future errors come to us automatically:
+/// - `(app)/error.tsx` POSTs the error object on every boundary fire
+///   with `error.digest` + URL + envelope ID + stack
+/// - The new `<ClientErrorCapture>` client component installs
+///   `window.onerror` + `unhandledrejection` listeners and POSTs
+///   any pure-client JS errors
+/// - `safeSection` callers on `/envelopes` and `/envelopes/[id]`
+///   write server-side throws directly to this table (no client
+///   round-trip needed)
+///
+/// Dedup key is `(digest, url, source)` — Next.js prod digests are
+/// deterministic per throw site, so a single broken page session =
+/// one row with an incremented `occurrences` counter, not 50 spammed
+/// rows. `lastSeenAt` rolls forward on each dup so we can see "this
+/// threw 12 times in the last 5 minutes."
+///
+/// Operator view: `pnpm tsx scripts/show-client-errors.mjs`
+/// (or `npx tsx scripts/show-client-errors.mjs`) prints the last 50
+/// errors with digest + URL + user + occurrence count — readable
+/// from this machine without Vercel logs.
+///
+/// `message` + `stack` are nullable because boundary fires don't
+/// always include a message (client JS errors may have empty
+/// `.message` for cross-origin scripts). String-typed (not Json)
+/// to match the rest of the schema's text-blob convention.
+model ClientError {
+  id              String   @id @default(cuid())
+  /// NULL when the client capture runs before auth resolves
+  /// (e.g. the unauthenticated login boundary catches a throw).
+  userId          String?
+  /// Next.js production error digest (when available). The primary
+  /// lookup key — same digest = same throw site.
+  digest          String?
+  /// err.message or a synthesized label like "[client] TypeError".
+  message         String?
+  /// err.stack — truncated to 8KB by the API route. Lets us
+  /// pinpoint the exact throw site when the digest alone isn't
+  /// enough.
+  stack           String?
+  /// Full URL where the throw happened, including query string.
+  url             String
+  /// pathname-only strip of the URL — used for grouping + the
+  /// unique dedup index.
+  pathname        String
+  /// Envelope ID if the throw happened inside an envelope page —
+  /// helps trace which envelope the issue is associated with.
+  envelopeId      String?
+  /// Source of the capture:
+  ///   "client-error-boundary"  — Next.js error boundary (digest-bearing)
+  ///   "client-window-onerror"  — window.onerror (pure-client JS)
+  ///   "client-unhandledrejection" — window.unhandledrejection
+  ///   "server-safe-section"    — safeSection() caught a server throw
+  source          String
+  /// User agent string (only captured when available — strictly
+  /// client-side triggers).
+  userAgent       String?
+  /// Viewport at capture time (client-only).
+  viewportWidth   Int?
+  viewportHeight  Int?
+  /// Free-form extras serialized as JSON (e.g. for future cluster
+  /// to carry `{ componentStack }`). Empty object by default so
+  /// the column is never NULL.
+  payloadJson     String   @default("{}")
+  /// Dedup counter — increments each time the same (digest, url,
+  /// source) tuple fires. Lets a single bad-page session become
+  /// one row, not 50.
+  occurrences     Int      @default(1)
+  firstSeenAt     DateTime @default(now())
+  /// Rolls forward on each dedup hit. Used by the operator
+  /// view to show "active right now" recency.
+  lastSeenAt      DateTime @default(now())
+
+  @@unique([digest, url, source])
+  @@index([userId])
+  @@index([lastSeenAt])
+  @@index([digest])
+  @@index([pathname])
+}

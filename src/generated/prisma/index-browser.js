@@ -585,6 +585,25 @@ exports.Prisma.SetupStateScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.ClientErrorScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  digest: 'digest',
+  message: 'message',
+  stack: 'stack',
+  url: 'url',
+  pathname: 'pathname',
+  envelopeId: 'envelopeId',
+  source: 'source',
+  userAgent: 'userAgent',
+  viewportWidth: 'viewportWidth',
+  viewportHeight: 'viewportHeight',
+  payloadJson: 'payloadJson',
+  occurrences: 'occurrences',
+  firstSeenAt: 'firstSeenAt',
+  lastSeenAt: 'lastSeenAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -643,7 +662,8 @@ exports.Prisma.ModelName = {
   ProviderEvent: 'ProviderEvent',
   VaultPreferences: 'VaultPreferences',
   VaultSchedule: 'VaultSchedule',
-  SetupState: 'SetupState'
+  SetupState: 'SetupState',
+  ClientError: 'ClientError'
 };
 
 /**

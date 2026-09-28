@@ -11,8 +11,17 @@
  * `reset()` re-renders the segment (same as a soft refresh of the
  * route that errored).
  *
- * No console.error — the upstream Next.js handler already logs to
- * the dev server / Vercel logs. Re-empting would double-log.
+ * Cluster 7.52 — capture the throw site so we can pinpoint it from
+ * this machine instead of needing Vercel logs. POSTs to
+ * `/api/client-error` with `error.digest` + the URL + the user
+ * ID + the stack. Same dedup logic as the table itself, so a single
+ * broken session becomes one row, not 50.
+ *
+ * Cluster 7.39 also kept no console.error here — the upstream
+ * Next.js handler already logs to dev server / Vercel logs, but
+ * for prod we now ALSO write to our table. The dual-channel is
+ * intentional: Next.js logs remain the operator's red-line
+ * console; our table is the triage-friendly indexed view.
  */
 import * as React from "react";
 import Link from "next/link";
@@ -24,6 +33,56 @@ export default function AppError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Cluster 7.52 — capture the throw to /api/client-error. Runs
+  // once per boundary fire (or once per dedup window on repeat
+  // fires from the same throw, server-side). Side-effect-only;
+  // the boundary renders normally even if the POST fails.
+  React.useEffect(() => {
+    const url =
+      typeof window !== "undefined" ? window.location.href : "/";
+    const pathname =
+      typeof window !== "undefined" ? window.location.pathname : "/";
+    const message = error?.message ? error.message.slice(0, 1024) : null;
+    const stack = error?.stack ? error.stack.slice(0, 8192) : null;
+    // Extract envelope ID from pathname when the throw happened
+    // on `/envelopes/[id]`. Cheap regex — pattern is the route
+    // itself. If the throw is elsewhere, we leave it null.
+    const envelopeMatch = pathname.match(/^\/envelopes\/([^/?#]+)/);
+    const envelopeId = envelopeMatch ? envelopeMatch[1] : null;
+    const body = JSON.stringify({
+      digest: error?.digest ?? null,
+      message,
+      stack,
+      url,
+      pathname,
+      envelopeId,
+      source: "client-error-boundary",
+      userAgent:
+        typeof navigator !== "undefined" ? navigator.userAgent : null,
+      viewportWidth:
+        typeof window !== "undefined" ? window.innerWidth : null,
+      viewportHeight:
+        typeof window !== "undefined" ? window.innerHeight : null,
+    });
+    try {
+      fetch("/api/client-error", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+        keepalive: true,
+        signal: AbortSignal.timeout(4000),
+      }).catch(() => {});
+    } catch {
+      // Capture never throws.
+    }
+    // `error.digest` is the natural dedup key; if Next.js
+    // doesn't expose one, the URL + message do double duty. The
+    // table's `(digest, url, source)` unique index handles the
+    // happy case; the server-side `recordClientError` falls
+    // back to a synthetic digest when needed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [error?.digest]);
+
   // The error's `digest` is a server-side hash Next.js attaches for
   // production. Don't render the raw error message — it may include
   // stack-trace fragments or DB connection strings.

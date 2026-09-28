@@ -5,6 +5,7 @@ import { AppSidebar } from "@/components/sidebar/AppSidebar";
 import { BottomNav } from "@/components/shell/BottomNav";
 import { TopAppBar } from "@/components/shell/TopAppBar";
 import { RebalanceAlertBay } from "@/components/alerts/RebalanceAlertBay";
+import { ClientErrorCapture } from "@/components/ClientErrorCapture";
 import { liveEnvelopesFromDb, getCurrentPayPeriod } from "@/lib/mock";
 import { getActiveEngineLevel } from "@/app/(app)/settings/engine-actions";
 import { CommandPaletteProvider } from "@/components/command-palette/CommandPaletteProvider";
@@ -132,6 +133,10 @@ export default async function AppLayout({
               flex: 1,
             }}
           >
+            {/* Cluster 7.52 — installs window.onerror + unhandledrejection
+                listeners that POST client JS errors to /api/client-error.
+                Renders nothing visible. Idempotent across re-renders. */}
+            <ClientErrorCapture />
             <RebalanceAlertBay envelopes={alertBayEnvelopes} overLimit={overLimit} />
             {children}
           </main>

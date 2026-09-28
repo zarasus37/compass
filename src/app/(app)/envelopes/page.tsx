@@ -7,6 +7,7 @@ import { EnvelopeMiniBar } from "@/components/viz/EnvelopeMiniBar";
 import { BudgetVsActual, type BudgetVsActualRow } from "@/components/viz/BudgetVsActual";
 import { RebalanceForm } from "@/components/envelopes/RebalanceForm";
 import { ensureUserSinksSeeded, monthlyFillCents } from "@/lib/seed-sinks";
+import { recordSectionThrow } from "@/lib/safe-section";
 import { prisma } from "@/server/db";
 import {
   liveEnvelopes,
@@ -54,6 +55,16 @@ export default async function EnvelopesPage() {
   try {
     ENVELOPES = await liveEnvelopesFromDb(user.id);
   } catch (err) {
+    // Cluster 7.52 — capture the throw so the operator sees it
+    // in `scripts/show-client-errors.mjs` without needing Vercel
+    // logs. Empty ENVELOPES is non-fatal (the empty-state still
+    // renders) but the throw itself is the kind of bug we want
+    // to know about.
+    recordSectionThrow(
+      { pathname: "/envelopes", envelopeId: null, userId: user.id },
+      "page-live-envelopes",
+      err,
+    );
     if (process.env.NODE_ENV !== "production") {
       // eslint-disable-next-line no-console
       console.error("[envelopes-list] liveEnvelopesFromDb failed:", err);
@@ -79,6 +90,15 @@ export default async function EnvelopesPage() {
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     });
   } catch (err) {
+    // Cluster 7.52 — capture to ClientError table before the
+    // empty-SINKS fallback. Same shape as 7.44's defensive
+    // catch but the throw itself now lands in the operator's
+    // view.
+    recordSectionThrow(
+      { pathname: "/envelopes", envelopeId: null, userId: user.id },
+      "page-sinks-read",
+      err,
+    );
     if (process.env.NODE_ENV !== "production") {
       // eslint-disable-next-line no-console
       console.error("[envelopes-list] sinks read failed:", err);

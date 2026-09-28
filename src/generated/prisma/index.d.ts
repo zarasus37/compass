@@ -365,6 +365,45 @@ export type VaultSchedule = $Result.DefaultSelection<Prisma.$VaultSchedulePayloa
  * "Activate plan" CTA on the review screen and the engine takes over.
  */
 export type SetupState = $Result.DefaultSelection<Prisma.$SetupStatePayload>
+/**
+ * Model ClientError
+ * Cluster 7.52 — Client error capture.
+ * 
+ * The persistent [ERR] digest 3789288087 mom reported on
+ * /envelopes and /envelopes/[id] kept being masked by Cluster 7.43/7.44
+ * defensive wraps without ever being pinpointed — Vercel's production
+ * logs are unreachable from this machine (the personal VERCEL_TOKEN
+ * doesn't have team-scope access to the sovereign-monad-ecosystem
+ * project) and `pnpm dev` times out on this Windows box (Turbopack
+ * subprocess issue), so we can't reproduce locally either.
+ * 
+ * This table makes future errors come to us automatically:
+ * - `(app)/error.tsx` POSTs the error object on every boundary fire
+ * with `error.digest` + URL + envelope ID + stack
+ * - The new `<ClientErrorCapture>` client component installs
+ * `window.onerror` + `unhandledrejection` listeners and POSTs
+ * any pure-client JS errors
+ * - `safeSection` callers on `/envelopes` and `/envelopes/[id]`
+ * write server-side throws directly to this table (no client
+ * round-trip needed)
+ * 
+ * Dedup key is `(digest, url, source)` — Next.js prod digests are
+ * deterministic per throw site, so a single broken page session =
+ * one row with an incremented `occurrences` counter, not 50 spammed
+ * rows. `lastSeenAt` rolls forward on each dup so we can see "this
+ * threw 12 times in the last 5 minutes."
+ * 
+ * Operator view: `pnpm tsx scripts/show-client-errors.mjs`
+ * (or `npx tsx scripts/show-client-errors.mjs`) prints the last 50
+ * errors with digest + URL + user + occurrence count — readable
+ * from this machine without Vercel logs.
+ * 
+ * `message` + `stack` are nullable because boundary fires don't
+ * always include a message (client JS errors may have empty
+ * `.message` for cross-origin scripts). String-typed (not Json)
+ * to match the rest of the schema's text-blob convention.
+ */
+export type ClientError = $Result.DefaultSelection<Prisma.$ClientErrorPayload>
 
 /**
  * Enums
@@ -855,6 +894,16 @@ export class PrismaClient<
     * ```
     */
   get setupState(): Prisma.SetupStateDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.clientError`: Exposes CRUD operations for the **ClientError** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more ClientErrors
+    * const clientErrors = await prisma.clientError.findMany()
+    * ```
+    */
+  get clientError(): Prisma.ClientErrorDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -1335,7 +1384,8 @@ export namespace Prisma {
     ProviderEvent: 'ProviderEvent',
     VaultPreferences: 'VaultPreferences',
     VaultSchedule: 'VaultSchedule',
-    SetupState: 'SetupState'
+    SetupState: 'SetupState',
+    ClientError: 'ClientError'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -1351,7 +1401,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "session" | "account" | "envelope" | "envelopeSink" | "transaction" | "paySchedule" | "bill" | "goal" | "allocationPlan" | "allocationRule" | "auditLog" | "auditLogDailyRollup" | "systemSettings" | "payPeriod" | "financialIdentity" | "identityIncome" | "identityExpense" | "identityDebt" | "identityAsset" | "identityGoal" | "identityEvent" | "identitySpendingHabit" | "identityHouseholdMember" | "onboardingMessage" | "vaultAccount" | "vaultEnvelope" | "scheduledBill" | "yieldEvent" | "paymentAttempt" | "providerEvent" | "vaultPreferences" | "vaultSchedule" | "setupState"
+      modelProps: "user" | "session" | "account" | "envelope" | "envelopeSink" | "transaction" | "paySchedule" | "bill" | "goal" | "allocationPlan" | "allocationRule" | "auditLog" | "auditLogDailyRollup" | "systemSettings" | "payPeriod" | "financialIdentity" | "identityIncome" | "identityExpense" | "identityDebt" | "identityAsset" | "identityGoal" | "identityEvent" | "identitySpendingHabit" | "identityHouseholdMember" | "onboardingMessage" | "vaultAccount" | "vaultEnvelope" | "scheduledBill" | "yieldEvent" | "paymentAttempt" | "providerEvent" | "vaultPreferences" | "vaultSchedule" | "setupState" | "clientError"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -3871,6 +3921,80 @@ export namespace Prisma {
           }
         }
       }
+      ClientError: {
+        payload: Prisma.$ClientErrorPayload<ExtArgs>
+        fields: Prisma.ClientErrorFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.ClientErrorFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ClientErrorPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.ClientErrorFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ClientErrorPayload>
+          }
+          findFirst: {
+            args: Prisma.ClientErrorFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ClientErrorPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.ClientErrorFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ClientErrorPayload>
+          }
+          findMany: {
+            args: Prisma.ClientErrorFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ClientErrorPayload>[]
+          }
+          create: {
+            args: Prisma.ClientErrorCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ClientErrorPayload>
+          }
+          createMany: {
+            args: Prisma.ClientErrorCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.ClientErrorCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ClientErrorPayload>[]
+          }
+          delete: {
+            args: Prisma.ClientErrorDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ClientErrorPayload>
+          }
+          update: {
+            args: Prisma.ClientErrorUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ClientErrorPayload>
+          }
+          deleteMany: {
+            args: Prisma.ClientErrorDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.ClientErrorUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.ClientErrorUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ClientErrorPayload>[]
+          }
+          upsert: {
+            args: Prisma.ClientErrorUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ClientErrorPayload>
+          }
+          aggregate: {
+            args: Prisma.ClientErrorAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateClientError>
+          }
+          groupBy: {
+            args: Prisma.ClientErrorGroupByArgs<ExtArgs>
+            result: $Utils.Optional<ClientErrorGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.ClientErrorCountArgs<ExtArgs>
+            result: $Utils.Optional<ClientErrorCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -4028,6 +4152,7 @@ export namespace Prisma {
     vaultPreferences?: VaultPreferencesOmit
     vaultSchedule?: VaultScheduleOmit
     setupState?: SetupStateOmit
+    clientError?: ClientErrorOmit
   }
 
   /* Types for Logging */
@@ -45860,6 +45985,1246 @@ export namespace Prisma {
 
 
   /**
+   * Model ClientError
+   */
+
+  export type AggregateClientError = {
+    _count: ClientErrorCountAggregateOutputType | null
+    _avg: ClientErrorAvgAggregateOutputType | null
+    _sum: ClientErrorSumAggregateOutputType | null
+    _min: ClientErrorMinAggregateOutputType | null
+    _max: ClientErrorMaxAggregateOutputType | null
+  }
+
+  export type ClientErrorAvgAggregateOutputType = {
+    viewportWidth: number | null
+    viewportHeight: number | null
+    occurrences: number | null
+  }
+
+  export type ClientErrorSumAggregateOutputType = {
+    viewportWidth: number | null
+    viewportHeight: number | null
+    occurrences: number | null
+  }
+
+  export type ClientErrorMinAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    digest: string | null
+    message: string | null
+    stack: string | null
+    url: string | null
+    pathname: string | null
+    envelopeId: string | null
+    source: string | null
+    userAgent: string | null
+    viewportWidth: number | null
+    viewportHeight: number | null
+    payloadJson: string | null
+    occurrences: number | null
+    firstSeenAt: Date | null
+    lastSeenAt: Date | null
+  }
+
+  export type ClientErrorMaxAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    digest: string | null
+    message: string | null
+    stack: string | null
+    url: string | null
+    pathname: string | null
+    envelopeId: string | null
+    source: string | null
+    userAgent: string | null
+    viewportWidth: number | null
+    viewportHeight: number | null
+    payloadJson: string | null
+    occurrences: number | null
+    firstSeenAt: Date | null
+    lastSeenAt: Date | null
+  }
+
+  export type ClientErrorCountAggregateOutputType = {
+    id: number
+    userId: number
+    digest: number
+    message: number
+    stack: number
+    url: number
+    pathname: number
+    envelopeId: number
+    source: number
+    userAgent: number
+    viewportWidth: number
+    viewportHeight: number
+    payloadJson: number
+    occurrences: number
+    firstSeenAt: number
+    lastSeenAt: number
+    _all: number
+  }
+
+
+  export type ClientErrorAvgAggregateInputType = {
+    viewportWidth?: true
+    viewportHeight?: true
+    occurrences?: true
+  }
+
+  export type ClientErrorSumAggregateInputType = {
+    viewportWidth?: true
+    viewportHeight?: true
+    occurrences?: true
+  }
+
+  export type ClientErrorMinAggregateInputType = {
+    id?: true
+    userId?: true
+    digest?: true
+    message?: true
+    stack?: true
+    url?: true
+    pathname?: true
+    envelopeId?: true
+    source?: true
+    userAgent?: true
+    viewportWidth?: true
+    viewportHeight?: true
+    payloadJson?: true
+    occurrences?: true
+    firstSeenAt?: true
+    lastSeenAt?: true
+  }
+
+  export type ClientErrorMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    digest?: true
+    message?: true
+    stack?: true
+    url?: true
+    pathname?: true
+    envelopeId?: true
+    source?: true
+    userAgent?: true
+    viewportWidth?: true
+    viewportHeight?: true
+    payloadJson?: true
+    occurrences?: true
+    firstSeenAt?: true
+    lastSeenAt?: true
+  }
+
+  export type ClientErrorCountAggregateInputType = {
+    id?: true
+    userId?: true
+    digest?: true
+    message?: true
+    stack?: true
+    url?: true
+    pathname?: true
+    envelopeId?: true
+    source?: true
+    userAgent?: true
+    viewportWidth?: true
+    viewportHeight?: true
+    payloadJson?: true
+    occurrences?: true
+    firstSeenAt?: true
+    lastSeenAt?: true
+    _all?: true
+  }
+
+  export type ClientErrorAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ClientError to aggregate.
+     */
+    where?: ClientErrorWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ClientErrors to fetch.
+     */
+    orderBy?: ClientErrorOrderByWithRelationInput | ClientErrorOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: ClientErrorWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ClientErrors from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ClientErrors.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned ClientErrors
+    **/
+    _count?: true | ClientErrorCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: ClientErrorAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: ClientErrorSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: ClientErrorMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: ClientErrorMaxAggregateInputType
+  }
+
+  export type GetClientErrorAggregateType<T extends ClientErrorAggregateArgs> = {
+        [P in keyof T & keyof AggregateClientError]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateClientError[P]>
+      : GetScalarType<T[P], AggregateClientError[P]>
+  }
+
+
+
+
+  export type ClientErrorGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ClientErrorWhereInput
+    orderBy?: ClientErrorOrderByWithAggregationInput | ClientErrorOrderByWithAggregationInput[]
+    by: ClientErrorScalarFieldEnum[] | ClientErrorScalarFieldEnum
+    having?: ClientErrorScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: ClientErrorCountAggregateInputType | true
+    _avg?: ClientErrorAvgAggregateInputType
+    _sum?: ClientErrorSumAggregateInputType
+    _min?: ClientErrorMinAggregateInputType
+    _max?: ClientErrorMaxAggregateInputType
+  }
+
+  export type ClientErrorGroupByOutputType = {
+    id: string
+    userId: string | null
+    digest: string | null
+    message: string | null
+    stack: string | null
+    url: string
+    pathname: string
+    envelopeId: string | null
+    source: string
+    userAgent: string | null
+    viewportWidth: number | null
+    viewportHeight: number | null
+    payloadJson: string
+    occurrences: number
+    firstSeenAt: Date
+    lastSeenAt: Date
+    _count: ClientErrorCountAggregateOutputType | null
+    _avg: ClientErrorAvgAggregateOutputType | null
+    _sum: ClientErrorSumAggregateOutputType | null
+    _min: ClientErrorMinAggregateOutputType | null
+    _max: ClientErrorMaxAggregateOutputType | null
+  }
+
+  type GetClientErrorGroupByPayload<T extends ClientErrorGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<ClientErrorGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof ClientErrorGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], ClientErrorGroupByOutputType[P]>
+            : GetScalarType<T[P], ClientErrorGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type ClientErrorSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    digest?: boolean
+    message?: boolean
+    stack?: boolean
+    url?: boolean
+    pathname?: boolean
+    envelopeId?: boolean
+    source?: boolean
+    userAgent?: boolean
+    viewportWidth?: boolean
+    viewportHeight?: boolean
+    payloadJson?: boolean
+    occurrences?: boolean
+    firstSeenAt?: boolean
+    lastSeenAt?: boolean
+  }, ExtArgs["result"]["clientError"]>
+
+  export type ClientErrorSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    digest?: boolean
+    message?: boolean
+    stack?: boolean
+    url?: boolean
+    pathname?: boolean
+    envelopeId?: boolean
+    source?: boolean
+    userAgent?: boolean
+    viewportWidth?: boolean
+    viewportHeight?: boolean
+    payloadJson?: boolean
+    occurrences?: boolean
+    firstSeenAt?: boolean
+    lastSeenAt?: boolean
+  }, ExtArgs["result"]["clientError"]>
+
+  export type ClientErrorSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    digest?: boolean
+    message?: boolean
+    stack?: boolean
+    url?: boolean
+    pathname?: boolean
+    envelopeId?: boolean
+    source?: boolean
+    userAgent?: boolean
+    viewportWidth?: boolean
+    viewportHeight?: boolean
+    payloadJson?: boolean
+    occurrences?: boolean
+    firstSeenAt?: boolean
+    lastSeenAt?: boolean
+  }, ExtArgs["result"]["clientError"]>
+
+  export type ClientErrorSelectScalar = {
+    id?: boolean
+    userId?: boolean
+    digest?: boolean
+    message?: boolean
+    stack?: boolean
+    url?: boolean
+    pathname?: boolean
+    envelopeId?: boolean
+    source?: boolean
+    userAgent?: boolean
+    viewportWidth?: boolean
+    viewportHeight?: boolean
+    payloadJson?: boolean
+    occurrences?: boolean
+    firstSeenAt?: boolean
+    lastSeenAt?: boolean
+  }
+
+  export type ClientErrorOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "digest" | "message" | "stack" | "url" | "pathname" | "envelopeId" | "source" | "userAgent" | "viewportWidth" | "viewportHeight" | "payloadJson" | "occurrences" | "firstSeenAt" | "lastSeenAt", ExtArgs["result"]["clientError"]>
+
+  export type $ClientErrorPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "ClientError"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      /**
+       * NULL when the client capture runs before auth resolves
+       * (e.g. the unauthenticated login boundary catches a throw).
+       */
+      userId: string | null
+      /**
+       * Next.js production error digest (when available). The primary
+       * lookup key — same digest = same throw site.
+       */
+      digest: string | null
+      /**
+       * err.message or a synthesized label like "[client] TypeError".
+       */
+      message: string | null
+      /**
+       * err.stack — truncated to 8KB by the API route. Lets us
+       * pinpoint the exact throw site when the digest alone isn't
+       * enough.
+       */
+      stack: string | null
+      /**
+       * Full URL where the throw happened, including query string.
+       */
+      url: string
+      /**
+       * pathname-only strip of the URL — used for grouping + the
+       * unique dedup index.
+       */
+      pathname: string
+      /**
+       * Envelope ID if the throw happened inside an envelope page —
+       * helps trace which envelope the issue is associated with.
+       */
+      envelopeId: string | null
+      /**
+       * Source of the capture:
+       * "client-error-boundary"  — Next.js error boundary (digest-bearing)
+       * "client-window-onerror"  — window.onerror (pure-client JS)
+       * "client-unhandledrejection" — window.unhandledrejection
+       * "server-safe-section"    — safeSection() caught a server throw
+       */
+      source: string
+      /**
+       * User agent string (only captured when available — strictly
+       * client-side triggers).
+       */
+      userAgent: string | null
+      /**
+       * Viewport at capture time (client-only).
+       */
+      viewportWidth: number | null
+      viewportHeight: number | null
+      /**
+       * Free-form extras serialized as JSON (e.g. for future cluster
+       * to carry `{ componentStack }`). Empty object by default so
+       * the column is never NULL.
+       */
+      payloadJson: string
+      /**
+       * Dedup counter — increments each time the same (digest, url,
+       * source) tuple fires. Lets a single bad-page session become
+       * one row, not 50.
+       */
+      occurrences: number
+      firstSeenAt: Date
+      /**
+       * Rolls forward on each dedup hit. Used by the operator
+       * view to show "active right now" recency.
+       */
+      lastSeenAt: Date
+    }, ExtArgs["result"]["clientError"]>
+    composites: {}
+  }
+
+  type ClientErrorGetPayload<S extends boolean | null | undefined | ClientErrorDefaultArgs> = $Result.GetResult<Prisma.$ClientErrorPayload, S>
+
+  type ClientErrorCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<ClientErrorFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: ClientErrorCountAggregateInputType | true
+    }
+
+  export interface ClientErrorDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['ClientError'], meta: { name: 'ClientError' } }
+    /**
+     * Find zero or one ClientError that matches the filter.
+     * @param {ClientErrorFindUniqueArgs} args - Arguments to find a ClientError
+     * @example
+     * // Get one ClientError
+     * const clientError = await prisma.clientError.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends ClientErrorFindUniqueArgs>(args: SelectSubset<T, ClientErrorFindUniqueArgs<ExtArgs>>): Prisma__ClientErrorClient<$Result.GetResult<Prisma.$ClientErrorPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one ClientError that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {ClientErrorFindUniqueOrThrowArgs} args - Arguments to find a ClientError
+     * @example
+     * // Get one ClientError
+     * const clientError = await prisma.clientError.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends ClientErrorFindUniqueOrThrowArgs>(args: SelectSubset<T, ClientErrorFindUniqueOrThrowArgs<ExtArgs>>): Prisma__ClientErrorClient<$Result.GetResult<Prisma.$ClientErrorPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first ClientError that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ClientErrorFindFirstArgs} args - Arguments to find a ClientError
+     * @example
+     * // Get one ClientError
+     * const clientError = await prisma.clientError.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends ClientErrorFindFirstArgs>(args?: SelectSubset<T, ClientErrorFindFirstArgs<ExtArgs>>): Prisma__ClientErrorClient<$Result.GetResult<Prisma.$ClientErrorPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first ClientError that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ClientErrorFindFirstOrThrowArgs} args - Arguments to find a ClientError
+     * @example
+     * // Get one ClientError
+     * const clientError = await prisma.clientError.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends ClientErrorFindFirstOrThrowArgs>(args?: SelectSubset<T, ClientErrorFindFirstOrThrowArgs<ExtArgs>>): Prisma__ClientErrorClient<$Result.GetResult<Prisma.$ClientErrorPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more ClientErrors that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ClientErrorFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all ClientErrors
+     * const clientErrors = await prisma.clientError.findMany()
+     * 
+     * // Get first 10 ClientErrors
+     * const clientErrors = await prisma.clientError.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const clientErrorWithIdOnly = await prisma.clientError.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends ClientErrorFindManyArgs>(args?: SelectSubset<T, ClientErrorFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ClientErrorPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a ClientError.
+     * @param {ClientErrorCreateArgs} args - Arguments to create a ClientError.
+     * @example
+     * // Create one ClientError
+     * const ClientError = await prisma.clientError.create({
+     *   data: {
+     *     // ... data to create a ClientError
+     *   }
+     * })
+     * 
+     */
+    create<T extends ClientErrorCreateArgs>(args: SelectSubset<T, ClientErrorCreateArgs<ExtArgs>>): Prisma__ClientErrorClient<$Result.GetResult<Prisma.$ClientErrorPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many ClientErrors.
+     * @param {ClientErrorCreateManyArgs} args - Arguments to create many ClientErrors.
+     * @example
+     * // Create many ClientErrors
+     * const clientError = await prisma.clientError.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends ClientErrorCreateManyArgs>(args?: SelectSubset<T, ClientErrorCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many ClientErrors and returns the data saved in the database.
+     * @param {ClientErrorCreateManyAndReturnArgs} args - Arguments to create many ClientErrors.
+     * @example
+     * // Create many ClientErrors
+     * const clientError = await prisma.clientError.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many ClientErrors and only return the `id`
+     * const clientErrorWithIdOnly = await prisma.clientError.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends ClientErrorCreateManyAndReturnArgs>(args?: SelectSubset<T, ClientErrorCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ClientErrorPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a ClientError.
+     * @param {ClientErrorDeleteArgs} args - Arguments to delete one ClientError.
+     * @example
+     * // Delete one ClientError
+     * const ClientError = await prisma.clientError.delete({
+     *   where: {
+     *     // ... filter to delete one ClientError
+     *   }
+     * })
+     * 
+     */
+    delete<T extends ClientErrorDeleteArgs>(args: SelectSubset<T, ClientErrorDeleteArgs<ExtArgs>>): Prisma__ClientErrorClient<$Result.GetResult<Prisma.$ClientErrorPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one ClientError.
+     * @param {ClientErrorUpdateArgs} args - Arguments to update one ClientError.
+     * @example
+     * // Update one ClientError
+     * const clientError = await prisma.clientError.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends ClientErrorUpdateArgs>(args: SelectSubset<T, ClientErrorUpdateArgs<ExtArgs>>): Prisma__ClientErrorClient<$Result.GetResult<Prisma.$ClientErrorPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more ClientErrors.
+     * @param {ClientErrorDeleteManyArgs} args - Arguments to filter ClientErrors to delete.
+     * @example
+     * // Delete a few ClientErrors
+     * const { count } = await prisma.clientError.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends ClientErrorDeleteManyArgs>(args?: SelectSubset<T, ClientErrorDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ClientErrors.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ClientErrorUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many ClientErrors
+     * const clientError = await prisma.clientError.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends ClientErrorUpdateManyArgs>(args: SelectSubset<T, ClientErrorUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ClientErrors and returns the data updated in the database.
+     * @param {ClientErrorUpdateManyAndReturnArgs} args - Arguments to update many ClientErrors.
+     * @example
+     * // Update many ClientErrors
+     * const clientError = await prisma.clientError.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more ClientErrors and only return the `id`
+     * const clientErrorWithIdOnly = await prisma.clientError.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends ClientErrorUpdateManyAndReturnArgs>(args: SelectSubset<T, ClientErrorUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ClientErrorPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one ClientError.
+     * @param {ClientErrorUpsertArgs} args - Arguments to update or create a ClientError.
+     * @example
+     * // Update or create a ClientError
+     * const clientError = await prisma.clientError.upsert({
+     *   create: {
+     *     // ... data to create a ClientError
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the ClientError we want to update
+     *   }
+     * })
+     */
+    upsert<T extends ClientErrorUpsertArgs>(args: SelectSubset<T, ClientErrorUpsertArgs<ExtArgs>>): Prisma__ClientErrorClient<$Result.GetResult<Prisma.$ClientErrorPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of ClientErrors.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ClientErrorCountArgs} args - Arguments to filter ClientErrors to count.
+     * @example
+     * // Count the number of ClientErrors
+     * const count = await prisma.clientError.count({
+     *   where: {
+     *     // ... the filter for the ClientErrors we want to count
+     *   }
+     * })
+    **/
+    count<T extends ClientErrorCountArgs>(
+      args?: Subset<T, ClientErrorCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], ClientErrorCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a ClientError.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ClientErrorAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends ClientErrorAggregateArgs>(args: Subset<T, ClientErrorAggregateArgs>): Prisma.PrismaPromise<GetClientErrorAggregateType<T>>
+
+    /**
+     * Group by ClientError.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ClientErrorGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends ClientErrorGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: ClientErrorGroupByArgs['orderBy'] }
+        : { orderBy?: ClientErrorGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, ClientErrorGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetClientErrorGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the ClientError model
+   */
+  readonly fields: ClientErrorFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for ClientError.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__ClientErrorClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the ClientError model
+   */
+  interface ClientErrorFieldRefs {
+    readonly id: FieldRef<"ClientError", 'String'>
+    readonly userId: FieldRef<"ClientError", 'String'>
+    readonly digest: FieldRef<"ClientError", 'String'>
+    readonly message: FieldRef<"ClientError", 'String'>
+    readonly stack: FieldRef<"ClientError", 'String'>
+    readonly url: FieldRef<"ClientError", 'String'>
+    readonly pathname: FieldRef<"ClientError", 'String'>
+    readonly envelopeId: FieldRef<"ClientError", 'String'>
+    readonly source: FieldRef<"ClientError", 'String'>
+    readonly userAgent: FieldRef<"ClientError", 'String'>
+    readonly viewportWidth: FieldRef<"ClientError", 'Int'>
+    readonly viewportHeight: FieldRef<"ClientError", 'Int'>
+    readonly payloadJson: FieldRef<"ClientError", 'String'>
+    readonly occurrences: FieldRef<"ClientError", 'Int'>
+    readonly firstSeenAt: FieldRef<"ClientError", 'DateTime'>
+    readonly lastSeenAt: FieldRef<"ClientError", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * ClientError findUnique
+   */
+  export type ClientErrorFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ClientError
+     */
+    select?: ClientErrorSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ClientError
+     */
+    omit?: ClientErrorOmit<ExtArgs> | null
+    /**
+     * Filter, which ClientError to fetch.
+     */
+    where: ClientErrorWhereUniqueInput
+  }
+
+  /**
+   * ClientError findUniqueOrThrow
+   */
+  export type ClientErrorFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ClientError
+     */
+    select?: ClientErrorSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ClientError
+     */
+    omit?: ClientErrorOmit<ExtArgs> | null
+    /**
+     * Filter, which ClientError to fetch.
+     */
+    where: ClientErrorWhereUniqueInput
+  }
+
+  /**
+   * ClientError findFirst
+   */
+  export type ClientErrorFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ClientError
+     */
+    select?: ClientErrorSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ClientError
+     */
+    omit?: ClientErrorOmit<ExtArgs> | null
+    /**
+     * Filter, which ClientError to fetch.
+     */
+    where?: ClientErrorWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ClientErrors to fetch.
+     */
+    orderBy?: ClientErrorOrderByWithRelationInput | ClientErrorOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ClientErrors.
+     */
+    cursor?: ClientErrorWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ClientErrors from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ClientErrors.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ClientErrors.
+     */
+    distinct?: ClientErrorScalarFieldEnum | ClientErrorScalarFieldEnum[]
+  }
+
+  /**
+   * ClientError findFirstOrThrow
+   */
+  export type ClientErrorFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ClientError
+     */
+    select?: ClientErrorSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ClientError
+     */
+    omit?: ClientErrorOmit<ExtArgs> | null
+    /**
+     * Filter, which ClientError to fetch.
+     */
+    where?: ClientErrorWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ClientErrors to fetch.
+     */
+    orderBy?: ClientErrorOrderByWithRelationInput | ClientErrorOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ClientErrors.
+     */
+    cursor?: ClientErrorWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ClientErrors from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ClientErrors.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ClientErrors.
+     */
+    distinct?: ClientErrorScalarFieldEnum | ClientErrorScalarFieldEnum[]
+  }
+
+  /**
+   * ClientError findMany
+   */
+  export type ClientErrorFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ClientError
+     */
+    select?: ClientErrorSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ClientError
+     */
+    omit?: ClientErrorOmit<ExtArgs> | null
+    /**
+     * Filter, which ClientErrors to fetch.
+     */
+    where?: ClientErrorWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ClientErrors to fetch.
+     */
+    orderBy?: ClientErrorOrderByWithRelationInput | ClientErrorOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing ClientErrors.
+     */
+    cursor?: ClientErrorWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ClientErrors from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ClientErrors.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ClientErrors.
+     */
+    distinct?: ClientErrorScalarFieldEnum | ClientErrorScalarFieldEnum[]
+  }
+
+  /**
+   * ClientError create
+   */
+  export type ClientErrorCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ClientError
+     */
+    select?: ClientErrorSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ClientError
+     */
+    omit?: ClientErrorOmit<ExtArgs> | null
+    /**
+     * The data needed to create a ClientError.
+     */
+    data: XOR<ClientErrorCreateInput, ClientErrorUncheckedCreateInput>
+  }
+
+  /**
+   * ClientError createMany
+   */
+  export type ClientErrorCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many ClientErrors.
+     */
+    data: ClientErrorCreateManyInput | ClientErrorCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * ClientError createManyAndReturn
+   */
+  export type ClientErrorCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ClientError
+     */
+    select?: ClientErrorSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the ClientError
+     */
+    omit?: ClientErrorOmit<ExtArgs> | null
+    /**
+     * The data used to create many ClientErrors.
+     */
+    data: ClientErrorCreateManyInput | ClientErrorCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * ClientError update
+   */
+  export type ClientErrorUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ClientError
+     */
+    select?: ClientErrorSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ClientError
+     */
+    omit?: ClientErrorOmit<ExtArgs> | null
+    /**
+     * The data needed to update a ClientError.
+     */
+    data: XOR<ClientErrorUpdateInput, ClientErrorUncheckedUpdateInput>
+    /**
+     * Choose, which ClientError to update.
+     */
+    where: ClientErrorWhereUniqueInput
+  }
+
+  /**
+   * ClientError updateMany
+   */
+  export type ClientErrorUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update ClientErrors.
+     */
+    data: XOR<ClientErrorUpdateManyMutationInput, ClientErrorUncheckedUpdateManyInput>
+    /**
+     * Filter which ClientErrors to update
+     */
+    where?: ClientErrorWhereInput
+    /**
+     * Limit how many ClientErrors to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * ClientError updateManyAndReturn
+   */
+  export type ClientErrorUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ClientError
+     */
+    select?: ClientErrorSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the ClientError
+     */
+    omit?: ClientErrorOmit<ExtArgs> | null
+    /**
+     * The data used to update ClientErrors.
+     */
+    data: XOR<ClientErrorUpdateManyMutationInput, ClientErrorUncheckedUpdateManyInput>
+    /**
+     * Filter which ClientErrors to update
+     */
+    where?: ClientErrorWhereInput
+    /**
+     * Limit how many ClientErrors to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * ClientError upsert
+   */
+  export type ClientErrorUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ClientError
+     */
+    select?: ClientErrorSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ClientError
+     */
+    omit?: ClientErrorOmit<ExtArgs> | null
+    /**
+     * The filter to search for the ClientError to update in case it exists.
+     */
+    where: ClientErrorWhereUniqueInput
+    /**
+     * In case the ClientError found by the `where` argument doesn't exist, create a new ClientError with this data.
+     */
+    create: XOR<ClientErrorCreateInput, ClientErrorUncheckedCreateInput>
+    /**
+     * In case the ClientError was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<ClientErrorUpdateInput, ClientErrorUncheckedUpdateInput>
+  }
+
+  /**
+   * ClientError delete
+   */
+  export type ClientErrorDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ClientError
+     */
+    select?: ClientErrorSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ClientError
+     */
+    omit?: ClientErrorOmit<ExtArgs> | null
+    /**
+     * Filter which ClientError to delete.
+     */
+    where: ClientErrorWhereUniqueInput
+  }
+
+  /**
+   * ClientError deleteMany
+   */
+  export type ClientErrorDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ClientErrors to delete
+     */
+    where?: ClientErrorWhereInput
+    /**
+     * Limit how many ClientErrors to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * ClientError without action
+   */
+  export type ClientErrorDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ClientError
+     */
+    select?: ClientErrorSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ClientError
+     */
+    omit?: ClientErrorOmit<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -46438,6 +47803,28 @@ export namespace Prisma {
   };
 
   export type SetupStateScalarFieldEnum = (typeof SetupStateScalarFieldEnum)[keyof typeof SetupStateScalarFieldEnum]
+
+
+  export const ClientErrorScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    digest: 'digest',
+    message: 'message',
+    stack: 'stack',
+    url: 'url',
+    pathname: 'pathname',
+    envelopeId: 'envelopeId',
+    source: 'source',
+    userAgent: 'userAgent',
+    viewportWidth: 'viewportWidth',
+    viewportHeight: 'viewportHeight',
+    payloadJson: 'payloadJson',
+    occurrences: 'occurrences',
+    firstSeenAt: 'firstSeenAt',
+    lastSeenAt: 'lastSeenAt'
+  };
+
+  export type ClientErrorScalarFieldEnum = (typeof ClientErrorScalarFieldEnum)[keyof typeof ClientErrorScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -49581,6 +50968,116 @@ export namespace Prisma {
     activatedAt?: DateTimeNullableWithAggregatesFilter<"SetupState"> | Date | string | null
     createdAt?: DateTimeWithAggregatesFilter<"SetupState"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"SetupState"> | Date | string
+  }
+
+  export type ClientErrorWhereInput = {
+    AND?: ClientErrorWhereInput | ClientErrorWhereInput[]
+    OR?: ClientErrorWhereInput[]
+    NOT?: ClientErrorWhereInput | ClientErrorWhereInput[]
+    id?: StringFilter<"ClientError"> | string
+    userId?: StringNullableFilter<"ClientError"> | string | null
+    digest?: StringNullableFilter<"ClientError"> | string | null
+    message?: StringNullableFilter<"ClientError"> | string | null
+    stack?: StringNullableFilter<"ClientError"> | string | null
+    url?: StringFilter<"ClientError"> | string
+    pathname?: StringFilter<"ClientError"> | string
+    envelopeId?: StringNullableFilter<"ClientError"> | string | null
+    source?: StringFilter<"ClientError"> | string
+    userAgent?: StringNullableFilter<"ClientError"> | string | null
+    viewportWidth?: IntNullableFilter<"ClientError"> | number | null
+    viewportHeight?: IntNullableFilter<"ClientError"> | number | null
+    payloadJson?: StringFilter<"ClientError"> | string
+    occurrences?: IntFilter<"ClientError"> | number
+    firstSeenAt?: DateTimeFilter<"ClientError"> | Date | string
+    lastSeenAt?: DateTimeFilter<"ClientError"> | Date | string
+  }
+
+  export type ClientErrorOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrderInput | SortOrder
+    digest?: SortOrderInput | SortOrder
+    message?: SortOrderInput | SortOrder
+    stack?: SortOrderInput | SortOrder
+    url?: SortOrder
+    pathname?: SortOrder
+    envelopeId?: SortOrderInput | SortOrder
+    source?: SortOrder
+    userAgent?: SortOrderInput | SortOrder
+    viewportWidth?: SortOrderInput | SortOrder
+    viewportHeight?: SortOrderInput | SortOrder
+    payloadJson?: SortOrder
+    occurrences?: SortOrder
+    firstSeenAt?: SortOrder
+    lastSeenAt?: SortOrder
+  }
+
+  export type ClientErrorWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    digest_url_source?: ClientErrorDigestUrlSourceCompoundUniqueInput
+    AND?: ClientErrorWhereInput | ClientErrorWhereInput[]
+    OR?: ClientErrorWhereInput[]
+    NOT?: ClientErrorWhereInput | ClientErrorWhereInput[]
+    userId?: StringNullableFilter<"ClientError"> | string | null
+    digest?: StringNullableFilter<"ClientError"> | string | null
+    message?: StringNullableFilter<"ClientError"> | string | null
+    stack?: StringNullableFilter<"ClientError"> | string | null
+    url?: StringFilter<"ClientError"> | string
+    pathname?: StringFilter<"ClientError"> | string
+    envelopeId?: StringNullableFilter<"ClientError"> | string | null
+    source?: StringFilter<"ClientError"> | string
+    userAgent?: StringNullableFilter<"ClientError"> | string | null
+    viewportWidth?: IntNullableFilter<"ClientError"> | number | null
+    viewportHeight?: IntNullableFilter<"ClientError"> | number | null
+    payloadJson?: StringFilter<"ClientError"> | string
+    occurrences?: IntFilter<"ClientError"> | number
+    firstSeenAt?: DateTimeFilter<"ClientError"> | Date | string
+    lastSeenAt?: DateTimeFilter<"ClientError"> | Date | string
+  }, "id" | "digest_url_source">
+
+  export type ClientErrorOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrderInput | SortOrder
+    digest?: SortOrderInput | SortOrder
+    message?: SortOrderInput | SortOrder
+    stack?: SortOrderInput | SortOrder
+    url?: SortOrder
+    pathname?: SortOrder
+    envelopeId?: SortOrderInput | SortOrder
+    source?: SortOrder
+    userAgent?: SortOrderInput | SortOrder
+    viewportWidth?: SortOrderInput | SortOrder
+    viewportHeight?: SortOrderInput | SortOrder
+    payloadJson?: SortOrder
+    occurrences?: SortOrder
+    firstSeenAt?: SortOrder
+    lastSeenAt?: SortOrder
+    _count?: ClientErrorCountOrderByAggregateInput
+    _avg?: ClientErrorAvgOrderByAggregateInput
+    _max?: ClientErrorMaxOrderByAggregateInput
+    _min?: ClientErrorMinOrderByAggregateInput
+    _sum?: ClientErrorSumOrderByAggregateInput
+  }
+
+  export type ClientErrorScalarWhereWithAggregatesInput = {
+    AND?: ClientErrorScalarWhereWithAggregatesInput | ClientErrorScalarWhereWithAggregatesInput[]
+    OR?: ClientErrorScalarWhereWithAggregatesInput[]
+    NOT?: ClientErrorScalarWhereWithAggregatesInput | ClientErrorScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"ClientError"> | string
+    userId?: StringNullableWithAggregatesFilter<"ClientError"> | string | null
+    digest?: StringNullableWithAggregatesFilter<"ClientError"> | string | null
+    message?: StringNullableWithAggregatesFilter<"ClientError"> | string | null
+    stack?: StringNullableWithAggregatesFilter<"ClientError"> | string | null
+    url?: StringWithAggregatesFilter<"ClientError"> | string
+    pathname?: StringWithAggregatesFilter<"ClientError"> | string
+    envelopeId?: StringNullableWithAggregatesFilter<"ClientError"> | string | null
+    source?: StringWithAggregatesFilter<"ClientError"> | string
+    userAgent?: StringNullableWithAggregatesFilter<"ClientError"> | string | null
+    viewportWidth?: IntNullableWithAggregatesFilter<"ClientError"> | number | null
+    viewportHeight?: IntNullableWithAggregatesFilter<"ClientError"> | number | null
+    payloadJson?: StringWithAggregatesFilter<"ClientError"> | string
+    occurrences?: IntWithAggregatesFilter<"ClientError"> | number
+    firstSeenAt?: DateTimeWithAggregatesFilter<"ClientError"> | Date | string
+    lastSeenAt?: DateTimeWithAggregatesFilter<"ClientError"> | Date | string
   }
 
   export type UserCreateInput = {
@@ -52952,6 +54449,139 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type ClientErrorCreateInput = {
+    id?: string
+    userId?: string | null
+    digest?: string | null
+    message?: string | null
+    stack?: string | null
+    url: string
+    pathname: string
+    envelopeId?: string | null
+    source: string
+    userAgent?: string | null
+    viewportWidth?: number | null
+    viewportHeight?: number | null
+    payloadJson?: string
+    occurrences?: number
+    firstSeenAt?: Date | string
+    lastSeenAt?: Date | string
+  }
+
+  export type ClientErrorUncheckedCreateInput = {
+    id?: string
+    userId?: string | null
+    digest?: string | null
+    message?: string | null
+    stack?: string | null
+    url: string
+    pathname: string
+    envelopeId?: string | null
+    source: string
+    userAgent?: string | null
+    viewportWidth?: number | null
+    viewportHeight?: number | null
+    payloadJson?: string
+    occurrences?: number
+    firstSeenAt?: Date | string
+    lastSeenAt?: Date | string
+  }
+
+  export type ClientErrorUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    digest?: NullableStringFieldUpdateOperationsInput | string | null
+    message?: NullableStringFieldUpdateOperationsInput | string | null
+    stack?: NullableStringFieldUpdateOperationsInput | string | null
+    url?: StringFieldUpdateOperationsInput | string
+    pathname?: StringFieldUpdateOperationsInput | string
+    envelopeId?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: StringFieldUpdateOperationsInput | string
+    userAgent?: NullableStringFieldUpdateOperationsInput | string | null
+    viewportWidth?: NullableIntFieldUpdateOperationsInput | number | null
+    viewportHeight?: NullableIntFieldUpdateOperationsInput | number | null
+    payloadJson?: StringFieldUpdateOperationsInput | string
+    occurrences?: IntFieldUpdateOperationsInput | number
+    firstSeenAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lastSeenAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ClientErrorUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    digest?: NullableStringFieldUpdateOperationsInput | string | null
+    message?: NullableStringFieldUpdateOperationsInput | string | null
+    stack?: NullableStringFieldUpdateOperationsInput | string | null
+    url?: StringFieldUpdateOperationsInput | string
+    pathname?: StringFieldUpdateOperationsInput | string
+    envelopeId?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: StringFieldUpdateOperationsInput | string
+    userAgent?: NullableStringFieldUpdateOperationsInput | string | null
+    viewportWidth?: NullableIntFieldUpdateOperationsInput | number | null
+    viewportHeight?: NullableIntFieldUpdateOperationsInput | number | null
+    payloadJson?: StringFieldUpdateOperationsInput | string
+    occurrences?: IntFieldUpdateOperationsInput | number
+    firstSeenAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lastSeenAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ClientErrorCreateManyInput = {
+    id?: string
+    userId?: string | null
+    digest?: string | null
+    message?: string | null
+    stack?: string | null
+    url: string
+    pathname: string
+    envelopeId?: string | null
+    source: string
+    userAgent?: string | null
+    viewportWidth?: number | null
+    viewportHeight?: number | null
+    payloadJson?: string
+    occurrences?: number
+    firstSeenAt?: Date | string
+    lastSeenAt?: Date | string
+  }
+
+  export type ClientErrorUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    digest?: NullableStringFieldUpdateOperationsInput | string | null
+    message?: NullableStringFieldUpdateOperationsInput | string | null
+    stack?: NullableStringFieldUpdateOperationsInput | string | null
+    url?: StringFieldUpdateOperationsInput | string
+    pathname?: StringFieldUpdateOperationsInput | string
+    envelopeId?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: StringFieldUpdateOperationsInput | string
+    userAgent?: NullableStringFieldUpdateOperationsInput | string | null
+    viewportWidth?: NullableIntFieldUpdateOperationsInput | number | null
+    viewportHeight?: NullableIntFieldUpdateOperationsInput | number | null
+    payloadJson?: StringFieldUpdateOperationsInput | string
+    occurrences?: IntFieldUpdateOperationsInput | number
+    firstSeenAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lastSeenAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ClientErrorUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    digest?: NullableStringFieldUpdateOperationsInput | string | null
+    message?: NullableStringFieldUpdateOperationsInput | string | null
+    stack?: NullableStringFieldUpdateOperationsInput | string | null
+    url?: StringFieldUpdateOperationsInput | string
+    pathname?: StringFieldUpdateOperationsInput | string
+    envelopeId?: NullableStringFieldUpdateOperationsInput | string | null
+    source?: StringFieldUpdateOperationsInput | string
+    userAgent?: NullableStringFieldUpdateOperationsInput | string | null
+    viewportWidth?: NullableIntFieldUpdateOperationsInput | number | null
+    viewportHeight?: NullableIntFieldUpdateOperationsInput | number | null
+    payloadJson?: StringFieldUpdateOperationsInput | string
+    occurrences?: IntFieldUpdateOperationsInput | number
+    firstSeenAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lastSeenAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type StringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -55276,6 +56906,81 @@ export namespace Prisma {
 
   export type SetupStateSumOrderByAggregateInput = {
     completedStep?: SortOrder
+  }
+
+  export type ClientErrorDigestUrlSourceCompoundUniqueInput = {
+    digest: string
+    url: string
+    source: string
+  }
+
+  export type ClientErrorCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    digest?: SortOrder
+    message?: SortOrder
+    stack?: SortOrder
+    url?: SortOrder
+    pathname?: SortOrder
+    envelopeId?: SortOrder
+    source?: SortOrder
+    userAgent?: SortOrder
+    viewportWidth?: SortOrder
+    viewportHeight?: SortOrder
+    payloadJson?: SortOrder
+    occurrences?: SortOrder
+    firstSeenAt?: SortOrder
+    lastSeenAt?: SortOrder
+  }
+
+  export type ClientErrorAvgOrderByAggregateInput = {
+    viewportWidth?: SortOrder
+    viewportHeight?: SortOrder
+    occurrences?: SortOrder
+  }
+
+  export type ClientErrorMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    digest?: SortOrder
+    message?: SortOrder
+    stack?: SortOrder
+    url?: SortOrder
+    pathname?: SortOrder
+    envelopeId?: SortOrder
+    source?: SortOrder
+    userAgent?: SortOrder
+    viewportWidth?: SortOrder
+    viewportHeight?: SortOrder
+    payloadJson?: SortOrder
+    occurrences?: SortOrder
+    firstSeenAt?: SortOrder
+    lastSeenAt?: SortOrder
+  }
+
+  export type ClientErrorMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    digest?: SortOrder
+    message?: SortOrder
+    stack?: SortOrder
+    url?: SortOrder
+    pathname?: SortOrder
+    envelopeId?: SortOrder
+    source?: SortOrder
+    userAgent?: SortOrder
+    viewportWidth?: SortOrder
+    viewportHeight?: SortOrder
+    payloadJson?: SortOrder
+    occurrences?: SortOrder
+    firstSeenAt?: SortOrder
+    lastSeenAt?: SortOrder
+  }
+
+  export type ClientErrorSumOrderByAggregateInput = {
+    viewportWidth?: SortOrder
+    viewportHeight?: SortOrder
+    occurrences?: SortOrder
   }
 
   export type SessionCreateNestedManyWithoutUserInput = {
