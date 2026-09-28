@@ -33,6 +33,7 @@ import {
 } from "@/lib/debt-interest";
 import { aprTierColor } from "@/lib/debt-tier";
 import { useMediaQuery } from "@/lib/use-media-query";
+import { CrossDebtExtraPanel } from "./CrossDebtExtraPanel";
 
 export interface DebtListInteractiveProps {
   debts: Debt[];
@@ -89,6 +90,15 @@ export function DebtListInteractive({
       data-testid="debt-list-interactive"
       style={{ display: "flex", flexDirection: "column", gap: 4 }}
     >
+      {/* Cross-debt "where to put extra" panel — Cluster 7.51.
+          Method toggle (SNOWBALL vs AVALANCHE) + extra slider +
+          outcome (savings + debt-free total + payoff order).
+          Sits ABOVE the 7.47 wasted-interest banner. Renders
+          nothing when there are fewer than 2 active debts
+          (single-debt math is trivial; cross-debt view only
+          makes sense with 2+). */}
+      <CrossDebtExtraPanel debts={debts} anchor={anchor} />
+
       {/* Page-level "wasted in interest" banner — Cluster 7.47.
           Terminal-style headline that frames the entire page with
           the aggregate yearly waste. Tier-color matches the worst
