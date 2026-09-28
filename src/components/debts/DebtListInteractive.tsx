@@ -21,10 +21,17 @@
 
 import * as React from "react";
 import { useState } from "react";
+import { formatMoney } from "@/lib/money";
 import type { Debt } from "@/lib/store";
 import type { DebtCardAccount } from "./DebtCard";
 import { DebtCard } from "./DebtCard";
 import { DebtDetailExpand } from "./DebtDetailExpand";
+import {
+  aggregateYearlyInterestCents,
+  activeDebtCount,
+  worstTierAcrossDebts,
+} from "@/lib/debt-interest";
+import { aprTierColor } from "@/lib/debt-tier";
 
 export interface DebtListInteractiveProps {
   debts: Debt[];
@@ -44,6 +51,14 @@ export function DebtListInteractive({
   anchor,
 }: DebtListInteractiveProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Page-level waste aggregate (Cluster 7.47). Computed once per
+  // render — these are O(n) over the debt list and run alongside the
+  // existing render loop, so the cost is negligible (<1ms for any
+  // realistic debt count).
+  const yearlyWasteCents = aggregateYearlyInterestCents(debts);
+  const activeCount = activeDebtCount(debts);
+  const worstTier = worstTierAcrossDebts(debts);
 
   if (debts.length === 0) {
     return (
@@ -69,6 +84,94 @@ export function DebtListInteractive({
       data-testid="debt-list-interactive"
       style={{ display: "flex", flexDirection: "column", gap: 4 }}
     >
+      {/* Page-level "wasted in interest" banner — Cluster 7.47.
+          Terminal-style headline that frames the entire page with
+          the aggregate yearly waste. Tier-color matches the worst
+          single debt so the severity is global, not a per-card value. */}
+      {activeCount === 0 ? (
+        <div
+          data-testid="debt-list-banner-clear"
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--ok)",
+            borderRadius: 4,
+            padding: "14px 20px",
+            marginBottom: 12,
+            fontFamily: "var(--font-sora)",
+            fontSize: 13.5,
+            color: "var(--ink)",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 11,
+              fontWeight: 700,
+              color: "var(--ok)",
+              letterSpacing: "0.20em",
+              textTransform: "uppercase",
+            }}
+          >
+            [OK]
+          </span>
+          <span>
+            No interest being paid — all debts are clear.
+          </span>
+        </div>
+      ) : (
+        <div
+          data-testid="debt-list-banner"
+          style={{
+            background: "var(--cosmos)",
+            border: "1px solid var(--warn)",
+            borderRadius: 4,
+            padding: "14px 20px",
+            marginBottom: 12,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "var(--font-jetbrains), monospace",
+              fontSize: 11,
+              fontWeight: 700,
+              color: "var(--warn)",
+              letterSpacing: "0.20em",
+              textTransform: "uppercase",
+            }}
+          >
+            [WARN]
+          </span>
+          <span
+            style={{
+              fontFamily: "var(--font-sora)",
+              fontSize: 13.5,
+              color: "var(--ink)",
+            }}
+          >
+            You're wasting{" "}
+            <b
+              style={{
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 14,
+                color: aprTierColor(worstTier),
+                letterSpacing: "0.02em",
+              }}
+            >
+              ~{formatMoney(yearlyWasteCents)}/year
+            </b>{" "}
+            in interest across{" "}
+            <b style={{ color: "var(--ink-2)" }}>{activeCount}</b>{" "}
+            {activeCount === 1 ? "debt" : "debts"}.
+          </span>
+        </div>
+      )}
       {debts.map((debt) => {
         const isExpanded = expandedId === debt.id;
         const account = accountsByDebtId?.get(debt.id) ?? null;

@@ -35,6 +35,10 @@ import { formatMoney } from "@/lib/money";
 import type { Debt } from "@/lib/store";
 import type { DebtCardAccount } from "./DebtCard";
 import { aprTier, aprTierColor, aprTierLabel } from "@/lib/debt-tier";
+import {
+  monthlyInterestCents,
+  totalWastedAtMinCents,
+} from "@/lib/debt-interest";
 import { payoffProjection } from "@/lib/payoff-projection";
 import { applyExtraToDebt } from "@/app/actions/debts";
 import { DebtSparkline } from "@/components/viz/DebtSparkline";
@@ -49,7 +53,7 @@ export interface DebtDetailExpandProps {
 export function DebtDetailExpand({ debt, account, anchor }: DebtDetailExpandProps) {
   const a = anchor ?? new Date();
   const isPaidOff = debt.balanceCents === 0;
-  const monthlyInterest = (debt.balanceCents * debt.aprBps) / 120000;
+  const monthlyInterest = monthlyInterestCents(debt);
   const tier = aprTier(debt.aprBps);
   const tierColor = aprTierColor(tier);
 
@@ -69,12 +73,10 @@ export function DebtDetailExpand({ debt, account, anchor }: DebtDetailExpandProp
   const isUnpayableAtMin = monthsAtMin === -1;
 
   // Total interest at min = sum of monthly interest over the payoff
-  // lifetime. Rough proxy (same as the legacy simulator).
-  const totalInterestAtMinCents = isPaidOff
-    ? 0
-    : isUnpayableAtMin
-    ? -1
-    : Math.round(monthlyInterest * Math.max(1, monthsAtMin));
+  // lifetime. Cluster 7.47: pulled into the shared helper so the
+  // per-debt cell + the (future) page-level "saved by extra" stat
+  // agree on the same math. -1 = unpayable at min.
+  const totalInterestAtMinCents = totalWastedAtMinCents(debt, a);
 
   // Total cost to clear = current balance + total interest at min.
   // The "true cost" of the debt to mom's wallet if she pays only
@@ -277,13 +279,13 @@ export function DebtDetailExpand({ debt, account, anchor }: DebtDetailExpandProp
           accent="ink-2"
         />
         <StatCell
-          label="Monthly interest cost"
+          label="Monthly interest"
           value={
             isPaidOff
               ? "—"
               : isUnpayableAtMin
               ? "[WARN] > min"
-              : formatMoney(Math.round(monthlyInterest))
+              : formatMoney(monthlyInterest)
           }
           accent={isUnpayableAtMin ? "neg" : isPaidOff ? "ink-3" : tier === "high" ? "neg" : tier === "medium" ? "warn" : "ink"}
         />
@@ -304,15 +306,15 @@ export function DebtDetailExpand({ debt, account, anchor }: DebtDetailExpandProp
           accent={isPaidOff ? "ok" : isUnpayableAtMin ? "neg" : "saturn"}
         />
         <StatCell
-          label="Interest at min"
+          label="Wasted to interest"
           value={
             isPaidOff
               ? "—"
               : isUnpayableAtMin
-              ? "—"
+              ? "[WARN] Grows forever"
               : formatMoney(totalInterestAtMinCents)
           }
-          accent="ink-2"
+          accent={isUnpayableAtMin ? "neg" : isPaidOff ? "ink-3" : tier === "high" ? "neg" : tier === "medium" ? "warn" : tier === "low" ? "ok" : "ink-2"}
         />
         <StatCell
           label="Total cost to zero"

@@ -2,6 +2,7 @@ import * as React from "react";
 import { formatMoney } from "@/lib/money";
 import type { Debt } from "@/lib/store";
 import { aprTier, aprTierColor } from "@/lib/debt-tier";
+import { monthlyInterestCents, yearlyInterestCents } from "@/lib/debt-interest";
 
 /**
  * Lightweight view of the linked Account — only the fields the
@@ -65,11 +66,11 @@ export function DebtCard({ debt, account, isExpanded = false }: DebtCardProps) {
   const tier = aprTier(debt.aprBps);
   const tierColor = aprTierColor(tier);
 
-  // Monthly interest cost (cents). Only relevant when the debt
-  // still has a balance.
-  const monthlyInterestCents = isPaidOff
-    ? 0
-    : Math.round((debt.balanceCents * debt.aprBps) / 120000);
+  // Interest costs (cents). Cluster 7.47: yearly primary, monthly
+  // secondary — the yearly figure is the "wasted" shock value that
+  // reframes "interest" as a real cost, not just an abstract APR%.
+  const monthlyInterest = isPaidOff ? 0 : monthlyInterestCents(debt);
+  const yearlyInterest = isPaidOff ? 0 : yearlyInterestCents(debt);
 
   // The institution + last-4 line only renders when the debt
   // links to a real account.
@@ -306,22 +307,43 @@ export function DebtCard({ debt, account, isExpanded = false }: DebtCardProps) {
         >
           <span style={{ color: "var(--ink-4)" }}>//</span> Min {debt.minPaymentCents > 0 ? formatMoney(debt.minPaymentCents) : "—"}
         </div>
-        {/* Monthly interest cost hint — tier-colored so the
-            severity is visible at a glance. */}
-        {!isPaidOff && monthlyInterestCents > 0 && (
-          <div
-            style={{
-              fontFamily: "var(--font-jetbrains), monospace",
-              fontSize: 9.5,
-              fontWeight: 600,
-              color: tierColor,
-              letterSpacing: "0.10em",
-              textTransform: "uppercase",
-              marginTop: 2,
-            }}
-          >
-            ~{formatMoney(monthlyInterestCents)}/mo interest
-          </div>
+        {/* Interest cost hint — YEARLY primary, monthly secondary.
+            Cluster 7.47: the yearly figure is the "wasted" shock
+            value that reframes interest as a real cost. The
+            secondary monthly line gives the "what's leaving my
+            wallet" reality. Both tier-colored so severity stays
+            visible at a glance. */}
+        {!isPaidOff && yearlyInterest > 0 && (
+          <>
+            <div
+              style={{
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 10,
+                fontWeight: 700,
+                color: tierColor,
+                letterSpacing: "0.10em",
+                textTransform: "uppercase",
+                marginTop: 4,
+              }}
+            >
+              ~{formatMoney(yearlyInterest)}/yr interest
+            </div>
+            {monthlyInterest > 0 && (
+              <div
+                style={{
+                  fontFamily: "var(--font-jetbrains), monospace",
+                  fontSize: 8.5,
+                  fontWeight: 500,
+                  color: "var(--ink-3)",
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  marginTop: 1,
+                }}
+              >
+                ({formatMoney(monthlyInterest)}/mo)
+              </div>
+            )}
+          </>
         )}
         {/* Tap-to-expand indicator */}
         <div
