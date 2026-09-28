@@ -90,9 +90,10 @@ check(
   /tierColor[\s\S]*?APR/.test(cardSrc),
 );
 check(
-  "[8] DebtCard shows monthly interest hint (~$X/mo)",
-  /monthlyInterestCents[\s\S]*?\/mo interest/.test(cardSrc) ||
-    /\/mo interest/.test(cardSrc),
+  "[8] DebtCard shows interest hint with yearly + monthly (7.47+ — yearly primary, monthly secondary)",
+  /\/yr interest/.test(cardSrc) &&
+    /\/mo\)/.test(cardSrc) &&
+    /monthlyInterestCents\(debt\)/.test(cardSrc),
 );
 check(
   "[9] DebtCard shows institution + last-4 when account linked",
@@ -129,8 +130,9 @@ check(
   /"APR tier"/.test(detailSrc) && /aprTierLabel/.test(detailSrc),
 );
 check(
-  "[16] Cell labels rewritten: 'Monthly interest cost', 'Months to payoff at min', 'Started at', 'Progress to zero'",
-  /"Monthly interest cost"/.test(detailSrc) &&
+  "[16] Cell labels rewritten: 'Monthly interest', 'Months to payoff at min', 'Started at', 'Progress to zero' (7.47 shortened 'Monthly interest cost' → 'Monthly interest')",
+  /"Monthly interest"/.test(detailSrc) &&
+    !/"Monthly interest cost"/.test(detailSrc) &&
     /"Months to payoff at min"/.test(detailSrc) &&
     /"Started at"/.test(detailSrc) &&
     /"Progress to zero"/.test(detailSrc),

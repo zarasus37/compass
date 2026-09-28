@@ -236,46 +236,65 @@ export function DebtCard({ debt, account, isExpanded = false }: DebtCardProps) {
           </div>
         )}
 
-        {/* Bottom bar — UTILIZATION (credit-card debts, Cluster 7.48)
-            or PAID-DOWN progress (loans). The visual shape is the
-            same (horizontal bar + caption); the semantic differs. */}
+        {/* Bottom bar — UTILIZATION (credit-card debts, Cluster 7.49
+            rainbow gradient + marker) or PAID-DOWN progress (loans).
+            The rainbow gradient background conveys severity without
+            the bar feeling like a warning stripe — mom sees where
+            she is on the green-yellow-red fuel gauge. The tier-
+            colored fill shows her current position; the vertical
+            marker calls out "you are HERE." */}
         <div>
           <div
             style={{
               position: "relative",
-              height: 6,
-              background: "var(--cosmos)",
+              height: 8,
               border: "1px solid var(--line-soft)",
-              overflow: "hidden",
               borderRadius: 1,
+              overflow: "hidden",
+              // Rainbow gradient for credit-card debts; cosmos
+              // background for paid-down (loans).
+              background:
+                utilizationPct !== null
+                  ? "linear-gradient(90deg, var(--ok) 0%, var(--ok) 30%, var(--warn) 50%, var(--neg) 80%, var(--neg) 100%)"
+                  : "var(--cosmos)",
             }}
           >
-            <div
-              style={{
-                position: "absolute",
-                inset: "0 auto 0 0",
-                width:
-                  utilizationPct !== null
-                    ? `${utilizationPct}%`
-                    : `${paidPct}%`,
-                background:
-                  utilizationPct !== null
-                    ? utilizationColor
-                    : isPaidOff
+            {utilizationPct === null && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: "0 auto 0 0",
+                  width: `${paidPct}%`,
+                  background: isPaidOff
                     ? "var(--ok)"
                     : overpaid
                     ? "var(--neg)"
                     : "var(--saturn)",
-                boxShadow:
-                  utilizationPct !== null
-                    ? `0 0 8px ${utilizationColor}`
-                    : isPaidOff
+                  boxShadow: isPaidOff
                     ? "0 0 8px var(--ok)"
                     : overpaid
                     ? "0 0 8px var(--neg)"
                     : "0 0 8px var(--saturn)",
-              }}
-            />
+                }}
+              />
+            )}
+            {/* Vertical marker at current utilization position —
+                sits on top of the gradient so it's always visible
+                regardless of where in the spectrum. */}
+            {utilizationPct !== null && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: -2,
+                  bottom: -2,
+                  left: `${utilizationPct}%`,
+                  width: 2,
+                  background: "var(--ink)",
+                  boxShadow: "0 0 4px var(--ink)",
+                  transform: "translateX(-1px)",
+                }}
+              />
+            )}
           </div>
           <div
             style={{

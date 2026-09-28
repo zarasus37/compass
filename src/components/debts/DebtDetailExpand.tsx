@@ -371,22 +371,31 @@ export function DebtDetailExpand({ debt, account, anchor }: DebtDetailExpandProp
         />
       </div>
 
-      {/* Utilization visualization (Cluster 7.48) — replaces the
-          payoff trajectory sparkline when creditLimitCents is set.
-          The old sparkline was a flat dashed line with one dot
-          (uninformative visually). For credit-card debts, the
-          utilization gauge is the meaningful visual.
-
-          For debts without a credit limit (loans), the entire
-          section is removed — the `~Nmo at min` info already lives
-          in the `Months to payoff at min` cell, and the flat
-          sparkline added nothing. */}
-      {debt.creditLimitCents && debt.creditLimitCents > 0 ? (
+      {/* Utilization visualization (Cluster 7.48 — rainbow
+          gradient refined in 7.49). Shows credit limit + current
+          utilization gauge for credit-card debts. */}
+      {debt.creditLimitCents && debt.creditLimitCents > 0 && (
         <UtilizationPanel
           balanceCents={debt.balanceCents}
           creditLimitCents={debt.creditLimitCents}
         />
-      ) : null}
+      )}
+
+      {/* Payoff trajectory (Cluster 7.49 — restored with real
+          curve). Replaces the prior flat sparkline (removed in
+          7.48) which was uninformative. The new `<PayoffCurve>`
+          draws the actual declining balance over time as an SVG
+          line chart with Y-axis balance labels + X-axis month
+          labels. Reacts to the slider's extra-payment state so
+          mom sees the curve flatten when she adds more. */}
+      {!isPaidOff && (
+        <PayoffCurve
+          debt={debt}
+          extraMonthlyCents={Math.max(0, Math.round(extraDollars * 100))}
+          anchor={a}
+          tierColor={tierColor}
+        />
+      )}
 
       {/* What if? slider */}
       {!isPaidOff && (
@@ -678,51 +687,33 @@ function UtilizationPanel({
         </div>
       </div>
 
-      {/* 3-zone gauge bar — green / amber / red zones with a
-          marker at the current utilization position. */}
+      {/* Rainbow gauge bar (Cluster 7.49) — green/yellow/red
+          gradient background with a vertical marker at the current
+          utilization position. Replaces 7.48's zone-based fill +
+          threshold markers; the gradient itself communicates
+          severity, so only one marker is needed. */}
       <div
         style={{
           position: "relative",
-          height: 10,
-          background: "var(--cosmos)",
+          height: 12,
           border: "1px solid var(--line-soft)",
-          borderRadius: 1,
+          borderRadius: 2,
           overflow: "visible",
+          background:
+            "linear-gradient(90deg, var(--ok) 0%, var(--ok) 30%, var(--warn) 50%, var(--neg) 80%, var(--neg) 100%)",
         }}
       >
-        {/* Filled bar — current utilization, tier-colored */}
+        {/* Vertical marker at current utilization position. */}
         <div
           style={{
             position: "absolute",
-            inset: "0 auto 0 0",
-            width: `${utilPct}%`,
-            background: utilColor,
-            borderRadius: 1,
-            boxShadow: `0 0 10px ${utilColor}`,
-          }}
-        />
-        {/* 30% threshold marker (good/caution boundary) */}
-        <div
-          style={{
-            position: "absolute",
-            top: -3,
-            bottom: -3,
-            left: "30%",
-            width: 1,
-            background: "var(--line)",
-            opacity: 0.5,
-          }}
-        />
-        {/* 80% threshold marker (caution/high boundary) */}
-        <div
-          style={{
-            position: "absolute",
-            top: -3,
-            bottom: -3,
-            left: "80%",
-            width: 1,
-            background: "var(--line)",
-            opacity: 0.5,
+            top: -4,
+            bottom: -4,
+            left: `${utilPct}%`,
+            width: 2,
+            background: "var(--ink)",
+            boxShadow: "0 0 6px var(--ink)",
+            transform: "translateX(-1px)",
           }}
         />
       </div>
@@ -754,6 +745,214 @@ function UtilizationPanel({
           <b>{formatMoney(availableCents)}</b>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * PayoffCurve — real declining balance trajectory (Cluster 7.49).
+ *
+ * Replaces the prior flat `<DebtSparkline>` (removed in 7.48).
+ * Renders an SVG line chart that actually draws the projected
+ * balance over time, with Y-axis labels for balance values and
+ * X-axis labels for month milestones. Reacts to slider state
+ * via the `extraMonthlyCents` prop so mom sees the curve flatten
+ * when she adds more.
+ *
+ * The trajectory is computed locally — same math as
+ * `payoffProjection` (monthly interest accrual + min + extra →
+ * balance shrinks), but exposes the per-month balance points so
+ * the SVG can plot them.
+ */
+function PayoffCurve({
+  debt,
+  extraMonthlyCents,
+  anchor,
+  tierColor,
+}: {
+  debt: Debt;
+  extraMonthlyCents: number;
+  anchor: Date;
+  tierColor: string;
+}) {
+  const W = 360;
+  const H = 110;
+  const PAD_L = 44;
+  const PAD_R = 12;
+  const PAD_T = 12;
+  const PAD_B = 24;
+
+  // Compute balance at each month (Cluster 7.49). Cap at 360
+  // months (30 years) to avoid infinite loops on unpayable.
+  const trajectory = React.useMemo(() => {
+    const r = debt.aprBps / 120000;
+    const payment = debt.minPaymentCents + extraMonthlyCents;
+    const points: Array<{ month: number; balanceCents: number }> = [];
+    let balance = debt.balanceCents;
+    points.push({ month: 0, balanceCents: balance });
+    if (payment <= 0) return points;
+    for (let m = 1; m <= 360; m++) {
+      if (balance <= 0) break;
+      const interest = balance * r;
+      const principal = payment - interest;
+      if (principal <= 0) {
+        // Payment doesn't cover interest — unpayable. Stop the
+        // trajectory here; the curve will be flat at the top.
+        break;
+      }
+      balance = Math.max(0, balance - principal);
+      points.push({ month: m, balanceCents: balance });
+      if (balance <= 0) break;
+    }
+    return points;
+  }, [debt, extraMonthlyCents]);
+
+  const maxMonth = trajectory[trajectory.length - 1]?.month ?? 1;
+  const maxBalance = trajectory[0]?.balanceCents ?? 1;
+  const finalBalance = trajectory[trajectory.length - 1]?.balanceCents ?? 0;
+
+  // Map (month, balance) to SVG coordinates
+  const xOf = (m: number) =>
+    PAD_L + (m / Math.max(1, maxMonth)) * (W - PAD_L - PAD_R);
+  const yOf = (b: number) =>
+    PAD_T + (b / Math.max(1, maxBalance)) * (H - PAD_T - PAD_B);
+
+  // Build the path string
+  const pathData = trajectory
+    .map((p, i) => `${i === 0 ? "M" : "L"} ${xOf(p.month).toFixed(1)} ${yOf(p.balanceCents).toFixed(1)}`)
+    .join(" ");
+
+  // Y-axis tick values (4 evenly-spaced balance labels)
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((p) => ({
+    pct: p,
+    cents: maxBalance * p,
+    y: yOf(maxBalance * p),
+  }));
+  // X-axis tick values (start, quarter, halfway, three-quarter, end)
+  const xTicks = [0, 0.25, 0.5, 0.75, 1].map((p) => ({
+    pct: p,
+    month: Math.round(maxMonth * p),
+    x: xOf(maxMonth * p),
+  }));
+
+  const isUnpayable =
+    finalBalance > 0 && maxMonth >= 360 && extraMonthlyCents === 0;
+
+  return (
+    <div
+      data-testid="debt-payoff-curve"
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--line-soft)",
+        borderRadius: 3,
+        padding: "16px 20px",
+        marginBottom: 24,
+      }}
+    >
+      <div
+        style={{
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 9.5,
+          color: "var(--ink-3)",
+          letterSpacing: "0.22em",
+          textTransform: "uppercase",
+          marginBottom: 10,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <span>
+          <span style={{ color: "var(--ink-4)" }}>//</span> Payoff trajectory
+        </span>
+        <span
+          style={{
+            color: isUnpayable ? "var(--neg)" : "var(--ink-2)",
+            letterSpacing: "0.04em",
+            textTransform: "none",
+            fontSize: 10,
+          }}
+        >
+          {isUnpayable
+            ? "[WARN] Min payment doesn't cover interest"
+            : extraMonthlyCents > 0
+            ? `~${maxMonth}mo with $${(extraMonthlyCents / 100).toFixed(0)}/mo extra`
+            : `~${maxMonth}mo at min`}
+        </span>
+      </div>
+
+      <svg
+        width={W}
+        height={H}
+        style={{ display: "block" }}
+        data-testid="payoff-curve-svg"
+      >
+        {/* Y-axis grid lines + tick labels */}
+        {yTicks.map((t, i) => (
+          <g key={`y-${i}`}>
+            <line
+              x1={PAD_L}
+              x2={W - PAD_R}
+              y1={t.y}
+              y2={t.y}
+              stroke="var(--line-soft)"
+              strokeWidth={0.5}
+              strokeDasharray={i === 0 ? "0" : "2 3"}
+            />
+            <text
+              x={PAD_L - 6}
+              y={t.y + 3}
+              fontFamily="var(--font-jetbrains), monospace"
+              fontSize={8}
+              fill="var(--ink-3)"
+              textAnchor="end"
+            >
+              {t.cents === 0 ? "$0" : formatMoney(Math.round(t.cents))}
+            </text>
+          </g>
+        ))}
+
+        {/* X-axis tick labels */}
+        {xTicks.map((t, i) => (
+          <text
+            key={`x-${i}`}
+            x={t.x}
+            y={H - 6}
+            fontFamily="var(--font-jetbrains), monospace"
+            fontSize={8}
+            fill="var(--ink-3)"
+            textAnchor="middle"
+          >
+            {t.month === 0 ? "now" : `${t.month}mo`}
+          </text>
+        ))}
+
+        {/* The actual declining curve */}
+        <path
+          d={pathData}
+          stroke={tierColor}
+          strokeWidth={1.5}
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            filter: `drop-shadow(0 0 4px ${tierColor})`,
+          }}
+        />
+
+        {/* Endpoint marker — a dot at (maxMonth, finalBalance) */}
+        {trajectory.length > 1 && (
+          <circle
+            cx={xOf(maxMonth)}
+            cy={yOf(finalBalance)}
+            r={3}
+            fill={tierColor}
+            style={{
+              filter: `drop-shadow(0 0 4px ${tierColor})`,
+            }}
+          />
+        )}
+      </svg>
     </div>
   );
 }
