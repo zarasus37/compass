@@ -271,6 +271,12 @@ export interface DebtSeed {
   accountId: string | null;
   sortOrder: number;
   isArchived: boolean;
+  /**
+   * Cluster 7.48 — credit limit in cents (for credit-card debts).
+   * Drives the utilization gauge on the card + expand panels.
+   * Omit for loans — they don't have a "limit" concept.
+   */
+  creditLimitCents?: number;
 }
 
 export const DEBTS_SEED: DebtSeed[] = [
@@ -285,6 +291,7 @@ export const DEBTS_SEED: DebtSeed[] = [
     accountId: "acct-chase",
     sortOrder: 1,
     isArchived: false,
+    creditLimitCents: 5_000_00,    // $5,000 — ~96% utilization (red zone)
   },
   {
     id: "debt-chase-sapphire",
@@ -297,6 +304,7 @@ export const DEBTS_SEED: DebtSeed[] = [
     accountId: "acct-chase",
     sortOrder: 2,
     isArchived: false,
+    creditLimitCents: 4_500_00,    // $4,500 — ~47% utilization (amber zone)
   },
   {
     id: "debt-carecredit",
@@ -309,6 +317,7 @@ export const DEBTS_SEED: DebtSeed[] = [
     accountId: "acct-chase",
     sortOrder: 3,
     isArchived: false,
+    creditLimitCents: 5_000_00,    // $5,000 — ~25% utilization (green zone)
   },
 ];
 

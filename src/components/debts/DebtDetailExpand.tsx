@@ -41,7 +41,6 @@ import {
 } from "@/lib/debt-interest";
 import { payoffProjection } from "@/lib/payoff-projection";
 import { applyExtraToDebt } from "@/app/actions/debts";
-import { DebtSparkline } from "@/components/viz/DebtSparkline";
 
 export interface DebtDetailExpandProps {
   debt: Debt;
@@ -372,71 +371,22 @@ export function DebtDetailExpand({ debt, account, anchor }: DebtDetailExpandProp
         />
       </div>
 
-      {/* Payoff sparkline */}
-      <div
-        style={{
-          background: "var(--surface)",
-          border: "1px solid var(--line-soft)",
-          borderRadius: 3,
-          padding: "16px 20px",
-          marginBottom: 24,
-        }}
-      >
-        <div
-          style={{
-            fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 9.5,
-            color: "var(--ink-3)",
-            letterSpacing: "0.22em",
-            textTransform: "uppercase",
-            marginBottom: 10,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <span>
-            <span style={{ color: "var(--ink-4)" }}>//</span> Payoff trajectory
-          </span>
-          <span
-            style={{
-              color: isUnpayableAtMin ? "var(--neg)" : "var(--ink-2)",
-              letterSpacing: "0.04em",
-              textTransform: "none",
-              fontSize: 10,
-            }}
-          >
-            {isPaidOff
-              ? "[OK] Paid off"
-              : isUnpayableAtMin
-              ? "[WARN] Min payment doesn't cover interest"
-              : `~${monthsAtMin}mo at min`}
-          </span>
-        </div>
-        {isPaidOff ? (
-          <div
-            style={{
-              fontFamily: "var(--font-sora)",
-              fontSize: 14,
-              color: "var(--ok)",
-              padding: "12px 0",
-            }}
-          >
-            ☉ Paid off — nothing left to project.
-          </div>
-        ) : (
-          <DebtSparkline
-            planet="saturn"
-            balanceCents={debt.balanceCents}
-            originalBalanceCents={debt.originalBalanceCents}
-            aprBps={debt.aprBps}
-            minPaymentCents={debt.minPaymentCents}
-            anchor={a}
-            width={320}
-            height={42}
-          />
-        )}
-      </div>
+      {/* Utilization visualization (Cluster 7.48) — replaces the
+          payoff trajectory sparkline when creditLimitCents is set.
+          The old sparkline was a flat dashed line with one dot
+          (uninformative visually). For credit-card debts, the
+          utilization gauge is the meaningful visual.
+
+          For debts without a credit limit (loans), the entire
+          section is removed — the `~Nmo at min` info already lives
+          in the `Months to payoff at min` cell, and the flat
+          sparkline added nothing. */}
+      {debt.creditLimitCents && debt.creditLimitCents > 0 ? (
+        <UtilizationPanel
+          balanceCents={debt.balanceCents}
+          creditLimitCents={debt.creditLimitCents}
+        />
+      ) : null}
 
       {/* What if? slider */}
       {!isPaidOff && (
@@ -649,6 +599,160 @@ export function DebtDetailExpand({ debt, account, anchor }: DebtDetailExpandProp
         >
           // Delete (from settings)
         </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * UtilizationPanel — replaces the payoff trajectory sparkline for
+ * credit-card debts (Cluster 7.48). Shows the credit-limit gauge
+ * that visualizes "how much of your available credit are you
+ * using" — a credit-health metric distinct from paid-down.
+ *
+ * Color thresholds (credit-score convention):
+ *   < 30%      → ok    (good)
+ *   30 – 80%   → warn  (caution)
+ *   ≥ 80%      → neg   (high — hurts credit score)
+ *
+ * Layout: a big "% used" headline + a 3-zone gauge bar + the
+ * balance / limit / available triple underneath. No flat line —
+ * the gauge carries the visual weight.
+ */
+function UtilizationPanel({
+  balanceCents,
+  creditLimitCents,
+}: {
+  balanceCents: number;
+  creditLimitCents: number;
+}) {
+  const utilPct = Math.min(
+    100,
+    Math.max(0, (balanceCents / creditLimitCents) * 100),
+  );
+  const utilColor =
+    utilPct < 30 ? "var(--ok)" : utilPct < 80 ? "var(--warn)" : "var(--neg)";
+  const availableCents = Math.max(0, creditLimitCents - balanceCents);
+
+  return (
+    <div
+      data-testid="debt-utilization-panel"
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--line-soft)",
+        borderRadius: 3,
+        padding: "18px 22px",
+        marginBottom: 24,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          marginBottom: 14,
+        }}
+      >
+        <div
+          style={{
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 9.5,
+            color: "var(--ink-3)",
+            letterSpacing: "0.22em",
+            textTransform: "uppercase",
+          }}
+        >
+          <span style={{ color: "var(--ink-4)" }}>//</span> Utilization
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--font-jetbrains), monospace",
+            fontSize: 32,
+            fontWeight: 700,
+            color: utilColor,
+            lineHeight: 1,
+            fontFeatureSettings: '"tnum" 1, "zero" 1',
+          }}
+        >
+          {Math.round(utilPct)}%
+        </div>
+      </div>
+
+      {/* 3-zone gauge bar — green / amber / red zones with a
+          marker at the current utilization position. */}
+      <div
+        style={{
+          position: "relative",
+          height: 10,
+          background: "var(--cosmos)",
+          border: "1px solid var(--line-soft)",
+          borderRadius: 1,
+          overflow: "visible",
+        }}
+      >
+        {/* Filled bar — current utilization, tier-colored */}
+        <div
+          style={{
+            position: "absolute",
+            inset: "0 auto 0 0",
+            width: `${utilPct}%`,
+            background: utilColor,
+            borderRadius: 1,
+            boxShadow: `0 0 10px ${utilColor}`,
+          }}
+        />
+        {/* 30% threshold marker (good/caution boundary) */}
+        <div
+          style={{
+            position: "absolute",
+            top: -3,
+            bottom: -3,
+            left: "30%",
+            width: 1,
+            background: "var(--line)",
+            opacity: 0.5,
+          }}
+        />
+        {/* 80% threshold marker (caution/high boundary) */}
+        <div
+          style={{
+            position: "absolute",
+            top: -3,
+            bottom: -3,
+            left: "80%",
+            width: 1,
+            background: "var(--line)",
+            opacity: 0.5,
+          }}
+        />
+      </div>
+
+      {/* Triple: balance / limit / available */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginTop: 12,
+          fontFamily: "var(--font-jetbrains), monospace",
+          fontSize: 10.5,
+          letterSpacing: "0.10em",
+          textTransform: "uppercase",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ color: "var(--ink-2)" }}>
+          <span style={{ color: "var(--ink-4)" }}>//</span> Balance{" "}
+          <b style={{ color: "var(--ink)" }}>{formatMoney(balanceCents)}</b>
+        </div>
+        <div style={{ color: "var(--ink-2)" }}>
+          <span style={{ color: "var(--ink-4)" }}>//</span> Limit{" "}
+          <b style={{ color: "var(--ink)" }}>{formatMoney(creditLimitCents)}</b>
+        </div>
+        <div style={{ color: utilColor }}>
+          <span style={{ color: "var(--ink-4)" }}>//</span> Available{" "}
+          <b>{formatMoney(availableCents)}</b>
+        </div>
       </div>
     </div>
   );

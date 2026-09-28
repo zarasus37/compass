@@ -72,6 +72,28 @@ export function DebtCard({ debt, account, isExpanded = false }: DebtCardProps) {
   const monthlyInterest = isPaidOff ? 0 : monthlyInterestCents(debt);
   const yearlyInterest = isPaidOff ? 0 : yearlyInterestCents(debt);
 
+  // Utilization (Cluster 7.48). Credit-card debts carry a
+  // `creditLimitCents`; utilization = balance / limit. Color matches
+  // credit-score convention: <30% good (green), 30-80% caution
+  // (amber), >=80% high (red). Undefined when no credit limit is
+  // set (loans) — the card falls back to the paid-down progress bar.
+  const creditLimitCents = debt.creditLimitCents ?? null;
+  const utilizationPct =
+    creditLimitCents && creditLimitCents > 0
+      ? Math.min(
+          100,
+          Math.max(0, (debt.balanceCents / creditLimitCents) * 100),
+        )
+      : null;
+  const utilizationColor =
+    utilizationPct === null
+      ? "var(--saturn)"
+      : utilizationPct < 30
+      ? "var(--ok)"
+      : utilizationPct < 80
+      ? "var(--warn)"
+      : "var(--neg)";
+
   // The institution + last-4 line only renders when the debt
   // links to a real account.
   const hasAccount = !!account;
@@ -159,8 +181,9 @@ export function DebtCard({ debt, account, isExpanded = false }: DebtCardProps) {
               style={{
                 fontWeight: 700,
                 color: tierColor,
-                fontSize: 11.5,
-                padding: "2px 8px",
+                // Cluster 7.48 — bumped 11.5pt → 13pt for legibility.
+                fontSize: 13,
+                padding: "3px 10px",
                 border: `1px solid ${tierColor}`,
                 borderRadius: 2,
                 background: "transparent",
@@ -213,7 +236,9 @@ export function DebtCard({ debt, account, isExpanded = false }: DebtCardProps) {
           </div>
         )}
 
-        {/* Progress bar — paid down vs original */}
+        {/* Bottom bar — UTILIZATION (credit-card debts, Cluster 7.48)
+            or PAID-DOWN progress (loans). The visual shape is the
+            same (horizontal bar + caption); the semantic differs. */}
         <div>
           <div
             style={{
@@ -229,31 +254,43 @@ export function DebtCard({ debt, account, isExpanded = false }: DebtCardProps) {
               style={{
                 position: "absolute",
                 inset: "0 auto 0 0",
-                width: `${paidPct}%`,
-                background: isPaidOff
-                  ? "var(--ok)"
-                  : overpaid
-                  ? "var(--neg)"
-                  : "var(--saturn)",
-                boxShadow: isPaidOff
-                  ? "0 0 8px var(--ok)"
-                  : overpaid
-                  ? "0 0 8px var(--neg)"
-                  : "0 0 8px var(--saturn)",
+                width:
+                  utilizationPct !== null
+                    ? `${utilizationPct}%`
+                    : `${paidPct}%`,
+                background:
+                  utilizationPct !== null
+                    ? utilizationColor
+                    : isPaidOff
+                    ? "var(--ok)"
+                    : overpaid
+                    ? "var(--neg)"
+                    : "var(--saturn)",
+                boxShadow:
+                  utilizationPct !== null
+                    ? `0 0 8px ${utilizationColor}`
+                    : isPaidOff
+                    ? "0 0 8px var(--ok)"
+                    : overpaid
+                    ? "0 0 8px var(--neg)"
+                    : "0 0 8px var(--saturn)",
               }}
             />
           </div>
           <div
             style={{
               fontFamily: "var(--font-jetbrains), monospace",
-              fontSize: 9.5,
-              color: "var(--ink-3)",
+              fontSize: 10,
+              color: utilizationPct !== null ? utilizationColor : "var(--ink-2)",
               marginTop: 4,
               letterSpacing: "0.06em",
               fontFeatureSettings: '"tnum" 1',
+              fontWeight: utilizationPct !== null ? 600 : 400,
             }}
           >
-            {isPaidOff
+            {utilizationPct !== null
+              ? `Credit limit ${formatMoney(creditLimitCents!)} · ${Math.round(utilizationPct)}% used`
+              : isPaidOff
               ? `[OK] Paid off`
               : overpaid
               ? `[WARN] Over original`
@@ -298,8 +335,11 @@ export function DebtCard({ debt, account, isExpanded = false }: DebtCardProps) {
         <div
           style={{
             fontFamily: "var(--font-jetbrains), monospace",
-            fontSize: 9.5,
-            color: "var(--ink-3)",
+            // Cluster 7.48 — bumped 9.5pt → 11.5pt + ink-3 → ink-2
+            // for legibility (the right column was unreadable at
+            // arm's length).
+            fontSize: 11.5,
+            color: "var(--ink-2)",
             letterSpacing: "0.10em",
             textTransform: "uppercase",
             marginTop: 4,
@@ -312,13 +352,15 @@ export function DebtCard({ debt, account, isExpanded = false }: DebtCardProps) {
             value that reframes interest as a real cost. The
             secondary monthly line gives the "what's leaving my
             wallet" reality. Both tier-colored so severity stays
-            visible at a glance. */}
+            visible at a glance. Cluster 7.48 — legibility bump:
+            yearly 10pt → 12pt, monthly secondary 8.5pt → 10pt +
+            ink-3 → ink-2. */}
         {!isPaidOff && yearlyInterest > 0 && (
           <>
             <div
               style={{
                 fontFamily: "var(--font-jetbrains), monospace",
-                fontSize: 10,
+                fontSize: 12,
                 fontWeight: 700,
                 color: tierColor,
                 letterSpacing: "0.10em",
@@ -332,9 +374,9 @@ export function DebtCard({ debt, account, isExpanded = false }: DebtCardProps) {
               <div
                 style={{
                   fontFamily: "var(--font-jetbrains), monospace",
-                  fontSize: 8.5,
+                  fontSize: 10,
                   fontWeight: 500,
-                  color: "var(--ink-3)",
+                  color: "var(--ink-2)",
                   letterSpacing: "0.06em",
                   textTransform: "uppercase",
                   marginTop: 1,

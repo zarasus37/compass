@@ -208,6 +208,13 @@ export interface Debt {
   accountId: string | null;
   sortOrder: number;
   isArchived: boolean;
+  /// Cluster 7.48 — credit limit in cents. Set for credit-card debts
+  /// to drive the utilization gauge on the card + expand panels.
+  /// Undefined for loans (student / auto / mortgage / personal) —
+  /// those have no "limit" concept, so utilization doesn't apply.
+  /// When undefined, the card shows paid-down progress + the expand
+  /// panel omits the utilization visualization.
+  creditLimitCents?: number;
 }
 
 // ---------------------------------------------------------------------------
