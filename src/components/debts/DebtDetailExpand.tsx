@@ -1,23 +1,31 @@
 "use client";
 
 /**
- * DebtDetailExpand — per-debt breakdown panel (Cluster 7.45).
+ * DebtDetailExpand — per-debt breakdown panel (Cluster 7.45 + 7.46).
  *
  * Shown below a debt card on /debts when that card is expanded.
- * Surfaces that debt's full stats + "What if?" simulator:
- *   - Stats grid: Balance, APR, Min Payment, Monthly Interest,
- *     Months to payoff at min, Total interest at min.
- *   - Payoff sparkline (existing <DebtSparkline>).
- *   - "What if I add extra?" slider — same shape as the legacy
- *     <DebtPayoffSimulator> but filtered to this single debt.
- *   - Apply extra button — calls the existing `applyExtraToDebt`
- *     server action with this debt's id.
+ * Surfaces that debt's full stats + "What if?" simulator. Cluster
+ * 7.46 added tier-colored severity indicators, more cells
+ * (institution, days-until-payment, total-cost-at-min, APR tier
+ * badge), and clearer copy on the cell labels.
+ *
+ * Cells (12):
+ *   - Balance
+ *   - APR (tier-colored)
+ *   - Min payment
+ *   - Monthly interest cost (tier-colored)
+ *   - Days until payment (computed)
+ *   - Months to payoff at min (computed)
+ *   - Interest at min (computed)
+ *   - Total cost at min (computed; balance + interest at min)
+ *   - Started at (was "Original")
+ *   - Progress to zero (was "Paid down")
+ *   - Institution (from linked account)
+ *   - APR tier badge (HIGH / MEDIUM / LOW / NO APR, tier-colored)
  *
  * The cluster 7.45 design choice: NO snowball/avalanche method
  * toggle here. That toggle only matters across debts; the per-debt
- * math doesn't care about order (this debt's interest accrues at
- * its APR regardless of what other debts are doing). The user
- * picks the debt directly via the card click.
+ * math doesn't care about order. The user picks the debt directly.
  */
 
 import * as React from "react";
@@ -25,19 +33,25 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { formatMoney } from "@/lib/money";
 import type { Debt } from "@/lib/store";
+import type { DebtCardAccount } from "./DebtCard";
+import { aprTier, aprTierColor, aprTierLabel } from "@/lib/debt-tier";
 import { payoffProjection } from "@/lib/payoff-projection";
 import { applyExtraToDebt } from "@/app/actions/debts";
 import { DebtSparkline } from "@/components/viz/DebtSparkline";
 
 export interface DebtDetailExpandProps {
   debt: Debt;
+  /** Linked account (institution + last-4 + type). Optional. */
+  account?: DebtCardAccount | null;
   anchor?: Date;
 }
 
-export function DebtDetailExpand({ debt, anchor }: DebtDetailExpandProps) {
+export function DebtDetailExpand({ debt, account, anchor }: DebtDetailExpandProps) {
   const a = anchor ?? new Date();
   const isPaidOff = debt.balanceCents === 0;
   const monthlyInterest = (debt.balanceCents * debt.aprBps) / 120000;
+  const tier = aprTier(debt.aprBps);
+  const tierColor = aprTierColor(tier);
 
   // Months to payoff at min payment (closed-form). Mirrors the math
   // in DebtPayoffSimulator / DebtSparkline.
@@ -55,15 +69,59 @@ export function DebtDetailExpand({ debt, anchor }: DebtDetailExpandProps) {
   const isUnpayableAtMin = monthsAtMin === -1;
 
   // Total interest at min = sum of monthly interest over the payoff
-  // lifetime. Approximation: monthlyInterest * monthsAtMin for a
-  // rough indicator. (Closed-form for total interest on amortizing
-  // loan is possible but we use the same rough proxy as the existing
-  // simulator.)
+  // lifetime. Rough proxy (same as the legacy simulator).
   const totalInterestAtMinCents = isPaidOff
     ? 0
     : isUnpayableAtMin
     ? -1
     : Math.round(monthlyInterest * Math.max(1, monthsAtMin));
+
+  // Total cost to clear = current balance + total interest at min.
+  // The "true cost" of the debt to mom's wallet if she pays only
+  // the minimum every month. Cluster 7.46 — surfaces the math
+  // behind the often-unseen interest accumulation.
+  const totalCostAtMinCents = isPaidOff
+    ? 0
+    : isUnpayableAtMin
+    ? -1
+    : debt.balanceCents + totalInterestAtMinCents;
+
+  // Days until next payment. Mirrors the helper used in /bills.
+  const daysUntilDue = (() => {
+    if (debt.dueDay <= 0) return null;
+    const today = a;
+    const todayDay = today.getDate();
+    let nextDue = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      debt.dueDay,
+    );
+    if (todayDay >= debt.dueDay) {
+      nextDue = new Date(
+        today.getFullYear(),
+        today.getMonth() + 1,
+        debt.dueDay,
+      );
+    }
+    const ms = nextDue.getTime() - today.getTime();
+    return Math.max(0, Math.round(ms / (1000 * 60 * 60 * 24)));
+  })();
+  const dueLabel = (() => {
+    if (daysUntilDue === null) return "—";
+    if (daysUntilDue === 0) return "Today";
+    if (daysUntilDue === 1) return "Tomorrow";
+    if (daysUntilDue < 7) return `In ${daysUntilDue} days`;
+    if (daysUntilDue < 30) return `In ${daysUntilDue} days`;
+    return `In ${Math.floor(daysUntilDue / 7)}w ${daysUntilDue % 7}d`;
+  })();
+  const dueAccent =
+    daysUntilDue === null
+      ? "ink-3"
+      : daysUntilDue <= 3
+      ? "warn"
+      : daysUntilDue <= 7
+      ? "ink-2"
+      : "ink-2";
 
   const [extraDollars, setExtraDollars] = useState(0);
   const [isPending, startTransition] = useTransition();
@@ -71,8 +129,7 @@ export function DebtDetailExpand({ debt, anchor }: DebtDetailExpandProps) {
   const [paidOff, setPaidOff] = useState(false);
 
   // Per-debt projection with the chosen extra. Pass [debt] so the
-  // existing payoffProjection engine handles the math (it already
-  // supports single-element arrays).
+  // existing payoffProjection engine handles the math.
   const projection = React.useMemo(
     () => payoffProjection([debt], "snowball", Math.max(0, Math.round(extraDollars * 100)), a),
     [debt, extraDollars, a],
@@ -118,6 +175,9 @@ export function DebtDetailExpand({ debt, anchor }: DebtDetailExpandProps) {
         background: "var(--cosmos)",
         border: "1px solid var(--line)",
         borderLeft: "3px solid var(--saturn)",
+        borderRight: `3px solid ${
+          isPaidOff ? "var(--ok)" : tierColor
+        }`,
         borderRadius: 4,
         padding: "24px 28px 28px",
         marginTop: 8,
@@ -159,6 +219,23 @@ export function DebtDetailExpand({ debt, anchor }: DebtDetailExpandProps) {
           >
             {debt.name}
           </div>
+          {account && (
+            <div
+              style={{
+                fontFamily: "var(--font-jetbrains), monospace",
+                fontSize: 10.5,
+                color: "var(--ink-3)",
+                letterSpacing: "0.10em",
+                textTransform: "uppercase",
+                marginTop: 2,
+              }}
+            >
+              {account.institution ?? account.name} ·{" "}
+              <span style={{ color: "var(--ink-2)" }}>
+                ··{account.mask ?? "—"}
+              </span>
+            </div>
+          )}
         </div>
         <div
           style={{
@@ -178,7 +255,8 @@ export function DebtDetailExpand({ debt, anchor }: DebtDetailExpandProps) {
         </div>
       </div>
 
-      {/* Stats grid */}
+      {/* 12-cell stats grid — clear labels + tier coloring on
+          severity-bearing cells (APR, Monthly Interest, Total Cost). */}
       <div
         style={{
           display: "grid",
@@ -191,7 +269,7 @@ export function DebtDetailExpand({ debt, anchor }: DebtDetailExpandProps) {
         <StatCell
           label="APR"
           value={`${(debt.aprBps / 100).toFixed(2)}%`}
-          accent="ink-2"
+          accent={isPaidOff ? "ok" : tier === "high" ? "neg" : tier === "medium" ? "warn" : tier === "low" ? "ok" : "ink-2"}
         />
         <StatCell
           label="Min payment"
@@ -199,7 +277,7 @@ export function DebtDetailExpand({ debt, anchor }: DebtDetailExpandProps) {
           accent="ink-2"
         />
         <StatCell
-          label="Monthly interest"
+          label="Monthly interest cost"
           value={
             isPaidOff
               ? "—"
@@ -207,10 +285,15 @@ export function DebtDetailExpand({ debt, anchor }: DebtDetailExpandProps) {
               ? "[WARN] > min"
               : formatMoney(Math.round(monthlyInterest))
           }
-          accent={isUnpayableAtMin ? "neg" : "ink"}
+          accent={isUnpayableAtMin ? "neg" : isPaidOff ? "ink-3" : tier === "high" ? "neg" : tier === "medium" ? "warn" : "ink"}
         />
         <StatCell
-          label="Months at min"
+          label="Days until payment"
+          value={dueLabel}
+          accent={dueAccent}
+        />
+        <StatCell
+          label="Months to payoff at min"
           value={
             isPaidOff
               ? "[OK] Paid off"
@@ -232,12 +315,23 @@ export function DebtDetailExpand({ debt, anchor }: DebtDetailExpandProps) {
           accent="ink-2"
         />
         <StatCell
-          label="Original"
+          label="Total cost to zero"
+          value={
+            isPaidOff
+              ? "—"
+              : isUnpayableAtMin
+              ? "[WARN] Infinite"
+              : formatMoney(totalCostAtMinCents)
+          }
+          accent={isUnpayableAtMin ? "neg" : isPaidOff ? "ink-3" : tier === "high" ? "neg" : tier === "medium" ? "warn" : "ink"}
+        />
+        <StatCell
+          label="Started at"
           value={formatMoney(debt.originalBalanceCents)}
           accent="ink-3"
         />
         <StatCell
-          label="Paid down"
+          label="Progress to zero"
           value={
             isPaidOff
               ? "[OK] 100%"
@@ -248,6 +342,31 @@ export function DebtDetailExpand({ debt, anchor }: DebtDetailExpandProps) {
                 )}%`
           }
           accent="ok"
+        />
+        <StatCell
+          label="Institution"
+          value={
+            account
+              ? `${account.institution ?? account.name}`
+              : "—"
+          }
+          accent="ink-2"
+        />
+        <StatCell
+          label="APR tier"
+          value={aprTierLabel(tier)}
+          accent={
+            isPaidOff
+              ? "ok"
+              : tier === "high"
+              ? "neg"
+              : tier === "medium"
+              ? "warn"
+              : tier === "low"
+              ? "ok"
+              : "ink-3"
+          }
+          highlight
         />
       </div>
 
@@ -526,7 +645,7 @@ export function DebtDetailExpand({ debt, anchor }: DebtDetailExpandProps) {
             textTransform: "uppercase",
           }}
         >
-          // Delete (from settings) {/* settings has the delete */}
+          // Delete (from settings)
         </span>
       </div>
     </div>
@@ -537,10 +656,12 @@ function StatCell({
   label,
   value,
   accent,
+  highlight,
 }: {
   label: string;
   value: React.ReactNode;
-  accent: "ink" | "ink-2" | "ink-3" | "saturn" | "ok" | "neg";
+  accent: "ink" | "ink-2" | "ink-3" | "saturn" | "ok" | "neg" | "warn";
+  highlight?: boolean;
 }) {
   const color =
     accent === "saturn"
@@ -549,6 +670,8 @@ function StatCell({
       ? "var(--ok)"
       : accent === "neg"
       ? "var(--neg)"
+      : accent === "warn"
+      ? "var(--warn)"
       : accent === "ink-2"
       ? "var(--ink-2)"
       : accent === "ink-3"
@@ -558,7 +681,9 @@ function StatCell({
     <div
       style={{
         background: "var(--surface)",
-        border: "1px solid var(--line-soft)",
+        border: `1px solid ${
+          highlight ? color : "var(--line-soft)"
+        }`,
         borderRadius: 3,
         padding: "12px 14px",
       }}

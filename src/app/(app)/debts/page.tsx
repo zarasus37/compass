@@ -3,8 +3,7 @@ import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
 import {
   liveDebts,
-  liveEnvelopesFromDb,
-  livePlanFromDb,
+  liveAccountsFromDb,
   TODAY,
 } from "@/lib/mock";
 import { requireUser } from "@/server/auth/user";
@@ -13,34 +12,66 @@ import { DebtListInteractive } from "@/components/debts/DebtListInteractive";
 export const dynamic = "force-dynamic";
 
 /**
- * Debts — articulated deep page (Cluster 7.45: interactive list).
+ * Debts — articulated deep page (Cluster 7.45: interactive list;
+ * Cluster 7.46: tier coloring + linked-account info).
  *
  * Pre-7.45, this page rendered a flat list of debt rows + a single
- * `<DebtPayoffSimulator>` covering all debts. The simulator's
- * per-debt math was buried inside the projection's `.perDebt` array
- * but never surfaced in the UI.
+ * `<DebtPayoffSimulator>` covering all debts.
  *
  * Post-7.45, this page renders `<DebtListInteractive>` which gives
  * each debt its own tappable card with a circular progress arc +
  * balance + APR + min payment + progress bar. Clicking a card
  * expands a `<DebtDetailExpand>` panel below it with the full
- * per-debt snowball math: stats grid (Balance / APR / Min Payment /
- * Monthly Interest / Months at min / Interest at min / Original /
- * Paid down), payoff sparkline, "What if?" slider with apply button.
+ * per-debt snowball math.
  *
- * The cluster 7.45 design choice: NO top-level snowball/avalanche
- * method toggle. Cross-debt ordering is a separate concern; the
- * per-debt view is about THIS debt's payoff math.
+ * Cluster 7.46: each card carries APR-tier-colored accents (red /
+ * amber / green) so high-APR debts stand apart at a glance; the
+ * expanded panel adds 4 new cells (Days until payment, Total cost
+ * to zero, Institution, APR tier badge) and rewrites the labels
+ * to be more concrete (Monthly Interest cost, Months to payoff at
+ * min, Started at, Progress to zero). Linked-account info flows
+ * through `accountsByDebtId` so mom sees WHICH card at a glance.
  */
 export default async function DebtsPage() {
   const user = await requireUser();
-  // Cluster 7.40 + 7.44: defensively read envelopes + plan so the
-  // page-level reads don't take the page down on a transient hiccup.
-  // The DebtListInteractive itself doesn't need envelopes/plan, but
-  // we keep the reads in case a future cluster re-uses them here.
-  await liveEnvelopesFromDb(user.id).catch(() => []);
-  await livePlanFromDb(user.id).catch(() => null);
+  // Cluster 7.46: fetch linked accounts so each debt card can show
+  // institution + last-4 + account type. Defensive `.catch` mirrors
+  // Cluster 7.40 + 7.44's pattern — if the accounts read fails, we
+  // still render the page with empty accounts.
+  //
+  // liveAccountsFromDb returns { canonical, projected } — flatten to
+  // a single list for the lookup Map. Debt's `accountId` resolves
+  // into either bucket depending on whether it's the canonical
+  // seed account or an identity-projected one.
+  const ACCOUNTS_BUCKETS = await liveAccountsFromDb(user.id).catch(() => ({
+    canonical: [],
+    projected: [],
+  }));
+  const ALL_ACCOUNTS = [
+    ...ACCOUNTS_BUCKETS.canonical,
+    ...ACCOUNTS_BUCKETS.projected,
+  ];
   const DEBTS = liveDebts();
+
+  // Map debtId → linked Account. A debt's `accountId` may not
+  // resolve (account deleted, debt was manually entered). The Map
+  // is sparse — `.get()` returns undefined for unlinked debts, and
+  // DebtCard/DebtDetailExpand handle that gracefully (no
+  // institution line).
+  //
+  // The Map value type is structural (DebtCardAccount) — the in-
+  // memory Debt.accountId points at the strict Account shape, but
+  // liveAccountsFromDb returns nullable fields. DebtCardAccount
+  // (defined alongside DebtCard) accepts both.
+  const accountsByDebtId = new Map<string, import("@/components/debts/DebtCard").DebtCardAccount>();
+  for (const acct of ALL_ACCOUNTS) {
+    accountsByDebtId.set(acct.id, {
+      name: acct.name,
+      mask: acct.mask,
+      institution: acct.institution,
+      type: acct.type,
+    });
+  }
 
   return (
     <div>
@@ -77,7 +108,11 @@ export default async function DebtsPage() {
         }
       />
 
-      <DebtListInteractive debts={DEBTS} anchor={TODAY} />
+      <DebtListInteractive
+        debts={DEBTS}
+        accountsByDebtId={accountsByDebtId}
+        anchor={TODAY}
+      />
     </div>
   );
 }
