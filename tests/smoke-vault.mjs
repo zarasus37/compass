@@ -296,9 +296,35 @@ async function main() {
   // the reconciliation line. We assert the residual is small (< 1% of
   // total) and that the row count is at least 1 — this catches a
   // completely broken derivation without being brittle on cents.
-  // React inserts `<!-- -->` between text + expression nodes, so
-  // strip those before matching.
-  const cleanText = text.replace(/<!--\s*-->/g, "");
+  //
+  // Two normalisations before matching:
+  //
+  // 1. React inserts `<!-- -->` between text + expression nodes.
+  //
+  // 2. <script> bodies are stripped. The App Router streams its RSC
+  //    flight payload as `self.__next_f.push([…])` containing an
+  //    ESCAPED JSON copy of the same text, e.g.
+  //      "Reconciliation: attributed ","$$6.96"," · vault total ",…
+  //    The line regex is `Reconciliation:[^<]*residual[^<]*`, and the
+  //    gap between those two words contains no "<" inside a script
+  //    either — so when the flight payload precedes the rendered
+  //    markup, the regex happily matches the payload. The two amount
+  //    regexes then fail, because the payload escapes the separator
+  //    (`vault total ","$$6.96`) and there is no bare `$` + digits
+  //    immediately after "vault total". Result: the check reported
+  //    "could not match total/residual" while the page was rendering
+  //    the line perfectly well.
+  //
+  //    Where the flight payload lands relative to the body HTML depends
+  //    on streaming/Suspense boundaries and cache warmth, which is why
+  //    this was intermittent locally and deterministic on CI's cold
+  //    server. The assertion is about rendered text, so <script>
+  //    content is excluded by construction. This does not weaken the
+  //    check: it still has to find a real reconciliation line and
+  //    parse both amounts out of it.
+  const cleanText = text
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<!--\s*-->/g, "");
   const reconciliationLine =
     cleanText.match(/Reconciliation:[^<]*residual[^<]*/i)?.[0] ?? "";
   const totalMatch = reconciliationLine.match(
