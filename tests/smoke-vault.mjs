@@ -26,8 +26,14 @@
  *     residual is small (< 1% of the total), not zero.
  *   - The visual layout.
  *
- * Run with: node tests/smoke-vault.mjs
+ * Run with: tsx --conditions=react-server tests/smoke-vault.mjs
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * shared `mom@compass.local`, so this test cannot be poisoned by — or
+ * poison — another test's onboarding-gate state.
  */
+
+import { createFixture } from "./fixture.mjs";
 
 const BASE = "http://127.0.0.1:3000";
 
@@ -84,6 +90,15 @@ const log = (k, v) => console.log(`[${k}] ${v}`);
 async function main() {
   console.log("--- /vault smoke (Phase 1.0) ---\n");
 
+  // Per-test user. This test used to log in as the shared
+  // `mom@compass.local`, which made it order-dependent: the /vault page
+  // is behind the onboarding gate, so if an earlier test left that shared
+  // user gated, /vault 307s to /setup and the yield-reconciliation
+  // assertion below has nothing to read. A dedicated user with the gate
+  // open removes the dependency entirely.
+  const fx = await createFixture("vault");
+  console.log(`[fixture] user=${fx.email}`);
+
   // ── Login ──────────────────────────────────────────────────────
   const lr = await get("/login");
   const loginAid = extractActionId(await lr.text());
@@ -92,8 +107,8 @@ async function main() {
     process.exit(1);
   }
   const lp = await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
+    email: fx.email,
+    password: fx.password,
   }, { actionId: loginAid });
   log("login", `status=${lp.status} session=${!!jar["compass_session"]}`);
   if (!jar["compass_session"]) {
@@ -634,6 +649,9 @@ async function main() {
 
   // ── Tally ──────────────────────────────────────────────────────
   console.log("\n--- checks ---");
+  // Tear down before reporting. If this test crashes before here, the
+  // next fixture's sweep reclaims the user, so a failed run never leaks.
+  await fx.cleanup();
   const pass = results.filter((r) => r.ok).length;
   const miss = results.filter((r) => !r.ok).length;
   console.log(`checks: ${pass} pass / ${miss} miss`);
