@@ -128,7 +128,24 @@ async function openAndProbeSheet(page, targetName) {
 const s = await loginAsFixture("mobile-shell");
 console.log(`[fixture] user=${s.email}`);
 
-const browser = await chromium.launch({ headless: true });
+// A missing browser binary is an environment failure, not a product
+// failure and not a skip — this test cannot run without Chromium. Fail
+// fast with the exact remediation instead of an unhandled
+// "Executable doesn't exist" stack trace that buries the cause.
+let browser;
+try {
+  browser = await chromium.launch({ headless: true });
+} catch (err) {
+  console.error(
+    "\nFATAL: could not launch Chromium for the mobile-shell smoke.\n" +
+      "  This test drives a real browser; Playwright does not download\n" +
+      "  browser binaries during `pnpm install`.\n" +
+      "  Fix: pnpm exec playwright install chromium\n" +
+      `  underlying error: ${err?.message ?? err}`,
+  );
+  await s.close();
+  process.exit(1);
+}
 
 try {
   for (const target of TARGETS) {

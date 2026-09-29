@@ -78,6 +78,14 @@ jobs:
       - name: Lint (errors only; warnings do not fail)
         run: pnpm lint
 
+      - name: Install Playwright browsers
+        # smoke-mobile-shell drives a real Chromium via Playwright.
+        # `pnpm install` does not fetch browser binaries, so without this
+        # step the suite dies with "Executable doesn't exist" and every
+        # later entry is dead. `--with-deps` also installs the OS
+        # libraries Chromium needs on the runner image.
+        run: pnpm exec playwright install --with-deps chromium
+
       - name: Start dev server
         run: |
           pnpm dev &
