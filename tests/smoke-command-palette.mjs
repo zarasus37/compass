@@ -502,9 +502,16 @@ async function main() {
     /command-palette-recent-header/.test(paletteSrc),
     "RECENT section header missing",
   );
+  // This used to assert the literal `setRecent(getRecent())`, which
+  // pinned one particular way of reading the RECENT list. The 7.53
+  // React 19 refactor moved that read to `useSyncExternalStore` (the
+  // correct fix for the set-state-in-effect violation) while keeping
+  // the same behavior — the list is still read on open. Assert the
+  // read, not the shape, so a correct refactor does not need a
+  // matching test edit.
   check(
     "CommandPalette reads recent on open",
-    /setRecent\(getRecent\(\)\)/.test(paletteSrc),
+    /getRecent\(/.test(paletteSrc),
     "recent not read on open",
   );
 
