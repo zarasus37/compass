@@ -43,6 +43,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { prisma } from "./db-client.mjs";
 import { hash, verify } from "@node-rs/argon2";
+import { exitCodeFor, recordSkip } from "./skip-guard.mjs";
 
 // Mirror src/server/auth/password.ts — argon2id with the same
 // memoryCost/timeCost/parallelism so the smoke round-trip uses
@@ -83,6 +84,7 @@ function check(name, cond, detail) {
 // still run, so we don't lose coverage on the contract.
 let serverUp = false;
 function checkSkip(name, reason) {
+  recordSkip();
   checks.push([name, true, `[SKIP-NO-SERVER] ${reason}`]);
   log(name, `[SKIP-NO-SERVER] ${reason}`);
 }
@@ -520,9 +522,11 @@ async function main() {
         console.log(`  - ${name}${detail ? "  — " + detail : ""}`);
       }
     }
-    process.exit(2);
+    process.exit(1);
   }
-  console.log("ALL GREEN");
+  const code = exitCodeFor(0);
+  if (code === 0) console.log("ALL GREEN");
+  process.exit(code);
 }
 
 main().catch((e) => {

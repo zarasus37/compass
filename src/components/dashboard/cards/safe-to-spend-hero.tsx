@@ -103,11 +103,12 @@ export function SafeToSpendHero({
   const expectedTotalCents = expectedDailyCents * 7; // 7-day window for the pace line
 
   // Cumulative 7-day spend (oldest → today) for the pace line.
-  let cum = 0;
-  const actualCum: number[] = dailySpendCents.map((c) => {
-    cum += c;
-    return cum;
-  });
+  // Prefix-summed with a reduce so there is no mutable accumulator
+  // shared across the iteration.
+  const actualCum: number[] = dailySpendCents.reduce<number[]>(
+    (acc, c) => [...acc, (acc[acc.length - 1] ?? 0) + c],
+    [],
+  );
 
   // Headline color logic.
   const safeAccent =

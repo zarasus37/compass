@@ -11,25 +11,34 @@
  */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
+/**
+ * `useSyncExternalStore` is the right primitive here: matchMedia is an
+ * external store that is only readable on the client, so we hand React
+ * a server snapshot of `false` and let it re-read the live value right
+ * after hydration. That keeps the "server says false, client corrects
+ * itself" behaviour without a setState-in-effect cascade.
+ */
 export function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(false);
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      const mql = window.matchMedia(query);
+      mql.addEventListener("change", onChange);
+      return () => mql.removeEventListener("change", onChange);
+    },
+    [query],
+  );
+  const getSnapshot = useCallback(
+    () => window.matchMedia(query).matches,
+    [query],
+  );
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mql = window.matchMedia(query);
-
-    // Set initial state from the live match — covers the case where
-    // the query result is true at first paint, not just on a change.
-    setMatches(mql.matches);
-
-    const handler = (e: MediaQueryListEvent) => setMatches(e.matches);
-    mql.addEventListener("change", handler);
-    return () => mql.removeEventListener("change", handler);
-  }, [query]);
-
-  return matches;
+  return useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    () => false,
+  );
 }
 
 /**

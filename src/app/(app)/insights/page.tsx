@@ -156,12 +156,24 @@ export default async function InsightsPage() {
           <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
             <svg viewBox="0 0 200 200" width="220" height="220">
               {(() => {
-                let cumulative = 0;
-                const arcs = ENVELOPES.map((e) => {
+                // Prefix-sum the slice angles with a reduce (rather than
+                // mutating a `let` inside the render map) so each
+                // envelope's start angle is computed without a shared
+                // mutable accumulator.
+                const segments = ENVELOPES.reduce<
+                  {
+                    e: (typeof ENVELOPES)[number];
+                    startAngle: number;
+                    angle: number;
+                  }[]
+                >((acc, e) => {
                   const pct = total > 0 ? (e.target / total) * 100 : 0;
                   const angle = (pct / 100) * 360;
-                  const startAngle = cumulative;
-                  cumulative += angle;
+                  const prev = acc[acc.length - 1];
+                  const startAngle = prev ? prev.startAngle + prev.angle : 0;
+                  return [...acc, { e, startAngle, angle }];
+                }, []);
+                const arcs = segments.map(({ e, startAngle, angle }) => {
                   const startRad = ((startAngle - 90) * Math.PI) / 180;
                   const endRad = ((startAngle + angle - 90) * Math.PI) / 180;
                   const r = 80;

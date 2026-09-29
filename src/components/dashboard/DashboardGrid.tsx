@@ -44,6 +44,7 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   CARD_CATALOG,
   CARD_META,
+  STORAGE_KEY,
   defaultLayout,
   loadLayout,
   saveLayout,
@@ -71,33 +72,64 @@ export interface DashboardGridProps {
 // Grid
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Layout persistence store
+//
+// The dashboard layout lives in localStorage, so it is an external
+// store rather than component state. `useSyncExternalStore` gives us
+// the two-phase handoff the old mount effect provided — the server
+// snapshot renders the default order (no SSR mismatch), then React
+// re-reads the stored JSON right after hydration — without a
+// setState-in-effect cascade. The layout and the "are we hydrated yet"
+// decision come from the SAME snapshot, so there is no window where the
+// grid could persist the default order over the user's saved one.
+// ---------------------------------------------------------------------------
+
+const LAYOUT_CHANGED_EVENT = "compass-dashboard-layout-changed";
+
+/** Raw localStorage JSON; `null` on the server so hydration matches. */
+function readLayoutRaw(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function subscribeLayout(onStoreChange: () => void) {
+  const onStorage = (e: StorageEvent) => {
+    if (!e.key || e.key.includes("compass-dashboard")) onStoreChange();
+  };
+  window.addEventListener("storage", onStorage);
+  window.addEventListener(LAYOUT_CHANGED_EVENT, onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener(LAYOUT_CHANGED_EVENT, onStoreChange);
+  };
+}
+
+const getServerLayoutRaw = () => null;
+
 export function DashboardGrid({ cardNodes }: DashboardGridProps) {
-  const [layout, setLayout] = React.useState<DashboardLayout>(defaultLayout);
   const [editing, setEditing] = React.useState(false);
-  const [hydrated, setHydrated] = React.useState(false);
   const [showAdd, setShowAdd] = React.useState(false);
 
   // Load from localStorage after mount (avoids SSR mismatch).
-  React.useEffect(() => {
-    setLayout(loadLayout());
-    setHydrated(true);
-  }, []);
-
-  // Persist on change (only after hydration).
-  React.useEffect(() => {
-    if (hydrated) saveLayout(layout);
-  }, [layout, hydrated]);
-
-  // Sync order from one tab to another (nice-to-have).
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const onStorage = (e: StorageEvent) => {
-      if (e.key && e.key.includes("compass-dashboard")) {
-        setLayout(loadLayout());
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+  const layoutRaw = React.useSyncExternalStore(
+    subscribeLayout,
+    readLayoutRaw,
+    getServerLayoutRaw,
+  );
+  const layout = React.useMemo(
+    () => (layoutRaw ? loadLayout() : defaultLayout()),
+    [layoutRaw],
+  );
+  // Persist on change. The store is the single source of truth, so a
+  // reorder writes straight through and the notification re-reads it.
+  const setLayout = React.useCallback((next: DashboardLayout) => {
+    saveLayout(next);
+    window.dispatchEvent(new Event(LAYOUT_CHANGED_EVENT));
   }, []);
 
   const sensors = useSensors(
@@ -120,7 +152,7 @@ export function DashboardGrid({ cardNodes }: DashboardGridProps) {
       if (oldIndex < 0 || newIndex < 0) return;
       setLayout({ order: arrayMove(visibleIds, oldIndex, newIndex) });
     },
-    [visibleIds],
+    [visibleIds, setLayout],
   );
 
   const moveBy = React.useCallback(
@@ -130,14 +162,14 @@ export function DashboardGrid({ cardNodes }: DashboardGridProps) {
       if (idx < 0 || target < 0 || target >= visibleIds.length) return;
       setLayout({ order: arrayMove(visibleIds, idx, target) });
     },
-    [visibleIds],
+    [visibleIds, setLayout],
   );
 
   const handleRemove = React.useCallback(
     (id: CardId) => {
       setLayout({ order: visibleIds.filter((x) => x !== id) });
     },
-    [visibleIds],
+    [visibleIds, setLayout],
   );
 
   const handleAdd = React.useCallback(
@@ -145,13 +177,13 @@ export function DashboardGrid({ cardNodes }: DashboardGridProps) {
       setLayout({ order: [...visibleIds, id] });
       setShowAdd(false);
     },
-    [visibleIds],
+    [visibleIds, setLayout],
   );
 
   const handleReset = React.useCallback(() => {
     setLayout(defaultLayout());
     setShowAdd(false);
-  }, []);
+  }, [setLayout]);
 
   return (
     <DashboardEditingContext.Provider value={editing}>

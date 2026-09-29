@@ -1,4 +1,25 @@
-@import "tailwindcss";
+/* Tailwind v4 source detection is explicitly scoped.
+ *
+ * Without `source(none)`, Tailwind walks the project root to discover
+ * which files contain utility classes. On this machine that walk hangs
+ * the CSS pipeline: the repo lives in a OneDrive-synced folder and the
+ * tree contains ~990 node_modules packages plus .next output. The result
+ * is the long-documented "Windows + Turbopack PostCSS subprocess timeout"
+ * — `next dev` reached "Compiling /login" and never finished, for both
+ * Turbopack and webpack. That is why HTTP smokes had to fall back to
+ * [SKIP-NO-SERVER] and why CI could never verify a page render.
+ *
+ * `source(none)` disables the walk; the explicit @source below then
+ * scopes scanning to `src/`, which is the only directory that renders
+ * through this stylesheet. `compass-landing/` is a standalone static
+ * site with its own CSS and does not belong here.
+ *
+ * If a new top-level directory ever needs utilities, add an @source for
+ * it here rather than removing source(none).
+ */
+@import "tailwindcss" source(none);
+@source "../";
+
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 

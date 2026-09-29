@@ -44,64 +44,79 @@ const FREQUENCIES: { value: BillFrequency; label: string }[] = [
   { value: "ONE_TIME", label: "One-time" },
 ];
 
+interface BillEditorProps {
+  envelopes: VaultEnvelope[];
+  mode: Mode | null;
+  bill: ScheduledBill | null;
+  onClose: () => void;
+}
+
 export function BillEditor({
+  envelopes,
+  mode,
+  bill,
+  onClose,
+}: BillEditorProps) {
+  // The form body is mounted only while the modal is open, so its
+  // fields hydrate from props on mount instead of being pushed into
+  // state from an effect. Closing the modal discards them, which is
+  // the same reset the old effect performed.
+  if (mode === null) return null;
+  return (
+    <BillEditorForm
+      envelopes={envelopes}
+      mode={mode}
+      bill={bill}
+      onClose={onClose}
+    />
+  );
+}
+
+function BillEditorForm({
   envelopes,
   mode,
   bill,
   onClose,
 }: {
   envelopes: VaultEnvelope[];
-  mode: Mode | null;
+  mode: Mode;
   bill: ScheduledBill | null;
   onClose: () => void;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const open = mode !== null;
 
-  // Form state. Initialize lazily so a stale bill doesn't leak
-  // into a fresh "add" session.
-  const [billerName, setBillerName] = useState("");
-  const [amountDollars, setAmountDollars] = useState("");
-  const [frequency, setFrequency] = useState<BillFrequency>("MONTHLY");
-  const [dueDay, setDueDay] = useState("1");
-  const [envelopeId, setEnvelopeId] = useState<string>(envelopes[0]?.id ?? "");
-  const [providerPreference, setProviderPreference] = useState("");
-
-  // Reset / hydrate form whenever the modal opens or the target
-  // bill changes.
-  useEffect(() => {
-    if (!open) return;
-    setError(null);
-    if (mode === "edit" && bill) {
-      setBillerName(bill.billerName);
-      setAmountDollars((bill.amount / 100).toFixed(2));
-      setFrequency(bill.frequency);
-      setDueDay(String(new Date(bill.dueDate).getUTCDate() || 1));
-      setEnvelopeId(bill.envelopeId);
-      setProviderPreference(bill.providerPreference ?? "");
-    } else {
-      setBillerName("");
-      setAmountDollars("");
-      setFrequency("MONTHLY");
-      setDueDay("1");
-      setEnvelopeId(envelopes[0]?.id ?? "");
-      setProviderPreference("");
-    }
-  }, [open, mode, bill, envelopes]);
+  // Form state, initialized from the props. Lazy initializers mean a
+  // stale bill can't leak into a fresh "add" session.
+  const editing = mode === "edit" && bill;
+  const [billerName, setBillerName] = useState(
+    editing ? bill.billerName : "",
+  );
+  const [amountDollars, setAmountDollars] = useState(
+    editing ? (bill.amount / 100).toFixed(2) : "",
+  );
+  const [frequency, setFrequency] = useState<BillFrequency>(
+    editing ? bill.frequency : "MONTHLY",
+  );
+  const [dueDay, setDueDay] = useState(
+    editing ? String(new Date(bill.dueDate).getUTCDate() || 1) : "1",
+  );
+  const [envelopeId, setEnvelopeId] = useState<string>(
+    editing ? bill.envelopeId : envelopes[0]?.id ?? "",
+  );
+  const [providerPreference, setProviderPreference] = useState(
+    editing ? bill.providerPreference ?? "" : "",
+  );
 
   // Escape to close.
   useEffect(() => {
-    if (!open) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape" && !pending) onClose();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, pending, onClose]);
-
-  if (!open) return null;
+  }, [pending, onClose]);
 
   const title = mode === "edit" ? "Edit bill" : "Add bill";
   const testid = mode === "edit" ? "vault-edit-bill-modal" : "vault-add-bill-modal";

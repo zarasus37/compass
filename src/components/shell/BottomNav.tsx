@@ -41,6 +41,26 @@ import { usePathname } from "next/navigation";
 
 const COLLAPSED_KEY = "compass-bottomnav-collapsed-v1";
 
+/**
+ * The collapse flag is read exactly once (on mount), like the old
+ * mount effect did, so the store never notifies — the toggle keeps
+ * its value in React state and only writes through to localStorage.
+ */
+const subscribeNothing = () => () => {};
+const getTrue = () => true;
+const getFalse = () => false;
+
+function readCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(COLLAPSED_KEY) === "1";
+  } catch {
+    // localStorage may be disabled (private mode, etc.) — ignore.
+    return false;
+  }
+}
+
+const getServerCollapsed = getFalse;
+
 type Glyph = React.ReactNode;
 
 interface Tab {
@@ -89,23 +109,29 @@ const TABS: Tab[] = [
 export function BottomNav() {
   const pathname = usePathname();
   // Default to expanded on SSR + first paint to avoid layout flash.
-  // The useEffect below reads the persisted state after mount.
-  const [collapsed, setCollapsed] = React.useState(false);
-  const [hydrated, setHydrated] = React.useState(false);
-
-  React.useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(COLLAPSED_KEY);
-      if (stored === "1") setCollapsed(true);
-    } catch {
-      // localStorage may be disabled (private mode, etc.) — ignore.
-    }
-    setHydrated(true);
-  }, []);
+  // The persisted value is read through `useSyncExternalStore`: the
+  // server snapshot is `false`, and React re-reads localStorage right
+  // after mount — the same hand-off the old mount effect did, without
+  // a setState-in-effect cascade. `override` carries the user's own
+  // toggle so the visual state still updates if the storage write
+  // fails (private mode / quota).
+  const persisted = React.useSyncExternalStore(
+    subscribeNothing,
+    readCollapsed,
+    getServerCollapsed,
+  );
+  const [override, setOverride] = React.useState<boolean | null>(null);
+  const collapsed = override ?? persisted;
+  // "Have we hydrated yet" — false on the server, true on the client.
+  const hydrated = React.useSyncExternalStore(
+    subscribeNothing,
+    getTrue,
+    getFalse,
+  );
 
   const toggle = React.useCallback(() => {
-    setCollapsed((c) => {
-      const next = !c;
+    setOverride((c) => {
+      const next = !(c ?? persisted);
       try {
         window.localStorage.setItem(COLLAPSED_KEY, next ? "1" : "0");
       } catch {
@@ -113,7 +139,7 @@ export function BottomNav() {
       }
       return next;
     });
-  }, []);
+  }, [persisted]);
 
   return (
     <nav

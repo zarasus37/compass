@@ -177,13 +177,10 @@ function truncate(s: string | null | undefined, maxBytes: number): string | null
  * when the URL fails to parse (e.g. we got handed a path-only
  * string from somewhere unexpected). Used as the dedup grouping
  * key for "same throw on the same page" detection.
+ *
+ * Re-exported from `client-error-shared.ts` so client components can
+ * use the same helper without importing this module — this one pulls
+ * in prisma → pg → node builtins, which cannot be bundled for the
+ * browser. See the header of `client-error-shared.ts`.
  */
-export function pathnameFromUrl(url: string): string {
-  try {
-    // URL constructor throws on malformed input — treat as
-    // fallback rather than letting the capture path itself error.
-    return new URL(url, "http://placeholder.local").pathname;
-  } catch {
-    return url;
-  }
-}
+export { pathnameFromUrl } from "./client-error-shared";

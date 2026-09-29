@@ -15,28 +15,38 @@
  *   const isMobile = useMediaQuery("(max-width: 768px)")
  *   const isPhone = useMediaQuery("(max-width: 480px)")
  */
-import { useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
+/**
+ * SSR-safe default: the server snapshot is `false` (assume desktop),
+ * then React re-reads the live value right after hydration.
+ * `useSyncExternalStore` gives us that hand-off without a
+ * setState-in-effect cascade.
+ */
 export function useMediaQuery(query: string): boolean {
-  // SSR-safe default: assume desktop until the client measures.
-  // The first client render flips the value if needed (one re-render).
-  const [matches, setMatches] = useState<boolean>(false);
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      const mql = window.matchMedia(query);
+      // matchMedia.addEventListener is the modern API; older
+      // browsers fall back to addListener.
+      if (mql.addEventListener) {
+        mql.addEventListener("change", onChange);
+        return () => mql.removeEventListener("change", onChange);
+      }
+      // Legacy Safari fallback (Safari < 14)
+      mql.addListener(onChange);
+      return () => mql.removeListener(onChange);
+    },
+    [query],
+  );
+  const getSnapshot = useCallback(
+    () => window.matchMedia(query).matches,
+    [query],
+  );
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mql = window.matchMedia(query);
-    setMatches(mql.matches);
-    const handler = (e: MediaQueryListEvent) => setMatches(e.matches);
-    // matchMedia.addEventListener is the modern API; older
-    // browsers fall back to addListener.
-    if (mql.addEventListener) {
-      mql.addEventListener("change", handler);
-      return () => mql.removeEventListener("change", handler);
-    }
-    // Legacy Safari fallback (Safari < 14)
-    mql.addListener(handler);
-    return () => mql.removeListener(handler);
-  }, [query]);
-
-  return matches;
+  return useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    () => false,
+  );
 }

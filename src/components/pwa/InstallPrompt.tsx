@@ -16,7 +16,7 @@
  */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 const DISMISS_KEY = "compass:pwa-install-dismissed";
 
@@ -35,14 +35,29 @@ function detectIos(): IosState {
   return "show";
 }
 
+/**
+ * The UA / standalone / dismissal checks are a read-only external
+ * store, so React reads them through `useSyncExternalStore`: the
+ * server snapshot is "other" (no prompt) and the real value arrives
+ * right after mount. Nothing here ever changes on its own — the
+ * dismissal is tracked in component state below — so the store never
+ * notifies.
+ */
+const subscribeNothing = () => () => {};
+const getServerIos = (): IosState => "other";
+
 export function InstallPrompt() {
-  const [ios, setIos] = useState<IosState>("other");
+  const detectedIos = useSyncExternalStore(
+    subscribeNothing,
+    detectIos,
+    getServerIos,
+  );
+  const [iosDismissed, setIosDismissed] = useState(false);
+  const ios: IosState = iosDismissed ? "dismissed" : detectedIos;
   const [androidEvent, setAndroidEvent] = useState<null | Event>(null);
   const [androidDismissed, setAndroidDismissed] = useState(false);
 
   useEffect(() => {
-    setIos(detectIos());
-
     const onBeforeInstall = (e: Event) => {
       e.preventDefault();
       if (window.localStorage.getItem(DISMISS_KEY) === "1") {
@@ -64,7 +79,7 @@ export function InstallPrompt() {
 
   const dismiss = () => {
     window.localStorage.setItem(DISMISS_KEY, "1");
-    setIos("dismissed");
+    setIosDismissed(true);
     setAndroidDismissed(true);
   };
 

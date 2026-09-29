@@ -1,4 +1,4 @@
-﻿/**
+/**
  * In-memory store for Compass. Wraps the mock seed data with a mutable
  * layer so the UI can react to user actions (e.g. "simulate a paycheck")
  * while the real Prisma layer is being wired up.
@@ -1439,7 +1439,7 @@ export function runAllocation(
   const remainderRules = orderedRules.filter((r) => r.mode === "remainder");
   if (remainderRules.length > 0 && remaining > 0) {
     const share = Math.floor(remaining / remainderRules.length);
-    let leftover = remaining - share * remainderRules.length;
+    const leftover = remaining - share * remainderRules.length;
     for (let i = 0; i < remainderRules.length; i += 1) {
       const r = remainderRules[i]!;
       const cents = share + (i < leftover ? 1 : 0);

@@ -56,6 +56,15 @@ export type UseAuditStreamOptions = {
 export type AuditStreamState = "connecting" | "live" | "reconnecting" | "closed";
 
 /**
+ * Environment capability checks. These are module-scope so they are
+ * evaluated once per bundle (the server bundle and the client bundle
+ * each import this module separately) and stay constant for the life
+ * of the component — which is why they are not effect dependencies.
+ */
+const IS_SERVER = typeof window === "undefined";
+const CAN_STREAM = typeof EventSource !== "undefined";
+
+/**
  * Subscribe to the audit event stream. Returns the current
  * connection state for the page to render a small indicator.
  *
@@ -74,46 +83,59 @@ export function useAuditStream(opts: UseAuditStreamOptions): {
   state: AuditStreamState;
 } {
   const { billId, onRow, ignoreActionTypes, isOpen = true } = opts;
-  const [state, setState] = useState<AuditStreamState>("connecting");
+  const [openState, setOpenState] = useState<AuditStreamState>("connecting");
+  // Two halves of the machine are derived rather than pushed into
+  // state from the effect body:
+  //   - `isOpen` decides the "closed" state outright, and
+  //   - on a server render (or a browser without EventSource) we
+  //     report the initial "connecting" / settle on "closed",
+  //     matching what the old effect did after mount.
+  const state: AuditStreamState = !isOpen
+    ? "closed"
+    : IS_SERVER || CAN_STREAM
+      ? openState
+      : "closed";
   // Stash the latest values in refs so the effect doesn't re-run
   // on every render. The handler closure is fresh on each call,
   // which is fine — EventSource just overwrites `onmessage`.
   const onRowRef = useRef(onRow);
   const ignoreRef = useRef(ignoreActionTypes);
   const billIdRef = useRef(billId);
-  onRowRef.current = onRow;
-  ignoreRef.current = ignoreActionTypes;
-  billIdRef.current = billId;
+
+  // Refresh the refs after commit, before the stream effect below
+  // re-runs. Writing them during render is not allowed (React can
+  // render a throwaway tree), and the stream effect reads them, so
+  // they have to be current by the time that effect fires.
+  useEffect(() => {
+    onRowRef.current = onRow;
+    ignoreRef.current = ignoreActionTypes;
+    billIdRef.current = billId;
+  }, [onRow, ignoreActionTypes, billId]);
 
   useEffect(() => {
-    if (!isOpen) {
-      setState("closed");
-      return;
-    }
-    if (typeof window === "undefined") return; // SSR safety
-    if (typeof EventSource === "undefined") {
-      // Old browser / test env without EventSource. Treat as
-      // closed; the page still renders the server-rendered
-      // initial rows.
-      setState("closed");
+    if (!isOpen) return;
+    if (IS_SERVER) return; // SSR safety
+    if (!CAN_STREAM) {
+      // Old browser / test env without EventSource. The derived
+      // state above already reports "closed"; the page still renders
+      // the server-rendered initial rows.
       return;
     }
 
-    setState("connecting");
     const qs = billIdRef.current
       ? `?billId=${encodeURIComponent(billIdRef.current)}`
       : "";
     const es = new EventSource(`/api/vault/audit/stream${qs}`);
 
     es.onopen = () => {
-      setState("live");
+      setOpenState("live");
     };
     es.onerror = () => {
       // Browser will auto-retry with a backoff. We surface the
       // transient state so the page can show a "reconnecting"
       // chip if it wants. EventSource will fire `onopen` again
       // when the next attempt succeeds.
-      setState("reconnecting");
+      setOpenState("reconnecting");
     };
     es.onmessage = (ev: MessageEvent<string>) => {
       let parsed: unknown;
@@ -128,7 +150,7 @@ export function useAuditStream(opts: UseAuditStreamOptions): {
         typeof parsed === "object" &&
         (parsed as { ok?: unknown }).ok === true
       ) {
-        setState("live");
+        setOpenState("live");
         return;
       }
       // Real row. Validate the shape.
@@ -167,7 +189,13 @@ export function useAuditStream(opts: UseAuditStreamOptions): {
 
     return () => {
       es.close();
-      setState("closed");
+      // Reset the live half of the machine to "connecting" here
+      // rather than in the effect body: cleanup and the next effect
+      // body run in the same commit, so the user still sees
+      // "connecting" while the new EventSource handshakes. When
+      // `isOpen` flipped false instead, the derived state above
+      // still reports "closed".
+      setOpenState("connecting");
     };
   }, [isOpen, billId]);
 

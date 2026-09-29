@@ -9,6 +9,7 @@
 import { chromium } from "playwright";
 import { existsSync, readFileSync } from "node:fs";
 import { prisma } from "./db-client.mjs";
+import { exitCodeFor, recordSkip } from "./skip-guard.mjs";
 
 const BASE = "http://127.0.0.1:3000";
 
@@ -32,6 +33,7 @@ try {
   serverUp = false;
 }
 function checkSkip(name, reason) {
+  recordSkip();
   checks.push({ name, ok: true, detail: `[SKIP-NO-SERVER] ${reason}` });
   console.log(`[SKIP-NO-SERVER] ${name} — ${reason}`);
 }
@@ -460,4 +462,4 @@ if (miss.length) {
   console.log("\nFAILED checks:");
   for (const m of miss) console.log(`  - ${m.name}${m.detail ? " — " + m.detail : ""}`);
 }
-process.exit(miss.length ? 1 : 0);
+process.exit(exitCodeFor(miss.length));

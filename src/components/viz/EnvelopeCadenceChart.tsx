@@ -63,15 +63,20 @@ export function EnvelopeCadenceChart({
   const innerW = VBW - padL - padR;
   const innerH = VBH - padT - padB;
 
+  // `Date.now()` is an impure render-phase read, so take it once at
+  // mount instead. It only seeds the x-axis window when the caller
+  // omits `startDate`.
+  const [nowMs] = React.useState(() => Date.now());
+
   // Build the 14 dates (oldest first, today last).
   const days = React.useMemo(() => {
-    const start = startDate ?? new Date(Date.now() - 13 * 24 * 60 * 60 * 1000);
+    const start = startDate ?? new Date(nowMs - 13 * 24 * 60 * 60 * 1000);
     return Array.from({ length: burnCents.length }, (_, i) => {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
       return d;
     });
-  }, [burnCents.length, startDate]);
+  }, [burnCents.length, startDate, nowMs]);
 
   const max = Math.max(1, ...burnCents);
   const yDomainMax = max * 1.15;

@@ -124,7 +124,7 @@ export function parseAuditLogFilter(
   const take = Number.isFinite(takeNum) ? Math.min(200, Math.max(10, takeNum)) : 50;
   // Validate dates; if `from > to`, drop `to` so the range is
   // "from and after" (more useful than silently returning 0).
-  let from = parseYmdDate(get("from"));
+  const from = parseYmdDate(get("from"));
   let to = parseYmdDate(get("to"));
   if (from && to && from > to) {
     to = null;

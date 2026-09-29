@@ -45,12 +45,12 @@ export function PaceLine({
   const innerW = VBW - padL - padR;
   const innerH = VBH - padT - padB;
 
-  // Cumulative spend.
-  let cum = 0;
-  const cumulative = actualCents.map((v) => {
-    cum += v;
-    return cum;
-  });
+  // Cumulative spend. Prefix-summed with a reduce so there is no
+  // mutable accumulator shared across the iteration.
+  const cumulative = actualCents.reduce<number[]>(
+    (acc, v) => [...acc, (acc[acc.length - 1] ?? 0) + v],
+    [],
+  );
   const actualToday = cumulative[cumulative.length - 1] ?? 0;
 
   // Ideal: straight line from 0 at day 0 to expectedTotal at day N-1.

@@ -1898,7 +1898,6 @@ export async function refreshAUsdcBalanceAction(): Promise<
   } else {
     aUsdcTokenAddress = await getAUsdcTokenAddress();
   }
-  let balanceUnits: bigint;
   let aUsdcBalanceUnits: bigint;
   let usdcBalanceUnits: bigint;
   try {
@@ -1931,7 +1930,7 @@ export async function refreshAUsdcBalanceAction(): Promise<
   }
   const onChainAUsdcBalanceCents = centsFromUsdcUnits(aUsdcBalanceUnits);
   const onChainUsdcBalanceCents = centsFromUsdcUnits(usdcBalanceUnits);
-  balanceUnits = aUsdcBalanceUnits;
+  const balanceUnits = aUsdcBalanceUnits;
   void balanceUnits;
   try {
     await setOnChainBalance({

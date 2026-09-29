@@ -56,11 +56,14 @@ export function ChatSurface({ initialState }: ChatSurfaceProps) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Auto-scroll on new messages.
+  // Auto-scroll on new messages. The two signals are extracted into
+  // named consts so the dep array stays statically checkable.
+  const messageCount = state.messages.length;
+  const hasAudit = state.audit != null;
   useEffect(() => {
     const el = scrollerRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [state.messages.length, state.audit != null]);
+  }, [messageCount, hasAudit]);
 
   // Focus the input on first render (not after every state change).
   useEffect(() => {
@@ -249,7 +252,15 @@ function ConversationLog({
   // gets its own row. Assistant tool calls render under the
   // assistant message as small chips.
   const messages = state.messages;
-  let skippedFirstAssistant = false;
+  // Index of the assistant greeting to hide, resolved up front so the
+  // render map stays side-effect free. Only the FIRST assistant
+  // message that has content and no tool calls is skipped, and only
+  // when the caller opted out of the greeting. -1 = keep everything.
+  const greetingIndex = skipFirstAssistant
+    ? messages.findIndex(
+        (m) => m.role === "assistant" && m.content && m.toolCalls == null,
+      )
+    : -1;
   return (
     <>
       {messages.map((m, i) => {
@@ -257,13 +268,7 @@ function ConversationLog({
           return <MessageBubble key={i} role="user" content={m.content} />;
         }
         if (m.role === "assistant") {
-          const isFirstGreeting =
-            !skippedFirstAssistant &&
-            skipFirstAssistant &&
-            m.content &&
-            m.toolCalls == null;
-          if (isFirstGreeting) {
-            skippedFirstAssistant = true;
+          if (i === greetingIndex) {
             return null;
           }
           return (

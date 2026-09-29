@@ -39,6 +39,7 @@ import {
 import {
   getRecent,
   pushRecent,
+  STORAGE_KEY as RECENT_STORAGE_KEY,
   type RecentItem,
 } from "@/lib/command-palette/recent-items";
 import type {
@@ -58,6 +59,29 @@ const KIND_LABEL: Record<PaletteKind, string> = {
 
 const MAX_RESULTS = 50;
 
+// --- RECENT list store ---------------------------------------------------
+// localStorage is the external store for the RECENT list. The raw JSON
+// string is the snapshot (a primitive, so `useSyncExternalStore` gets a
+// stable value); `recent` is parsed from it in a memo.
+
+const EMPTY_RECENT_RAW = "[]";
+
+function getRecentRaw(): string {
+  if (typeof localStorage === "undefined") return EMPTY_RECENT_RAW;
+  try {
+    return localStorage.getItem(RECENT_STORAGE_KEY) ?? EMPTY_RECENT_RAW;
+  } catch {
+    return EMPTY_RECENT_RAW;
+  }
+}
+
+function subscribeRecent(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange);
+  return () => window.removeEventListener("storage", onStoreChange);
+}
+
+const getServerRecentRaw = () => EMPTY_RECENT_RAW;
+
 export function CommandPalette({
   searchIndex,
   isOpen,
@@ -67,15 +91,40 @@ export function CommandPalette({
   isOpen: boolean;
   onClose: () => void;
 }) {
+  // The palette body is mounted only while the drawer is open, so the
+  // query + active index start fresh on every open. That is the same
+  // reset the old close-effect performed, without pushing state from
+  // an effect.
+  if (!isOpen) return null;
+  return <CommandPaletteBody searchIndex={searchIndex} onClose={onClose} />;
+}
+
+function CommandPaletteBody({
+  searchIndex,
+  onClose,
+}: {
+  searchIndex: SearchIndex;
+  onClose: () => void;
+}) {
   const router = useRouter();
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const listRef = React.useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = React.useState("");
   const [activeIndex, setActiveIndex] = React.useState(0);
-  // Cluster 7.2 — the RECENT list. Read on mount + after
-  // every navigation. Stored in localStorage via the
-  // recent-items module.
-  const [recent, setRecent] = React.useState<RecentItem[]>([]);
+  // Cluster 7.2 — the RECENT list. Stored in localStorage via the
+  // recent-items module and read through `useSyncExternalStore`: the
+  // body only mounts while the drawer is open, so the list is read on
+  // every open (the server snapshot is an empty list), and a write
+  // from another tab re-reads it live.
+  const recentRaw = React.useSyncExternalStore(
+    subscribeRecent,
+    getRecentRaw,
+    getServerRecentRaw,
+  );
+  const recent: RecentItem[] = React.useMemo(
+    () => (recentRaw ? getRecent() : []),
+    [recentRaw],
+  );
 
   // Flatten the search index into a single array for matching.
   const allItems: PaletteItem[] = React.useMemo(
@@ -122,39 +171,19 @@ export function CommandPalette({
     return results.map((r) => ({ kind: "RESULT", item: r.item }));
   }, [showRecent, recent, allItems, query]);
 
-  // Reset the active index when the query or RECENT state
-  // changes (so the first row is always the default).
+  // Focus the input on open (the body mounts with the drawer).
   React.useEffect(() => {
-    setActiveIndex(0);
-  }, [query, showRecent]);
-
-  // Read the recent list on mount + on every palette open.
-  React.useEffect(() => {
-    if (isOpen) {
-      setRecent(getRecent());
-    }
-  }, [isOpen]);
-
-  // Focus the input on open.
-  React.useEffect(() => {
-    if (isOpen) {
-      // Defer to the next frame so the input is mounted.
-      const id = requestAnimationFrame(() => {
-        inputRef.current?.focus();
-        inputRef.current?.select();
-      });
-      return () => cancelAnimationFrame(id);
-    }
-    // Reset the query when the palette closes.
-    setQuery("");
-    setActiveIndex(0);
-    return undefined;
-  }, [isOpen]);
+    // Defer to the next frame so the input is mounted.
+    const id = requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    });
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   // Keep the active row in view (scroll into the list when
   // the active index changes via keyboard).
   React.useEffect(() => {
-    if (!isOpen) return;
     const list = listRef.current;
     if (!list) return;
     const active = list.querySelector<HTMLElement>(
@@ -163,9 +192,7 @@ export function CommandPalette({
     if (active) {
       active.scrollIntoView({ block: "nearest" });
     }
-  }, [activeIndex, isOpen, rows.length]);
-
-  if (!isOpen) return null;
+  }, [activeIndex, rows.length]);
 
   function navigate(item: PaletteItem) {
     // Cluster 7.2 — record the navigation in the RECENT
@@ -250,7 +277,12 @@ export function CommandPalette({
             ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              // The first row is always the default once the query
+              // changes (the old reset effect keyed off `query`).
+              setActiveIndex(0);
+            }}
             onKeyDown={onKeyDown}
             placeholder="[?] Search routes, envelopes, goals, debts, bills, accounts…"
             aria-label="Search"

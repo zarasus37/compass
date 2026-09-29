@@ -88,7 +88,7 @@ export function SankeyFlow({
       ? links.map((l) => ({ ...l, source: "__source" }))
       : links;
     return { nodes: finalNodes, links: finalLinks };
-  }, [nodes, links, showSource, sourceLabel]);
+  }, [nodes, links, showSource]);
 
   return (
     <div

@@ -46,6 +46,10 @@ jobs:
       LLM_PROVIDER: "mock"
       LLM_PROVIDER_ADVISOR: "mock"
       NODE_ENV: "development"
+      # Skipped assertions must fail the run. Without this the suite
+      # can "pass" while every server-touching check silently skipped —
+      # which is how CI stayed green-looking while proving nothing.
+      SMOKE_REQUIRE_SERVER: "1"
 
     steps:
       - uses: actions/checkout@v4
@@ -71,6 +75,9 @@ jobs:
       - name: Type check
         run: pnpm tsc
 
+      - name: Lint (errors only; warnings do not fail)
+        run: pnpm lint
+
       - name: Start dev server
         run: |
           pnpm dev &
@@ -93,3 +100,4 @@ jobs:
           pnpm smoke:integration
           # then the deploy-readiness smoke
           pnpm smoke:deploy
+

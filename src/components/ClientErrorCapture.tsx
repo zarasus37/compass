@@ -30,7 +30,11 @@
 
 import * as React from "react";
 import { usePathname } from "next/navigation";
-import { pathnameFromUrl } from "@/lib/client-error";
+// Client-safe module on purpose. Importing this from
+// `@/lib/client-error` pulls prisma → pg → node builtins into the
+// browser bundle and 500s every (app) page. See the header of
+// `client-error-shared.ts` for the full story.
+import { pathnameFromUrl } from "@/lib/client-error-shared";
 
 type ClientErrorCaptureProps = {
   /**

@@ -80,21 +80,51 @@ const PROFILE_META: Record<Profile, { name: string; tagline: string; emoji: stri
 
 const STORAGE_KEY = "compass-habit-profile-v1";
 
+/**
+ * The saved profile IS the external store. `useSyncExternalStore`
+ * hands us the server snapshot (null — the quiz renders) and re-reads
+ * localStorage right after hydration, which is the same "restore on
+ * mount" behaviour the old effect had, without a setState-in-effect.
+ * `compute` / `reset` notify the store so the same-tab view updates.
+ */
+const CHANGED_EVENT = "compass-habit-profile-changed";
+
+function readStoredProfile(): Profile | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as { profile: Profile };
+      if (parsed.profile) return parsed.profile;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function subscribeProfile(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(CHANGED_EVENT, onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(CHANGED_EVENT, onStoreChange);
+  };
+}
+
+const getServerProfile = () => null;
+
 export function HabitQuiz() {
   const [answers, setAnswers] = React.useState<Record<number, string>>({});
-  const [result, setResult] = React.useState<Profile | null>(null);
-
-  React.useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as { profile: Profile };
-        if (parsed.profile) setResult(parsed.profile);
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
+  // The freshly-computed result wins; the stored profile covers the
+  // "come back later" case. Keeping the override separate means a
+  // blocked localStorage write still shows the result.
+  const [computed, setComputed] = React.useState<Profile | null>(null);
+  const stored = React.useSyncExternalStore(
+    subscribeProfile,
+    readStoredProfile,
+    getServerProfile,
+  );
+  const result = computed ?? stored;
 
   const pick = (qi: number, key: string) => {
     setAnswers((a) => ({ ...a, [qi]: key }));
@@ -114,22 +144,24 @@ export function HabitQuiz() {
     const winner = (Object.keys(totals) as Profile[]).reduce((a, b) =>
       totals[a] >= totals[b] ? a : b,
     );
-    setResult(winner);
+    setComputed(winner);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ profile: winner, ranAt: new Date().toISOString() }));
     } catch {
       // ignore
     }
+    window.dispatchEvent(new Event(CHANGED_EVENT));
   };
 
   const reset = () => {
     setAnswers({});
-    setResult(null);
+    setComputed(null);
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch {
       // ignore
     }
+    window.dispatchEvent(new Event(CHANGED_EVENT));
   };
 
   if (result) {

@@ -62,7 +62,11 @@ export function DebtDetailExpand({
   anchor,
   isMobile = false,
 }: DebtDetailExpandProps) {
-  const a = anchor ?? new Date();
+  // `anchor` is optional; when it is omitted we fall back to "now".
+  // Wrapping the fallback in its own memo keeps `a` referentially
+  // stable across renders — otherwise `new Date()` on every render
+  // would invalidate the projection memos below on every render.
+  const a = React.useMemo(() => anchor ?? new Date(), [anchor]);
   const isPaidOff = debt.balanceCents === 0;
   const monthlyInterest = monthlyInterestCents(debt);
   const tier = aprTier(debt.aprBps);

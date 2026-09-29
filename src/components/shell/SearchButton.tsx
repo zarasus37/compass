@@ -18,14 +18,26 @@
 import * as React from "react";
 import { useCommandPalette } from "@/components/command-palette/CommandPaletteProvider";
 
+/**
+ * `navigator.platform` is stable for the life of the page, so the
+ * store never notifies; `useSyncExternalStore` just hands React the
+ * server snapshot (`null`, matching the old first paint) and the real
+ * value right after mount.
+ */
+const subscribeNothing = () => () => {};
+
+function readIsMac(): boolean | null {
+  if (typeof navigator === "undefined") return null;
+  return /Mac|iPhone|iPad/i.test(navigator.platform || "");
+}
+
 export function SearchButton() {
   const { open } = useCommandPalette();
-  const [isMac, setIsMac] = React.useState<boolean | null>(null);
-
-  React.useEffect(() => {
-    if (typeof navigator === "undefined") return;
-    setIsMac(/Mac|iPhone|iPad/i.test(navigator.platform || ""));
-  }, []);
+  const isMac = React.useSyncExternalStore(
+    subscribeNothing,
+    readIsMac,
+    () => null,
+  );
 
   return (
     <button
