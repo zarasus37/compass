@@ -15,6 +15,7 @@
 import { prisma } from "./db-client.mjs";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { seededId } from "../src/lib/seed-ids.ts";
 
 const BASE = "http://127.0.0.1:3000";
 
@@ -59,13 +60,19 @@ async function main() {
 
   const envs = await prisma.envelope.findMany({ where: { userId: u.id } });
   check("mom has envelopes in DB (lazy-seed worked)", envs.length >= 7, `got ${envs.length}`);
-  const rent = envs.find(e => e.id === "env-rent");
-  check("rent envelope exists with id=env-rent", !!rent);
+
+  // Canonical seed ids are namespaced per user by the product
+  // (src/lib/seed-ids.ts). Fall back to the bare id so this also works
+  // against a row created before the namespacing landed.
+  const rentId = seededId(u.id, "env-rent");
+  const rent = envs.find(e => e.id === rentId) ?? envs.find(e => e.id === "env-rent");
+  check("rent envelope exists (canonical or namespaced id)", !!rent);
 
   const jar = await login();
-  // Hit the detail page
-  const r = await goWithCookies(jar, "/envelopes/env-rent");
-  check("[1] /envelopes/env-rent returns 200", r.status === 200, `got ${r.status}`);
+  // Hit the detail page — using whichever id we actually resolved, so
+  // this works against both namespaced and pre-namespacing rows.
+  const r = await goWithCookies(jar, `/envelopes/${rent.id}`);
+  check("[1] rent envelope detail returns 200", r.status === 200, `got ${r.status}`);
   const html = await r.text();
   check("[2] HTML mentions the envelope name (Rent)", html.includes("Rent"));
   check("[2b] the HTML's visible content does not include the notFound() fallback",

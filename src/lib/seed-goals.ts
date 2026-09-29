@@ -21,6 +21,7 @@
 import "server-only";
 import { prisma } from "@/server/db";
 import { GOALS_SEED, type GoalSeed } from "./mock-seed";
+import { seededId } from "./seed-ids";
 
 /**
  * Bump this when GOALS_SEED changes. On mismatch, the seeder
@@ -53,16 +54,21 @@ export async function ensureUserGoalsSeeded(
 
   await prisma.goal.createMany({
     data: GOALS_SEED.map((g: GoalSeed) => ({
-      // Use the same stable id as the in-memory store so the
-      // existing UI's "goal-emergency" key works seamlessly.
-      id: g.id,
+      // Stable id, namespaced to this user. The in-memory store seeds
+      // the same string (see `seedState` in ./store.ts), so lookups
+      // keyed on the goal id still resolve. A bare `goal-emergency`
+      // would be a global primary key — two users could never both
+      // hold the seeded goals.
+      id: seededId(userId, g.id),
       userId,
       name: g.name,
       description: g.description,
       targetAmount: g.targetCents,
       currentAmount: g.currentCents,
       targetDate: g.targetDate,
-      envelopeId: g.envelopeId,
+      // Same namespacing as the row id, so the goal still points at
+      // this user's linked vessel.
+      envelopeId: g.envelopeId ? seededId(userId, g.envelopeId) : null,
       planet: g.planet,
       isPrimary: g.isPrimary,
       // The seed values are already the Prisma enum strings

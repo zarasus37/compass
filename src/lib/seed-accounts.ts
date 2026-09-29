@@ -30,6 +30,7 @@
 import "server-only";
 import { prisma } from "@/server/db";
 import { ACCOUNT_SEED } from "./mock-seed";
+import { seededId } from "./seed-ids";
 
 /**
  * Bump this when ACCOUNT_SEED changes. On mismatch, the seeder
@@ -58,8 +59,13 @@ export async function ensureUserAccountsSeeded(
   // so non-canonical rows that share the same source — e.g. the
   // projection rows the onboarding chat writes with `name: "[identity] ..."`
   // — don't trick the seeder into wiping them.
+  //
+  // The id is namespaced per user: `acct-chase` on its own is a
+  // global primary key, so a second user could never hold the seeded
+  // account and this lookup would find the *first* user's row.
+  const accountId = seededId(userId, ACCOUNT_SEED.id);
   const existing = await prisma.account.findFirst({
-    where: { userId, id: ACCOUNT_SEED.id },
+    where: { userId, id: accountId },
     select: { id: true, name: true, currentBalance: true },
   });
 
@@ -91,14 +97,15 @@ export async function ensureUserAccountsSeeded(
 
   // (Re)seed: drop only the canonical seed row (by id), then re-insert.
   await prisma.account.deleteMany({
-    where: { userId, id: ACCOUNT_SEED.id },
+    where: { userId, id: accountId },
   });
 
   await prisma.account.create({
     data: {
-      // Use the same stable id as the in-memory store so any UI
-      // component that keys on "acct-chase" still works.
-      id: ACCOUNT_SEED.id,
+      // Same stable id as the in-memory store, namespaced to this user
+      // so any UI component keying on the account id still lines up —
+      // and so a second user doesn't collide on the primary key.
+      id: accountId,
       userId,
       name: ACCOUNT_SEED.name,
       type: ACCOUNT_SEED.type,

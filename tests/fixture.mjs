@@ -1,7 +1,7 @@
-/**
+﻿/**
  * Per-test user fixture for the Compass smoke suite.
  *
- * ── Why this exists ────────────────────────────────────────────────────────
+ * â”€â”€ Why this exists â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
  * The suite used to share ONE hardcoded user (`mom@compass.local`) across
  * ~30 files. That made it order-dependent, because several tests
  * destructively mutate that shared row:
@@ -20,14 +20,14 @@
  * poison another. Teardown deletes the user, so repeated runs and CI
  * do not accumulate rows.
  *
- * ── Running this ───────────────────────────────────────────────────────────
+ * â”€â”€ Running this â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
  * The seed modules live in `src/lib/*.ts` and import Next's `server-only`
  * marker, so anything using this fixture must run under tsx with the
  * react-server condition:
  *
  *     tsx --conditions=react-server tests/smoke-foo.mjs
  *
- * ── Usage ──────────────────────────────────────────────────────────────────
+ * â”€â”€ Usage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
  *
  *     import { withFixture } from "./fixture.mjs";
  *
@@ -53,6 +53,12 @@ import {
   ALLOCATION_PLAN_SEED,
 } from "../src/lib/mock-seed.ts";
 import { ensureUserSinksSeeded } from "../src/lib/seed-sinks.ts";
+// The PRODUCT's id-namespacing helper, not a local copy. The fixture
+// must derive ids exactly the way the app does, or the vault re-sync
+// (`seedVaultFromEnvelopes` re-derives rows from `liveEnvelopes`) will
+// produce ids the fixture's own rows never match, and the vault renders
+// zero bill rows. Using the real helper makes drift impossible.
+import { seededId } from "../src/lib/seed-ids.ts";
 
 /** Argon2 params must match src/server/auth/password.ts or login fails. */
 const ARGON2 = { memoryCost: 19456, timeCost: 2, parallelism: 1 };
@@ -75,7 +81,7 @@ const FIXTURE_EMAIL_PREFIX = "smoke-";
  *
  * This is required, not just tidy. The canonical seeders
  * (ensureUserAccountsSeeded and friends) insert rows under FIXED primary
- * keys — ACCOUNT_SEED.id and so on — because they represent one canonical
+ * keys â€” ACCOUNT_SEED.id and so on â€” because they represent one canonical
  * account/goal/bill set. So two fixture users cannot both hold the seeded
  * baseline at the same time: the second one dies on
  * `Account_pkey` / duplicate key.
@@ -106,9 +112,9 @@ async function sweepStaleFixtures() {
  * @param {string} slug  short test identifier, e.g. "debts-tier"
  * @param {object} [opts]
  * @param {"full"|"minimal"} [opts.scenario="full"]
- *        "full"    — gate + seeded baseline + paycheck + a month of
+ *        "full"    â€” gate + seeded baseline + paycheck + a month of
  *                    transactions (the default; what most smokes want)
- *        "minimal" — gate + seeded baseline only
+ *        "minimal" â€” gate + seeded baseline only
  * @returns {Promise<Fixture>}
  */
 export async function createFixture(slug, opts = {}) {
@@ -150,7 +156,7 @@ export async function createFixture(slug, opts = {}) {
     }
   };
 
-  // ── Open the onboarding gate ──────────────────────────────────────────────
+  // â”€â”€ Open the onboarding gate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // The gate (src/lib/onboarding/gate.ts) is an OR:
   //   FinancialIdentity.completedAt != null || SetupState.activatedAt != null
   // We set BOTH so the fixture is realistic and does not depend on which
@@ -198,13 +204,13 @@ export async function createFixture(slug, opts = {}) {
     ids: null,
   };
 
-  // ── Seeded baseline ───────────────────────────────────────────────────────
+  // â”€â”€ Seeded baseline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Built from the product's own seed CONSTANTS, but with per-user ids.
   //
   // We deliberately do NOT call ensureUserAccountsSeeded and friends.
   // Those insert under FIXED global primary keys ("acct-chase",
-  // "env-rent", "bill-rent", …) because they represent one canonical
-  // dataset. Two users therefore cannot both hold the seeded baseline —
+  // "env-rent", "bill-rent", â€¦) because they represent one canonical
+  // dataset. Two users therefore cannot both hold the seeded baseline â€”
   // the second insert dies on `Account_pkey`. Since every test now gets
   // its own user, we recreate the same VALUES under generated ids and
   // remap every cross-reference.
@@ -229,9 +235,9 @@ export async function createFixture(slug, opts = {}) {
  * Returns the id map for callers that need to reference rows.
  */
 async function provisionBaseline(fx) {
-  const tag = fx.slug;
+  const tag = fx.userId; // MUST match the product namespace. Previously this was fx.slug,
   const ids = {
-    account: `${ACCOUNT_SEED.id}--${tag}`,
+    account: seededId(fx.userId, ACCOUNT_SEED.id),
     envelopes: {},
     goals: {},
     bills: {},
@@ -253,7 +259,7 @@ async function provisionBaseline(fx) {
   });
 
   for (const [i, e] of ENVELOPES_SEED.entries()) {
-    const id = `${e.id}--${tag}`;
+    const id = seededId(fx.userId, e.id);
     ids.envelopes[e.id] = id;
     await prisma.envelope.create({
       data: {
@@ -272,7 +278,7 @@ async function provisionBaseline(fx) {
   }
 
   for (const [i, g] of GOALS_SEED.entries()) {
-    const id = `${g.id}--${tag}`;
+    const id = seededId(fx.userId, g.id);
     ids.goals[g.id] = id;
     await prisma.goal.create({
       data: {
@@ -296,7 +302,7 @@ async function provisionBaseline(fx) {
   }
 
   for (const [i, b] of BILLS_SEED.entries()) {
-    const id = `${b.id}--${tag}`;
+    const id = seededId(fx.userId, b.id);
     ids.bills[b.id] = id;
     await prisma.bill.create({
       data: {
@@ -338,7 +344,7 @@ async function provisionBaseline(fx) {
   }
 
   // Allocation plan + rules, with envelope references remapped.
-  const planId = `${ALLOCATION_PLAN_SEED.id}--${tag}`;
+  const planId = seededId(fx.userId, ALLOCATION_PLAN_SEED.id);
   await prisma.allocationPlan.create({
     data: {
       id: planId,
@@ -350,7 +356,7 @@ async function provisionBaseline(fx) {
   for (const [i, r] of ALLOCATION_PLAN_SEED.rules.entries()) {
     await prisma.allocationRule.create({
       data: {
-        id: `${r.id}--${tag}`,
+        id: seededId(fx.userId, r.id),
         planId,
         envelopeId: ids.envelopes[r.envelopeId] ?? null,
         // The seed expresses a rule as {mode, value}; the schema stores
@@ -370,14 +376,14 @@ async function provisionBaseline(fx) {
 /**
  * Vault state: a MOCK-mode Safe plus yield-eligible envelope positions.
  *
- * The /vault page derives its yield panel from VaultEnvelope rows —
+ * The /vault page derives its yield panel from VaultEnvelope rows â€”
  * `mock-data.ts` treats `principalAllocated` as the eligible principal,
  * accrues SIMULATED_APY (3.52%) per day for DAYS_DEPLOYED (14) days, and
  * splits the total pro-rata. With no VaultEnvelope rows the whole panel
  * reads $0.00 and the "reconciliation" assertion has nothing to compare.
  *
  * The Smart account address is the MOCK literal, which is what puts the
- * page in MOCK state — the state every vault smoke asserts against
+ * page in MOCK state â€” the state every vault smoke asserts against
  * ([DEPLOY] visible, [FUND]/[DEPOSIT]/[WITHDRAW] hidden).
  */
 async function provisionVault(fx, ids) {
@@ -387,7 +393,7 @@ async function provisionVault(fx, ids) {
     data: {
       id: `vault-${fx.slug}-${fx.userId.slice(-6)}`,
       userId: fx.userId,
-      chainId: 84532, // Base Sepolia — the safe default for local dev
+      chainId: 84532, // Base Sepolia â€” the safe default for local dev
       smartAccountAddress: MOCK_SAFE_ADDRESS,
       baseAsset: "USDC",
       status: "ACTIVE",
@@ -401,7 +407,7 @@ async function provisionVault(fx, ids) {
     // yield assertion read $0.00, which looks like a page bug instead
     // of a fixture bug. Fail loudly and immediately.
     console.error(
-      `[fixture] FATAL: could not provision vault for ${fx.email} — ${e.message}`,
+      `[fixture] FATAL: could not provision vault for ${fx.email} â€” ${e.message}`,
     );
     throw e;
   });
@@ -439,7 +445,7 @@ async function provisionVault(fx, ids) {
 
 /**
  * A plausible month of life on top of the seeded baseline: an active
- * biweekly paycheck (D17 — biweekly is the canonical cadence) and
+ * biweekly paycheck (D17 â€” biweekly is the canonical cadence) and
  * spending spread across the seeded envelopes.
  *
  * Values are the canonical envelopes by NAME lookup, so spending lands
@@ -589,7 +595,7 @@ export async function loginAsFixture(slug, opts = {}) {
     null;
   if (!aid) {
     await fx.cleanup();
-    throw new Error("[fixture] no login action id on /login — is the dev server up?");
+    throw new Error("[fixture] no login action id on /login â€” is the dev server up?");
   }
   const lp = await post("/login", { email: fx.email, password: fx.password }, { actionId: aid });
   absorb(lp);
@@ -624,3 +630,4 @@ export async function withFixture(slug, fn, opts) {
 }
 
 export { prisma };
+

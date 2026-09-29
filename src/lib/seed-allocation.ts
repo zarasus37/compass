@@ -39,6 +39,7 @@
 import "server-only";
 import { prisma } from "@/server/db";
 import { ALLOCATION_PLAN_SEED } from "./mock-seed";
+import { seededId } from "./seed-ids";
 
 /**
  * Bump this when ALLOCATION_PLAN_SEED changes (added/removed rules,
@@ -96,7 +97,12 @@ export async function ensureUserAllocationSeeded(
   // generated id back — we need it to wire the rules' `planId`.
   const plan = await prisma.allocationPlan.create({
     data: {
-      id: ALLOCATION_PLAN_SEED.id,
+      // Stable id, namespaced to this user. The in-memory store seeds
+      // the same string (see `seedState` in ./store.ts), so lookups
+      // keyed on the plan id still resolve. A bare `plan-default`
+      // would be a global primary key — two users could never both
+      // hold the seeded plan.
+      id: seededId(userId, ALLOCATION_PLAN_SEED.id),
       userId,
       strategyId: ALLOCATION_PLAN_SEED.strategy,
       isArmed: ALLOCATION_PLAN_SEED.isArmed,
@@ -113,9 +119,13 @@ export async function ensureUserAllocationSeeded(
       const pct = r.mode === "percent" ? r.value : 0;
       const fixedCents = r.mode === "fixed" ? r.value : null;
       return {
-        id: r.id,
+        // Rule id + envelopeId get the same per-user namespacing as
+        // the row ids, so `/allocation` can still join rules to
+        // envelopes and the auto-allocate engine still finds the
+        // destination vessel.
+        id: seededId(userId, r.id),
         planId: plan.id,
-        envelopeId: r.envelopeId,
+        envelopeId: seededId(userId, r.envelopeId),
         pct,
         fixedCents,
         // Inherit the plan's source so a future "show only user-edited

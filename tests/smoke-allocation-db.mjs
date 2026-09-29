@@ -61,7 +61,12 @@ async function main() {
   // remaps the cross-references; the VALUES stay canonical. These two
   // helpers translate in both directions so the assertions below can
   // still speak in canonical terms.
-  const TAG = `--${s.slug}`;
+  //
+  // The tag MUST be the product's own namespace (`--${userId}`, from
+  // src/lib/seed-ids.ts), not the fixture slug. Deriving it any other
+  // way makes every id below resolve to nothing — which surfaces as a
+  // Prisma P2025 "record not found" on the rule update.
+  const TAG = `--${s.userId}`;
   const canonical = (id) =>
     typeof id === "string" && id.endsWith(TAG) ? id.slice(0, -TAG.length) : id;
   const fxId = (seedId) => `${seedId}${TAG}`;

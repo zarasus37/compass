@@ -43,6 +43,7 @@
 import "server-only";
 import { prisma } from "@/server/db";
 import { BILLS_SEED, type BillSeed } from "./mock-seed";
+import { seededId } from "./seed-ids";
 
 /**
  * Bump this when BILLS_SEED changes (added/removed/renamed rows).
@@ -105,11 +106,12 @@ export async function ensureUserBillsSeeded(
 
   await prisma.bill.createMany({
     data: BILLS_SEED.map((b: BillSeed) => ({
-      // Use the same stable id as the in-memory store so the
-      // BillPaidToggle's "bill-rent" key works seamlessly. The
-      // cuid() default would force a mapping layer that's
-      // unnecessary for the seed rows.
-      id: b.id,
+      // Stable id, namespaced to this user. The in-memory store seeds
+      // the same string (see `seedState` in ./store.ts), so the
+      // BillPaidToggle / `setBillPaidDb` lookup by id still works. A
+      // bare `bill-rent` would be a global primary key — two users
+      // could never both hold the seeded bills.
+      id: seededId(userId, b.id),
       userId,
       name: b.name,
       amountCents: b.amountCents,
@@ -125,8 +127,10 @@ export async function ensureUserBillsSeeded(
       // the current timestamp.
       paidAt: null,
       source: "seed",
-      envelopeId: b.envelopeId,
-      accountId: b.accountId,
+      // Cross-references get the same namespacing as the row ids, so
+      // a bill still points at this user's envelope + account.
+      envelopeId: b.envelopeId ? seededId(userId, b.envelopeId) : null,
+      accountId: b.accountId ? seededId(userId, b.accountId) : null,
       sortOrder: b.sortOrder,
     })),
   });
