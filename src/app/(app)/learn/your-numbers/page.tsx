@@ -29,7 +29,7 @@ export const dynamic = "force-dynamic";
 export default async function YourNumbersPage() {
   const user = await requireUser();
   const envelopes = await liveEnvelopesFromDb(user.id);
-  const opportunities = topOpportunities({ limit: 5 });
+  const opportunities = topOpportunities(user.id, { limit: 5 });
 
   // ── Headline ratios ─────────────────────────────────────────────
   const totalCurrent = envelopes.reduce((s, e) => s + e.current, 0);

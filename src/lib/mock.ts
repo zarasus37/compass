@@ -2,8 +2,8 @@
  * Mock data — now a thin compatibility shim over `@/lib/store`.
  *
  * Pages import these names the same way they always have:
- *   import { ENVELOPES, GOALS, TRANSACTIONS, ACCOUNT, SNAPSHOT,
- *            TODAY, PERIOD_START, PERIOD_END, NEXT_PAY_DATE } from "@/lib/mock";
+ *   import { TODAY, PERIOD_START, PERIOD_END, NEXT_PAY_DATE } from "@/lib/mock";
+ *   import { liveEnvelopes, liveGoals, liveSnapshot, … } from "@/lib/mock";
  *
  * Each export is a fresh read from the live in-memory store, so when
  * the auto-allocate engine mutates balances, every page picks up the
@@ -11,6 +11,12 @@
  *
  * The shapes here are the legacy "display" shapes (e.g. `current` not
  * `currentCents`); they're mapped from the store's normalized form.
+ *
+ * Store reads are per-user: every `live*` function takes the
+ * authenticated `userId` and hands it to the store, which keeps one
+ * state object per user. There is deliberately no module-level
+ * snapshot of the store — a value read at import time has no session
+ * to scope it to, so it would leak one user's data to the next.
  *
  * When the real Prisma queries land (Cluster 2), this file becomes
  * the swap point: replace each function body with a Prisma call.
@@ -95,7 +101,11 @@ export async function getCurrentPayPeriod(): Promise<PayPeriodSnapshot> {
 // Re-export derived snapshot
 // ---------------------------------------------------------------------------
 
-export const SNAPSHOT = readSnapshot();
+// NOTE: the store snapshot used to be frozen into a module-level
+// `export const SNAPSHOT`. It can't be anymore — a read taken at
+// import time has no session, so it would belong to whichever user
+// happened to load the module first. `liveSnapshot(userId)` is the
+// per-user replacement.
 
 // ---------------------------------------------------------------------------
 // Re-export store data in the legacy display shape
@@ -184,24 +194,19 @@ function toDisplayDebt(d: Debt) {
 }
 
 /**
- * Live reads from the store. These are plain function calls, so they
- * are re-evaluated on every server-component render. The result of the
- * last read is what the page sees — not a stale module-level constant.
+ * Live reads from the store, scoped to the authenticated user. These
+ * are plain function calls, so they are re-evaluated on every
+ * server-component render. The result of the last read is what the
+ * page sees — not a stale module-level constant.
+ *
+ * The `ENVELOPES` / `GOALS` / `TRANSACTIONS` / `ACCOUNT` / `BILLS` /
+ * `DEBTS` module-level exports that used to sit here are gone: a read
+ * taken at import time has no session to scope it to, so it belonged
+ * to whichever user loaded the module first. The `live*` functions
+ * below are the per-user replacement.
  */
-export const ENVELOPES = readEnvelopes().map(toDisplayEnvelope);
-export const GOALS = readGoals().map(toDisplayGoal);
-export const TRANSACTIONS = readTransactions().map(toDisplayTransaction);
-export const ACCOUNT = toDisplayAccount(readAccount());
-export const BILLS = readBills().map(toDisplayBill);
-export const DEBTS = readDebts().map(toDisplayDebt);
-
-// ---------------------------------------------------------------------------
-// Live re-readers — call these inside a server component if you want to
-// guarantee a fresh fetch (e.g. after a server action mutation).
-// ---------------------------------------------------------------------------
-
-export function liveEnvelopes() {
-  return readEnvelopes().map(toDisplayEnvelope);
+export function liveEnvelopes(userId: string) {
+  return readEnvelopes(userId).map(toDisplayEnvelope);
 }
 
 // ---------------------------------------------------------------------------
@@ -245,8 +250,8 @@ export async function liveEnvelopesFromDb(userId: string) {
     target: e.targetBalance,
   }));
 }
-export function liveGoals() {
-  return readGoals().map(toDisplayGoal);
+export function liveGoals(userId: string) {
+  return readGoals(userId).map(toDisplayGoal);
 }
 
 // ---------------------------------------------------------------------------
@@ -284,17 +289,17 @@ export async function liveGoalsFromDb(userId: string) {
     goalType: g.goalType,
   }));
 }
-export function liveTransactions() {
-  return readTransactions().map(toDisplayTransaction);
+export function liveTransactions(userId: string) {
+  return readTransactions(userId).map(toDisplayTransaction);
 }
-export function liveSnapshot() {
-  return readSnapshot();
+export function liveSnapshot(userId: string) {
+  return readSnapshot(userId);
 }
-export function liveAccount() {
-  return toDisplayAccount(readAccount());
+export function liveAccount(userId: string) {
+  return toDisplayAccount(readAccount(userId));
 }
-export function liveBills() {
-  return readBills().map(toDisplayBill);
+export function liveBills(userId: string) {
+  return readBills(userId).map(toDisplayBill);
 }
 
 // ---------------------------------------------------------------------------
@@ -345,11 +350,11 @@ export async function liveBillsFromDb(userId: string) {
     sortOrder: b.sortOrder,
   }));
 }
-export function liveDebts() {
-  return readDebts().map(toDisplayDebt);
+export function liveDebts(userId: string) {
+  return readDebts(userId).map(toDisplayDebt);
 }
-export function livePlan() {
-  return readPlan();
+export function livePlan(userId: string) {
+  return readPlan(userId);
 }
 
 // ---------------------------------------------------------------------------

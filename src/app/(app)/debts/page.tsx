@@ -51,7 +51,7 @@ export default async function DebtsPage() {
     ...ACCOUNTS_BUCKETS.canonical,
     ...ACCOUNTS_BUCKETS.projected,
   ];
-  const DEBTS = liveDebts();
+  const DEBTS = liveDebts(user.id);
 
   // Map debtId → linked Account. A debt's `accountId` may not
   // resolve (account deleted, debt was manually entered). The Map

@@ -4,9 +4,14 @@
  * while the real Prisma layer is being wired up.
  *
  * Persistence note: state lives on `globalThis` so Next.js HMR doesn't
- * reset balances between dev hot-reloads. When the real DB is wired in
- * (Cluster 2), this module's reads/writes are the only call sites that
- * need to change — the rest of the app talks to it as a black box.
+ * reset balances between dev hot-reloads. The pinned value is a
+ * `Map<userId, StoreState>` — one `StoreState` per user, not one per
+ * process. No entity in `StoreState` carries a `userId`, so the state
+ * object itself has to be partitioned; every exported function that
+ * reaches state takes a `userId` first parameter and resolves its own
+ * slice. When the real DB is wired in (Cluster 2), this module's
+ * reads/writes are the only call sites that need to change — the rest
+ * of the app talks to it as a black box.
  *
  * Cluster 3.x Prisma cutover (2026-08-24): the atomic rebalance engine
  * (`rebalanceEnvelopes`) is now backed by `prisma.$transaction` and writes
@@ -36,6 +41,7 @@ import {
   type BillSeed,
   type DebtSeed,
 } from "./mock-seed";
+import { seededId } from "./seed-ids";
 
 /**
  * Ensure the DB has the 7 default envelopes for the given user. Called
@@ -51,7 +57,12 @@ export async function ensureUserEnvelopesSeeded(userId: string): Promise<void> {
   if (count > 0) return;
   await prisma.envelope.createMany({
     data: ENVELOPES_SEED.map((e, index) => ({
-      id: e.id,
+      // Namespaced to the user: a bare `env-rent` is a global primary
+      // key, so a second user could never hold the seeded vessels.
+      // The in-memory store seeds the same string (see `seedState`),
+      // which is what keeps the DB rows and the in-memory mirror
+      // joinable by id.
+      id: seededId(userId, e.id),
       userId,
       name: e.name,
       planet: e.planet,
@@ -84,7 +95,11 @@ export async function resetUserEnvelopesToSeed(userId: string): Promise<void> {
     await tx.envelope.deleteMany({ where: { userId } });
     await tx.envelope.createMany({
       data: ENVELOPES_SEED.map((e, index) => ({
-        id: e.id,
+        // Same namespaced id `ensureUserEnvelopesSeeded` writes, so a
+        // reset doesn't leave the user holding two spellings of the
+        // same vessel. The delete above is already scoped to
+        // `userId`, so the old canonical rows go with it.
+        id: seededId(userId, e.id),
         userId,
         name: e.name,
         planet: e.planet,
@@ -233,24 +248,40 @@ interface StoreState {
   paycheckCount: number; // how many sims have been run this session
 }
 
-function seedState(): StoreState {
+/**
+ * Build a fresh per-user state slice from the canonical seed.
+ *
+ * Every id that a seeder also writes to the DB is namespaced through
+ * `seededId(userId, …)` — the SAME call the Prisma seeders make. That
+ * keeps the invariant `setBillPaidDb` depends on ("the BILLS_SEED ids
+ * are the same as the DB ids, so a lookup by id works") true, and it
+ * keeps the cross-references inside the slice consistent: a bill's
+ * `envelopeId` points at an envelope id in this same slice, a rule's
+ * `envelopeId` points at one too, and `/period` can match a
+ * transaction's `envelopeId` against a DB envelope id.
+ *
+ * Ids that never reach the DB (transaction ids `t1`..`t6`, debt ids)
+ * stay canonical — nothing outside this slice joins on them.
+ */
+function seedState(userId: string): StoreState {
+  const ns = (canonicalId: string) => seededId(userId, canonicalId);
   return {
     envelopes: ENVELOPES_SEED.map((e: EnvelopeSeed) => ({
-      id: e.id,
+      id: ns(e.id),
       name: e.name,
       planet: e.planet,
       currentCents: e.currentCents,
       targetCents: e.targetCents,
     })),
     goals: GOALS_SEED.map((g: GoalSeed) => ({
-      id: g.id,
+      id: ns(g.id),
       name: g.name,
       description: g.description,
       planet: g.planet,
       targetCents: g.targetCents,
       currentCents: g.currentCents,
       targetDate: g.targetDate,
-      envelopeId: g.envelopeId,
+      envelopeId: g.envelopeId ? ns(g.envelopeId) : null,
       perPaycheckCents: g.perPaycheckCents,
       isPrimary: g.isPrimary,
       kind: g.kind,
@@ -261,69 +292,84 @@ function seedState(): StoreState {
       date: t.date,
       payee: t.payee,
       amountCents: t.amountCents,
-      envelopeId: t.envelopeId,
+      envelopeId: t.envelopeId ? ns(t.envelopeId) : null,
       isAuto: t.isAuto,
       isIncome: t.isIncome,
       isPrimaMateria: t.isPrimaMateria,
       source: t.source,
     })),
     plan: {
-      id: ALLOCATION_PLAN_SEED.id,
+      id: ns(ALLOCATION_PLAN_SEED.id),
       strategy: ALLOCATION_PLAN_SEED.strategy,
       isArmed: ALLOCATION_PLAN_SEED.isArmed,
       rules: ALLOCATION_PLAN_SEED.rules.map((r: AllocationRuleSeed) => ({
-        id: r.id,
-        envelopeId: r.envelopeId,
+        id: ns(r.id),
+        envelopeId: ns(r.envelopeId),
         mode: r.mode,
         value: r.value,
         priority: r.priority,
       })),
     },
     account: {
-      id: ACCOUNT_SEED.id,
+      id: ns(ACCOUNT_SEED.id),
       name: ACCOUNT_SEED.name,
       mask: ACCOUNT_SEED.mask,
       institution: ACCOUNT_SEED.institution,
       type: ACCOUNT_SEED.type,
       balanceCents: ACCOUNT_SEED.balanceCents,
     },
-    bills: BILLS_SEED.map((b: BillSeed) => ({ ...b })),
-    debts: DEBTS_SEED.map((d: DebtSeed) => ({ ...d })),
+    bills: BILLS_SEED.map((b: BillSeed) => ({
+      ...b,
+      id: ns(b.id),
+      envelopeId: b.envelopeId ? ns(b.envelopeId) : null,
+      accountId: b.accountId ? ns(b.accountId) : null,
+    })),
+    debts: DEBTS_SEED.map((d: DebtSeed) => ({
+      ...d,
+      // The debt's linked account must resolve against the seeded
+      // account id (or a DB account id), so it carries the same
+      // namespacing. Debt ids stay canonical — nothing joins on them.
+      accountId: d.accountId ? ns(d.accountId) : null,
+    })),
     audit: [],
     paycheckCount: 0,
   };
 }
 
 // ---------------------------------------------------------------------------
-// Singleton: pin on globalThis so HMR doesn't wipe state
+// Per-user registry: pin on globalThis so HMR doesn't wipe state
 // ---------------------------------------------------------------------------
 
 declare global {
   // eslint-disable-next-line no-var
-  var __COMPASS_STORE__: StoreState | undefined;
+  var __COMPASS_STORE__: Map<string, StoreState> | undefined;
 }
 
-function getState(): StoreState {
+function getState(userId: string): StoreState {
   if (!globalThis.__COMPASS_STORE__) {
-    globalThis.__COMPASS_STORE__ = seedState();
+    globalThis.__COMPASS_STORE__ = new Map();
   }
-  return globalThis.__COMPASS_STORE__;
+  const existing = globalThis.__COMPASS_STORE__.get(userId);
+  if (existing) return existing;
+  const fresh = seedState(userId);
+  globalThis.__COMPASS_STORE__.set(userId, fresh);
+  return fresh;
 }
 
 // ---------------------------------------------------------------------------
 // Read API — used by server components
 // ---------------------------------------------------------------------------
 
-export function readEnvelopes(): Envelope[] {
-  return getState().envelopes.map((e) => ({ ...e }));
+export function readEnvelopes(userId: string): Envelope[] {
+  return getState(userId).envelopes.map((e) => ({ ...e }));
 }
 
-export function readGoals(): Goal[] {
-  return getState().goals.map((g) => ({ ...g, targetDate: new Date(g.targetDate) }));
+export function readGoals(userId: string): Goal[] {
+  return getState(userId).goals.map((g) => ({ ...g, targetDate: new Date(g.targetDate) }));
 }
 
-export function readTransactions(): Transaction[] {
-  return getState()
+export function readTransactions(userId: string): Transaction[] {
+  return getState(userId)
     .transactions.map((t) => ({
       ...t,
       date: new Date(t.date),
@@ -331,23 +377,23 @@ export function readTransactions(): Transaction[] {
     .sort((a, b) => b.date.getTime() - a.date.getTime());
 }
 
-export function readPlan(): AllocationPlan {
-  const p = getState().plan;
+export function readPlan(userId: string): AllocationPlan {
+  const p = getState(userId).plan;
   return { ...p, rules: p.rules.map((r) => ({ ...r })) };
 }
 
-export function readAccount(): Account {
-  return { ...getState().account };
+export function readAccount(userId: string): Account {
+  return { ...getState(userId).account };
 }
 
-export function readAudit(): AuditLogEntry[] {
-  return getState()
+export function readAudit(userId: string): AuditLogEntry[] {
+  return getState(userId)
     .audit.map((a) => ({ ...a, at: new Date(a.at) }))
     .sort((a, b) => b.at.getTime() - a.at.getTime());
 }
 
-export function readSnapshot() {
-  const s = getState();
+export function readSnapshot(userId: string) {
+  const s = getState(userId);
   return {
     netWorthCents: s.account.balanceCents,
     periodDeltaCents: s.transactions
@@ -358,15 +404,15 @@ export function readSnapshot() {
   };
 }
 
-export function readBills(): Bill[] {
-  return getState()
+export function readBills(userId: string): Bill[] {
+  return getState(userId)
     .bills.slice()
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .map((b) => ({ ...b }));
 }
 
-export function readDebts(): Debt[] {
-  return getState()
+export function readDebts(userId: string): Debt[] {
+  return getState(userId)
     .debts.slice()
     .filter((d) => !d.isArchived)
     .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -380,6 +426,7 @@ export function readDebts(): Debt[] {
  * (or a slider value from the "What if?" simulator).
  */
 export function applyExtraDebtPayment(
+  userId: string,
   debtId: string,
   amountCents: number,
   source: "plan-my-next-check" | "what-if-slider" = "plan-my-next-check",
@@ -387,7 +434,7 @@ export function applyExtraDebtPayment(
   if (amountCents <= 0) {
     return { ok: false, reason: "Enter an amount greater than $0." };
   }
-  const s = getState();
+  const s = getState(userId);
   const debt = s.debts.find((d) => d.id === debtId);
   if (!debt) return { ok: false, reason: "Debt not found." };
   if (debt.balanceCents <= 0) {
@@ -416,18 +463,21 @@ export function applyExtraDebtPayment(
  * any current primary goal to `isPrimary: false` (only one goal
  * can be the top-priority hero on the dashboard).
  */
-export function addGoal(input: {
-  name: string;
-  description: string;
-  planet: PlanetId;
-  targetCents: number;
-  currentCents: number;
-  targetDate: Date;
-  envelopeId: string | null;
-  perPaycheckCents: number;
-  isPrimary: boolean;
-  goalType?: "EMERGENCY" | "INVEST" | null;
-}): { ok: boolean; reason?: string; goal?: Goal } {
+export function addGoal(
+  userId: string,
+  input: {
+    name: string;
+    description: string;
+    planet: PlanetId;
+    targetCents: number;
+    currentCents: number;
+    targetDate: Date;
+    envelopeId: string | null;
+    perPaycheckCents: number;
+    isPrimary: boolean;
+    goalType?: "EMERGENCY" | "INVEST" | null;
+  },
+): { ok: boolean; reason?: string; goal?: Goal } {
   if (!input.name || input.name.trim().length === 0) {
     return { ok: false, reason: "Name is required." };
   }
@@ -437,7 +487,7 @@ export function addGoal(input: {
   if (!Number.isFinite(input.perPaycheckCents) || input.perPaycheckCents < 0) {
     return { ok: false, reason: "Per-paycheck amount must be $0 or more." };
   }
-  const s = getState();
+  const s = getState(userId);
 
   // If the new goal is primary, demote any current primary
   if (input.isPrimary) {
@@ -483,6 +533,7 @@ export function addGoal(input: {
  * journey so far). If `isPrimary` is set, demote any other primary.
  */
 export function updateGoal(
+  userId: string,
   goalId: string,
   input: {
     name: string;
@@ -504,7 +555,7 @@ export function updateGoal(
   if (!Number.isFinite(input.perPaycheckCents) || input.perPaycheckCents < 0) {
     return { ok: false, reason: "Per-paycheck amount must be $0 or more." };
   }
-  const s = getState();
+  const s = getState(userId);
   const goal = s.goals.find((g) => g.id === goalId);
   if (!goal) return { ok: false, reason: "Goal not found." };
 
@@ -559,6 +610,7 @@ export function updateGoal(
  * not resetting what's already in the vessel.
  */
 export function updateEnvelope(
+  userId: string,
   envelopeId: string,
   input: { name: string; targetCents: number },
 ): { ok: boolean; reason?: string; envelope?: Envelope } {
@@ -568,7 +620,7 @@ export function updateEnvelope(
   if (!Number.isFinite(input.targetCents) || input.targetCents < 0) {
     return { ok: false, reason: "Target must be $0 or more." };
   }
-  const s = getState();
+  const s = getState(userId);
   const env = s.envelopes.find((e) => e.id === envelopeId);
   if (!env) return { ok: false, reason: "Envelope not found." };
 
@@ -707,7 +759,7 @@ export async function rebalanceEnvelopes(
   // still reads from the in-memory array) sees the new state on the
   // next render. This is a one-line write per envelope — no read
   // contention because rebalance is per-user.
-  const inMemory = getState();
+  const inMemory = getState(userId);
   const srcMem = inMemory.envelopes.find((e) => e.id === sourceEnvelopeId);
   const dstMem = inMemory.envelopes.find((e) => e.id === destinationEnvelopeId);
   if (srcMem) srcMem.currentCents = result.source.currentBalance;
@@ -742,18 +794,21 @@ export async function rebalanceEnvelopes(
  * "+ New envelope" form on /envelopes/new (Cluster 1.10).
  * currentCents starts at 0 — the new vessel begins empty.
  */
-export function addEnvelope(input: {
-  name: string;
-  planet: PlanetId;
-  targetCents: number;
-}): { ok: boolean; reason?: string; envelope?: Envelope } {
+export function addEnvelope(
+  userId: string,
+  input: {
+    name: string;
+    planet: PlanetId;
+    targetCents: number;
+  },
+): { ok: boolean; reason?: string; envelope?: Envelope } {
   if (!input.name || input.name.trim().length === 0) {
     return { ok: false, reason: "Give the vessel a name." };
   }
   if (!Number.isFinite(input.targetCents) || input.targetCents < 0) {
     return { ok: false, reason: "Target must be $0 or more." };
   }
-  const s = getState();
+  const s = getState(userId);
 
   const env: Envelope = {
     id: nextId("env"),
@@ -779,13 +834,16 @@ export function addEnvelope(input: {
  * Add a new bill to the live store. Used by the "+ Add bill"
  * button on /recurring (Cluster 1.10).
  */
-export function addBill(input: {
-  name: string;
-  amountCents: number;
-  dueDay: number;
-  autopay: boolean;
-  envelopeId: string | null;
-}): { ok: boolean; reason?: string; bill?: Bill } {
+export function addBill(
+  userId: string,
+  input: {
+    name: string;
+    amountCents: number;
+    dueDay: number;
+    autopay: boolean;
+    envelopeId: string | null;
+  },
+): { ok: boolean; reason?: string; bill?: Bill } {
   if (!input.name || input.name.trim().length === 0) {
     return { ok: false, reason: "Give the bill a name." };
   }
@@ -795,7 +853,7 @@ export function addBill(input: {
   if (!Number.isFinite(input.dueDay) || input.dueDay < 1 || input.dueDay > 31) {
     return { ok: false, reason: "Due day must be between 1 and 31." };
   }
-  const s = getState();
+  const s = getState(userId);
   if (input.envelopeId && !s.envelopes.find((e) => e.id === input.envelopeId)) {
     return { ok: false, reason: "Vessel not found." };
   }
@@ -880,7 +938,7 @@ export async function addBillDb(
   });
 
   // Mirror to in-memory store so the legacy engine still works.
-  const s = getState();
+  const s = getState(userId);
   const mirror: Bill = {
     id: created.id,
     name: created.name,
@@ -909,13 +967,16 @@ export async function addBillDb(
  * Add a new debt to the live store. Used by the "+ Add debt"
  * button on /debts (Cluster 1.10).
  */
-export function addDebt(input: {
-  name: string;
-  balanceCents: number;
-  aprBps: number;
-  minPaymentCents: number;
-  dueDay: number;
-}): { ok: boolean; reason?: string; debt?: Debt } {
+export function addDebt(
+  userId: string,
+  input: {
+    name: string;
+    balanceCents: number;
+    aprBps: number;
+    minPaymentCents: number;
+    dueDay: number;
+  },
+): { ok: boolean; reason?: string; debt?: Debt } {
   if (!input.name || input.name.trim().length === 0) {
     return { ok: false, reason: "Give the debt a name." };
   }
@@ -932,7 +993,7 @@ export function addDebt(input: {
   if (!Number.isFinite(input.dueDay) || input.dueDay < 1 || input.dueDay > 31) {
     return { ok: false, reason: "Due day must be between 1 and 31." };
   }
-  const s = getState();
+  const s = getState(userId);
   const maxSort = s.debts.reduce((m, d) => Math.max(m, d.sortOrder), 0);
 
   const debt: Debt = {
@@ -969,21 +1030,24 @@ export function addDebt(input: {
  * Form input is dollars (human-readable); the server boundary
  * converts to cents. Same pattern as the paycheck and bills actions.
  */
-export function addTransaction(input: {
-  payee: string;
-  amountCents: number;
-  envelopeId: string | null;
-  date?: Date;
-  isIncome?: boolean;
-  source?: "user" | "allocation" | "system";
-}): { ok: boolean; reason?: string; transaction?: Transaction } {
+export function addTransaction(
+  userId: string,
+  input: {
+    payee: string;
+    amountCents: number;
+    envelopeId: string | null;
+    date?: Date;
+    isIncome?: boolean;
+    source?: "user" | "allocation" | "system";
+  },
+): { ok: boolean; reason?: string; transaction?: Transaction } {
   if (!input.payee || input.payee.trim().length === 0) {
     return { ok: false, reason: "Payee is required." };
   }
   if (!Number.isFinite(input.amountCents) || input.amountCents === 0) {
     return { ok: false, reason: "Enter an amount other than $0." };
   }
-  const s = getState();
+  const s = getState(userId);
   const env = input.envelopeId
     ? s.envelopes.find((e) => e.id === input.envelopeId)
     : null;
@@ -1029,8 +1093,8 @@ export function addTransaction(input: {
 
 
 
-export function applyAllocation(result: AllocationRunResult): void {
-  const s = getState();
+export function applyAllocation(userId: string, result: AllocationRunResult): void {
+  const s = getState(userId);
 
   // Bump envelope balances
   for (const r of result.transfers) {
@@ -1080,8 +1144,16 @@ export function applyAllocation(result: AllocationRunResult): void {
   });
 }
 
-export function resetStore(): void {
-  globalThis.__COMPASS_STORE__ = seedState();
+/**
+ * Reset ONE user's in-memory state back to the seed. The registry key
+ * is the userId, so a reset for one user leaves every other user's
+ * state untouched.
+ */
+export function resetStore(userId: string): void {
+  if (!globalThis.__COMPASS_STORE__) {
+    globalThis.__COMPASS_STORE__ = new Map();
+  }
+  globalThis.__COMPASS_STORE__.set(userId, seedState(userId));
 }
 
 // ---------------------------------------------------------------------------
@@ -1093,8 +1165,8 @@ export function resetStore(): void {
  * `paidAt` to now. When `paid === false`, clears `paidAt`. Returns the
  * updated bill (or null if not found).
  */
-export function setBillPaid(billId: string, paid: boolean): Bill | null {
-  const s = getState();
+export function setBillPaid(userId: string, billId: string, paid: boolean): Bill | null {
+  const s = getState(userId);
   const bill = s.bills.find((b) => b.id === billId);
   if (!bill) return null;
   bill.paidAt = paid ? new Date().toISOString() : null;
@@ -1139,10 +1211,11 @@ export async function setBillPaidDb(
   if (updated.count === 0) return null;
 
   // Mirror to the in-memory store so the legacy read path stays
-  // consistent. The BILLS_SEED ids ("bill-rent", "bill-spectrum",
-  // etc.) are the same as the DB ids (we set them explicitly in
-  // ensureUserBillsSeeded), so a lookup by id works.
-  const s = getState();
+  // consistent. The BILLS_SEED ids ("bill-rent" → "bill-rent--<userId>",
+  // "bill-spectrum" → …) are the same as the DB ids (we set them
+  // explicitly in ensureUserBillsSeeded and in `seedState`, both via
+  // `seededId`), so a lookup by id works.
+  const s = getState(userId);
   const memBill = s.bills.find((b) => b.id === billId);
   if (memBill) {
     memBill.paidAt = paidAt ? paidAt.toISOString() : null;
@@ -1405,11 +1478,12 @@ function nextId(prefix: string): string {
 }
 
 export function runAllocation(
+  userId: string,
   paycheckCents: number,
   source: string,
   now: Date = new Date(),
 ): AllocationRunResult {
-  const state = getState();
+  const state = getState(userId);
   const plan = state.plan;
 
   // Resolve rule order

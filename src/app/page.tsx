@@ -89,14 +89,14 @@ export default async function Dashboard() {
   // 00-CLUSTER-7.39-IN-APP-UX-BUGS.md B1b for the deferred follow-on.
   const ENVELOPES = await liveEnvelopesFromDb(user.id);
   const GOALS = await liveGoalsFromDb(user.id);
-  const SNAPSHOT = liveSnapshot();
+  const SNAPSHOT = liveSnapshot(user.id);
   // Cluster 5.2.6 widget switch: BILLS now come from the Prisma
   // Bill table (via liveBillsFromDb). The shape is a superset of
   // the legacy in-memory Bill type (it has cadence too), so the
   // paycheckBreakdown engine accepts it via structural typing.
   const BILLS = await liveBillsFromDb(user.id);
   const PLAN = await livePlanFromDb(user.id);
-  const TRANSACTIONS = liveTransactions();
+  const TRANSACTIONS = liveTransactions(user.id);
   const NEXT_PAYCHECK_CENTS = SNAPSHOT.nextPaycheckCents;
 
   const totalDays = periodLength(PERIOD_START, PERIOD_END);
@@ -127,7 +127,7 @@ export default async function Dashboard() {
   const safeCents = safeToSpend(breakdown);
   // Top 3 ways to grow the safe-to-spend number (Cluster 3.2.5).
   // Pure engine in src/lib/opportunities.ts; no I/O here.
-  const topGrowOpportunities = topOpportunities({ limit: 3 });
+  const topGrowOpportunities = topOpportunities(user.id, { limit: 3 });
   // 7-day window: oldest first, today last.
   // Used by the Weekly Health sparkline (Daily Tracking card).
   const last7Days: Date[] = [];

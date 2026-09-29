@@ -25,7 +25,7 @@ export async function updateEnvelopeFull(
   _prev: UpdateEnvelopeResult | null,
   formData: FormData,
 ): Promise<UpdateEnvelopeResult> {
-  await requireUser();
+  const user = await requireUser();
 
   const envelopeId = String(formData.get("envelopeId") ?? "");
   const name = String(formData.get("name") ?? "").trim();
@@ -39,7 +39,7 @@ export async function updateEnvelopeFull(
     return { ok: false, reason: "Target must be $0 or more." };
   }
 
-  const result = updateEnvelope(envelopeId, {
+  const result = updateEnvelope(user.id, envelopeId, {
     name,
     targetCents: Math.round(targetDollars * 100),
   });
@@ -59,7 +59,7 @@ export async function updateEnvelopeTarget(
   _prev: UpdateEnvelopeResult | null,
   formData: FormData,
 ): Promise<UpdateEnvelopeResult> {
-  await requireUser();
+  const user = await requireUser();
 
   const envelopeId = String(formData.get("envelopeId") ?? "");
   const targetDollars = Number.parseFloat(String(formData.get("target") ?? ""));
@@ -76,10 +76,10 @@ export async function updateEnvelopeTarget(
   // But the mutator validates name length > 0. Easiest fix: read
   // the live store inside the action and pass the name.)
   const { readEnvelopes } = await import("@/lib/store");
-  const current = readEnvelopes().find((e) => e.id === envelopeId);
+  const current = readEnvelopes(user.id).find((e) => e.id === envelopeId);
   if (!current) return { ok: false, reason: "Envelope not found." };
 
-  const result = updateEnvelope(envelopeId, {
+  const result = updateEnvelope(user.id, envelopeId, {
     name: current.name,
     targetCents: Math.round(targetDollars * 100),
   });
@@ -103,7 +103,7 @@ export async function logEnvelope(
   _prev: UpdateEnvelopeResult | null,
   formData: FormData,
 ): Promise<UpdateEnvelopeResult> {
-  await requireUser();
+  const user = await requireUser();
 
   const name = String(formData.get("name") ?? "").trim();
   const planet = String(formData.get("planet") ?? "jupiter") as
@@ -117,7 +117,7 @@ export async function logEnvelope(
     return { ok: false, reason: "Target must be $0 or more." };
   }
 
-  const result = addEnvelope({
+  const result = addEnvelope(user.id, {
     name,
     planet,
     targetCents: Math.round(targetDollars * 100),

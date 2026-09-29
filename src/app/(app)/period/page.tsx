@@ -13,6 +13,7 @@ import {
   liveTransactions,
 } from "@/lib/mock";
 import { formatMoney, formatMoneySigned } from "@/lib/money";
+import { seededId } from "@/lib/seed-ids";
 import {
   formatPeriodRange,
   formatShortDate,
@@ -46,7 +47,7 @@ export const dynamic = "force-dynamic";
 export default async function PeriodPage() {
   const user = await requireUser();
   const ENVELOPES = await liveEnvelopesFromDb(user.id);
-  const TRANSACTIONS = liveTransactions();
+  const TRANSACTIONS = liveTransactions(user.id);
 
   const totalDays = periodLength(PERIOD_START, PERIOD_END);
   const day = dayOfPeriod(TODAY, PERIOD_START, PERIOD_END);
@@ -269,6 +270,7 @@ export default async function PeriodPage() {
             }}
           >
             <SafeToSpendUntilPaycheck
+              userId={user.id}
               envelopes={ENVELOPES}
               transactions={TRANSACTIONS}
               daysToPay={daysToPay}
@@ -1335,6 +1337,7 @@ function PeriodComparison({
 // envelopes (Rent, Utilities, Savings, Debt) are excluded — touching
 // them is a policy break, not a budget question.
 function SafeToSpendUntilPaycheck({
+  userId,
   envelopes,
   transactions,
   daysToPay,
@@ -1342,6 +1345,7 @@ function SafeToSpendUntilPaycheck({
   periodStart,
   periodEnd,
 }: {
+  userId: string;
   envelopes: ReadonlyArray<{ id: string; name: string; current: number; target: number }>;
   transactions: ReadonlyArray<{ amountCents: number; envelopeId: string | null }>;
   daysToPay: number;
@@ -1352,7 +1356,17 @@ function SafeToSpendUntilPaycheck({
   // Hard-coded flexible envelope set for the demo persona.
   // In Cluster 5.x this becomes a user preference ("which envelopes
   // count as flexible / discretionary").
-  const FLEXIBLE_IDS = new Set(["env-dining", "env-buffer"]);
+  //
+  // Seeded envelope ids are namespaced per user (`env-dining--<userId>`
+  // — see `seededId` in @/lib/seed-ids), and `envelopes` comes from
+  // `liveEnvelopesFromDb` while `transactions[].envelopeId` comes from
+  // the in-memory slice. Both sides carry the namespaced form, so the
+  // set has to be built the same way — a hard-coded canonical id would
+  // match nothing and silently render $0.00.
+  const FLEXIBLE_IDS = new Set([
+    seededId(userId, "env-dining"),
+    seededId(userId, "env-buffer"),
+  ]);
   const flexible = envelopes.filter((e) => FLEXIBLE_IDS.has(e.id));
 
   // Flexible spend this period (what's already gone from the

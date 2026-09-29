@@ -19,10 +19,12 @@
  *      current > 130% of target. The excess is a candidate to pull
  *      back. Skipped for the Buffer envelope (already handled in #1).
  *
- * The engine is a pure function — no I/O, no React. The page
- * component calls it and passes the result into SafeToSpendHero.
- * Test-friendly: a smoke can call `topOpportunities()` and assert
- * the structure without spinning up a server.
+ * The engine is a pure function over the caller's data — no I/O, no
+ * React. The page component passes the authenticated `userId` (the
+ * reads below are scoped to that user) and hands the result to
+ * SafeToSpendHero. Test-friendly: a smoke can call
+ * `topOpportunities(userId)` and assert the structure without
+ * spinning up a server.
  *
  * Cluster 3.2.5
  */
@@ -57,11 +59,14 @@ export interface Opportunity {
 const DEFAULT_LIMIT = 3;
 const OVER_FUND_THRESHOLD = 1.3; // 130% of target → flagged as over-funded
 
-export function topOpportunities(opts: { limit?: number } = {}): Opportunity[] {
+export function topOpportunities(
+  userId: string,
+  opts: { limit?: number } = {},
+): Opportunity[] {
   const limit = opts.limit ?? DEFAULT_LIMIT;
   const out: Opportunity[] = [];
 
-  const envelopes = readEnvelopes();
+  const envelopes = readEnvelopes(userId);
   const buffer = envelopes.find((e) => e.planet === "mars");
   if (buffer && buffer.targetCents > 0 && buffer.currentCents > buffer.targetCents) {
     const surplus = buffer.currentCents - buffer.targetCents;
@@ -81,7 +86,7 @@ export function topOpportunities(opts: { limit?: number } = {}): Opportunity[] {
 
   // 2) Cancel unused subscriptions. "review" status = 60+ days since
   //    last use, per detectSubscriptions' status logic.
-  const subs: DetectedSubscription[] = detectSubscriptions();
+  const subs: DetectedSubscription[] = detectSubscriptions(userId);
   for (const sub of subs) {
     if (sub.status === "review" && sub.amount > 0) {
       out.push({

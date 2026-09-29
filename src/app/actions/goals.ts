@@ -23,7 +23,7 @@ export async function logGoal(
   _prev: AddGoalResult | null,
   formData: FormData,
 ): Promise<AddGoalResult> {
-  await requireUser();
+  const user = await requireUser();
 
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
@@ -50,7 +50,7 @@ export async function logGoal(
     return { ok: false, reason: "Set a target date." };
   }
 
-  const result = addGoal({
+  const result = addGoal(user.id, {
     name,
     description: description || `Saving toward ${name}.`,
     planet,
@@ -82,7 +82,7 @@ export async function saveGoalEdit(
   _prev: AddGoalResult | null,
   formData: FormData,
 ): Promise<AddGoalResult> {
-  await requireUser();
+  const user = await requireUser();
 
   const goalId = String(formData.get("goalId") ?? "");
   if (!goalId) return { ok: false, reason: "Missing goal id." };
@@ -112,7 +112,7 @@ export async function saveGoalEdit(
     return { ok: false, reason: "Set a target date." };
   }
 
-  const result = updateGoal(goalId, {
+  const result = updateGoal(user.id, goalId, {
     name,
     description,
     planet,

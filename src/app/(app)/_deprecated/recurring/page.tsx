@@ -9,6 +9,7 @@ import {
   PERIOD_END,
 } from "@/lib/mock";
 import { billsDueInPeriod } from "@/lib/store";
+import { requireUser } from "@/server/auth/user";
 import { BillPaidToggle } from "@/components/recurring/BillPaidToggle";
 import { formatShortDate } from "@/lib/format";
 
@@ -29,8 +30,9 @@ export const dynamic = "force-dynamic";
  * section titles. Primary "Add" CTA in terminal-cyan. Status accents
  * (paid = ok green, due = warn amber) preserved.
  */
-export default function RecurringPage() {
-  const BILLS = liveBills();
+export default async function RecurringPage() {
+  const user = await requireUser();
+  const BILLS = liveBills(user.id);
   const total = BILLS.reduce((s, b) => s + b.amountCents, 0);
 
   // Bin each bill to the current pay period

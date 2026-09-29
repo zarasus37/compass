@@ -26,7 +26,7 @@ export async function logTransaction(
   _prev: AddTransactionResult | null,
   formData: FormData,
 ): Promise<AddTransactionResult> {
-  await requireUser();
+  const user = await requireUser();
 
   const payee = String(formData.get("payee") ?? "").trim();
   const amountRaw = String(formData.get("amount") ?? "").trim();
@@ -50,7 +50,7 @@ export async function logTransaction(
 
   const date = dateRaw ? new Date(dateRaw) : new Date();
 
-  const result = addTransaction({
+  const result = addTransaction(user.id, {
     payee,
     amountCents,
     envelopeId: envelopeId ?? null,

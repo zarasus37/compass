@@ -111,7 +111,7 @@ export default async function EnvelopesPage() {
     list.push(s);
     sinksByEnvelope.set(s.envelopeId, list);
   }
-  const TRANSACTIONS = liveTransactions();
+  const TRANSACTIONS = liveTransactions(user.id);
   const overLimit = ENVELOPES.filter((e) => e.current > e.target && e.target > 0);
   const nearLimit = ENVELOPES.filter(
     (e) => e.current <= e.target && e.current >= e.target * 0.85 && e.target > 0,

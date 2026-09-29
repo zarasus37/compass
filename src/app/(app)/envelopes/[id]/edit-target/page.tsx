@@ -1,8 +1,8 @@
-import * as React from "react";
 import { notFound } from "next/navigation";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { EditTargetForm } from "./EditTargetForm";
 import { liveEnvelopes } from "@/lib/mock";
+import { requireUser } from "@/server/auth/user";
 
 export const dynamic = "force-dynamic";
 
@@ -14,13 +14,14 @@ export const dynamic = "force-dynamic";
  * rename the envelope or change its planet, they go to
  * /envelopes/[id]/edit (the full form).
  */
-export default function EditTargetPage({
+export default async function EditTargetPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = React.use(params);
-  const ENVELOPES = liveEnvelopes();
+  const { id } = await params;
+  const user = await requireUser();
+  const ENVELOPES = liveEnvelopes(user.id);
   const env = ENVELOPES.find((e) => e.id === id);
   if (!env) notFound();
 

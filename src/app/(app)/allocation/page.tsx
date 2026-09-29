@@ -31,7 +31,7 @@ export default async function AllocationPage() {
     liveEnvelopesFromDb(user.id),
     livePlanFromDb(user.id),
   ]);
-  const SNAPSHOT = liveSnapshot();
+  const SNAPSHOT = liveSnapshot(user.id);
   // Build a per-envelope rule lookup once. Envelopes without a
   // matching rule (e.g. a user-added envelope, or a rule that was
   // removed) get 0% — they simply don't receive an allocation.

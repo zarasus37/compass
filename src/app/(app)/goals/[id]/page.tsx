@@ -1,10 +1,10 @@
-import * as React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { VesselGlyph } from "@/components/alchemy/VesselGlyph";
 import { GoalTrajectory, type GoalTrajectoryInput } from "@/components/viz/GoalTrajectory";
 import { liveGoals, TODAY } from "@/lib/mock";
+import { requireUser } from "@/server/auth/user";
 import { formatMoney } from "@/lib/money";
 import { formatShortDate } from "@/lib/format";
 
@@ -18,13 +18,14 @@ export const dynamic = "force-dynamic";
  * as the goal semantic. "What if" scenarios in terminal voice
  * with [OK]/[WARN] markers and per-scenario mono numbers.
  */
-export default function GoalDetailPage({
+export default async function GoalDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = React.use(params);
-  const GOALS = liveGoals();
+  const { id } = await params;
+  const user = await requireUser();
+  const GOALS = liveGoals(user.id);
   const goal = GOALS.find((g) => g.id === id);
 
   if (!goal) {

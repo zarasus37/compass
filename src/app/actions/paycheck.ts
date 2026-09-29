@@ -39,7 +39,7 @@ export async function simulatePaycheck(
   _prev: SimulatePaycheckResult | null,
   formData: FormData,
 ): Promise<SimulatePaycheckResult> {
-  await requireUser();
+  const user = await requireUser();
 
   const amountRaw = formData.get("amount");
   const sourceRaw = formData.get("source");
@@ -56,7 +56,7 @@ export async function simulatePaycheck(
     };
   }
 
-  const plan = readPlan();
+  const plan = readPlan(user.id);
   if (!plan.isArmed) {
     return {
       ok: false,
@@ -67,12 +67,12 @@ export async function simulatePaycheck(
 
   // Run the engine against current store state, then apply the
   // transfers. runAllocation is pure; applyAllocation mutates.
-  const result = runAllocation(amountCents, source);
-  applyAllocation(result);
+  const result = runAllocation(user.id, amountCents, source);
+  applyAllocation(user.id, result);
 
   // Re-read so the response carries the post-state for the banner
-  const envelopesAfter = readEnvelopes();
-  const goalsAfter = readGoals();
+  const envelopesAfter = readEnvelopes(user.id);
+  const goalsAfter = readGoals(user.id);
 
   // Refresh everything that shows balance state
   revalidatePath("/");
@@ -100,9 +100,9 @@ export async function resetCompassState(
 ): Promise<SimulatePaycheckResult> {
   // Re-export the reset from the store. Useful for QA + the "start
   // over" link on the celebration banner. Auth-gated like the rest.
-  await requireUser();
+  const user = await requireUser();
   const { resetStore } = await import("@/lib/store");
-  resetStore();
+  resetStore(user.id);
 
   revalidatePath("/");
   revalidatePath("/envelopes");

@@ -49,7 +49,7 @@ export const queryTransactions: LLMTool = {
   description:
     "Look up recent transactions. All filters are optional and combine with AND. " +
     "Use `payeeLike` to find a specific merchant (case-insensitive substring; 'lights' matches 'Reliant Energy', 'City of Lights', etc.). " +
-    "Use `envelopeId` to scope to a single vessel (e.g. 'env-groceries'). " +
+    "Use `envelopeId` to scope to a single vessel (e.g. 'env-groceries--<userId>'). " +
     "Use `since` / `until` (ISO dates, inclusive) to bound the time window. " +
     "Use `groupBy` to roll up: 'month' (totals per month), 'envelope' (totals per vessel), 'payee' (totals per merchant). " +
     "When `groupBy` is set, the response is a list of buckets with totals instead of raw rows. " +
@@ -65,7 +65,7 @@ export const queryTransactions: LLMTool = {
       envelopeId: {
         type: "string",
         description:
-          "Restrict to transactions in this envelope (e.g. 'env-groceries'). Omit to match all envelopes.",
+          "Restrict to transactions in this envelope (e.g. 'env-groceries--<userId>'). Seeded envelope ids are namespaced per user — prefer the exact ids returned by `listEnvelopes`; the canonical form ('env-groceries') is also accepted. Omit to match all envelopes.",
       },
       since: {
         type: "string",

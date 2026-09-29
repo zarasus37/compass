@@ -25,7 +25,7 @@ export async function applyExtraToDebt(
   _prev: ApplyExtraResult | null,
   formData: FormData,
 ): Promise<ApplyExtraResult> {
-  await requireUser();
+  const user = await requireUser();
 
   const debtId = String(formData.get("debtId") ?? "");
   const amountRaw = String(formData.get("amount") ?? "");
@@ -43,6 +43,7 @@ export async function applyExtraToDebt(
   }
 
   const result = applyExtraDebtPayment(
+    user.id,
     debtId,
     amountCents,
     source === "what-if-slider" ? "what-if-slider" : "plan-my-next-check",
@@ -67,7 +68,7 @@ export async function logDebt(
   _prev: AddDebtResult | null,
   formData: FormData,
 ): Promise<AddDebtResult> {
-  await requireUser();
+  const user = await requireUser();
 
   const name = String(formData.get("name") ?? "").trim();
   const balanceDollars = Number.parseFloat(String(formData.get("balance") ?? ""));
@@ -95,7 +96,7 @@ export async function logDebt(
     return { ok: false, reason: "Due day must be between 1 and 31." };
   }
 
-  const result = addDebt({
+  const result = addDebt(user.id, {
     name,
     balanceCents: Math.round(balanceDollars * 100),
     aprBps: Math.round(aprPercent * 100),

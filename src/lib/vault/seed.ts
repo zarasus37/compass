@@ -70,8 +70,8 @@ export interface SeedResult {
 export async function seedVaultFromEnvelopes(
   userId: string,
 ): Promise<SeedResult> {
-  const sourceEnvelopes = liveEnvelopes();
-  const sourceBills = liveBills();
+  const sourceEnvelopes = liveEnvelopes(userId);
+  const sourceBills = liveBills(userId);
 
   // Read the active yield adapter's APY for the seed. The adapter
   // may throw (env misconfigured, etc.) — we fall back to 0 so

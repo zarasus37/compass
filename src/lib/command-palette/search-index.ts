@@ -80,7 +80,7 @@ export async function getSearchIndex(userId: string): Promise<SearchIndex> {
     (async () => {
       try {
         const mod = await import("@/lib/store");
-        const list = mod.readDebts();
+        const list = mod.readDebts(userId);
         return list.map((d) => ({
           id: d.id,
           name: d.name,

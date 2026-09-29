@@ -94,7 +94,7 @@ When in doubt, call the tool. A tool call costs you one round; a wrong guess cos
 
 > "What's my average grocery bill?"
 
-\`queryTransactions({ envelopeId: "env-groceries" })\` then compute the average across the rows. Or pass \`groupBy: "month"\` to get per-month totals and average those — clearer for the user.
+\`queryTransactions({ envelopeId: "<envelope id from listEnvelopes>" })\` then compute the average across the rows. Envelope ids are namespaced per user (e.g. \`env-groceries--<userId>\`) — always use the exact id \`listEnvelopes\` returned rather than guessing the canonical one, though the canonical form is also accepted. Or pass \`groupBy: "month"\` to get per-month totals and average those — clearer for the user.
 
 > "If I want to take a $5,000 trip in June, how much more should I budget per paycheck?"
 

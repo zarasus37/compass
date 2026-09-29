@@ -74,7 +74,7 @@ export default async function EnvelopeDetailPage({
   // list + dashboard widgets were already on this read path). This
   // page was missed.
   const ENVELOPES = await liveEnvelopesFromDb(user.id);
-  const TRANSACTIONS = liveTransactions();
+  const TRANSACTIONS = liveTransactions(user.id);
   const envelope = ENVELOPES.find((e) => e.id === id);
 
   if (!envelope) {

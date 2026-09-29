@@ -109,8 +109,8 @@ export async function rebalanceAction(
  * form and the action aligned.)
  */
 export async function listEnvelopesForAction() {
-  await requireUser();
-  return readEnvelopes().map((e) => ({
+  const user = await requireUser();
+  return readEnvelopes(user.id).map((e) => ({
     id: e.id,
     name: e.name,
     planet: e.planet,

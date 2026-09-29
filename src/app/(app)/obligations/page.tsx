@@ -97,7 +97,11 @@ export default async function ObligationsPage({
 
       <TabSwitcher current={tab} />
 
-      {tab === "bills" ? <BillsTab userId={user.id} /> : <SubsTab />}
+      {tab === "bills" ? (
+        <BillsTab userId={user.id} />
+      ) : (
+        <SubsTab userId={user.id} />
+      )}
     </div>
   );
 }
@@ -644,8 +648,8 @@ function BillsTimeline({ bills }: { bills: BillView[] }) {
 // Subscriptions tab — direct port of the old /subscriptions content.
 // ──────────────────────────────────────────────────────────────────────
 
-function SubsTab() {
-  const SUBS: DetectedSubscription[] = detectSubscriptions();
+function SubsTab({ userId }: { userId: string }) {
+  const SUBS: DetectedSubscription[] = detectSubscriptions(userId);
   const active = SUBS.filter((s) => s.status === "active");
   const review = SUBS.filter((s) => s.status === "review");
   const totalActive = active.reduce((s, x) => s + x.amount, 0);

@@ -46,6 +46,7 @@ import {
 } from "../mock";
 import { readDebts, runAllocation } from "../store";
 import type { AllocationRunResult } from "../store";
+import { isSeededIdMatch } from "../seed-ids";
 import { prisma } from "@/server/db";
 
 // ──────────────────────────────────────────────────────────────────────
@@ -94,11 +95,11 @@ export async function runAdvisorTool(
     case "queryBills":
       return queryBillsHandler(userId, a);
     case "queryDebts":
-      return queryDebtsHandler(a);
+      return queryDebtsHandler(userId, a);
     case "queryGoals":
       return queryGoalsHandler(userId, a);
     case "simulatePaycheck":
-      return simulatePaycheckHandler(a);
+      return simulatePaycheckHandler(userId, a);
     case "summarizeSpending":
       return summarizeSpendingHandler(userId, a);
     default:
@@ -124,11 +125,8 @@ function queryTransactionsHandler(
   a: Record<string, unknown>,
 ): AdvisorToolResult {
   // The transaction table is in-memory for v1 (Transaction model not
-  // migrated). The userId arg is accepted for parity with the other
-  // handlers and so a future migration can pass it through without
-  // changing the tool surface.
-  void userId;
-  const all = liveTransactions();
+  // migrated). It is read through the per-user store slice.
+  const all = liveTransactions(userId);
 
   const payeeLike = stringOrNull(a.payeeLike);
   const envelopeId = stringOrNull(a.envelopeId);
@@ -140,7 +138,11 @@ function queryTransactionsHandler(
     if (payeeLike && !t.payee.toLowerCase().includes(payeeLike.toLowerCase())) {
       return false;
     }
-    if (envelopeId && t.envelopeId !== envelopeId) {
+    // Seeded envelope ids are namespaced per user ("env-groceries--<uid>"),
+    // but the model may echo back the canonical form from the tool
+    // description or from a `groupBy: "envelope"` bucket key. Accept
+    // either so the filter resolves instead of silently returning zero.
+    if (envelopeId && !isSeededIdMatch(userId, envelopeId, t.envelopeId)) {
       return false;
     }
     if (since && t.date < since) return false;
@@ -344,8 +346,11 @@ function startOfDay(d: Date): Date {
 // 4. queryDebts
 // ──────────────────────────────────────────────────────────────────────
 
-function queryDebtsHandler(a: Record<string, unknown>): AdvisorToolResult {
-  const all = readDebts();
+function queryDebtsHandler(
+  userId: string,
+  a: Record<string, unknown>,
+): AdvisorToolResult {
+  const all = readDebts(userId);
   const orderBy = pickDebtOrderBy(a.orderBy);
   const sorted = orderBy
     ? sortDebts(all, orderBy)
@@ -460,7 +465,10 @@ function pickGoalKind(v: unknown): "EMERGENCY" | "INVEST" | "OTHER" | null {
 // 6. simulatePaycheck
 // ──────────────────────────────────────────────────────────────────────
 
-function simulatePaycheckHandler(a: Record<string, unknown>): AdvisorToolResult {
+function simulatePaycheckHandler(
+  userId: string,
+  a: Record<string, unknown>,
+): AdvisorToolResult {
   const amountDollars = numberOrZero(a.amountDollars);
   if (amountDollars <= 0) {
     return {
@@ -476,7 +484,7 @@ function simulatePaycheckHandler(a: Record<string, unknown>): AdvisorToolResult 
   // advisor only needs the bucket list + the unallocated remainder;
   // we drop the audit/transactions fields so the LLM doesn't have
   // to wade through them.
-  const result: AllocationRunResult = runAllocation(paycheckCents, "advisor-simulate");
+  const result: AllocationRunResult = runAllocation(userId, paycheckCents, "advisor-simulate");
   const transfers = result.transfers.map((t) => ({
     envelopeId: t.envelopeId,
     envelopeName: t.envelopeName,
@@ -512,9 +520,8 @@ async function summarizeSpendingHandler(
   a: Record<string, unknown>,
 ): Promise<AdvisorToolResult> {
   // Same as queryTransactions: the transaction log is in-memory
-  // for v1. userId is accepted for parity.
-  void userId;
-  const all = liveTransactions();
+  // for v1, read through the caller's store slice.
+  const all = liveTransactions(userId);
   const by = a.by === "payee" ? "payee" : "envelope";
   const since = parseDateOrNull(a.since) ??
     new Date(Date.now() - SUMMARY_DEFAULT_WINDOW_DAYS * 24 * 60 * 60 * 1000);

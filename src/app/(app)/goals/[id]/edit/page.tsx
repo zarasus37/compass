@@ -1,8 +1,8 @@
-import * as React from "react";
 import { notFound } from "next/navigation";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { EditGoalForm } from "./EditGoalForm";
 import { liveGoals, liveEnvelopes } from "@/lib/mock";
+import { requireUser } from "@/server/auth/user";
 
 export const dynamic = "force-dynamic";
 
@@ -13,14 +13,15 @@ export const dynamic = "force-dynamic";
  * current values, so the user only needs to change what's
  * different. Same form pattern as /goals/new.
  */
-export default function EditGoalPage({
+export default async function EditGoalPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = React.use(params);
-  const GOALS = liveGoals();
-  const ENVELOPES = liveEnvelopes();
+  const { id } = await params;
+  const user = await requireUser();
+  const GOALS = liveGoals(user.id);
+  const ENVELOPES = liveEnvelopes(user.id);
   const goal = GOALS.find((g) => g.id === id);
   if (!goal) notFound();
 

@@ -47,9 +47,9 @@ function payeeName(payee: string): string {
   return first;
 }
 
-export function detectSubscriptions(): DetectedSubscription[] {
-  const tx = readTransactions();
-  const bills = readBills();
+export function detectSubscriptions(userId: string): DetectedSubscription[] {
+  const tx = readTransactions(userId);
+  const bills = readBills(userId);
   const today = TODAY.getTime();
 
   // 1) From live transactions: group by payee key.

@@ -11,15 +11,17 @@
  * The reset covers two layers:
  *   1. The Prisma-backed envelopes (multi-user safe — deletes + inserts
  *      are scoped to the current userId).
- *   2. The in-memory live store (`resetStore()`), which holds the
- *      goals, transactions, allocation plan, account, audit log,
+ *   2. The in-memory live store (`resetStore(user.id)`), which holds
+ *      the goals, transactions, allocation plan, account, audit log,
  *      bills, and debts. The in-memory state is pinned to
- *      `globalThis.__COMPASS_STORE__` for HMR; `resetStore()` re-seeds
- *      it from `mock-seed.ts` so a code change to the seed picks up
- *      after a reset (no dev server restart needed).
+ *      `globalThis.__COMPASS_STORE__` for HMR — a map keyed by
+ *      userId — so `resetStore(user.id)` re-seeds only the calling
+ *      user's entry from `mock-seed.ts` (a code change to the seed
+ *      picks up after a reset, no dev server restart needed).
  *
- * Cluster 4.2: extended to also call `resetStore()` so new goals
- * (e.g. the INVEST seed) show up immediately after a seed change.
+ * Cluster 4.2: extended to also call `resetStore(user.id)` so new
+ * goals (e.g. the INVEST seed) show up immediately after a seed
+ * change.
  *
  * In a future cluster this could grow a richer reset surface
  * (e.g. preserve user-created envelopes, only reset the 7 planetary
@@ -58,11 +60,10 @@ export async function POST() {
     // Prisma Account table, and the canonical ACCOUNT_SEED (1 row)
     // needs to be migrated for the page to render the right data.
     await ensureUserAccountsSeeded(user.id);
-    // Also wipe + reseed the in-memory store. The single-user v1
-    // model has no userId scoping here (the store is global), but
-    // the action authenticates the user, so a stranger can't
-    // trigger this.
-    resetStore();
+    // Also wipe + reseed the in-memory store for THIS user only. The
+    // store keys its state by userId, so a stranger can't reach another
+    // user's balances and a reset can't wipe them by accident.
+    resetStore(user.id);
     // Bust the root layout so every page re-reads the freshly-seeded
     // state immediately.
     revalidatePath("/", "layout");

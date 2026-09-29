@@ -208,8 +208,8 @@ function deriveFrequency(cadence: string): BillFrequency {
 // ──────────────────────────────────────────────────────────────────────
 
 export function deriveMockVault(userId: string = "user-mom"): VaultSnapshot {
-  const sourceEnvelopes = liveEnvelopes();
-  const sourceBills = liveBills();
+  const sourceEnvelopes = liveEnvelopes(userId);
+  const sourceBills = liveBills(userId);
 
   // Index bills by envelopeId once.
   const billsByEnvelope = new Map<string, typeof sourceBills>();

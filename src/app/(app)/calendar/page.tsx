@@ -33,10 +33,10 @@ export const dynamic = "force-dynamic";
  */
 export default async function CalendarPage() {
   const user = await requireUser();
-  const GOALS = liveGoals();
-  const TRANSACTIONS = liveTransactions();
+  const GOALS = liveGoals(user.id);
+  const TRANSACTIONS = liveTransactions(user.id);
   const BILLS = await liveBillsFromDb(user.id);
-  const SNAPSHOT = liveSnapshot();
+  const SNAPSHOT = liveSnapshot(user.id);
   const month = "September";
   const year = 2025;
   const firstDay = 1;

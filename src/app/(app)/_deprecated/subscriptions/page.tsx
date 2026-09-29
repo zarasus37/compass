@@ -2,6 +2,7 @@ import * as React from "react";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { formatMoney } from "@/lib/money";
 import { detectSubscriptions, type DetectedSubscription } from "@/lib/detect-subscriptions";
+import { requireUser } from "@/server/auth/user";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +20,9 @@ export const dynamic = "force-dynamic";
  * Component Oracle Terminal treatment: mono caps, venus accent,
  * terminal CTA.
  */
-export default function SubscriptionsPage() {
-  const SUBS: DetectedSubscription[] = detectSubscriptions();
+export default async function SubscriptionsPage() {
+  const user = await requireUser();
+  const SUBS: DetectedSubscription[] = detectSubscriptions(user.id);
   const active = SUBS.filter((s) => s.status === "active");
   const review = SUBS.filter((s) => s.status === "review");
   const totalActive = active.reduce((s, x) => s + x.amount, 0);

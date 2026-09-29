@@ -45,8 +45,8 @@ export default async function InsightsPage() {
     liveEnvelopesFromDb(user.id),
     liveGoalsFromDb(user.id),
   ]);
-  const SNAPSHOT = liveSnapshot();
-  const TRANSACTIONS = liveTransactions();
+  const SNAPSHOT = liveSnapshot(user.id);
+  const TRANSACTIONS = liveTransactions(user.id);
   const total = ENVELOPES.reduce((s, e) => s + e.target, 0);
 
   // --- NetTrajectoryCard data (mirrors the dashboard's data prep) ---

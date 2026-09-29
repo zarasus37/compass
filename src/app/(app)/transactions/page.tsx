@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { VesselGlyph } from "@/components/alchemy/VesselGlyph";
 import { liveEnvelopes, liveTransactions, TODAY } from "@/lib/mock";
+import { requireUser } from "@/server/auth/user";
 import { formatMoneySigned } from "@/lib/money";
 import { formatShortDate, formatRelativeDate } from "@/lib/format";
 
@@ -14,9 +15,10 @@ export const dynamic = "force-dynamic";
  * Component Oracle Terminal treatment: Sora title, JetBrains Mono
  * for amounts/dates, mono caps labels. Primary CTA in terminal-cyan.
  */
-export default function TransactionsPage() {
-  const TRANSACTIONS = liveTransactions();
-  const ENVELOPES = liveEnvelopes();
+export default async function TransactionsPage() {
+  const user = await requireUser();
+  const TRANSACTIONS = liveTransactions(user.id);
+  const ENVELOPES = liveEnvelopes(user.id);
   const grouped = new Map<string, typeof TRANSACTIONS>();
   for (const t of TRANSACTIONS) {
     const key = t.date.toDateString();
