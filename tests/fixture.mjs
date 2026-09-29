@@ -385,18 +385,28 @@ async function provisionVault(fx, ids) {
 
   const vault = await prisma.vaultAccount.create({
     data: {
-      id: `vault-${fx.slug}`,
+      id: `vault-${fx.slug}-${fx.userId.slice(-6)}`,
       userId: fx.userId,
       chainId: 84532, // Base Sepolia — the safe default for local dev
       smartAccountAddress: MOCK_SAFE_ADDRESS,
       baseAsset: "USDC",
-      availableBalance: 0,
-      principalCents: 0,
+      status: "ACTIVE",
+      availableBalance: 100_000,
+      settlementReserve: 20_000,
+      deployedToYield: 80_000,
+      simulatedApy: 0.0352,
     },
-  }).catch(() => null);
+  }).catch((e) => {
+    // Deliberately NOT swallowed. A vault-less fixture makes every
+    // yield assertion read $0.00, which looks like a page bug instead
+    // of a fixture bug. Fail loudly and immediately.
+    console.error(
+      `[fixture] FATAL: could not provision vault for ${fx.email} — ${e.message}`,
+    );
+    throw e;
+  });
 
   if (!vault) return;
-
   // Mirror the seeded envelopes into the vault, sized by their current
   // balance, so attribution has something to distribute.
   const envelopes = await prisma.envelope.findMany({
