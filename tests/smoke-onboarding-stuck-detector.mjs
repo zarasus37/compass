@@ -30,6 +30,30 @@ function check(name, cond, detail = "") {
   console.log(`[${ok ? "OK" : "MISS"}] ${name}${detail ? `  — ${detail}` : ""}`);
 }
 
+// These two users are created here rather than assumed to exist. The
+// test used to throw "missing test user — seed first" because nothing
+// in the repo creates them any more: the per-test fixture migration
+// retired the shared-user seed this relied on, and the test was never
+// updated. The e2e paths below only need a User row — they wipe the
+// identity + message rows themselves to force a fresh conversation —
+// so creating the row is the whole prerequisite.
+//
+// passwordHash is a throwaway: nothing logs in with it here. It must
+// still be a syntactically valid argon2 hash because the column is
+// non-null.
+async function ensureUser(email) {
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) return existing;
+  return prisma.user.create({
+    data: {
+      email,
+      name: email.split("@")[0],
+      passwordHash:
+        "$argon2id$v=19$m=19456,t=2,p=1$c3R1Y2ttb2tlLXNhbHQ$0000000000000000000000000000000000000000000",
+    },
+  });
+}
+
 check("[A] STUCK_NUDGE references demo data", STUCK_NUDGE.includes("demo data"));
 check("[B] STUCK_NUDGE is non-empty", STUCK_NUDGE.length > 20);
 
@@ -110,10 +134,9 @@ check(
   ]) === false,
 );
 
-// 5. End-to-end — start fresh for "mom-test" user, run 5 "ok" turns, expect stuck nudge
+// 5. End-to-end — start fresh for "stuck-detector-test" user, run 5 "ok" turns, expect stuck nudge
 async function e2e() {
-  const user = await prisma.user.findUnique({ where: { email: "stuck-detector-test@compass.local" } });
-  if (!user) throw new Error("missing test user — seed first");
+  const user = await ensureUser("stuck-detector-test@compass.local");
   // Wipe identity + messages so the conversation truly starts fresh
   const id = await prisma.financialIdentity.findUnique({ where: { userId: user.id } });
   if (id) {
@@ -134,8 +157,7 @@ async function e2e() {
 
 // 6. Fresh user (single turn) should not trigger stuck
 async function fresh() {
-  const user = await prisma.user.findUnique({ where: { email: "fresh-test@compass.local" } });
-  if (!user) throw new Error("missing fresh test user");
+  const user = await ensureUser("fresh-test@compass.local");
   // Wipe the user's identity + messages so the conversation truly starts fresh
   const id = await prisma.financialIdentity.findUnique({ where: { userId: user.id } });
   if (id) {

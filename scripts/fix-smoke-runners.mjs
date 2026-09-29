@@ -16,12 +16,29 @@ import { join } from "node:path";
 const pkgPath = "package.json";
 const raw = readFileSync(pkgPath, "utf8");
 
-// Which tests import the fixture?
+// Which tests need the tsx runner?
+//
+// Two independent reasons, and missing either one leaves a test broken:
+//
+//  1. It imports tests/fixture.mjs, which imports src/lib/*.ts and
+//     Next's `server-only` marker.
+//  2. It imports anything from ../src/ directly. This was the gap that
+//     let smoke-onboarding-stuck-detector and smoke-extract-fix sit on
+//     bare `node` in the chain: they import src/lib/onboarding/agent.ts,
+//     which does a directory import (`../llm`) that Node's ESM resolver
+//     rejects outright with ERR_UNSUPPORTED_DIR_IMPORT. The entry died
+//     at module load, and because the chain is &&-joined, every entry
+//     after it was dead too.
+//
+// tsx resolves both TypeScript and directory imports, so a test that
+// matches either rule is safe to run under it.
 const needsTsx = new Set();
 for (const name of readdirSync("tests")) {
   if (!name.endsWith(".mjs")) continue;
   const src = readFileSync(join("tests", name), "utf8");
-  if (/from "\.\/fixture\.mjs"/.test(src)) needsTsx.add(name);
+  const importsFixture = /from "\.\/fixture\.mjs"/.test(src);
+  const importsSrc = /from "\.\.\/src\//.test(src);
+  if (importsFixture || importsSrc) needsTsx.add(name);
 }
 
 let changed = 0;
@@ -63,4 +80,4 @@ if (out !== raw) {
 } else {
   console.log("package.json already correct — no change.");
 }
-console.log(`tests importing fixture.mjs: ${needsTsx.size}`);
+console.log(`tests needing tsx (fixture import or ../src/ import): ${needsTsx.size}`);
