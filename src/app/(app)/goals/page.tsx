@@ -1,4 +1,4 @@
-import * as React from "react";
+﻿import * as React from "react";
 import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { VesselGlyph, type PlanetId } from "@/components/alchemy/VesselGlyph";
@@ -8,11 +8,12 @@ import { liveGoals, liveGoalsFromDb, TODAY } from "@/lib/mock";
 import { formatMoney } from "@/lib/money";
 import { formatShortDate } from "@/lib/format";
 import { requireUser } from "@/server/auth/user";
+import { AppLoadingShell } from "@/components/shell/AppLoadingShell";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Goals — articulated deep page.
+ * Goals â€” articulated deep page.
  *
  * Cluster 4.2: deep-link filtering by goal type. The /goals page
  * accepts `?kind=emergency` or `?kind=invest` to narrow the list
@@ -23,7 +24,7 @@ export const dynamic = "force-dynamic";
  *
  * The kind filter applies to the goal list below; the trajectory
  * chart at the top always shows ALL goals (it's the read of "where
- * are you relative to every target" — narrowing it would lose the
+ * are you relative to every target" â€” narrowing it would lose the
  * comparison).
  *
  * Each goal card also gets a kind badge in the header (next to
@@ -32,7 +33,7 @@ export const dynamic = "force-dynamic";
  */
 type KindFilter = "all" | "emergency" | "invest";
 
-export default async function GoalsPage({
+async function GoalsContent({
   searchParams,
 }: {
   searchParams: Promise<{ kind?: string }>;
@@ -49,7 +50,7 @@ export default async function GoalsPage({
   const user = await requireUser();
   const GOALS = await liveGoalsFromDb(user.id);
   // The trajectory chart always reads ALL goals (the comparison
-  // is the point of the chart — narrowing it would lose the
+  // is the point of the chart â€” narrowing it would lose the
   // "this goal is moving, that one isn't" signal).
   // Filter to goals with non-null planet + targetDate (the chart
   // needs both to render). The canonical 4 GOALS_SEED rows all
@@ -83,7 +84,7 @@ export default async function GoalsPage({
   return (
     <div>
       <PageHead
-        eyebrow={`// aims · goals${kind !== "all" ? " · " + kind : ""}`}
+        eyebrow={`// aims Â· goals${kind !== "all" ? " Â· " + kind : ""}`}
         title="Your Goals"
         em="where your money is heading."
         accent="jupiter"
@@ -111,26 +112,26 @@ export default async function GoalsPage({
         explanation={
           kind === "all" ? (
             <>
-              Goals are the destinations you're working toward. One of them is your top priority — it gets the hero slot on your dashboard. The rest are on your path, but they take a back seat until you change the priority. Each goal can be linked to a vessel so the money automatically flows to it on every paycheck.
+              Goals are the destinations you're working toward. One of them is your top priority â€” it gets the hero slot on your dashboard. The rest are on your path, but they take a back seat until you change the priority. Each goal can be linked to a vessel so the money automatically flows to it on every paycheck.
             </>
           ) : kind === "emergency" ? (
             <>
-              The Emergency Fund goal — your safety net. Three to six months of essential expenses, set aside and not touched. The Jupiter vessel feeds this fund automatically.
+              The Emergency Fund goal â€” your safety net. Three to six months of essential expenses, set aside and not touched. The Jupiter vessel feeds this fund automatically.
             </>
           ) : (
             <>
-              The Investment goal — the long-horizon money. Compounding does most of the work; your job is to keep feeding it and not panic when the market dips.
+              The Investment goal â€” the long-horizon money. Compounding does most of the work; your job is to keep feeding it and not panic when the market dips.
             </>
           )
         }
       />
 
-      {/* Kind filter tabs — matches the two-tab pattern from
+      {/* Kind filter tabs â€” matches the two-tab pattern from
           /obligations. Persists via the URL so back/forward and
           shared links work as expected. */}
       <KindTabs current={kind} counts={counts} />
 
-      {/* Trajectory chart — always shows ALL goals, not the
+      {/* Trajectory chart â€” always shows ALL goals, not the
           filtered set. The chart's job is to compare across
           goals; narrowing it loses the signal. */}
       <section style={{ marginBottom: 56 }}>
@@ -178,7 +179,7 @@ export default async function GoalsPage({
         <GoalTrajectory goals={goalTrajectories} />
       </section>
 
-      {/* Goal list — filtered by `?kind=...` */}
+      {/* Goal list â€” filtered by `?kind=...` */}
       <section>
         <header
           style={{
@@ -288,7 +289,7 @@ export default async function GoalsPage({
                             padding: "2px 7px",
                           }}
                         >
-                          <span style={{ color: "var(--jupiter)" }}>●</span> Top priority
+                          <span style={{ color: "var(--jupiter)" }}>â—</span> Top priority
                         </span>
                       )}
                       {g.goalType && <KindBadge kind={g.goalType} />}
@@ -324,7 +325,7 @@ export default async function GoalsPage({
                       }}
                       className="goal-name-link"
                     >
-                      {g.name} →
+                      {g.name} â†’
                     </Link>
                     <div
                       style={{
@@ -431,7 +432,7 @@ export default async function GoalsPage({
                               const need = g.targetCents - g.currentCents;
                               const checks = Math.ceil(need / g.perPaycheckCents);
                               const mo = Math.round(checks / 2);
-                              return `+${mo}mo → 100%`;
+                              return `+${mo}mo â†’ 100%`;
                             })()}
                       </div>
                     </div>
@@ -458,7 +459,7 @@ export default async function GoalsPage({
                         fontWeight: 500,
                       }}
                     >
-                      {g.targetDate ? formatShortDate(g.targetDate) : "—"}
+                      {g.targetDate ? formatShortDate(g.targetDate) : "â€”"}
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
                       {!g.isPrimary && (
@@ -511,11 +512,11 @@ export default async function GoalsPage({
   );
 }
 
-// ──────────────────────────────────────────────────────────────────────
-// KindTabs — the two-tab (plus ALL) switcher at the top of the page.
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// KindTabs â€” the two-tab (plus ALL) switcher at the top of the page.
 // Same pattern as /obligations: tab links via ?kind=..., active
 // state is the cyan top border + filled background.
-// ──────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function KindTabs({
   current,
@@ -591,12 +592,12 @@ function KindTabs({
   );
 }
 
-// ──────────────────────────────────────────────────────────────────────
-// KindBadge — the per-goal "EMERGENCY" / "INVEST" pill in the card
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// KindBadge â€” the per-goal "EMERGENCY" / "INVEST" pill in the card
 // header. Color-coded by category (jupiter for emergency, mercury
-// for invest — these are the planet colors that match the vessel
+// for invest â€” these are the planet colors that match the vessel
 // mapping; the badge text is mono caps with the category word).
-// ──────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function KindBadge({ kind }: { kind: "EMERGENCY" | "INVEST" }) {
   const color = kind === "EMERGENCY" ? "var(--jupiter)" : "var(--mercury)";
@@ -614,15 +615,15 @@ function KindBadge({ kind }: { kind: "EMERGENCY" | "INVEST" }) {
         padding: "2px 7px",
       }}
     >
-      {kind === "EMERGENCY" ? "🛟 Emergency" : "📈 Invest"}
+      {kind === "EMERGENCY" ? "ðŸ›Ÿ Emergency" : "ðŸ“ˆ Invest"}
     </span>
   );
 }
 
-// ──────────────────────────────────────────────────────────────────────
-// EmptyState — when the kind filter has no matches. Calm, not
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// EmptyState â€” when the kind filter has no matches. Calm, not
 // alarming. The user can click "All" to see the rest.
-// ──────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function EmptyState({ kind }: { kind: KindFilter }) {
   return (
@@ -662,8 +663,8 @@ function EmptyState({ kind }: { kind: KindFilter }) {
         }}
       >
         {kind === "emergency"
-          ? "No Emergency Fund goal yet. Create one and tag it as Emergency — it'll show up here, and the deep-link from the old /emergency page will land on it."
-          : "No Investment goal yet. Create one and tag it as Invest — it'll show up here, and the deep-link from the old /invest page will land on it."}
+          ? "No Emergency Fund goal yet. Create one and tag it as Emergency â€” it'll show up here, and the deep-link from the old /emergency page will land on it."
+          : "No Investment goal yet. Create one and tag it as Invest â€” it'll show up here, and the deep-link from the old /invest page will land on it."}
       </p>
       <Link
         href="/goals"
@@ -677,8 +678,26 @@ function EmptyState({ kind }: { kind: KindFilter }) {
           textTransform: "uppercase",
         }}
       >
-        ← Back to all goals
+        â† Back to all goals
       </Link>
     </div>
+  );
+}
+
+/**
+ * Cluster 7.53 - loading shell moved off the (app) group root.
+ *
+ * A route-level loading.tsx on this segment would also cover
+ * goals/[id], and a Suspense boundary there prevents 
+otFound() from
+ * setting the 404 status (the shell flushes as a 200 first). So the shell is
+ * mounted INSIDE this page instead, around the data fetch only. The detail
+ * route keeps a real 404.
+ */
+export default function GoalsPage(props: Parameters<typeof GoalsContent>[0]) {
+  return (
+    <React.Suspense fallback={<AppLoadingShell />}>
+      <GoalsContent {...props} />
+    </React.Suspense>
   );
 }

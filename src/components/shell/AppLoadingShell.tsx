@@ -1,18 +1,33 @@
 /**
- * Route-level loading UI for every (app) page.
+ * Shared loading shell for the authenticated (app) routes.
  *
- * Cluster 7.39 — Next.js renders this segment while the page's
- * server component is fetching. The shape is intentionally
- * approximate: it holds the layout's column structure so the page
- * doesn't flicker to blank during a slow DB query, but the heights
- * are static (cards are data-driven so a perfect skeleton would
- * either lie or duplicate the card-component tree).
+ * Historically this lived at `src/app/(app)/loading.tsx` — a
+ * route-level `loading.tsx` at the GROUP root. That made the whole
+ * `(app)` group a Suspense boundary, and it had a correctness cost:
+ * Next flushes the 200 shell immediately, so any `notFound()` thrown
+ * later in a page can no longer set the response status. The net
+ * effect was that `/envelopes/does-not-exist` — and every other
+ * not-found route under `(app)` — returned HTTP 200 with a
+ * "could not be found" body instead of a 404.
  *
- * The shell (sidebar + TopAppBar + BottomNav) keeps rendering
- * during loading — the (app)/layout is above this boundary — so
- * mom can navigate away while a slow page resolves.
+ * The shell is now mounted per-route instead (see the `loading.tsx`
+ * files next to each data-heavy page) and imported directly by the two
+ * list pages whose route segment also contains an `[id]` child, since
+ * a `loading.tsx` on that segment would re-create the same problem
+ * for the detail route.
+ *
+ * Note the shell is a nicety, not the load-bearing part of the UX: the
+ * sidebar, top bar and bottom nav live in `(app)/layout.tsx`, which is
+ * ABOVE every boundary here, so navigation stays responsive even on
+ * routes with no shell at all.
+ *
+ * Cluster 7.39 — the shape is intentionally approximate: it holds the
+ * layout's column structure so the page doesn't flicker to blank during
+ * a slow DB query, but the heights are static (cards are data-driven so
+ * a perfect skeleton would either lie or duplicate the card-component
+ * tree).
  */
-export default function AppLoading() {
+export function AppLoadingShell() {
   return (
     <div
       role="status"
@@ -89,3 +104,5 @@ export default function AppLoading() {
     </div>
   );
 }
+
+export default AppLoadingShell;
