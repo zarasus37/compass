@@ -12,6 +12,8 @@
  */
 
 import { spawnSync } from "node:child_process";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const checks = [];
 function check(name, cond, detail = "") {
@@ -23,8 +25,19 @@ function check(name, cond, detail = "") {
 function runValidator(env) {
   // Spawn tsx with the env passed through + a small wrapper that
   // imports the validator and prints JSON.
+  //
+  // The import specifier is resolved from the invocation directory and
+  // encoded as a file:// URL — a bare `C:\…` path is parsed as a URL
+  // with scheme `c:` and rejected by the ESM loader. This used to be a
+  // hardcoded `/workspace/compass/...` sandbox path, which does not
+  // exist on this machine and made the child exit non-zero — the
+  // assertions then read as MISS for a reason that had nothing to do
+  // with the validator.
+  const validatorUrl = pathToFileURL(
+    join(process.cwd(), "src/lib/env/prod.ts"),
+  ).href;
   const code = `
-    import { validateProdEnv } from "/workspace/compass/src/lib/env/prod.ts";
+    import { validateProdEnv } from ${JSON.stringify(validatorUrl)};
     const r = validateProdEnv();
     process.stdout.write(JSON.stringify(r));
   `;
@@ -49,12 +62,30 @@ function runValidator(env) {
     }
     cleanEnv[k] = v;
   }
-  const result = spawnSync("tsx", ["-e", code], {
-    cwd: process.cwd(),
-    env: { ...cleanEnv, ...env },
-    encoding: "utf8",
-    timeout: 30000,
-  });
+  // Run tsx through Node's own loader hook rather than shelling out to
+  // the `tsx` shim. Three reasons, all hit on Windows:
+  //   1. `spawnSync("tsx", …)` cannot resolve the `.cmd` shim without a
+  //      shell, and failed with status=null and no stderr — surfacing
+  //      as `tsx exit=null stderr=undefined` instead of a real result.
+  //   2. With `shell: true` the shim resolves, but the repo path
+  //      contains spaces ("OneDrive - Southern Careers Institute"), so
+  //      the unquoted command line broke again.
+  //   3. `--import tsx` needs no PATH entry at all, so this also works
+  //      when the file is run directly as `node tests/smoke-prod-env.mjs`
+  //      rather than through a `pnpm` script.
+  const result = spawnSync(
+    process.execPath,
+    ["--import", "tsx", "--input-type=module", "-e", code],
+    {
+      cwd: process.cwd(),
+      env: { ...cleanEnv, ...env },
+      encoding: "utf8",
+      timeout: 30000,
+    },
+  );
+  if (result.error) {
+    throw new Error(`tsx failed to spawn: ${result.error.message}`);
+  }
   if (result.status !== 0) {
     console.error("tsx stderr:", result.stderr);
     throw new Error(`tsx exit=${result.status} stderr=${result.stderr}`);

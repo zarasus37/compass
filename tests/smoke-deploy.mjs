@@ -52,11 +52,30 @@ for (const f of [".env", ".env.example", ".env.production.example"]) {
   check(`env file present: ${f}`, existsSync(join(ROOT, f)));
 }
 
+// `.env.local` is gitignored (`.gitignore: .env*`) and exists only on a
+// developer machine — CI has no such file, and `read()` returns null
+// there, so this assertion failed on EVERY CI run regardless of code
+// health. It is a local-setup guard, not a product invariant, so assert
+// it only when the file is actually present. The deploy-relevant check
+// below (`.env.production.example` uses ?sslmode=require) is tracked and
+// runs everywhere.
+//
+// The port is matched loosely on purpose: 5433 is the repo's documented
+// dev-compose port, but a machine with native Postgres on 5432 is a
+// legitimate local setup too. What this actually protects against is a
+// `.env.local` pointed at something that is not the local dev database.
 const envLocal = read(".env.local");
-check(
-  ".env.local points at Postgres (port 5433)",
-  !!envLocal && /DATABASE_URL=.*postgresql:\/\/compass:compass@localhost:5433/.test(envLocal),
-);
+if (envLocal === null) {
+  console.log(
+    "[SKIP] .env.local not present (gitignored, developer-local only) — local DB URL unchecked",
+  );
+} else {
+  check(
+    ".env.local points at the local dev Postgres",
+    /DATABASE_URL=.*postgresql:\/\/[^@]*@localhost:543[23]\//.test(envLocal),
+    "expected postgresql://…@localhost:5432/ or :5433/",
+  );
+}
 const envProd = read(".env.production.example");
 check(
   ".env.production.example uses ?sslmode=require",

@@ -255,16 +255,34 @@ async function main() {
       },
     });
   }
-  // Also write a meta event OLDER than the 3 visible — the
-  // top-3 read pulls only the 3 visible, so the meta is below
-  // the limit. The ticker's seed filter ALSO drops it on the
-  // client as defense in depth. We exercise BOTH paths.
+  // Also write meta events OLDER than the 3 visible — the
+  // top-3 read pulls only the 3 visible, so the meta rows are
+  // below the limit. The ticker's seed filter ALSO drops them on
+  // the client as defense in depth. We exercise BOTH paths.
+  //
+  // TWO meta rows, not one, and that is load-bearing. The
+  // `?take=5` check further down can only distinguish "the route
+  // honored take" from "the route ignored take and returned
+  // whatever it had" if there are at least 5 rows to choose from:
+  // 3 visible + 2 meta. With only 4 seeded, take=5 and take=999
+  // both return 4, and the assertion is satisfied by a route that
+  // ignores `take` entirely. Both meta types are in
+  // LIVE_TICKER_IGNORED_TYPES, so the ticker still renders 3.
+  // Do NOT drop the second one without also fixing that check.
   await prisma.auditLog.create({
     data: {
       userId,
       actionType: SENTINEL_META_A,
       payload: JSON.stringify({ filter: null, at: new Date().toISOString(), smoke: "smoke-ticker-meta" }),
       createdAt: new Date(seedNow.getTime() - 10_000),
+    },
+  });
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      actionType: SENTINEL_META_B,
+      payload: JSON.stringify({ billId: `smoke-ticker-bill-${Date.now()}`, at: new Date().toISOString(), smoke: "smoke-ticker-meta" }),
+      createdAt: new Date(seedNow.getTime() - 11_000),
     },
   });
 

@@ -22,6 +22,15 @@
 
 import { loginAsFixture } from "./fixture.mjs";
 import { prisma } from "./db-client.mjs";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+// Repo root for source-file assertions. Derive it from the invocation
+// directory like every other smoke in this suite. This file previously
+// hardcoded `/workspace/compass/...` (a Linux sandbox path), which
+// resolved to `C:\workspace\compass\...` on Windows and crashed the
+// whole entry with ENOENT before any assertion could run.
+const ROOT = process.cwd();
 
 const checks = [];
 function check(name, cond, detail = "") {
@@ -147,9 +156,8 @@ async function main() {
     // Direct DB insert is more reliable for testing the action
     // contract than e2e form submission through React server actions.
     // Verify the action wiring exists by reading actions/sinks.ts.
-    const fs = await import("node:fs");
-    const actionSrc = fs.readFileSync(
-      "/workspace/compass/src/app/actions/sinks.ts",
+    const actionSrc = readFileSync(
+      join(ROOT, "src/app/actions/sinks.ts"),
       "utf-8",
     );
     check(
@@ -197,9 +205,8 @@ async function main() {
   //   quarterly  → round(targetCents / 3)
   //   annual     → round(targetCents / 12)
   // ============================================================
-  const fs = await import("node:fs");
-  const seedSrc = fs.readFileSync(
-    "/workspace/compass/src/lib/forecast/sink-math.ts",
+  const seedSrc = readFileSync(
+    join(ROOT, "src/lib/forecast/sink-math.ts"),
     "utf-8",
   );
   check(
