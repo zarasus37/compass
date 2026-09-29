@@ -4,7 +4,7 @@
  * Verifies:
  *   1. The "+" trigger button is rendered in TopAppBar on every signed-in page.
  *   2. Clicking the trigger opens the popover with the expected DOM hooks.
- *   3. The envelope dropdown is populated with mom's envelopes.
+ *   3. The envelope dropdown is populated with the user's envelopes.
  *   4. The "Full form" link points to /transactions/new.
  *   5. The empty-envelope state renders a link to /envelopes (no fake submit).
  *
@@ -13,54 +13,17 @@
  * server action this popover wraps). This smoke focuses on the
  * UI surface: trigger + popover + dropdown + form fields.
  *
- * Run: node tests/smoke-quick-add.mjs (dev server up).
+ * Run: tsx --conditions=react-server tests/smoke-quick-add.mjs (dev server up).
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * shared `mom@compass.local`, so this test can neither be poisoned by
+ * nor poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
  */
 
+import { loginAsFixture } from "./fixture.mjs";
 import { prisma } from "./db-client.mjs";
-
-const BASE = "http://127.0.0.1:3000";
-
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  const m = html.match(/[a-f0-9]{20,}/);
-  return m ? m[0] : null;
-}
-async function postForm(path, fields, { actionId } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId) {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, { method: "POST", body: form, redirect: "manual", headers });
-  captureSetCookies(r.headers);
-  return r;
-}
 
 const checks = [];
 function check(name, cond, detail = "") {
@@ -69,25 +32,15 @@ function check(name, cond, detail = "") {
   console.log(`[${ok ? "OK" : "MISS"}] ${name}${detail ? `  — ${detail}` : ""}`);
 }
 
-async function login() {
-  const r1 = await get("/login");
-  const aid = extractActionId(await r1.text());
-  if (!aid) throw new Error("no login aid");
-  const r2 = await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
-  }, { actionId: aid });
-  if (!jar["compass_session"]) throw new Error(`login failed status=${r2.status}`);
-  return jar["compass_session"];
-}
-
-async function fetchHtml(path) {
-  const r = await get(path);
-  return { status: r.status, html: await r.text() };
-}
-
 async function main() {
-  await login();
+  // ── 1. Per-test fixture user, logged in through the real action ──
+  const s = await loginAsFixture("quick-add");
+  console.log(`[fixture] user=${s.email}`);
+
+  async function fetchHtml(path) {
+    const r = await s.get(path);
+    return { status: r.status, html: await r.text() };
+  }
 
   // Phase 1 — trigger button renders on / and /envelopes
   const dash = await fetchHtml("/");
@@ -121,7 +74,7 @@ async function main() {
       /aria-controls="quick-add-popover"/.test(dash.html),
   );
 
-  // Phase 3 — envelope dropdown populated from mom's envelopes.
+  // Phase 3 — envelope dropdown populated from the user's envelopes.
   // We can't see the popover SSR-side (it's closed), but we can
   // verify the TopAppBar received envelopes by checking the
   // dashboard's render path didn't bail. The dropdown is built
@@ -130,10 +83,10 @@ async function main() {
   // smoke-alert-bay / smoke-sidebar. We verify by counting the
   // envelopes returned from /envelopes page.
   const envelopeCount = await prisma.envelope.count({
-    where: { userId: (await prisma.user.findUnique({ where: { email: "mom@compass.local" } })).id, isArchived: false },
+    where: { userId: s.userId, isArchived: false },
   });
   check(
-    "mom has at least 1 envelope for the dropdown",
+    "user has at least 1 envelope for the dropdown",
     envelopeCount >= 1,
     `count=${envelopeCount}`,
   );
@@ -160,6 +113,9 @@ async function main() {
     "TopAppBar imports QuickAddTransaction (sanity)",
     true, // implicit — we wired it in the commit
   );
+
+  // Tear down this test's fixture user before the summary.
+  await s.close();
 
   // ----- Final -----
   console.log("\n--- checks ---");

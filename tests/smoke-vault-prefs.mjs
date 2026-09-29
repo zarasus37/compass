@@ -23,48 +23,23 @@
  *      in the rendered HTML of /vault, /vault/schedule,
  *      /vault/preferences.
  *
- * Run: `node tests/smoke-vault-prefs.mjs` (dev server must be up).
+ * Run: `tsx --conditions=react-server tests/smoke-vault-prefs.mjs`
+ * (dev server must be up).
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * shared `mom@compass.local`, so this test can neither be poisoned by
+ * nor poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
  */
 
+import { loginAsFixture } from "./fixture.mjs";
 import { prisma } from "./db-client.mjs";
 
-const BASE = "http://127.0.0.1:3000";
+// The fixture owns the cookie jar and the login, so every authenticated
+// call below goes through s.get / s.postJson. extractActionId stays
+// because the revoke-action probe at the bottom still calls it.
 
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postJson(path, body) {
-  const headers = new Headers({ "content-type": "application/json" });
-  applyCookies(headers);
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    redirect: "manual",
-  });
-  captureSetCookies(r.headers);
-  return r;
-}
 function extractActionId(html) {
   let m = html.match(/"id":"([a-f0-9]{20,})"/);
   if (m) return m[1];
@@ -73,27 +48,6 @@ function extractActionId(html) {
   m = html.match(/\$ACTION_ID_([a-f0-9]{20,})/);
   if (m) return m[1];
   return null;
-}
-async function postForm(path, fields, { actionId, kind = "plain" } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId && kind === "bound") {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-  } else if (actionId) {
-    form.append(`$ACTION_ID_${actionId}`, "");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers,
-    body: form,
-    redirect: "manual",
-  });
-  captureSetCookies(r.headers);
-  return r;
 }
 
 const log = (k, v) => console.log(`[${k}] ${v}`);
@@ -107,40 +61,21 @@ function check(name, cond, detail) {
 async function main() {
   console.log("\n--- Vault preferences smoke (Cluster 7.0) ---\n");
 
-  // ── 1. Login + reset
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) {
-    console.log("FATAL: no login aid");
-    process.exit(1);
-  }
-  const lp = await postForm(
-    "/login",
-    { email: "mom@compass.local", password: "correct-horse-battery-staple" },
-    { actionId: loginAid, kind: "bound" },
-  );
-  log("login", `status=${lp.status} session=${!!jar["compass_session"]}`);
-  if (!jar["compass_session"]) {
-    console.log("FATAL: login failed");
-    process.exit(1);
-  }
-  const r1Reset = await postJson("/api/reset-seed");
-  log("reset", `status=${r1Reset.status} ok=${(await r1Reset.clone().json()).ok}`);
-
-  const user = await prisma.user.findUnique({
-    where: { email: "mom@compass.local" },
-  });
-  if (!user) {
-    console.log("FATAL: no mom user");
-    process.exit(1);
-  }
+  // ── 1. Per-test fixture user, logged in through the real action ──
+  //
+  // No /api/reset-seed call: the fixture provisions the canonical-shaped
+  // baseline, and that route's ensureUser*Seeded calls insert under
+  // GLOBAL fixed primary keys ("acct-chase", "env-rent", …) which would
+  // delete+re-insert this user's namespaced rows out from under it.
+  const s = await loginAsFixture("vault-prefs");
+  log("fixture", `user=${s.email}`);
 
   // Acknowledge the risk disclosure so the prefs page renders
   // the acknowledged state in the un-ack test below.
   await prisma.vaultPreferences.upsert({
-    where: { userId: user.id },
+    where: { userId: s.userId },
     create: {
-      userId: user.id,
+      userId: s.userId,
       yieldRoutingStrategy: "COMPOUND",
       riskAcknowledgedAt: new Date(),
     },
@@ -150,10 +85,10 @@ async function main() {
   });
 
   // Wipe any leftover schedule from previous runs.
-  await prisma.vaultSchedule.deleteMany({ where: { userId: user.id } });
+  await prisma.vaultSchedule.deleteMany({ where: { userId: s.userId } });
 
   // ── 2. /vault/preferences renders 200
-  const p0 = await get("/vault/preferences");
+  const p0 = await s.get("/vault/preferences");
   const p0Text = await p0.text();
   check("/vault/preferences returns 200", p0.status === 200, `got ${p0.status}`);
   check(
@@ -336,7 +271,7 @@ async function main() {
   );
 
   // ── 10. Main /vault page has the "Preferences" link + vessel re-skin
-  const v0 = await get("/vault");
+  const v0 = await s.get("/vault");
   const v0Text = await v0.text();
   check(
     "/vault returns 200",
@@ -393,7 +328,7 @@ async function main() {
   );
 
   // ── 12. /vault/schedule is also re-skinned
-  const s0 = await get("/vault/schedule");
+  const s0 = await s.get("/vault/schedule");
   const s0Text = await s0.text();
   check("/vault/schedule returns 200", s0.status === 200, `got ${s0.status}`);
   // ── 12. /vault/schedule is also re-skinned (source check)
@@ -417,7 +352,7 @@ async function main() {
 
   // Direct DB read: confirm the risk is currently acknowledged.
   let prefs = await prisma.vaultPreferences.findUnique({
-    where: { userId: user.id },
+    where: { userId: s.userId },
   });
   check(
     "pre-state: risk is acknowledged in DB",
@@ -432,19 +367,19 @@ async function main() {
   // with the unacknowledged state. The smoke is testing the
   // action's effect on the page, not the confirm() UX.
   await prisma.vaultPreferences.update({
-    where: { userId: user.id },
+    where: { userId: s.userId },
     data: { riskAcknowledgedAt: null },
   });
   await prisma.auditLog.create({
     data: {
-      userId: user.id,
+      userId: s.userId,
       actionType: "vault.risk_unacknowledged",
       payload: "{}",
     },
   });
 
   prefs = await prisma.vaultPreferences.findUnique({
-    where: { userId: user.id },
+    where: { userId: s.userId },
   });
   check(
     "post-state: risk is unacknowledged in DB",
@@ -455,7 +390,7 @@ async function main() {
   // Re-render /vault/preferences, should now show the
   // unacknowledged disclosure state with the [OK] I understand
   // button.
-  const p1 = await get("/vault/preferences");
+  const p1 = await s.get("/vault/preferences");
   const p1Text = await p1.text();
   check(
     "unacknowledged state shows the disclosure",
@@ -471,7 +406,7 @@ async function main() {
   // Confirm the audit row landed.
   const auditRows = await prisma.auditLog.findMany({
     where: {
-      userId: user.id,
+      userId: s.userId,
       actionType: "vault.risk_unacknowledged",
     },
   });
@@ -486,14 +421,14 @@ async function main() {
   // at the start) get a fresh state. The audit row is left in
   // place so the rev round-trip is still observable.
   await prisma.vaultPreferences.update({
-    where: { userId: user.id },
+    where: { userId: s.userId },
     data: { riskAcknowledgedAt: null },
   });
 
   // ── 14. Schedule summary card transitions when a schedule exists
   await prisma.vaultSchedule.create({
     data: {
-      userId: user.id,
+      userId: s.userId,
       enabled: true,
       cronExpression: "0 9 * * *",
       timezone: "America/Chicago",
@@ -501,7 +436,7 @@ async function main() {
       minReserveCents: 0,
     },
   });
-  const p2 = await get("/vault/preferences");
+  const p2 = await s.get("/vault/preferences");
   const p2Text = await p2.text();
   check(
     "schedule summary card transitions to the configured state",
@@ -520,7 +455,7 @@ async function main() {
   // (Re-render /vault to confirm the page reflects the cleared
   // ack — the disclosure should now be in the unacknowledged
   // state, not the acknowledged one.)
-  const v1 = await get("/vault");
+  const v1 = await s.get("/vault");
   const v1Text = await v1.text();
   check(
     "/vault unacknowledged state is on the page after clear",
@@ -529,7 +464,10 @@ async function main() {
   );
 
   // Clean up the schedule so subsequent smokes are clean.
-  await prisma.vaultSchedule.deleteMany({ where: { userId: user.id } });
+  await prisma.vaultSchedule.deleteMany({ where: { userId: s.userId } });
+
+  // Tear down this test's fixture user before the summary.
+  await s.close();
 
   // ── Summary
   const total = checks.length;

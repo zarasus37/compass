@@ -4,9 +4,12 @@
  *
  * Verifies:
  *   1. After /api/reset-seed, the user has 1 AllocationPlan row
- *      (id="plan-default", strategy="envelope", isArmed=true,
+ *      (canonical "plan-default", strategy="envelope", isArmed=true,
  *      source="seed") and 7 AllocationRule rows mapped from the
- *      canonical ALLOCATION_PLAN_SEED.
+ *      canonical ALLOCATION_PLAN_SEED. The canonical seed ids are
+ *      GLOBAL primary keys, so the fixture namespaces them per user
+ *      ("plan-default" → "plan-default--<slug>"); the values are
+ *      canonical and every id assertion derives from the fixture.
  *   2. The schema `(pct, fixedCents?)` mapping is correct: 6
  *      "percent" rules with the right pcts (33, 8, 17, 4, 18, 15)
  *      and 1 "remainder" rule (pct=0, fixedCents=null).
@@ -20,73 +23,21 @@
  *   5. The reset endpoint re-seeds idempotently (counts stay stable
  *      across calls).
  *
- * Run with: node tests/smoke-allocation-db.mjs
+ * Run with: tsx --conditions=react-server tests/smoke-allocation-db.mjs
  * (dev server must be running on 127.0.0.1:3000)
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * shared `mom@compass.local`, so this test can neither be poisoned by
+ * nor poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
  */
 
 import { createRequire } from "node:module";
 import { join } from "node:path";
 
+import { loginAsFixture } from "./fixture.mjs";
 import { prisma } from "./db-client.mjs";
-
-const BASE = "http://127.0.0.1:3000";
-
-// ── HTTP helpers (jar pattern; smoke-bills-db.mjs style) ────────────────────
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postJson(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { method: "POST", headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  m = html.match(/\$ACTION_ID_([a-f0-9]{20,})/);
-  if (m) return m[1];
-  return null;
-}
-async function postForm(path, fields, { actionId, kind = "plain" } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId && kind === "bound") {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-  } else if (actionId) {
-    form.append(`$ACTION_ID_${actionId}`, "");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, { method: "POST", headers, body: form, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
 
 const log = (k, v) => console.log(`[${k}] ${v}`);
 const checks = [];
@@ -99,31 +50,32 @@ function check(name, cond, detail) {
 async function main() {
   console.log("--- Allocation DB widget switch smoke (Cluster 5.2.6) ---\n");
 
-  // ── 1. Login as mom@compass.local (the canonical seed user) ─────
-  // The login form uses useActionState (bound form pattern), so we
-  // send the same shape the form would: $ACTION_REF_1 + $ACTION_1:0
-  // + $ACTION_1:1, with `bound: "$@1"`. The simple $ACTION_ID_<id>
-  // pattern is unreliable on cold dev-server starts.
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) { console.log("FATAL: no login aid"); process.exit(1); }
-  const lp = await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
-  }, { actionId: loginAid, kind: "bound" });
-  log("login", `status=${lp.status} session=${!!jar["compass_session"]}`);
-  if (!jar["compass_session"]) { console.log("FATAL: login failed"); process.exit(1); }
+  // ── 1. Per-test fixture user, logged in through the real action ──
+  const s = await loginAsFixture("allocation-db");
+  log("fixture", `user=${s.email} plan=${s.slug}`);
+  log("login", `status=${s.login.status} session=${!!s.jar["compass_session"]}`);
+
+  // The canonical seed ids (plan-default, rule-rent, env-rent, ...) are
+  // global primary keys in the product seeders, so two users cannot both
+  // hold them. The fixture namespaces every id with `--<slug>` and
+  // remaps the cross-references; the VALUES stay canonical. These two
+  // helpers translate in both directions so the assertions below can
+  // still speak in canonical terms.
+  const TAG = `--${s.slug}`;
+  const canonical = (id) =>
+    typeof id === "string" && id.endsWith(TAG) ? id.slice(0, -TAG.length) : id;
+  const fxId = (seedId) => `${seedId}${TAG}`;
 
   // ── 2. Reset the user state so we start from a known canonical set
-  const r1 = await postJson("/api/reset-seed");
+  const r1 = await s.postJson("/api/reset-seed");
   const j1 = await r1.json();
   log("reset", `status=${r1.status} ok=${j1.ok} msg=${j1.message ?? ""}`);
 
   // ── 3. Find the user + inspect AllocationPlan + AllocationRule directly
-  const user = await prisma.user.findUnique({ where: { email: "mom@compass.local" } });
-  if (!user) { console.log("FATAL: no mom user"); process.exit(1); }
+  const user = await prisma.user.findUnique({ where: { email: s.email } });
+  if (!user) { console.log("FATAL: no fixture user"); process.exit(1); }
   const plan = await prisma.allocationPlan.findFirst({
-    where: { userId: user.id, source: "seed" },
+    where: { userId: s.userId, source: "seed" },
     include: { rules: { orderBy: { sortOrder: "asc" } } },
   });
   log("seed plan in DB", plan ? `id=${plan.id} rules=${plan.rules.length}` : "MISSING");
@@ -131,7 +83,7 @@ async function main() {
   // Expect 1 plan + 7 rules
   check("DB has 1 seed AllocationPlan", plan !== null, "plan not found");
   if (plan) {
-    check("Plan id = plan-default", plan.id === "plan-default", `got ${plan.id}`);
+    check("Plan id = plan-default", canonical(plan.id) === "plan-default", `got ${plan.id}`);
     check("Plan strategyId = envelope", plan.strategyId === "envelope", `got ${plan.strategyId}`);
     check("Plan isArmed = true", plan.isArmed === true, `got ${plan.isArmed}`);
     check("Plan source = seed", plan.source === "seed", `got ${plan.source}`);
@@ -157,25 +109,28 @@ async function main() {
       "rule-buffer": "env-buffer",
     };
     for (const rule of plan.rules) {
-      const expectedPct = expectedPcts[rule.id];
-      const expectedEnv = expectedEnvelopeIds[rule.id];
+      const ruleKey = canonical(rule.id);
+      const expectedPct = expectedPcts[ruleKey];
+      // The rule's envelopeId is remapped to the fixture's per-user
+      // envelope, so resolve the canonical seed id through s.ids.
+      const expectedEnv = s.ids.envelopes[expectedEnvelopeIds[ruleKey]];
       check(
-        `rule ${rule.id} pct = ${expectedPct}`,
+        `rule ${ruleKey} pct = ${expectedPct}`,
         rule.pct === expectedPct,
         `got ${rule.pct}`,
       );
       check(
-        `rule ${rule.id} envelopeId = ${expectedEnv}`,
+        `rule ${ruleKey} envelopeId = ${expectedEnvelopeIds[ruleKey]}`,
         rule.envelopeId === expectedEnv,
         `got ${rule.envelopeId}`,
       );
       check(
-        `rule ${rule.id} fixedCents is null (no fixed-mode rules in seed)`,
+        `rule ${ruleKey} fixedCents is null (no fixed-mode rules in seed)`,
         rule.fixedCents === null,
         `got ${rule.fixedCents}`,
       );
       check(
-        `rule ${rule.id} source = seed`,
+        `rule ${ruleKey} source = seed`,
         rule.source === "seed",
         `got ${rule.source}`,
       );
@@ -183,12 +138,12 @@ async function main() {
     // Sum of explicit percent rules: 33+8+17+4+18+15 = 95; remainder is 5% to buffer
     const sumPct = plan.rules
       .filter((r) => r.pct > 0)
-      .reduce((s, r) => s + r.pct, 0);
+      .reduce((acc, r) => acc + r.pct, 0);
     check("Sum of percent rules = 95 (remainder = 5%)", sumPct === 95, `got ${sumPct}`);
   }
 
   // ── 4. /allocation renders 200 and surfaces the rule-driven distribution
-  const a1 = await get("/allocation");
+  const a1 = await s.get("/allocation");
   const a1Text = await a1.text();
   log("/allocation", `status=${a1.status} bytes=${a1Text.length}`);
   check("/allocation: 200", a1.status === 200, `got ${a1.status}`);
@@ -261,10 +216,10 @@ async function main() {
   // ── 5. Round-trip: change a rule's pct in the DB → re-render → page reflects it
   log("round-trip", "change rule-rent pct 33 → 40, re-render, restore");
   await prisma.allocationRule.update({
-    where: { id: "rule-rent" },
+    where: { id: fxId("rule-rent") },
     data: { pct: 40 },
   });
-  const a2 = await get("/allocation");
+  const a2 = await s.get("/allocation");
   const a2Text = await a2.text();
   check(
     "/allocation reflects DB write: shows 40% for Rent",
@@ -278,11 +233,11 @@ async function main() {
   );
   // Restore
   await prisma.allocationRule.update({
-    where: { id: "rule-rent" },
+    where: { id: fxId("rule-rent") },
     data: { pct: 33 },
   });
   // Verify restoration
-  const a3 = await get("/allocation");
+  const a3 = await s.get("/allocation");
   const a3Text = await a3.text();
   check(
     "/allocation after restore shows 33% again",
@@ -291,9 +246,9 @@ async function main() {
   );
 
   // ── 6. Reset endpoint is idempotent: counts stay stable across calls
-  await postJson("/api/reset-seed");
+  await s.postJson("/api/reset-seed");
   const afterReset = await prisma.allocationPlan.findFirst({
-    where: { userId: user.id, source: "seed" },
+    where: { userId: s.userId, source: "seed" },
     include: { rules: { orderBy: { sortOrder: "asc" } } },
   });
   check(
@@ -302,7 +257,7 @@ async function main() {
     `got ${afterReset?.rules.length ?? "no plan"}`,
   );
   // Check that the round-trip change was reverted by the reset
-  const rent = afterReset?.rules.find((r) => r.id === "rule-rent");
+  const rent = afterReset?.rules.find((r) => r.id === fxId("rule-rent"));
   check(
     "after reset: rule-rent pct restored to 33",
     rent?.pct === 33,
@@ -342,7 +297,11 @@ async function main() {
     `found ${envelopeNamesFound} of 7`,
   );
 
-  // ── 8. Final summary
+  // ── 8. Tear down this test's user, then the final summary.
+  // Teardown runs before the report so a crashed run is self-healing
+  // either way (the next fixture sweeps stale smoke-* users on create).
+  await s.close();
+
   console.log("\n--- checks ---");
   let pass = 0, fail = 0;
   for (const [, ok, detail] of checks) {

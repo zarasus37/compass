@@ -5,7 +5,7 @@
  *   login → /envelopes → find rebalance form → POST $10
  *     source → dest → re-read /envelopes → verify balances shifted
  *
- * Run with: node tests/smoke-rebalance.mjs
+ * Run with: tsx --conditions=react-server tests/smoke-rebalance.mjs
  *
  * The smoke picks the first two envelopes in the form's source-select
  * (rent + groceries by default), captures the BEFORE balances, submits
@@ -21,52 +21,22 @@
  * server-side proof that the action mutated state — sufficient for
  * this smoke.
  *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * shared `mom@compass.local`, so this test can neither be poisoned by
+ * nor poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
+ *
  * Requires the dev server to be running on 127.0.0.1:3000.
  */
 
-const BASE = "http://127.0.0.1:3000";
+import { loginAsFixture } from "./fixture.mjs";
 
-// ---------- Cookie jar ----------
-
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postForm(path, fields, { actionId } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId) {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    // React 19 useActionState initial state — the form will replace this
-    // with the action's return value after submit.
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, { method: "POST", headers, body: form, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
+// ---------- Form-action helper ----------
+//
+// The rebalance POST keeps its own wire format (bound useActionState
+// with the `[{"ok":false}]` previous state) and rides on the fixture's
+// cookie jar by delegating to s.get.
 
 // ---------- Helpers ----------
 
@@ -117,19 +87,26 @@ const log = (k, v) => console.log(`[${k}] ${v}`);
 async function main() {
   console.log("--- Rebalance e2e smoke ---\n");
 
-  // 1. Login
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) { console.log("FATAL: no login aid"); process.exit(1); }
-  const lp = await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
-  }, { actionId: loginAid });
-  log("login", `status=${lp.status} session=${!!jar["compass_session"]}`);
-  if (!jar["compass_session"]) { console.log("FATAL: login failed"); process.exit(1); }
+  // 1. Per-test fixture user, logged in through the real action
+  const s = await loginAsFixture("rebalance");
+  log("fixture", `user=${s.email}`);
+
+  // The rebalance form POST rides on the fixture's cookie jar.
+  const postForm = async (path, fields, { actionId } = {}) => {
+    const form = new FormData();
+    if (actionId) {
+      form.append("$ACTION_REF_1", "");
+      form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
+      // React 19 useActionState initial state — the form will replace this
+      // with the action's return value after submit.
+      form.append("$ACTION_1:1", "[{\"ok\":false}]");
+    }
+    for (const [k, v] of Object.entries(fields)) form.append(k, v);
+    return s.get(path, { method: "POST", body: form });
+  };
 
   // 2. Get /envelopes + find the rebalance form
-  const env1 = await get("/envelopes");
+  const env1 = await s.get("/envelopes");
   const env1Text = await env1.text();
   log("/envelopes (before)", `status=${env1.status} bytes=${env1Text.length}`);
 
@@ -161,12 +138,12 @@ async function main() {
   // The action's revalidatePath() returns 307/303 to the same path —
   // follow the redirect so we get the new render.
   const redirected = moveRes.status === 307 || moveRes.status === 303
-    ? await get(moveRes.headers.get("location") || "/envelopes")
+    ? await s.get(moveRes.headers.get("location") || "/envelopes")
     : moveRes;
   log("move follow", `status=${redirected.status} bytes=${(await redirected.clone().text()).length}`);
 
   // 4. Re-read /envelopes and verify balances shifted
-  const env2 = await get("/envelopes");
+  const env2 = await s.get("/envelopes");
   const env2Text = await env2.text();
   const form2 = extractRebalanceForm(env2Text);
   if (!form2) { console.log("FATAL: rebalance form missing after move"); process.exit(2); }
@@ -187,6 +164,9 @@ async function main() {
     // line is absent in this server-side fetch. (Verified visually in browser.)
     ["[OK] moved is client-only render", !/\[OK\] moved/.test(env2Text)],
   ];
+
+  // Tear down this test's fixture user before the summary.
+  await s.close();
 
   console.log("\n--- checks ---");
   let pass = 0, fail = 0;

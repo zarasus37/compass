@@ -15,55 +15,16 @@
  *   - The trajectory chart header is present (it's the read of
  *     all goals, not the filtered set)
  *
- * Run with: node tests/smoke-goals.mjs
+ * Run with: tsx --conditions=react-server tests/smoke-goals.mjs
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * shared `mom@compass.local`, so this test can neither be poisoned by
+ * nor poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
  */
 
-const BASE = "http://127.0.0.1:3000";
-
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postForm(path, fields, { actionId } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId) {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[\"$undefined\"]");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, { method: "POST", headers, body: form, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  return null;
-}
+import { loginAsFixture } from "./fixture.mjs";
 
 // Each goal has a unique description that's only in the goal card
 // body (NOT in the trajectory chart legend). Use these to check
@@ -81,15 +42,9 @@ const GOAL_NAMES = ["Emergency Fund", "Investment Goal", "Debt Free", "Visit Fam
 async function main() {
   console.log("--- /goals goal-type filtering smoke ---\n");
 
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) { console.log("FATAL: no login aid"); process.exit(1); }
-  const lp = await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
-  }, { actionId: loginAid });
-  console.log(`[login] status=${lp.status} session=${!!jar["compass_session"]}`);
-  if (!jar["compass_session"]) { console.log("FATAL: login failed"); process.exit(1); }
+  // ── 1. Per-test fixture user, logged in through the real action ──
+  const s = await loginAsFixture("goals");
+  console.log(`[fixture] user=${s.email}`);
 
   const results = [];
   const check = (name, ok) => {
@@ -102,14 +57,14 @@ async function main() {
     { from: "/emergency", to: "/goals?kind=emergency" },
     { from: "/invest", to: "/goals?kind=invest" },
   ]) {
-    const r = await get(rd.from);
+    const r = await s.get(rd.from);
     const loc = r.headers.get("location") || "";
     const ok = r.status === 308 && (loc === rd.to || loc.startsWith(rd.to));
     check(`redirect ${rd.from} → ${rd.to} (308)`, ok);
   }
 
   // ---------- /goals (no filter) ----------
-  const all = await get("/goals");
+  const all = await s.get("/goals");
   const allHtml = await all.text();
   check("/goals resolves to 200", all.status === 200);
   for (const name of GOAL_NAMES) {
@@ -124,7 +79,7 @@ async function main() {
   check("/goals 'showing 4 of 4' header present", /showing[\s\S]{0,30}4[\s\S]{0,30}of[\s\S]{0,30}4/.test(allHtml));
 
   // ---------- /goals?kind=emergency ----------
-  const em = await get("/goals?kind=emergency");
+  const em = await s.get("/goals?kind=emergency");
   const emHtml = await em.text();
   check("/goals?kind=emergency resolves to 200", em.status === 200);
   check("/goals?kind=emergency shows Emergency Fund description in list", emHtml.includes(GOAL_SIGNATURES.emergency));
@@ -137,7 +92,7 @@ async function main() {
   check("/goals?kind=emergency page header mentions emergency", /\/\/ aims[\s\S]{0,200}goals[\s\S]{0,100}emergency/i.test(emHtml));
 
   // ---------- /goals?kind=invest ----------
-  const inv = await get("/goals?kind=invest");
+  const inv = await s.get("/goals?kind=invest");
   const invHtml = await inv.text();
   check("/goals?kind=invest resolves to 200", inv.status === 200);
   check("/goals?kind=invest shows Investment Goal description in list", invHtml.includes(GOAL_SIGNATURES.invest));
@@ -170,6 +125,9 @@ async function main() {
   check("/goals Invest tab shows [1] count", /\/\/ Invest[\s\S]{0,120}\[<!--\s*-->\s*1\s*<!--\s*-->\s*\]/.test(allHtml));
 
   // ---------- Summary ----------
+  // Tear down this test's fixture user before the summary.
+  await s.close();
+
   console.log("\n--- checks ---");
   const pass = results.filter((r) => r.ok).length;
   const miss = results.filter((r) => !r.ok).length;

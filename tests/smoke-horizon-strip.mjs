@@ -13,72 +13,30 @@
  * at a time (CSS scroll-snap hides the other). So we can verify
  * each in a single fetch.
  *
- * Run with: node tests/smoke-horizon-strip.mjs
+ * Run with: tsx --conditions=react-server tests/smoke-horizon-strip.mjs
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * one shared smoke user, so this test can neither be poisoned by nor
+ * poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
  */
 
-const BASE = "http://127.0.0.1:3000";
-
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postForm(path, fields, { actionId } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId) {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[\"$undefined\"]");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, { method: "POST", headers, body: form, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  return null;
-}
+import { loginAsFixture } from "./fixture.mjs";
 
 const log = (k, v) => console.log(`[${k}] ${v}`);
 
 async function main() {
   console.log("--- Swipeable horizon smoke ---\n");
 
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) { console.log("FATAL: no login aid"); process.exit(1); }
-  const lp = await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
-  }, { actionId: loginAid });
-  log("login", `status=${lp.status} session=${!!jar["compass_session"]}`);
-  if (!jar["compass_session"]) { console.log("FATAL: login failed"); process.exit(1); }
+  // Per-test fixture user: creates the user, opens the onboarding gate
+  // both ways, provisions a biweekly paycheck + a month of spending,
+  // and performs the server-action login. The cookie jar rides on `s`.
+  const s = await loginAsFixture("horizon-strip");
+  log("fixture", `user=${s.email}`);
+  log("login", `status=${s.login.status} session=${!!s.jar["compass_session"]}`);
 
-  const r = await get("/");
+  const r = await s.get("/");
   const html = await r.text();
   log("/", `status=${r.status} bytes=${html.length}`);
 
@@ -159,6 +117,11 @@ async function main() {
   console.log("\n--- Card B (Ring + Horizon) ---");
   for (const k of Object.keys(cardB)) log(k, cardB[k] ? "OK" : "MISS");
   log("page dots", pageDots);
+
+  // Tear down this test's user before reporting. If the test crashed
+  // earlier the next fixture's sweep reclaims the user anyway, so a
+  // failed run never leaks.
+  await s.close();
 
   console.log("\n--- checks ---");
   let pass = 0, fail = 0;

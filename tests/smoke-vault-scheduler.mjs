@@ -10,78 +10,22 @@
  *   5. /api/cron/vault endpoint iterates due users
  *   6. /api/vault/schedule/run-now is the manual override
  *
- * Run: `node tests/smoke-vault-scheduler.mjs` (dev server must be up).
+ * Run: `tsx --conditions=react-server tests/smoke-vault-scheduler.mjs`
+ * (dev server must be up).
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * shared `mom@compass.local`, so this test can neither be poisoned by
+ * nor poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
  */
 
+import { loginAsFixture } from "./fixture.mjs";
 import { prisma } from "./db-client.mjs";
 
-const BASE = "http://127.0.0.1:3000";
-
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postJson(path, body) {
-  const headers = new Headers({ "content-type": "application/json" });
-  applyCookies(headers);
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    redirect: "manual",
-  });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  m = html.match(/\$ACTION_ID_([a-f0-9]{20,})/);
-  if (m) return m[1];
-  return null;
-}
-async function postForm(path, fields, { actionId, kind = "plain" } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId && kind === "bound") {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-  } else if (actionId) {
-    form.append(`$ACTION_ID_${actionId}`, "");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers,
-    body: form,
-    redirect: "manual",
-  });
-  captureSetCookies(r.headers);
-  return r;
-}
+// The fixture owns the cookie jar and the login, so every authenticated
+// call below goes through s.get / s.postJson. No local fetch wrapper
+// is needed any more.
 
 const log = (k, v) => console.log(`[${k}] ${v}`);
 const checks = [];
@@ -94,72 +38,45 @@ function check(name, cond, detail) {
 async function main() {
   console.log("\n--- Vault scheduler smoke (Cluster 6.0) ---\n");
 
-  // ── 1. Login + reset
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) {
-    console.log("FATAL: no login aid");
-    process.exit(1);
-  }
-  const lp = await postForm(
-    "/login",
-    { email: "mom@compass.local", password: "correct-horse-battery-staple" },
-    { actionId: loginAid, kind: "bound" },
-  );
-  log("login", `status=${lp.status} session=${!!jar["compass_session"]}`);
-  if (!jar["compass_session"]) {
-    console.log("FATAL: login failed");
-    process.exit(1);
-  }
-  const r1Reset = await postJson("/api/reset-seed");
-  log("reset", `status=${r1Reset.status} ok=${(await r1Reset.clone().json()).ok}`);
-
-  const user = await prisma.user.findUnique({
-    where: { email: "mom@compass.local" },
-  });
-  if (!user) {
-    console.log("FATAL: no mom user");
-    process.exit(1);
-  }
+  // ── 1. Per-test fixture user, logged in through the real action ──
+  //
+  // The fixture already provisions a MOCK-mode vault (s.ids.vault),
+  // so this test no longer needs /api/reset-seed to force one into
+  // existence. That call is deliberately gone: /api/reset-seed runs
+  // ensureUser*Seeded, which insert under GLOBAL fixed primary keys
+  // ("acct-chase", "env-rent", …) and would delete+re-insert this
+  // user's namespaced envelopes out from under the fixture.
+  const s = await loginAsFixture("vault-scheduler");
+  log("fixture", `user=${s.email}`);
 
   // Clean any leftover VaultSchedule + scheduler_run audit rows
   // from previous runs so the test is deterministic.
-  await prisma.vaultSchedule.deleteMany({ where: { userId: user.id } });
+  await prisma.vaultSchedule.deleteMany({ where: { userId: s.userId } });
   await prisma.auditLog.deleteMany({
-    where: { userId: user.id, actionType: "vault.scheduler_run" },
+    where: { userId: s.userId, actionType: "vault.scheduler_run" },
   });
 
-  // Ensure the user's vault exists so the cap check in the API
-  // has a settlementReserve to compare against. /api/reset-seed
-  // doesn't create the vault; the vault is lazily created on
-  // first /vault visit. We force it here via Prisma so the
-  // cap check is testable in this isolated smoke.
-  await prisma.vaultAccount.upsert({
-    where: { userId: user.id },
-    create: {
-      userId: user.id,
-      chainId: 84532,
-      smartAccountAddress: "0xMOCK0000000000000000000000000000000000DEAD",
-      baseAsset: "USDC",
-      status: "ACTIVE",
-      availableBalance: 100_000,
-      settlementReserve: 50_000,
-    },
-    update: {
+  // Give the cap check in the API a known settlementReserve. The
+  // vault row already exists (the fixture created it), so this is a
+  // plain update — NOT an upsert, which would create a second vault
+  // for the same user.
+  await prisma.vaultAccount.update({
+    where: { id: s.ids.vault },
+    data: {
       // Reset reserve to a known value for the cap test
       settlementReserve: 50_000,
     },
   });
 
   // ── 2. GET /api/vault/schedule returns null on first visit
-  const g0 = await get("/api/vault/schedule");
+  const g0 = await s.get("/api/vault/schedule");
   const g0j = await g0.json();
   check("GET /api/vault/schedule returns 200", g0.status === 200, `got ${g0.status}`);
   check("GET /api/vault/schedule schedule=null on first visit", g0j.schedule === null, `got ${JSON.stringify(g0j).slice(0, 100)}`);
   check("GET /api/vault/schedule returns defaults", g0j.defaults?.cronExpression === "0 9 * * *", `got ${g0j.defaults?.cronExpression}`);
 
   // ── 3. POST /api/vault/schedule with valid cron
-  const p1 = await postJson("/api/vault/schedule", {
+  const p1 = await s.postJson("/api/vault/schedule", {
     enabled: true,
     cronExpression: "*/15 * * * *", // every 15 min
     timezone: "America/Chicago",
@@ -175,7 +92,7 @@ async function main() {
   check("POST /api/vault/schedule stores lookAheadDays", p1j.schedule?.lookAheadDays === 1, `got ${p1j.schedule?.lookAheadDays}`);
 
   // ── 4. POST with invalid cron → 400
-  const p2 = await postJson("/api/vault/schedule", {
+  const p2 = await s.postJson("/api/vault/schedule", {
     cronExpression: "not a cron",
   });
   const p2j = await p2.json();
@@ -183,7 +100,7 @@ async function main() {
   check("invalid cron error mentions the bad expression", typeof p2j.error === "string" && p2j.error.includes("not a cron"), `got ${p2j.error}`);
 
   // ── 5. POST with lookAheadDays > 7 → 400
-  const p3 = await postJson("/api/vault/schedule", {
+  const p3 = await s.postJson("/api/vault/schedule", {
     cronExpression: "0 9 * * *",
     lookAheadDays: 14,
   });
@@ -192,9 +109,9 @@ async function main() {
   check("lookAheadDays error mentions 0..7", typeof p3j.error === "string" && p3j.error.includes("0 and 7"), `got ${p3j.error}`);
 
   // ── 6. POST with minReserveCents > 2x reserve → 400
-  const vault = await prisma.vaultAccount.findUnique({ where: { userId: user.id } });
+  const vault = await prisma.vaultAccount.findUnique({ where: { id: s.ids.vault } });
   const overReserve = (vault?.settlementReserve ?? 0) * 2 + 1;
-  const p4 = await postJson("/api/vault/schedule", {
+  const p4 = await s.postJson("/api/vault/schedule", {
     cronExpression: "0 9 * * *",
     minReserveCents: overReserve,
   });
@@ -211,7 +128,7 @@ async function main() {
   );
 
   // ── 7. POST updates the existing row
-  const p5 = await postJson("/api/vault/schedule", {
+  const p5 = await s.postJson("/api/vault/schedule", {
     enabled: false,
     cronExpression: "0 9 * * *",
     timezone: "America/Chicago",
@@ -223,7 +140,7 @@ async function main() {
   check("upsert updates lookAheadDays=3", p5j.schedule?.lookAheadDays === 3, `got ${p5j.schedule?.lookAheadDays}`);
 
   // ── 8. GET /api/vault/schedule returns the updated row
-  const g1 = await get("/api/vault/schedule");
+  const g1 = await s.get("/api/vault/schedule");
   const g1j = await g1.json();
   check("GET /api/vault/schedule returns the saved row", g1j.schedule?.cronExpression === "0 9 * * *", `got ${g1j.schedule?.cronExpression}`);
   check("saved row has lookAheadDays=3", g1j.schedule?.lookAheadDays === 3, `got ${g1j.schedule?.lookAheadDays}`);
@@ -236,7 +153,7 @@ async function main() {
   void runSchedulerForUser;
 
   // ── 10. /vault/schedule page renders
-  const sched = await get("/vault/schedule");
+  const sched = await s.get("/vault/schedule");
   const schedText = await sched.text();
   log("/vault/schedule", `status=${sched.status} bytes=${schedText.length}`);
   check("/vault/schedule returns 200", sched.status === 200, `got ${sched.status}`);
@@ -312,7 +229,7 @@ async function main() {
   );
 
   // ── 11. /vault shows the scheduler indicator (we have a schedule now)
-  const vaultPage = await get("/vault");
+  const vaultPage = await s.get("/vault");
   const vaultText = await vaultPage.text();
   check("/vault renders 200", vaultPage.status === 200, `got ${vaultPage.status}`);
   check(
@@ -322,7 +239,7 @@ async function main() {
   );
   // DEBUG: dump the schedule state + a slice of the indicator HTML
   // (kept off by default; flip for debugging).
-  // const scheduleNow = await prisma.vaultSchedule.findUnique({ where: { userId: user.id } });
+  // const scheduleNow = await prisma.vaultSchedule.findUnique({ where: { userId: s.userId } });
   // console.log("[debug] schedule in DB:", { enabled: scheduleNow?.enabled });
   check(
     "/vault indicator has the [PAUSED] chip (we disabled the schedule)",
@@ -340,26 +257,26 @@ async function main() {
   );
 
   // ── 12. /api/vault/schedule/history returns the empty list initially
-  const h0 = await get("/api/vault/schedule/history");
+  const h0 = await s.get("/api/vault/schedule/history");
   const h0j = await h0.json();
   check("GET /api/vault/schedule/history returns 200", h0.status === 200, `got ${h0.status}`);
   check("history is initially empty", Array.isArray(h0j.runs) && h0j.runs.length === 0, `got ${h0j.runs?.length} runs`);
 
   // ── 13. /api/cron/vault iterates due users (POST + GET)
-  const cronPost = await postJson("/api/cron/vault", {});
+  const cronPost = await s.postJson("/api/cron/vault", {});
   const cronPostJ = await cronPost.json();
   check("POST /api/cron/vault returns 200", cronPost.status === 200, `got ${cronPost.status}`);
   check("POST /api/cron/vault has ok=true", cronPostJ.ok === true, `got ${JSON.stringify(cronPostJ).slice(0, 200)}`);
   check("POST /api/cron/vault has usersProcessed (number)", typeof cronPostJ.usersProcessed === "number", `got ${typeof cronPostJ.usersProcessed}`);
 
-  const cronGet = await get("/api/cron/vault");
+  const cronGet = await s.get("/api/cron/vault");
   const cronGetJ = await cronGet.json();
   check("GET /api/cron/vault returns 200", cronGet.status === 200, `got ${cronGet.status}`);
 
   // ── 14. POST /api/vault/schedule/run-now — manual override.
   // The schedule is currently disabled (we set enabled=false above),
   // so the run-now should return SKIPPED with a clear reason.
-  const r0 = await postJson("/api/vault/schedule/run-now", {});
+  const r0 = await s.postJson("/api/vault/schedule/run-now", {});
   const r0j = await r0.json();
   check("POST /api/vault/schedule/run-now returns 200", r0.status === 200, `got ${r0.status}`);
   check(
@@ -378,10 +295,10 @@ async function main() {
   // are eligible in the window). Both are "the run did its job"
   // states; SKIPPED would mean the engine is broken.
   await prisma.vaultSchedule.update({
-    where: { userId: user.id },
+    where: { userId: s.userId },
     data: { enabled: true, nextRunAt: new Date(Date.now() - 60_000) },
   });
-  const r1 = await postJson("/api/vault/schedule/run-now", {});
+  const r1 = await s.postJson("/api/vault/schedule/run-now", {});
   const r1j = await r1.json();
   check(
     "run-now after enabling returns SUCCESS or NO_BILLS (not SKIPPED)",
@@ -400,7 +317,7 @@ async function main() {
   );
 
   // ── 16. After the run, lastRunAt is set
-  const after = await prisma.vaultSchedule.findUnique({ where: { userId: user.id } });
+  const after = await prisma.vaultSchedule.findUnique({ where: { userId: s.userId } });
   check("after run: lastRunAt is set", !!after?.lastRunAt, `got ${after?.lastRunAt}`);
   check(
     "after run: lastRunStatus is SUCCESS or NO_BILLS",
@@ -414,7 +331,7 @@ async function main() {
   );
 
   // ── 17. History endpoint returns the audit rows from the run
-  const h1 = await get("/api/vault/schedule/history");
+  const h1 = await s.get("/api/vault/schedule/history");
   const h1j = await h1.json();
   check(
     "history has ≥1 run entry after a real run",
@@ -432,11 +349,14 @@ async function main() {
   );
 
   // ── 19. Cleanup
-  await prisma.vaultSchedule.deleteMany({ where: { userId: user.id } });
+  await prisma.vaultSchedule.deleteMany({ where: { userId: s.userId } });
   await prisma.auditLog.deleteMany({
-    where: { userId: user.id, actionType: "vault.scheduler_run" },
+    where: { userId: s.userId, actionType: "vault.scheduler_run" },
   });
   log("cleanup", "VaultSchedule + scheduler_run audit rows wiped");
+
+  // ── 20. Tear down this test's fixture user before the summary.
+  await s.close();
 
   console.log(`\n--- checks ---\nchecks: ${checks.filter((c) => c[1]).length} pass / ${checks.filter((c) => !c[1]).length} miss (${checks.length} total)`);
   const misses = checks.filter((c) => !c[1]);

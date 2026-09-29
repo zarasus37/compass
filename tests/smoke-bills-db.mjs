@@ -18,75 +18,30 @@
  *   6. The new-bill form action (`logBill`) writes a row with
  *      `source = "user"` and the right shape.
  *
- * Run with: node tests/smoke-bills-db.mjs
+ * Run with: tsx --conditions=react-server tests/smoke-bills-db.mjs
  * (dev server must be running on 127.0.0.1:3000)
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * shared `mom@compass.local`, so this test can neither be poisoned by
+ * nor poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
+ *
+ * NOTE: the canonical bill/envelope ids ("bill-rent", "env-rent", ...)
+ * are global primary keys, so the fixture namespaces them per user.
+ * Every id assertion below resolves through `s.ids`.
  */
 
 import { createRequire } from "node:module";
 import { join } from "node:path";
 
+import { loginAsFixture } from "./fixture.mjs";
 import { prisma } from "./db-client.mjs";
 
-const BASE = "http://127.0.0.1:3000";
-
-// ── HTTP helpers (jar pattern; smoke-auth.mjs style) ────────────────────
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postJson(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { method: "POST", headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postForm(path, fields, { actionId, kind = "bound" } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId) {
-    if (kind === "bound") {
-      form.append("$ACTION_REF_1", "");
-      form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-      form.append("$ACTION_1:1", "[{\"ok\":false}]");
-    } else {
-      form.append(`$ACTION_ID_${actionId}`, "");
-    }
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, { method: "POST", headers, body: form, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  m = html.match(/\$ACTION_ID_([a-f0-9]{20,})/);
-  if (m) return m[1];
-  return null;
-}
+// The fixture carries the cookie jar, so page reads go through s.get /
+// s.postJson. The scoped form-action POST below keeps its own wire
+// format (bound useActionState with the `[{"ok":false}]` previous state)
+// and rides on the same jar by delegating to s.get.
 
 const log = (k, v) => console.log(`[${k}] ${v}`);
 const checks = [];
@@ -99,37 +54,52 @@ function check(name, cond, detail) {
 async function main() {
   console.log("--- Bills DB widget switch smoke (Cluster 5.2.6) ---\n");
 
-  // ── 1. Login as mom@compass.local (the canonical seed user) ─────
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) { console.log("FATAL: no login aid"); process.exit(1); }
-  const lp = await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
-  }, { actionId: loginAid });
-  log("login", `status=${lp.status} session=${!!jar["compass_session"]}`);
-  if (!jar["compass_session"]) { console.log("FATAL: login failed"); process.exit(1); }
+  // ── 1. Per-test fixture user, logged in through the real action ──
+  const s = await loginAsFixture("bills-db");
+  log("fixture", `user=${s.email}`);
+  log("login", `status=${s.login.status} session=${!!s.jar["compass_session"]}`);
+
+  // The new-bill form POST rides on the fixture's cookie jar.
+  const postForm = async (path, fields, { actionId, kind = "bound" } = {}) => {
+    const form = new FormData();
+    if (actionId) {
+      if (kind === "bound") {
+        form.append("$ACTION_REF_1", "");
+        form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
+        form.append("$ACTION_1:1", "[{\"ok\":false}]");
+      } else {
+        form.append(`$ACTION_ID_${actionId}`, "");
+      }
+    }
+    for (const [k, v] of Object.entries(fields)) form.append(k, v);
+    return s.get(path, { method: "POST", body: form });
+  };
 
   // ── 2. Reset the user state so we start from a known canonical set
-  const r1 = await postJson("/api/reset-seed");
+  const r1 = await s.postJson("/api/reset-seed");
   const j1 = await r1.json();
   log("reset", `status=${r1.status} ok=${j1.ok} msg=${j1.message ?? ""}`);
 
   // The reset endpoint seeds "source=seed" rows but does NOT wipe
   // "source=user" rows added by the new-bill form in previous test
-  // runs. Clean them up so the smoke is idempotent.
-  await prisma.bill.deleteMany({ where: { userId: { not: "" }, source: "user" } });
+  // runs. Clean them up so the smoke is idempotent. Scoped to this
+  // test's own user: an unscoped delete would reach into every other
+  // user's bills, which is exactly the cross-test coupling the fixture
+  // migration exists to remove.
+  await prisma.bill.deleteMany({ where: { userId: s.userId, source: "user" } });
   // Also wipe any stale "Smoke Test Netflix" rows by name match, in
   // case a previous version of this smoke left them behind before
-  // the source filter was added.
-  await prisma.bill.deleteMany({ where: { name: { startsWith: "Smoke Test" } } });
+  // the source filter was added. Same scoping rule.
+  await prisma.bill.deleteMany({
+    where: { userId: s.userId, name: { startsWith: "Smoke Test" } },
+  });
 
   // ── 3. Find the user (reset didn't change the row) and inspect the
   //      Bill table directly via Prisma.
-  const user = await prisma.user.findUnique({ where: { email: "mom@compass.local" } });
-  if (!user) { console.log("FATAL: no mom user"); process.exit(1); }
+  const user = await prisma.user.findUnique({ where: { email: s.email } });
+  if (!user) { console.log("FATAL: no fixture user"); process.exit(1); }
   const seedBills = await prisma.bill.findMany({
-    where: { userId: user.id, source: "seed" },
+    where: { userId: s.userId, source: "seed" },
     orderBy: { sortOrder: "asc" },
   });
   log("seed bills in DB", `count=${seedBills.length}`);
@@ -152,12 +122,14 @@ async function main() {
       `got "${actual?.name}"`,
     );
   }
-  // Spot-check the data on the first 2 rows
+  // Spot-check the data on the first 2 rows. The envelopeId is
+  // remapped to the fixture's per-user envelope, so it resolves
+  // through s.ids; the check name still names the canonical vessel.
   const rent = seedBills.find((b) => b.name === "Rent");
   if (rent) {
     check("Rent amount = 80000 cents ($800)", rent.amountCents === 80000, `got ${rent.amountCents}`);
     check("Rent dueDay = 1", rent.dueDay === 1, `got ${rent.dueDay}`);
-    check("Rent envelopeId = env-rent", rent.envelopeId === "env-rent", `got ${rent.envelopeId}`);
+    check("Rent envelopeId = env-rent", rent.envelopeId === s.ids.envelopes["env-rent"], `got ${rent.envelopeId}`);
     check("Rent source = seed", rent.source === "seed", `got ${rent.source}`);
     check("Rent sortOrder = 1", rent.sortOrder === 1, `got ${rent.sortOrder}`);
   }
@@ -165,11 +137,11 @@ async function main() {
   if (spectrum) {
     check("Spectrum dueDay = 27", spectrum.dueDay === 27, `got ${spectrum.dueDay}`);
     check("Spectrum autopay = true", spectrum.autopay === true, `got ${spectrum.autopay}`);
-    check("Spectrum envelopeId = env-utilities", spectrum.envelopeId === "env-utilities", `got ${spectrum.envelopeId}`);
+    check("Spectrum envelopeId = env-utilities", spectrum.envelopeId === s.ids.envelopes["env-utilities"], `got ${spectrum.envelopeId}`);
   }
 
   // ── 4. /obligations?tab=bills renders those rows
-  const or1 = await get("/obligations?tab=bills");
+  const or1 = await s.get("/obligations?tab=bills");
   const or1Text = await or1.text();
   log("/obligations?tab=bills", `status=${or1.status} bytes=${or1Text.length}`);
   check("/obligations?tab=bills: 200", or1.status === 200, `got ${or1.status}`);
@@ -202,7 +174,7 @@ async function main() {
 
   // ── 5. Dashboard surfaces the production rows (Critical Timeline,
   //      Plan My Next Check, etc.)
-  const d1 = await get("/");
+  const d1 = await s.get("/");
   const d1Text = await d1.text();
   log("dashboard", `status=${d1.status} bytes=${d1Text.length}`);
   check("dashboard: 200", d1.status === 200, `got ${d1.status}`);
@@ -216,7 +188,7 @@ async function main() {
   );
 
   // ── 6. /calendar surfaces the bills-due warning card (with bill names)
-  const c1 = await get("/calendar");
+  const c1 = await s.get("/calendar");
   const c1Text = await c1.text();
   log("/calendar", `status=${c1.status} bytes=${c1Text.length}`);
   check("/calendar: 200", c1.status === 200, `got ${c1.status}`);
@@ -248,10 +220,10 @@ async function main() {
   // proves the read path is fully DB-driven.
   log("toggle (direct DB write)", "verify read picks it up");
   await prisma.bill.updateMany({
-    where: { id: "bill-rent", userId: user.id },
+    where: { id: s.ids.bills["bill-rent"], userId: s.userId },
     data: { paidAt: new Date() },
   });
-  const or2 = await get("/obligations?tab=bills");
+  const or2 = await s.get("/obligations?tab=bills");
   const or2Text = await or2.text();
   check(
     "/obligations reflects DB paidAt (rent shows Paid)",
@@ -260,7 +232,7 @@ async function main() {
   );
   // Clean up
   await prisma.bill.updateMany({
-    where: { id: "bill-rent", userId: user.id },
+    where: { id: s.ids.bills["bill-rent"], userId: s.userId },
     data: { paidAt: null },
   });
 
@@ -275,7 +247,7 @@ async function main() {
   // "Add this bill" button (the form that actually has the
   // logBill action). This matches the same pattern the
   // rebalance-form extraction uses in smoke-envelopes-db.mjs.
-  const newPage = await get("/recurring/new");
+  const newPage = await s.get("/recurring/new");
   const newText = await newPage.text();
   const addBtnIdx = newText.indexOf("Add this bill");
   const formStart = newText.lastIndexOf("<form", addBtnIdx);
@@ -293,7 +265,7 @@ async function main() {
     }, { actionId: newAid, kind: "bound" });
     log("new bill POST", `status=${newBill.status}`);
     const userBills = await prisma.bill.findMany({
-      where: { userId: user.id, source: "user" },
+      where: { userId: s.userId, source: "user" },
     });
     check("new bill row exists with source=user", userBills.length === 1, `got ${userBills.length}`);
     if (userBills.length > 0) {
@@ -308,7 +280,11 @@ async function main() {
     check("new bill form aid found in scoped form", false, "no action id");
   }
 
-  // ── 9. Final summary
+  // ── 9. Tear down this test's user, then the final summary.
+  // Teardown runs before the report so a crashed run is self-healing
+  // either way (the next fixture sweeps stale smoke-* users on create).
+  await s.close();
+
   console.log("\n--- checks ---");
   let pass = 0, fail = 0;
   for (const [name, ok, detail] of checks) {

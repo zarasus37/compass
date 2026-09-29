@@ -13,54 +13,19 @@
  *   4. The retention window in the cell matches the env's
  *      configured value (90 by default).
  *
- * Run: node tests/smoke-retention-health.mjs (dev server up).
+ * Run: `tsx --conditions=react-server tests/smoke-retention-health.mjs`
+ * (dev server up).
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs), so the
+ * rollup sweep + the seeded `vault.test_prune_input` audit row are
+ * scoped to a throwaway user instead of the shared smoke user.
+ * tsx + the react-server condition are required because the
+ * fixture imports `src/lib/*.ts` (which pull in Next's
+ * `server-only` marker).
  */
 
 import { prisma } from "./db-client.mjs";
-
-const BASE = "http://127.0.0.1:3000";
-
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postForm(path, fields, { actionId } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId) {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, { method: "POST", body: form, redirect: "manual", headers });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  const m = html.match(/[a-f0-9]{20,}/);
-  return m ? m[0] : null;
-}
+import { loginAsFixture } from "./fixture.mjs";
 
 const checks = [];
 function check(name, cond, detail = "") {
@@ -69,20 +34,8 @@ function check(name, cond, detail = "") {
   console.log(`[${ok ? "OK" : "MISS"}] ${name}${detail ? `  — ${detail}` : ""}`);
 }
 
-async function login() {
-  const r1 = await get("/login");
-  const aid = extractActionId(await r1.text());
-  if (!aid) throw new Error("no login aid");
-  const r2 = await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
-  }, { actionId: aid });
-  if (!jar["compass_session"]) throw new Error(`login failed status=${r2.status}`);
-  return jar["compass_session"];
-}
-
-async function fetchSettingsHtml() {
-  const r = await get("/settings");
+async function fetchSettingsHtml(s) {
+  const r = await s.get("/settings");
   const html = await r.text();
   check("/settings 200", r.status === 200, `got ${r.status}`);
   return html;
@@ -102,16 +55,17 @@ function getRetentionDays() {
 async function main() {
   console.log("\n--- Retention health banner smoke (Cluster 7.19) ---\n");
 
-  await login();
-  const userId = (await prisma.user.findUnique({ where: { email: "mom@compass.local" } }))?.id;
-  if (!userId) { console.log("FATAL: no mom user"); process.exit(1); }
+  const s = await loginAsFixture("retention-health");
+  console.log(`[fixture] user=${s.email}`);
+  console.log(`[login] status=${s.login.status} session=${!!s.jar["compass_session"]}`);
+  const userId = s.userId;
 
   // --- Step 1: capture the "never run" baseline ---
   // Wipe rollup rows for this user so we see a clean default state.
   // Other smoke data is preserved (scheduler, audit log).
   await prisma.auditLogDailyRollup.deleteMany({ where: { userId } });
 
-  const baselineHtml = await fetchSettingsHtml();
+  const baselineHtml = await fetchSettingsHtml(s);
 
   check(
     "banner data-testid present",
@@ -158,14 +112,7 @@ async function main() {
     },
   });
 
-  const pr = await fetch(`${BASE}/api/dev/audit-log-prune`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      cookie: `compass_session=${jar["compass_session"]}`,
-    },
-    body: JSON.stringify({ retentionDays: 30 }),
-  });
+  const pr = await s.postJson("/api/dev/audit-log-prune", { retentionDays: 30 });
   const pj = await pr.json();
   check(
     "/api/dev/audit-log-prune returns rolledUp > 0",
@@ -177,7 +124,7 @@ async function main() {
   check("rollup rows now > 0 in DB", rollupRows > 0, `count=${rollupRows}`);
 
   // --- Step 3: re-fetch /settings; the banner should now show the prune timestamp ---
-  const afterHtml = await fetchSettingsHtml();
+  const afterHtml = await fetchSettingsHtml(s);
 
   check(
     "banner still renders after prune",
@@ -219,6 +166,8 @@ async function main() {
   check("live audit rows for user is a non-negative number", typeof liveRows === "number" && liveRows >= 0, `count=${liveRows}`);
 
   // --- Summary ---
+  await s.close();
+
   console.log("\n--- checks ---");
   let pass = 0, fail = 0;
   for (const c of checks) (c.ok ? pass++ : fail++);

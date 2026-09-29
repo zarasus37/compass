@@ -28,81 +28,23 @@
  *      action, exports the right component, and the gateway +
  *      server wiring reads `VaultPreferences.offRampProvider`.
  *
- * Run: `node tests/smoke-off-ramp-picker.mjs` (dev server must be up).
+ * Run: `tsx --conditions=react-server tests/smoke-off-ramp-picker.mjs`
+ * (dev server must be up).
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs), so the
+ * `vault.off_ramp_provider_changed` audit rows + the
+ * `VaultPreferences` writes this smoke performs belong to a
+ * throwaway user instead of the shared smoke user. tsx + the
+ * react-server condition are required because the fixture
+ * imports `src/lib/*.ts` (which pull in Next's `server-only`
+ * marker).
  */
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { prisma } from "./db-client.mjs";
-
-const BASE = "http://127.0.0.1:3000";
-
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postJson(path, body) {
-  const headers = new Headers({ "content-type": "application/json" });
-  applyCookies(headers);
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    redirect: "manual",
-  });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  m = html.match(/\$ACTION_ID_([a-f0-9]{20,})/);
-  if (m) return m[1];
-  return null;
-}
-async function postForm(path, fields, { actionId, kind = "plain" } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId && kind === "bound") {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-  } else if (actionId) {
-    form.append(`$ACTION_ID_${actionId}`, "");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers,
-    body: form,
-    redirect: "manual",
-  });
-  captureSetCookies(r.headers);
-  return r;
-}
+import { loginAsFixture } from "./fixture.mjs";
 
 const log = (k, v) => console.log(`[${k}] ${v}`);
 const checks = [];
@@ -119,42 +61,21 @@ function readSrc(rel) {
 async function main() {
   console.log("\n--- Off-ramp picker smoke (Cluster 7.3) ---\n");
 
-  // ── 1. Login + reset
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) {
-    console.log("FATAL: no login aid");
-    process.exit(1);
-  }
-  const lp = await postForm(
-    "/login",
-    { email: "mom@compass.local", password: "correct-horse-battery-staple" },
-    { actionId: loginAid, kind: "bound" },
-  );
-  log("login", `status=${lp.status} session=${!!jar["compass_session"]}`);
-  if (!jar["compass_session"]) {
-    console.log("FATAL: login failed");
-    process.exit(1);
-  }
-  const r1Reset = await postJson("/api/reset-seed");
+  // ── 1. Per-test fixture user (creates + seeds + logs in) + reset
+  const s = await loginAsFixture("off-ramp-picker");
+  log("fixture", `user=${s.email}`);
+  log("login", `status=${s.login.status} session=${!!s.jar["compass_session"]}`);
+  const r1Reset = await s.postJson("/api/reset-seed");
   log("reset", `status=${r1Reset.status} ok=${(await r1Reset.clone().json()).ok}`);
-
-  const user = await prisma.user.findUnique({
-    where: { email: "mom@compass.local" },
-  });
-  if (!user) {
-    console.log("FATAL: no mom user");
-    process.exit(1);
-  }
 
   // Force a clean offRampProvider=MOCK so the "default is MOCK"
   // checks are deterministic. The reset-seed path doesn't set this
   // column directly (the gateway chain is the same as before for
   // pre-Cluster-7.3 users).
   await prisma.vaultPreferences.upsert({
-    where: { userId: user.id },
+    where: { userId: s.userId },
     create: {
-      userId: user.id,
+      userId: s.userId,
       yieldRoutingStrategy: "COMPOUND",
       riskAcknowledgedAt: null,
       offRampProvider: "MOCK",
@@ -163,7 +84,7 @@ async function main() {
   });
 
   // ── 2. /vault/preferences renders 200 + has the picker section
-  const p0 = await get("/vault/preferences");
+  const p0 = await s.get("/vault/preferences");
   const p0Text = await p0.text();
   check(
     "/vault/preferences returns 200",
@@ -229,7 +150,7 @@ async function main() {
   //     would be written; we exercise that path via the source
   //     checks plus the integration smoke)
   const before = await prisma.vaultPreferences.findUnique({
-    where: { userId: user.id },
+    where: { userId: s.userId },
   });
   check(
     "pre-state: offRampProvider=MOCK in DB",
@@ -239,19 +160,19 @@ async function main() {
 
   // Set SPRITZ via DB (simulating the action's effect).
   await prisma.vaultPreferences.update({
-    where: { userId: user.id },
+    where: { userId: s.userId },
     data: { offRampProvider: "SPRITZ" },
   });
   // Manually write the audit row that the action would write.
   await prisma.auditLog.create({
     data: {
-      userId: user.id,
+      userId: s.userId,
       actionType: "vault.off_ramp_provider_changed",
       payload: JSON.stringify({ from: "MOCK", to: "SPRITZ" }),
     },
   });
   const afterSpritz = await prisma.vaultPreferences.findUnique({
-    where: { userId: user.id },
+    where: { userId: s.userId },
   });
   check(
     "setOffRampProviderAction: setting SPRITZ persists",
@@ -260,7 +181,7 @@ async function main() {
   );
   // Audit row should be present.
   const auditAfterSpritz = await prisma.auditLog.findFirst({
-    where: { userId: user.id, actionType: "vault.off_ramp_provider_changed" },
+    where: { userId: s.userId, actionType: "vault.off_ramp_provider_changed" },
     orderBy: { createdAt: "desc" },
   });
   check(
@@ -282,7 +203,7 @@ async function main() {
   );
 
   // ── 4. Re-render /vault/preferences — Spritz should be active
-  const p1 = await get("/vault/preferences");
+  const p1 = await s.get("/vault/preferences");
   const p1Text = await p1.text();
   check(
     "after set SPRITZ: Spritz chip is current",
@@ -300,7 +221,7 @@ async function main() {
   );
 
   // ── 5. /vault page reflects the active provider
-  const v0 = await get("/vault");
+  const v0 = await s.get("/vault");
   const v0Text = await v0.text();
   check(
     "/vault has the off-ramp chip with data-provider=SPRITZ",
@@ -358,10 +279,10 @@ async function main() {
 
   // ── 7. Reset to MOCK via DB, verify /vault flips back
   await prisma.vaultPreferences.update({
-    where: { userId: user.id },
+    where: { userId: s.userId },
     data: { offRampProvider: "MOCK" },
   });
-  const v1 = await get("/vault");
+  const v1 = await s.get("/vault");
   const v1Text = await v1.text();
   check(
     "/vault off-ramp chip flips to data-provider=MOCK after reset",
@@ -382,7 +303,7 @@ async function main() {
   );
 
   // ── 8. PolicySummaryCard 5 cells (the new off-ramp cell)
-  const p2 = await get("/vault/preferences");
+  const p2 = await s.get("/vault/preferences");
   const p2Text = await p2.text();
   check(
     "PolicySummaryCard has the off-ramp cell",
@@ -459,6 +380,8 @@ async function main() {
   );
 
   // ── summary
+  await s.close();
+
   const pass = checks.filter((c) => c[1]).length;
   const miss = checks.length - pass;
   console.log(`\n--- checks: ${pass} pass / ${miss} miss (${checks.length} total) ---`);

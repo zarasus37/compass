@@ -15,83 +15,24 @@
  *   5. lowPoint callout: when the projection crosses the buffer, the
  *      low-point data attribute is a real ISO date within the horizon.
  *
- * Run: node tests/smoke-cash-flow-forecast.mjs (dev server up).
+ * Run: tsx --conditions=react-server tests/smoke-cash-flow-forecast.mjs
+ * (dev server up).
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * shared `mom@compass.local`, so this test can neither be poisoned by
+ * nor poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
  */
 
+import { loginAsFixture } from "./fixture.mjs";
 import { prisma } from "./db-client.mjs";
-
-const BASE = "http://127.0.0.1:3000";
-
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  const m = html.match(/[a-f0-9]{20,}/);
-  return m ? m[0] : null;
-}
-async function postForm(path, fields, { actionId } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId) {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, { method: "POST", body: form, redirect: "manual", headers });
-  captureSetCookies(r.headers);
-  return r;
-}
 
 const checks = [];
 function check(name, cond, detail = "") {
   const ok = Boolean(cond);
   checks.push({ name, ok, detail });
   console.log(`[${ok ? "OK" : "MISS"}] ${name}${detail ? `  — ${detail}` : ""}`);
-}
-
-async function login() {
-  const r1 = await get("/login");
-  const aid = extractActionId(await r1.text());
-  if (!aid) throw new Error("no login aid");
-  const r2 = await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
-  }, { actionId: aid });
-  if (!jar["compass_session"]) throw new Error(`login failed status=${r2.status}`);
-  return jar["compass_session"];
-}
-
-/**
- * Read the user row by email (the smoke's login email). Use it to
- * mutate PaySchedule / Bill / Account state directly so the
- * card's data-* invariants reflect the smoke's intent.
- */
-async function getUser() {
-  const u = await prisma.user.findUnique({ where: { email: "mom@compass.local" } });
-  if (!u) throw new Error("user mom@compass.local not found");
-  return u;
 }
 
 async function archivePaySchedules(userId) {
@@ -136,15 +77,15 @@ async function restorePaySchedule(userId) {
   });
 }
 
-async function fetchInsightsHtml() {
-  const r = await get("/insights");
+async function fetchInsightsHtml(s) {
+  const r = await s.get("/insights");
   const html = await r.text();
   check("/insights 200", r.status === 200, `got ${r.status}`);
   return html;
 }
 
-async function fetchDashboardHtml() {
-  const r = await get("/");
+async function fetchDashboardHtml(s) {
+  const r = await s.get("/");
   const html = await r.text();
   check("/ 200", r.status === 200, `got ${r.status}`);
   return html;
@@ -170,19 +111,23 @@ function findText(html, pattern) {
 
 async function main() {
   // ----- Login -----
-  await login();
-
-  const user = await getUser();
+  // Per-test fixture user. The fixture creates the user, opens the
+  // onboarding gate both ways, provisions the canonical-shaped
+  // baseline plus a biweekly paycheck, and performs the server-action
+  // login. The cookie jar rides on `s`, so every page read below is
+  // authenticated for the whole test.
+  const s = await loginAsFixture("cash-flow-forecast");
+  console.log(`[fixture] user=${s.email}`);
 
   // ============================================================
   // Phase 1 — pending state (no PaySchedule).
   // The card should render the [PENDING] NO PAY SCHEDULE pill
   // and the honest "Set up your pay schedule" message.
   // ============================================================
-  await archivePaySchedules(user.id);
+  await archivePaySchedules(s.userId);
 
-  const insightsPending = await fetchInsightsHtml();
-  const dashboardPending = await fetchDashboardHtml();
+  const insightsPending = await fetchInsightsHtml(s);
+  const dashboardPending = await fetchDashboardHtml(s);
 
   check(
     "insights mounts the cash-flow card in pending state",
@@ -218,11 +163,11 @@ async function main() {
   // ============================================================
   // Phase 2 — restore a PaySchedule + verify the projection.
   // ============================================================
-  const ps = await restorePaySchedule(user.id);
+  const ps = await restorePaySchedule(s.userId);
 
   // The spendable account
   const account = await prisma.account.findFirst({
-    where: { userId: user.id, isArchived: false },
+    where: { userId: s.userId, isArchived: false },
     orderBy: { sortOrder: "asc" },
   });
   if (!account) throw new Error("no spendable account");
@@ -233,7 +178,7 @@ async function main() {
   today.setHours(0, 0, 0, 0);
   const horizonEnd = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000);
   const bills = await prisma.bill.findMany({
-    where: { userId: user.id, isArchived: false },
+    where: { userId: s.userId, isArchived: false },
   });
   let expectedBillCount = 0;
   for (const b of bills) {
@@ -247,8 +192,8 @@ async function main() {
     (horizonEnd.getTime() - today.getTime()) / (14 * 24 * 60 * 60 * 1000),
   );
 
-  const insights = await fetchInsightsHtml();
-  const dashboard = await fetchDashboardHtml();
+  const insights = await fetchInsightsHtml(s);
+  const dashboard = await fetchDashboardHtml(s);
 
   // Both surfaces have the card now.
   check(
@@ -405,9 +350,14 @@ async function main() {
   // idempotent. Subsequent runs start from "no pay schedule"
   // (pending state).
   // ============================================================
-  await archivePaySchedules(user.id);
+  await archivePaySchedules(s.userId);
 
   // ----- Final -----
+  // Tear down this test's user before reporting. If the test crashed
+  // earlier the next fixture's sweep reclaims the user anyway, so a
+  // failed run never leaks.
+  await s.close();
+
   console.log("\n--- checks ---");
   const pass = checks.filter((c) => c.ok).length;
   const miss = checks.length - pass;

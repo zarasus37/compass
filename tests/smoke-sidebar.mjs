@@ -15,55 +15,17 @@
  *   - The 308 redirects work for the old URLs
  *   - Each nav item gets the right active treatment on its page
  *
- * Run with: node tests/smoke-sidebar.mjs
+ * Run with: tsx --conditions=react-server tests/smoke-sidebar.mjs
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * one shared smoke user, so this test can neither be poisoned by nor
+ * poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
  */
 
-const BASE = "http://127.0.0.1:3000";
+import { loginAsFixture } from "./fixture.mjs";
 
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postForm(path, fields, { actionId } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId) {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[\"$undefined\"]");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, { method: "POST", headers, body: form, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  return null;
-}
 const log = (k, v) => console.log(`[${k}] ${v}`);
 
 const CHAPTERS = [
@@ -118,15 +80,12 @@ const OLD_REDIRECTS = [
 async function main() {
   console.log("--- 4-chapter AppSidebar smoke ---\n");
 
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) { console.log("FATAL: no login aid"); process.exit(1); }
-  const lp = await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
-  }, { actionId: loginAid });
-  log("login", `status=${lp.status} session=${!!jar["compass_session"]}`);
-  if (!jar["compass_session"]) { console.log("FATAL: login failed"); process.exit(1); }
+  // Per-test fixture user: creates the user, opens the onboarding gate
+  // both ways, provisions the seeded baseline, and performs the
+  // server-action login. The cookie jar rides on `s`.
+  const s = await loginAsFixture("sidebar");
+  log("fixture", `user=${s.email}`);
+  log("login", `status=${s.login.status} session=${!!s.jar["compass_session"]}`);
 
   const results = [];
   const check = (name, ok) => {
@@ -135,7 +94,7 @@ async function main() {
   };
 
   // ---------- Sidebar structure on the dashboard ----------
-  const dash = await get("/");
+  const dash = await s.get("/");
   const dashText = await dash.text();
 
   // The sidebar is an <aside> element. Find it.
@@ -176,9 +135,9 @@ async function main() {
   // ---------- All new routes resolve to 200 ----------
   for (const ch of CHAPTERS) {
     for (const it of ch.items) {
-      const r = await get(it.href);
+      const r = await s.get(it.href);
       if (r.status !== 200) {
-        console.log(`  DEBUG ${it.href} status=${r.status} location=${r.headers.get("location")} session=${!!jar["compass_session"]}`);
+        console.log(`  DEBUG ${it.href} status=${r.status} location=${r.headers.get("location")} session=${!!s.jar["compass_session"]}`);
       }
       check(`route ${it.href} resolves to 200`, r.status === 200);
     }
@@ -186,7 +145,7 @@ async function main() {
 
   // ---------- The 308 redirects from old URLs ----------
   for (const rd of OLD_REDIRECTS) {
-    const r = await get(rd.from);
+    const r = await s.get(rd.from);
     const loc = r.headers.get("location") || "";
     // Location strips the query string when matching; for /obligations,
     // we need to compare on path + a partial query.
@@ -204,7 +163,7 @@ async function main() {
       // Skip the /dashboard root (it has its own active rule; we test the
       // deep items where the active state is more meaningful).
       if (it.href === "/") continue;
-      const r = await get(it.href);
+      const r = await s.get(it.href);
       const text = await r.text();
       const asideR = text.match(/<aside[\s\S]*?<\/aside>/);
       const asideRHtml = asideR ? asideR[0] : "";
@@ -227,6 +186,11 @@ async function main() {
   }
 
   // ---------- Tab order summary ----------
+  // Tear down this test's user before reporting. If the test crashed
+  // earlier the next fixture's sweep reclaims the user anyway, so a
+  // failed run never leaks.
+  await s.close();
+
   console.log("\n--- checks ---");
   const pass = results.filter((r) => r.ok).length;
   const miss = results.filter((r) => !r.ok).length;

@@ -63,84 +63,37 @@
  * writes via `recordVaultAudit` (which calls `publishAuditEvent`)
  * so the bus actually fires.
  *
- * Run: `node tests/smoke-live-ticker.mjs` (dev server must be up).
+ * Run: `tsx --conditions=react-server tests/smoke-live-ticker.mjs`
+ * (dev server must be up).
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs). The SSE
+ * collector below attaches the fixture's cookie jar (via the
+ * module-level `SESSION` holder) because `fetch` can't ride the
+ * fixture's helper on a streaming/AbortController request.
+ * tsx + the react-server condition are required because the
+ * fixture imports `src/lib/*.ts` (which pull in Next's
+ * `server-only` marker).
  */
 
 import { prisma } from "./db-client.mjs";
+import { loginAsFixture } from "./fixture.mjs";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const BASE = "http://127.0.0.1:3000";
+const BASE = process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3000";
 const ROOT = process.cwd();
-const SMOKE_USER_EMAIL = "mom@compass.local";
-const SMOKE_USER_PASSWORD = "correct-horse-battery-staple";
 
-const jar = {};
+/** The authenticated fixture session, set by main() before any
+ *  stream is opened. The SSE collector reads the cookie jar from
+ *  here so every request is scoped to this test's own user. */
+let SESSION = null;
+
 function applyCookies(headers) {
-  const cookies = Object.entries(jar)
+  if (!SESSION) return;
+  const cookies = Object.entries(SESSION.jar)
     .map(([k, v]) => `${k}=${v}`)
     .join("; ");
   if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  m = html.match(/\$ACTION_ID_([a-f0-9]{20,})/);
-  if (m) return m[1];
-  return null;
-}
-async function postForm(path, fields, { actionId, kind = "plain" } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId && kind === "bound") {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-  } else if (actionId) {
-    form.append(`$ACTION_ID_${actionId}`, "");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers,
-    body: form,
-    redirect: "manual",
-  });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postJson(path, body) {
-  const headers = new Headers({ "content-type": "application/json" });
-  applyCookies(headers);
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-    redirect: "manual",
-  });
-  captureSetCookies(r.headers);
-  return r;
 }
 
 const log = (k, v) => console.log(`[${k}] ${v}`);
@@ -236,28 +189,12 @@ async function collectUntil({
 async function main() {
   console.log("\n--- Live activity ticker smoke (Cluster 7.11) ---\n");
 
-  // ── 1. Login
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) {
-    console.log("FATAL: no login aid");
-    process.exit(1);
-  }
-  const lp = await postForm(
-    "/login",
-    { email: SMOKE_USER_EMAIL, password: SMOKE_USER_PASSWORD },
-    { actionId: loginAid, kind: "bound" },
-  );
-  check("login: 303", lp.status === 303, `status=${lp.status}`);
-
-  const userRow = await prisma.user.findUnique({
-    where: { email: SMOKE_USER_EMAIL },
-  });
-  if (!userRow) {
-    console.log("FATAL: smoke user not found");
-    process.exit(1);
-  }
-  const userId = userRow.id;
+  // ── 1. Per-test fixture user (creates + seeds + logs in)
+  const s = await loginAsFixture("live-ticker");
+  log("fixture", `user=${s.email}`);
+  log("login", `status=${s.login.status} session=${!!s.jar["compass_session"]}`);
+  SESSION = s;
+  const userId = s.userId;
 
   // ── 2. Seed: write 3 sentinel events newest-first, then a
   // meta event OLDER than them so it doesn't take a top-3 slot.
@@ -334,7 +271,7 @@ async function main() {
   // ── 3. Hit an (app) page that uses the sidebar
   // We use /obligations (in (app)/ layout) — the dashboard root
   // also has the ticker but uses its own page render path.
-  const obligations = await get("/obligations");
+  const obligations = await s.get("/obligations");
   check("obligations: 200", obligations.status === 200, `status=${obligations.status}`);
   const html = await obligations.text();
 
@@ -470,7 +407,7 @@ async function main() {
   // Brief wait to let the stream subscribe to the bus before
   // the write fires.
   await new Promise((r) => setTimeout(r, 250));
-  await postJson("/api/dev/audit-log-write", {
+  await s.postJson("/api/dev/audit-log-write", {
     actionType: busSentinel,
     payload: { source: "smoke-ticker-bus" },
   });
@@ -500,7 +437,7 @@ async function main() {
   // backfill events that arrived during the disconnect window
   // (EventSource does NOT replay missed events). Verify the
   // route returns the recent rows + respects ?take=.
-  const recentDefault = await get("/api/vault/audit/recent");
+  const recentDefault = await s.get("/api/vault/audit/recent");
   check(
     "ticker: GET /api/vault/audit/recent returns 200",
     recentDefault.status === 200,
@@ -524,7 +461,7 @@ async function main() {
   );
 
   // ?take=5 returns 5 (clamped to MAX_TAKE=50, default 3).
-  const recentTake = await get("/api/vault/audit/recent?take=5");
+  const recentTake = await s.get("/api/vault/audit/recent?take=5");
   const recentTakeBody = await recentTake.json();
   check(
     "ticker: /api/vault/audit/recent?take=5 returns 5 rows",
@@ -533,7 +470,7 @@ async function main() {
   );
 
   // Out-of-range take is clamped, not 400.
-  const recentHuge = await get("/api/vault/audit/recent?take=999");
+  const recentHuge = await s.get("/api/vault/audit/recent?take=999");
   const recentHugeBody = await recentHuge.json();
   check(
     "ticker: /api/vault/audit/recent?take=999 clamps to <= 50",
@@ -567,7 +504,7 @@ async function main() {
   // the source-file check in #13 covers the contract.)
 
   // ── 14. Ticker renders on the dashboard root too
-  const dash = await get("/");
+  const dash = await s.get("/");
   check("dashboard: 200", dash.status === 200, `status=${dash.status}`);
   const dashHtml = await dash.text();
   check(
@@ -781,6 +718,8 @@ async function main() {
   });
 
   // Summary
+  await s.close();
+
   const ok = checks.filter(([, c]) => c).length;
   const total = checks.length;
   console.log(`\n--- summary: ${ok} / ${total} checks OK ---`);

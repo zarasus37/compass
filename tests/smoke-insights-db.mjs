@@ -27,73 +27,25 @@
  *      → page picks up the new value (verifies the read path is
  *      fully DB-driven).
  *
- * Run with: node tests/smoke-insights-db.mjs
+ * Run with: tsx --conditions=react-server tests/smoke-insights-db.mjs
  * (dev server must be running on 127.0.0.1:3000)
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * shared `mom@compass.local`, so this test can neither be poisoned by
+ * nor poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
+ *
+ * NOTE: the canonical goal/envelope ids ("goal-emergency", "env-rent",
+ * ...) are global primary keys, so the fixture namespaces them per user.
+ * Every id assertion below resolves through `s.ids`.
  */
 
 import { createRequire } from "node:module";
 import { join } from "node:path";
 
+import { loginAsFixture } from "./fixture.mjs";
 import { prisma } from "./db-client.mjs";
-
-const BASE = "http://127.0.0.1:3000";
-
-// ── HTTP helpers (jar pattern; smoke-bills-db.mjs style) ────────────────────
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postJson(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { method: "POST", headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  m = html.match(/\$ACTION_ID_([a-f0-9]{20,})/);
-  if (m) return m[1];
-  return null;
-}
-async function postForm(path, fields, { actionId, kind = "plain" } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId && kind === "bound") {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-  } else if (actionId) {
-    form.append(`$ACTION_ID_${actionId}`, "");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, { method: "POST", headers, body: form, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
 
 const log = (k, v) => console.log(`[${k}] ${v}`);
 const checks = [];
@@ -106,39 +58,29 @@ function check(name, cond, detail) {
 async function main() {
   console.log("--- Insights DB widget switch smoke (Cluster 5.2.6) ---\n");
 
-  // ── 1. Login as mom@compass.local (the canonical seed user) ─────
-  // The login form uses useActionState (bound form pattern), so we
-  // send the same shape the form would: $ACTION_REF_1 + $ACTION_1:0
-  // + $ACTION_1:1, with `bound: "$@1"`. The simple $ACTION_ID_<id>
-  // pattern is unreliable on cold dev-server starts.
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) { console.log("FATAL: no login aid"); process.exit(1); }
-  const lp = await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
-  }, { actionId: loginAid, kind: "bound" });
-  log("login", `status=${lp.status} session=${!!jar["compass_session"]}`);
-  if (!jar["compass_session"]) { console.log("FATAL: login failed"); process.exit(1); }
+  // ── 1. Per-test fixture user, logged in through the real action ──
+  const s = await loginAsFixture("insights-db");
+  log("fixture", `user=${s.email}`);
+  log("login", `status=${s.login.status} session=${!!s.jar["compass_session"]}`);
 
   // ── 2. Reset the user state so we start from a known canonical set
-  const r1 = await postJson("/api/reset-seed");
+  const r1 = await s.postJson("/api/reset-seed");
   const j1 = await r1.json();
   log("reset", `status=${r1.status} ok=${j1.ok} msg=${j1.message ?? ""}`);
 
   // ── 3. Find the user + verify the canonical seed rows are in the DB
   // (already covered by the dedicated widget smokes; this confirms
   // the tables are populated and ready for the page read).
-  const user = await prisma.user.findUnique({ where: { email: "mom@compass.local" } });
-  if (!user) { console.log("FATAL: no mom user"); process.exit(1); }
-  const envCount = await prisma.envelope.count({ where: { userId: user.id, isArchived: false } });
-  const goalCount = await prisma.goal.count({ where: { userId: user.id, isArchived: false } });
+  const user = await prisma.user.findUnique({ where: { email: s.email } });
+  if (!user) { console.log("FATAL: no fixture user"); process.exit(1); }
+  const envCount = await prisma.envelope.count({ where: { userId: s.userId, isArchived: false } });
+  const goalCount = await prisma.goal.count({ where: { userId: s.userId, isArchived: false } });
   log("seed rows", `envelopes=${envCount} goals=${goalCount}`);
   check("DB has 7 seed Envelopes (read prerequisite)", envCount === 7, `got ${envCount}`);
   check("DB has 4 seed Goals (read prerequisite)", goalCount === 4, `got ${goalCount}`);
 
   // ── 4. /insights renders 200 and the surface is complete
-  const i1 = await get("/insights");
+  const i1 = await s.get("/insights");
   const i1Text = await i1.text();
   log("/insights", `status=${i1.status} bytes=${i1Text.length}`);
   check("/insights: 200", i1.status === 200, `got ${i1.status}`);
@@ -261,7 +203,7 @@ async function main() {
     i1Text.includes("Emergency-fund target"),
     "Emergency-fund target copy not found",
   );
-  const emergencyGoal = await prisma.goal.findUnique({ where: { id: "goal-emergency" } });
+  const emergencyGoal = await prisma.goal.findUnique({ where: { id: s.ids.goals["goal-emergency"] } });
   check(
     "Emergency Fund goal in DB (drives the trajectory reference line)",
     emergencyGoal !== null && emergencyGoal.name === "Emergency Fund",
@@ -270,12 +212,12 @@ async function main() {
 
   // ── 7. Round-trip: change a goal's target in the DB → re-render
   log("round-trip", "change goal-invest currentAmount → re-render → restore");
-  const goalBefore = await prisma.goal.findUnique({ where: { id: "goal-invest" } });
+  const goalBefore = await prisma.goal.findUnique({ where: { id: s.ids.goals["goal-invest"] } });
   await prisma.goal.update({
-    where: { id: "goal-invest" },
+    where: { id: s.ids.goals["goal-invest"] },
     data: { currentAmount: 99_999_99 }, // $99,999.99 cents
   });
-  const i2 = await get("/insights");
+  const i2 = await s.get("/insights");
   const i2Text = await i2.text();
   // The "this period" stat cell renders the periodDeltaCents
   // (which is from in-memory, NOT from the goal), but the
@@ -299,7 +241,7 @@ async function main() {
   );
   // Restore
   await prisma.goal.update({
-    where: { id: "goal-invest" },
+    where: { id: s.ids.goals["goal-invest"] },
     data: { currentAmount: goalBefore?.currentAmount ?? 5_080_000 },
   });
   log("round-trip", "restored");
@@ -308,12 +250,12 @@ async function main() {
   // re-render → the page picks up the new value in the donut
   // legend's "Plan" percentage.
   log("round-trip", "change env-rent targetBalance → re-render → restore");
-  const envBefore = await prisma.envelope.findUnique({ where: { id: "env-rent" } });
+  const envBefore = await prisma.envelope.findUnique({ where: { id: s.ids.envelopes["env-rent"] } });
   await prisma.envelope.update({
-    where: { id: "env-rent" },
+    where: { id: s.ids.envelopes["env-rent"] },
     data: { targetBalance: 999_999_99 }, // $999,999.99 — makes rent dominate the donut
   });
-  const i3 = await get("/insights");
+  const i3 = await s.get("/insights");
   const i3Text = await i3.text();
   check(
     "/insights after envelope change: still 200",
@@ -327,12 +269,16 @@ async function main() {
   );
   // Restore
   await prisma.envelope.update({
-    where: { id: "env-rent" },
+    where: { id: s.ids.envelopes["env-rent"] },
     data: { targetBalance: envBefore?.targetBalance ?? 80_000 },
   });
   log("round-trip", "restored");
 
-  // ── 9. Final summary
+  // ── 9. Tear down this test's user, then the final summary.
+  // Teardown runs before the report so a crashed run is self-healing
+  // either way (the next fixture sweeps stale smoke-* users on create).
+  await s.close();
+
   console.log("\n--- checks ---");
   let pass = 0, fail = 0;
   for (const [, ok, detail] of checks) {

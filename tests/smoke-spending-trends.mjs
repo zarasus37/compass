@@ -9,54 +9,18 @@
  *   4. Sum-of-envelope invariants (positive numbers, ordered desc).
  *   5. Pending state renders honestly when no expenses exist.
  *
- * Run: node tests/smoke-spending-trends.mjs (dev server up).
+ * Run: tsx --conditions=react-server tests/smoke-spending-trends.mjs
+ * (dev server up).
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * shared `mom@compass.local`, so this test can neither be poisoned by
+ * nor poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
  */
 
+import { loginAsFixture } from "./fixture.mjs";
 import { prisma } from "./db-client.mjs";
-
-const BASE = "http://127.0.0.1:3000";
-
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  const m = html.match(/[a-f0-9]{20,}/);
-  return m ? m[0] : null;
-}
-async function postForm(path, fields, { actionId } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId) {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, { method: "POST", body: form, redirect: "manual", headers });
-  captureSetCookies(r.headers);
-  return r;
-}
 
 const checks = [];
 function check(name, cond, detail = "") {
@@ -65,20 +29,8 @@ function check(name, cond, detail = "") {
   console.log(`[${ok ? "OK" : "MISS"}] ${name}${detail ? `  — ${detail}` : ""}`);
 }
 
-async function login() {
-  const r1 = await get("/login");
-  const aid = extractActionId(await r1.text());
-  if (!aid) throw new Error("no login aid");
-  const r2 = await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
-  }, { actionId: aid });
-  if (!jar["compass_session"]) throw new Error(`login failed status=${r2.status}`);
-  return jar["compass_session"];
-}
-
-async function fetchHtml(path) {
-  const r = await get(path);
+async function fetchHtml(s, path) {
+  const r = await s.get(path);
   return { status: r.status, html: await r.text() };
 }
 
@@ -89,23 +41,30 @@ function readAttr(html, attr) {
 }
 
 async function main() {
-  await login();
+  // Per-test fixture user. The fixture creates the user, opens the
+  // onboarding gate both ways, provisions a biweekly paycheck and a
+  // month of spending, and performs the server-action login. The
+  // cookie jar rides on `s`, so every page read below is
+  // authenticated for the whole test.
+  const s = await loginAsFixture("spending-trends");
+  console.log(`[fixture] user=${s.email}`);
 
-  const user = await prisma.user.findUnique({ where: { email: "mom@compass.local" } });
+  const user = await prisma.user.findUnique({ where: { email: s.email } });
   if (!user) {
     console.error("CRASH: user not found");
     process.exit(1);
   }
 
   const acct = await prisma.account.findFirst({
-    where: { userId: user.id, isArchived: false },
+    where: { userId: s.userId, isArchived: false },
   });
   if (!acct) throw new Error("no spendable account");
 
   // ============================================================
   // Phase 1 — Seeding sample expenses
   // Delete any existing expenses in the 30-day window first so
-  // the smoke is deterministic.
+  // the smoke is deterministic. This also clears the fixture's own
+  // month of spending, which lives in the same window.
   // ============================================================
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -113,13 +72,13 @@ async function main() {
 
   await prisma.transaction.deleteMany({
     where: {
-      userId: user.id,
+      userId: s.userId,
       date: { gte: windowStart, lte: today },
     },
   });
 
   const env = await prisma.envelope.findMany({
-    where: { userId: user.id, isArchived: false },
+    where: { userId: s.userId, isArchived: false },
     select: { id: true, name: true },
     take: 7,
   });
@@ -140,17 +99,17 @@ async function main() {
     { daysAgo: 1, payee: "Whataburger", amount: -2400, envelopeId: dining.id },
     { daysAgo: 0, payee: "Chick-fil-A", amount: -1500, envelopeId: dining.id },
   ];
-  for (const s of samples) {
+  for (const t of samples) {
     const d = new Date(today);
-    d.setDate(d.getDate() - s.daysAgo);
+    d.setDate(d.getDate() - t.daysAgo);
     await prisma.transaction.create({
       data: {
-        userId: user.id,
+        userId: s.userId,
         accountId: acct.id,
-        envelopeId: s.envelopeId,
-        amount: s.amount,
+        envelopeId: t.envelopeId,
+        amount: t.amount,
         date: d,
-        payee: s.payee,
+        payee: t.payee,
         source: "smoke-spending-trends",
         cleared: true,
         metadata: "{}",
@@ -158,12 +117,12 @@ async function main() {
       },
     });
   }
-  const totalCents = samples.reduce((s, x) => s + Math.abs(x.amount), 0);
+  const totalCents = samples.reduce((a, x) => a + Math.abs(x.amount), 0);
 
   // ============================================================
   // Phase 2 — Card mounts on /insights
   // ============================================================
-  const ins = await fetchHtml("/insights");
+  const ins = await fetchHtml(s, "/insights");
   check("/insights 200", ins.status === 200, `got ${ins.status}`);
   check(
     "spending-trends-card testid rendered on /insights",
@@ -242,18 +201,23 @@ async function main() {
   // Delete all expenses in the window and re-fetch.
   await prisma.transaction.deleteMany({
     where: {
-      userId: user.id,
+      userId: s.userId,
       date: { gte: windowStart, lte: today },
     },
   });
   // Trigger the seeding of an envelope write before the fetch (envelopes are still in DB)
-  const ins2 = await fetchHtml("/insights");
+  const ins2 = await fetchHtml(s, "/insights");
   check(
     "pending state renders when no expenses exist",
     /data-testid="spending-trends-empty"|no expenses logged/i.test(ins2.html),
   );
 
   // ----- Final -----
+  // Tear down this test's user before reporting. If the test crashed
+  // earlier the next fixture's sweep reclaims the user anyway, so a
+  // failed run never leaks.
+  await s.close();
+
   console.log("\n--- checks ---");
   const pass = checks.filter((c) => c.ok).length;
   const miss = checks.length - pass;

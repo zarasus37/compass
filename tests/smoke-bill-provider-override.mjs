@@ -27,74 +27,24 @@
  *      check — the action uses the same `recordVaultAudit`).
  *  10. package.json smoke script includes this file.
  *
- * Run: `node tests/smoke-bill-provider-override.mjs` (dev server
- * must be up).
+ * Run: `tsx --conditions=react-server tests/smoke-bill-provider-override.mjs`
+ * (dev server must be up).
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs), so the
+ * ScheduledBill provider overrides + the
+ * `vault.off_ramp_provider_changed` audit rows this smoke writes
+ * belong to a throwaway user instead of the shared smoke user.
+ * tsx + the react-server condition are required because the
+ * fixture imports `src/lib/*.ts` (which pull in Next's
+ * `server-only` marker).
  */
 
 import { prisma } from "./db-client.mjs";
+import { loginAsFixture } from "./fixture.mjs";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const BASE = "http://127.0.0.1:3000";
 const ROOT = process.cwd();
-const SMOKE_USER_EMAIL = "mom@compass.local";
-const SMOKE_USER_PASSWORD = "correct-horse-battery-staple";
-
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar)
-    .map(([k, v]) => `${k}=${v}`)
-    .join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  m = html.match(/\$ACTION_ID_([a-f0-9]{20,})/);
-  if (m) return m[1];
-  return null;
-}
-async function postForm(path, fields, { actionId, kind = "plain" } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId && kind === "bound") {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-  } else if (actionId) {
-    form.append(`$ACTION_ID_${actionId}`, "");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers,
-    body: form,
-    redirect: "manual",
-  });
-  captureSetCookies(r.headers);
-  return r;
-}
 
 const log = (k, v) => console.log(`[${k}] ${v}`);
 const checks = [];
@@ -189,28 +139,11 @@ async function getOrCreateTestBill(userId) {
 async function main() {
   console.log("\n--- Per-bill off-ramp provider override smoke (Cluster 7.14) ---\n");
 
-  // ── 1. Login
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) {
-    console.log("FATAL: no login aid");
-    process.exit(1);
-  }
-  const lp = await postForm(
-    "/login",
-    { email: SMOKE_USER_EMAIL, password: SMOKE_USER_PASSWORD },
-    { actionId: loginAid, kind: "bound" },
-  );
-  check("login: 303", lp.status === 303, `status=${lp.status}`);
-
-  const userRow = await prisma.user.findUnique({
-    where: { email: SMOKE_USER_EMAIL },
-  });
-  if (!userRow) {
-    console.log("FATAL: smoke user not found");
-    process.exit(1);
-  }
-  const userId = userRow.id;
+  // ── 1. Per-test fixture user (creates + seeds + logs in)
+  const s = await loginAsFixture("bill-provider-override");
+  log("fixture", `user=${s.email}`);
+  log("login", `status=${s.login.status} session=${!!s.jar["compass_session"]}`);
+  const userId = s.userId;
 
   // ── 2. Get or create a test bill
   const bill = await getOrCreateTestBill(userId);
@@ -261,7 +194,7 @@ async function main() {
     },
   });
 
-  const histSpritz = await get(`/vault/bills/${encodeURIComponent(bill.id)}/history`);
+  const histSpritz = await s.get(`/vault/bills/${encodeURIComponent(bill.id)}/history`);
   check(
     "history: 200 (SPRITZ override set)",
     histSpritz.status === 200,
@@ -333,7 +266,7 @@ async function main() {
     where: { id: bill.id },
     data: { providerPreference: "MOCK" },
   });
-  const histMock = await get(`/vault/bills/${encodeURIComponent(bill.id)}/history`);
+  const histMock = await s.get(`/vault/bills/${encodeURIComponent(bill.id)}/history`);
   const histMockHtml = await histMock.text();
   const chainMockMatch = histMockHtml.match(
     /data-testid="vault-bill-offramp-resolved-chain"[^>]*data-chain="([^"]+)"/,
@@ -351,7 +284,7 @@ async function main() {
     where: { id: bill.id },
     data: { providerPreference: null },
   });
-  const histClear = await get(`/vault/bills/${encodeURIComponent(bill.id)}/history`);
+  const histClear = await s.get(`/vault/bills/${encodeURIComponent(bill.id)}/history`);
   const histClearHtml = await histClear.text();
   const chainClearMatch = histClearHtml.match(
     /data-testid="vault-bill-offramp-resolved-chain"[^>]*data-chain="([^"]+)"/,
@@ -380,7 +313,7 @@ async function main() {
     where: { id: bill.id },
     data: { providerPreference: "spritz" },
   });
-  const histLower = await get(`/vault/bills/${encodeURIComponent(bill.id)}/history`);
+  const histLower = await s.get(`/vault/bills/${encodeURIComponent(bill.id)}/history`);
   const histLowerHtml = await histLower.text();
   const chainLowerMatch = histLowerHtml.match(
     /data-testid="vault-bill-offramp-resolved-chain"[^>]*data-chain="([^"]+)"/,
@@ -410,7 +343,7 @@ async function main() {
     where: { id: bill.id },
     data: { providerPreference: "SPRITZ" },
   });
-  const vaultWithChip = await get("/vault");
+  const vaultWithChip = await s.get("/vault");
   const vaultWithChipHtml = await vaultWithChip.text();
   check(
     "vault: per-bill chip rendered when override differs from user default",
@@ -431,7 +364,7 @@ async function main() {
     where: { id: bill.id },
     data: { providerPreference: null },
   });
-  const vaultWithoutChip = await get("/vault");
+  const vaultWithoutChip = await s.get("/vault");
   const vaultWithoutChipHtml = await vaultWithoutChip.text();
   check(
     "vault: per-bill chip silent when override is null (inherits user default)",
@@ -449,7 +382,7 @@ async function main() {
   // vault.off_ramp_provider_changed rows; verify the row we
   // wrote earlier with { scope: "bill", billId, from, to } is
   // present and the page renders "scope" or "bill" in the row.
-  const histReAudit = await get(`/vault/bills/${encodeURIComponent(bill.id)}/history`);
+  const histReAudit = await s.get(`/vault/bills/${encodeURIComponent(bill.id)}/history`);
   const histReAuditHtml = await histReAudit.text();
   // The row for our prior write is in the table (we just need a
   // single audit row with the smoke sentinel to be there).
@@ -594,6 +527,8 @@ async function main() {
   });
 
   // Summary
+  await s.close();
+
   const ok = checks.filter(([, c]) => c).length;
   const total = checks.length;
   console.log(`\n--- summary: ${ok} / ${total} checks OK ---`);

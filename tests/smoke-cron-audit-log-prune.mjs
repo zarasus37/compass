@@ -23,82 +23,25 @@
  *      the auth check is skipped — the test verifies the
  *      source file has the right check.
  *
- * Run: `node tests/smoke-cron-audit-log-prune.mjs` (dev server
- * must be up).
+ * Run: `tsx --conditions=react-server tests/smoke-cron-audit-log-prune.mjs`
+ * (dev server must be up).
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs), so the
+ * `smoke.cron_prune.*` sentinel rows this smoke writes are scoped
+ * to a throwaway user instead of the shared smoke user. The
+ * `/api/cron/audit-log-prune` endpoint itself still sweeps every
+ * user in the DB by design — that's product behavior, not test
+ * coupling. tsx + the react-server condition are required because
+ * the fixture imports `src/lib/*.ts` (which pull in Next's
+ * `server-only` marker).
  */
 
 import { prisma } from "./db-client.mjs";
+import { loginAsFixture } from "./fixture.mjs";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
-const BASE = "http://127.0.0.1:3000";
 const ROOT = process.cwd();
-
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  m = html.match(/\$ACTION_ID_([a-f0-9]{20,})/);
-  if (m) return m[1];
-  return null;
-}
-async function postForm(path, fields, { actionId, kind = "bound" } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId && kind === "bound") {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-  } else if (actionId) {
-    form.append(`$ACTION_ID_${actionId}`, "");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers,
-    body: form,
-    redirect: "manual",
-  });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postJson(path, body) {
-  const headers = new Headers();
-  applyCookies(headers);
-  headers.set("content-type", "application/json");
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body ?? {}),
-    redirect: "manual",
-  });
-  return r;
-}
 
 const log = (k, v) => console.log(`[${k}] ${v}`);
 const checks = [];
@@ -119,14 +62,6 @@ function addDays(d, days) {
   return out;
 }
 
-async function getUserId() {
-  const row = await prisma.user.findFirst({
-    where: { email: "mom@compass.local" },
-    select: { id: true },
-  });
-  return row?.id ?? null;
-}
-
 async function cleanupSentinels(userId) {
   await prisma.auditLog.deleteMany({
     where: { userId, actionType: { startsWith: SENTINEL_PREFIX } },
@@ -139,24 +74,11 @@ async function cleanupSentinels(userId) {
 async function main() {
   console.log("\n--- Audit log retention cron smoke (Cluster 7.8.1) ---\n");
 
-  // ── 1. Login + get user id
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) {
-    console.log("FATAL: no login aid");
-    process.exit(1);
-  }
-  const lp = await postForm(
-    "/login",
-    { email: "mom@compass.local", password: "correct-horse-battery-staple" },
-    { actionId: loginAid, kind: "bound" },
-  );
-  check("login: 303", lp.status === 303, `status=${lp.status}`);
-  const userId = await getUserId();
-  if (!userId) {
-    console.log("FATAL: no user id");
-    process.exit(1);
-  }
+  // ── 1. Per-test fixture user (creates + seeds + logs in)
+  const s = await loginAsFixture("cron-audit-log-prune");
+  log("fixture", `user=${s.email}`);
+  log("login", `status=${s.login.status} session=${!!s.jar["compass_session"]}`);
+  const userId = s.userId;
   await cleanupSentinels(userId);
 
   // ── 2. Write 5 sentinels: 3 in-window, 2 out-of-window
@@ -168,13 +90,13 @@ async function main() {
     { daysAgo: 100, actionType: `${SENTINEL_PREFIX}old` },
     { daysAgo: 100, actionType: `${SENTINEL_PREFIX}old` },
   ];
-  for (const s of sentinels) {
+  for (const sent of sentinels) {
     await prisma.auditLog.create({
       data: {
         userId,
-        actionType: s.actionType,
-        payload: JSON.stringify({ sentinel: true, n: s.daysAgo }),
-        createdAt: addDays(NOW, -s.daysAgo),
+        actionType: sent.actionType,
+        payload: JSON.stringify({ sentinel: true, n: sent.daysAgo }),
+        createdAt: addDays(NOW, -sent.daysAgo),
       },
     });
   }
@@ -185,7 +107,7 @@ async function main() {
   // uses a sentinel at 100d ago which is well outside the 90d
   // retention horizon (today is 2026-08-31, so 100d ago is
   // 2026-05-23 — well past the 90-day cutoff).
-  const cronResp = await postJson("/api/cron/audit-log-prune", {});
+  const cronResp = await s.postJson("/api/cron/audit-log-prune", {});
   check(
     "cron: POST /api/cron/audit-log-prune returns 200",
     cronResp.status === 200,
@@ -272,7 +194,7 @@ async function main() {
   );
 
   // ── 5. Idempotency: a second POST right after the first is a no-op
-  const cronResp2 = await postJson("/api/cron/audit-log-prune", {});
+  const cronResp2 = await s.postJson("/api/cron/audit-log-prune", {});
   const cronBody2 = await cronResp2.json();
   // The smoke user has nothing left to prune (3 in-window + 0 out-of-window).
   const smokeUserEntry2 = cronBody2.results.find((r) => r.userId === userId);
@@ -370,6 +292,8 @@ async function main() {
   await cleanupSentinels(userId);
 
   // ── Summary
+  await s.close();
+
   console.log("\n--- checks ---");
   const pass = checks.filter((c) => c[1]).length;
   const miss = checks.length - pass;

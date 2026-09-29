@@ -31,85 +31,37 @@
  * `recordVaultAudit` (which calls `publishAuditEvent`) so the
  * bus actually fires.
  *
- * Run: `node tests/smoke-sse-audit-log.mjs` (dev server must
- * be up).
+ * Run: `tsx --conditions=react-server tests/smoke-sse-audit-log.mjs`
+ * (dev server must be up).
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs). The SSE
+ * collectors below attach the fixture's cookie jar (via the
+ * module-level `SESSION` holder) because `fetch` can't ride the
+ * fixture's helper on a streaming/AbortController request.
+ * tsx + the react-server condition are required because the
+ * fixture imports `src/lib/*.ts` (which pull in Next's
+ * `server-only` marker).
  */
 
 import { prisma } from "./db-client.mjs";
+import { loginAsFixture } from "./fixture.mjs";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const BASE = "http://127.0.0.1:3000";
+const BASE = process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3000";
 const ROOT = process.cwd();
-const SMOKE_USER_EMAIL = "mom@compass.local";
-const SMOKE_USER_PASSWORD = "correct-horse-battery-staple";
 
-const jar = {};
+/** The authenticated fixture session, set by main() before any
+ *  stream is opened. The SSE collectors read the cookie jar from
+ *  here so every request is scoped to this test's own user. */
+let SESSION = null;
+
 function applyCookies(headers) {
-  const cookies = Object.entries(jar)
+  if (!SESSION) return;
+  const cookies = Object.entries(SESSION.jar)
     .map(([k, v]) => `${k}=${v}`)
     .join("; ");
   if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  m = html.match(/\$ACTION_ID_([a-f0-9]{20,})/);
-  if (m) return m[1];
-  return null;
-}
-async function postForm(path, fields, { actionId, kind = "plain" } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId && kind === "bound") {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-  } else if (actionId) {
-    form.append(`$ACTION_ID_${actionId}`, "");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers,
-    body: form,
-    redirect: "manual",
-  });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postJson(path, body) {
-  const headers = new Headers({ "content-type": "application/json" });
-  applyCookies(headers);
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-    redirect: "manual",
-  });
-  captureSetCookies(r.headers);
-  return r;
 }
 
 const log = (k, v) => console.log(`[${k}] ${v}`);
@@ -251,19 +203,11 @@ async function collectUntil({
 async function main() {
   console.log("\n--- SSE audit log smoke (Cluster 7.6) ---\n");
 
-  // ── 1. Login
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) {
-    console.log("FATAL: no login aid");
-    process.exit(1);
-  }
-  const lp = await postForm(
-    "/login",
-    { email: SMOKE_USER_EMAIL, password: SMOKE_USER_PASSWORD },
-    { actionId: loginAid, kind: "bound" },
-  );
-  check("login: 303", lp.status === 303, `status=${lp.status}`);
+  // ── 1. Per-test fixture user (creates + seeds + logs in)
+  const s = await loginAsFixture("sse-audit-log");
+  log("fixture", `user=${s.email}`);
+  log("login", `status=${s.login.status} session=${!!s.jar["compass_session"]}`);
+  SESSION = s;
 
   // ── 2. Unauthenticated stream → blocked
   const r401 = await fetch(BASE + "/api/vault/audit/stream", {
@@ -282,19 +226,13 @@ async function main() {
   // the bus for the smoke to observe the event. The dev
   // endpoint calls `recordVaultAudit` which fires the bus.
   const SENTINEL_TYPE = "smoke.test_sse_event";
-  // Wipe any prior sentinels so the test is idempotent.
+  const userId = s.userId;
+  // Wipe any prior sentinels so the test is idempotent. Scoped to
+  // this test's own user: an unscoped delete here would nuke
+  // another test's `smoke.test_sse_event` rows mid-run.
   await prisma.auditLog.deleteMany({
-    where: { userId: { not: undefined }, actionType: SENTINEL_TYPE },
+    where: { userId, actionType: SENTINEL_TYPE },
   }).catch(() => {});
-  // We need the userId for the delete filter; look it up.
-  const userRow = await prisma.user.findUnique({
-    where: { email: SMOKE_USER_EMAIL },
-  });
-  if (!userRow) {
-    console.log("FATAL: smoke user not found");
-    process.exit(1);
-  }
-  const userId = userRow.id;
   await prisma.auditLog.deleteMany({
     where: { userId, actionType: SENTINEL_TYPE },
   });
@@ -344,7 +282,7 @@ async function main() {
     await new Promise((r) => setTimeout(r, 200));
     // Trigger the write via the dev endpoint. The bus fires in
     // the dev server's process; our listener receives it.
-    const writeRes = await postJson("/api/dev/audit-log-write", {
+    const writeRes = await s.postJson("/api/dev/audit-log-write", {
       actionType: SENTINEL_TYPE,
       payload: { smoke: true, tag: "cluster-7.6", sentinelId },
     });
@@ -407,12 +345,12 @@ async function main() {
     })();
     await new Promise((r) => setTimeout(r, 200));
     // Write a row scoped to A. The A stream should see it.
-    const rA = await postJson("/api/dev/audit-log-write", {
+    const rA = await s.postJson("/api/dev/audit-log-write", {
       actionType: scopedType,
       payload: { billId: billIdA, fresh: true, sentinelId: "A1" },
     });
     // Write a row scoped to B. The A stream should NOT see it.
-    const rB = await postJson("/api/dev/audit-log-write", {
+    const rB = await s.postJson("/api/dev/audit-log-write", {
       actionType: scopedType,
       payload: { billId: billIdB, fresh: true, sentinelId: "B1" },
     });
@@ -457,11 +395,11 @@ async function main() {
       } catch {}
     })();
     await new Promise((r) => setTimeout(r, 200));
-    const rB = await postJson("/api/dev/audit-log-write", {
+    const rB = await s.postJson("/api/dev/audit-log-write", {
       actionType: scopedType,
       payload: { billId: billIdB, fresh: true, sentinelId: "B2" },
     });
-    const rA = await postJson("/api/dev/audit-log-write", {
+    const rA = await s.postJson("/api/dev/audit-log-write", {
       actionType: scopedType,
       payload: { billId: billIdA, fresh: true, sentinelId: "A2" },
     });
@@ -542,7 +480,7 @@ async function main() {
       } catch {}
     })();
     await new Promise((r) => setTimeout(r, 200));
-    await postJson("/api/dev/audit-log-write", {
+    await s.postJson("/api/dev/audit-log-write", {
       actionType: metaType,
       payload: { meta: true },
     });
@@ -680,6 +618,8 @@ async function main() {
   });
 
   // ── Summary
+  await s.close();
+
   console.log("\n--- checks ---");
   const pass = checks.filter(([, ok]) => ok).length;
   const miss = checks.length - pass;

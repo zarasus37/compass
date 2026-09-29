@@ -13,68 +13,27 @@
  *   - POST FormData needs: $ACTION_REF_1="" and the matching $ACTION_ID_xxx="".
  *   - No $ACTION_1:0 / $ACTION_1:1 (those are the useActionState wire format).
  *
- * Run with: node tests/smoke-engine-toggle.mjs
+ * Run with: tsx --conditions=react-server tests/smoke-engine-toggle.mjs
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * shared `mom@compass.local`, so this test can neither be poisoned by
+ * nor poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
  */
 
-const BASE = "http://127.0.0.1:3000";
+import { loginAsFixture } from "./fixture.mjs";
 
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postForm(path, fields, { useActionState } = {}) {
-  // useActionState forms: $ACTION_REF_1, $ACTION_1:0 (JSON {id,bound}), $ACTION_1:1 (initial state).
-  // Plain server-action forms: $ACTION_REF_1 + the $ACTION_ID_<hex> hidden input set to "".
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (useActionState) {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: useActionState.id, bound: "$@1" }));
-    form.append("$ACTION_1:1", JSON.stringify(useActionState.initial));
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, { method: "POST", headers, body: form, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postPlainAction(path, actionId) {
-  // Plain server-action POST: ONLY the $ACTION_ID_<hex> hidden input.
-  // (No $ACTION_REF_1 — that's only for useActionState forms which also
-  //  have a $ACTION_1:0 action-descriptor field. Plain MPA forms don't.)
-  const headers = new Headers();
-  applyCookies(headers);
+/**
+ * Plain server-action POST: ONLY the $ACTION_ID_<hex> hidden input.
+ * (No $ACTION_REF_1 — that's only for useActionState forms which also
+ * have a $ACTION_1:0 action-descriptor field. Plain MPA forms don't.)
+ * Rides on the fixture's cookie jar by delegating to s.get.
+ */
+async function postPlainAction(s, path, actionId) {
   const form = new FormData();
   form.append(`$ACTION_ID_${actionId}`, "");
-  const r = await fetch(BASE + path, { method: "POST", headers, body: form, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractUseActionStateId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  return null;
+  return s.get(path, { method: "POST", body: form });
 }
 function extractPlainActionId(html) {
   // The $ACTION_ID_<hex> hidden input. The hex is a SHA-1-shaped digest
@@ -106,19 +65,12 @@ const log = (k, v) => console.log(`[${k}] ${v}`);
 async function main() {
   console.log("--- Engine toggle smoke ---\n");
 
-  // Login (useActionState form: $ACTION_1:0 / $ACTION_1:1)
-  const lr = await get("/login");
-  const loginAid = extractUseActionStateId(await lr.text());
-  if (!loginAid) { console.log("FATAL: no login aid"); process.exit(1); }
-  const lp = await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
-  }, { useActionState: { id: loginAid, initial: [{ ok: false }] } });
-  log("login", `status=${lp.status} session=${!!jar["compass_session"]}`);
-  if (!jar["compass_session"]) { console.log("FATAL: login failed"); process.exit(1); }
+  // ── 1. Per-test fixture user, logged in through the real action ──
+  const s = await loginAsFixture("engine-toggle");
+  log("fixture", `user=${s.email}`);
 
   // --- Step 1: read dashboard, find engine form, read current label ---
-  const r1 = await get("/");
+  const r1 = await s.get("/");
   const html1 = await r1.text();
   const engineForm1 = extractEngineForm(html1);
   if (!engineForm1) { console.log("FATAL: engine form not found"); process.exit(2); }
@@ -135,11 +87,11 @@ async function main() {
 
   // --- Step 2: POST the toggle (plain server action) ---
   const targetLabel = startLabel === "L1 RULES ENGINE" ? "L2 AI ENGINE" : "L1 RULES ENGINE";
-  const toggleRes = await postPlainAction("/", engineAid1);
+  const toggleRes = await postPlainAction(s, "/", engineAid1);
   log("toggle POST", `status=${toggleRes.status}`);
 
   // --- Step 3: re-read the dashboard, confirm the label flipped ---
-  const r2 = await get("/");
+  const r2 = await s.get("/");
   const html2 = await r2.text();
   const afterToggle = readEngineLabel(html2);
   log("after toggle", afterToggle);
@@ -148,9 +100,9 @@ async function main() {
   const engineForm2 = extractEngineForm(html2);
   const engineAid2 = engineForm2 ? extractPlainActionId(engineForm2) : null;
   if (!engineAid2) { console.log("FATAL: engine action id not found on second fetch"); process.exit(2); }
-  const toggleRes2 = await postPlainAction("/", engineAid2);
+  const toggleRes2 = await postPlainAction(s, "/", engineAid2);
   log("toggle back POST", `status=${toggleRes2.status}`);
-  const r3 = await get("/");
+  const r3 = await s.get("/");
   const html3 = await r3.text();
   const afterToggle2 = readEngineLabel(html3);
   log("after toggle back", afterToggle2);
@@ -158,11 +110,11 @@ async function main() {
   // --- Step 5: persistence check — navigate to a different page, then back ---
   // (the cookie session and the SystemSettings row are independent of the URL;
   //  we just confirm the label sticks across a navigation, not just within "/".)
-  const r4 = await get("/envelopes");
+  const r4 = await s.get("/envelopes");
   const html4 = await r4.text();
   const onEnvelopes = readEngineLabel(html4);
   log("on /envelopes", onEnvelopes);
-  const r5 = await get("/");
+  const r5 = await s.get("/");
   const html5 = await r5.text();
   const backOnDashboard = readEngineLabel(html5);
   log("back on /", backOnDashboard);
@@ -177,6 +129,9 @@ async function main() {
     [`persistence on /envelopes: label still ${startLabel}`, onEnvelopes === startLabel],
     [`persistence back on /: label still ${startLabel}`, backOnDashboard === startLabel],
   ];
+
+  // Tear down this test's fixture user before the summary.
+  await s.close();
 
   console.log("\n--- checks ---");
   let pass = 0, fail = 0;

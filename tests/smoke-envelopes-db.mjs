@@ -12,75 +12,29 @@
  *   3. A balance change via rebalance persists to the DB and the
  *      page reflects it on the next render.
  *
- * Run with: node tests/smoke-envelopes-db.mjs
+ * Run with: tsx --conditions=react-server tests/smoke-envelopes-db.mjs
  * (dev server must be running on 127.0.0.1:3000)
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * shared `mom@compass.local`, so this test can neither be poisoned by
+ * nor poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
+ *
+ * NOTE: the canonical envelope ids ("env-rent", "env-savings", ...) are
+ * global primary keys, so the fixture namespaces them per user. Every id
+ * assertion below resolves through `s.ids`.
  */
 
 import { createRequire } from "node:module";
 import { join } from "node:path";
 
+import { loginAsFixture } from "./fixture.mjs";
 import { prisma } from "./db-client.mjs";
 
-const BASE = "http://127.0.0.1:3000";
-
-// ── HTTP helpers ────────────────────────────────────────────────────────
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postJson(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { method: "POST", headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postForm(path, fields, { actionId, kind = "bound" } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId) {
-    if (kind === "bound") {
-      form.append("$ACTION_REF_1", "");
-      form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-      form.append("$ACTION_1:1", "[{\"ok\":false}]");
-    } else {
-      form.append(`$ACTION_ID_${actionId}`, "");
-    }
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, { method: "POST", headers, body: form, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  m = html.match(/\$ACTION_ID_([a-f0-9]{20,})/);
-  if (m) return m[1];
-  return null;
-}
+// The fixture carries the cookie jar, so page reads go through s.get /
+// s.postJson. The rebalance form POST below keeps its own wire format
+// and rides on the same jar by delegating to s.get.
 
 const log = (k, v) => console.log(`[${k}] ${v}`);
 const checks = [];
@@ -93,27 +47,37 @@ function check(name, cond, detail) {
 async function main() {
   console.log("--- Envelopes DB widget switch smoke (Cluster 5.2.6) ---\n");
 
-  // ── 1. Login as mom@compass.local ─────────────────────────────
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) { console.log("FATAL: no login aid"); process.exit(1); }
-  const lp = await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
-  }, { actionId: loginAid });
-  log("login", `status=${lp.status} session=${!!jar["compass_session"]}`);
-  if (!jar["compass_session"]) { console.log("FATAL: login failed"); process.exit(1); }
+  // ── 1. Per-test fixture user, logged in through the real action ──
+  const s = await loginAsFixture("envelopes-db");
+  log("fixture", `user=${s.email}`);
+  log("login", `status=${s.login.status} session=${!!s.jar["compass_session"]}`);
+
+  // The rebalance form POST rides on the fixture's cookie jar.
+  const postForm = async (path, fields, { actionId, kind = "bound" } = {}) => {
+    const form = new FormData();
+    if (actionId) {
+      if (kind === "bound") {
+        form.append("$ACTION_REF_1", "");
+        form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
+        form.append("$ACTION_1:1", "[{\"ok\":false}]");
+      } else {
+        form.append(`$ACTION_ID_${actionId}`, "");
+      }
+    }
+    for (const [k, v] of Object.entries(fields)) form.append(k, v);
+    return s.get(path, { method: "POST", body: form });
+  };
 
   // ── 2. Reset to seed ──────────────────────────────────────────
-  const r1 = await postJson("/api/reset-seed");
+  const r1 = await s.postJson("/api/reset-seed");
   const j1 = await r1.json();
   log("reset", `status=${r1.status} ok=${j1.ok} msg=${j1.message ?? ""}`);
 
   // ── 3. Find the user + check the Envelope table ───────────────
-  const user = await prisma.user.findUnique({ where: { email: "mom@compass.local" } });
-  if (!user) { console.log("FATAL: no mom user"); process.exit(1); }
+  const user = await prisma.user.findUnique({ where: { email: s.email } });
+  if (!user) { console.log("FATAL: no fixture user"); process.exit(1); }
   const envelopes = await prisma.envelope.findMany({
-    where: { userId: user.id, source: "seed" },
+    where: { userId: s.userId, source: "seed" },
     orderBy: { sortOrder: "asc" },
   });
   log("seed envelopes in DB", `count=${envelopes.length}`);
@@ -147,7 +111,7 @@ async function main() {
   }
 
   // ── 4. /envelopes renders those rows ──────────────────────────
-  const e1 = await get("/envelopes");
+  const e1 = await s.get("/envelopes");
   const e1Text = await e1.text();
   log("/envelopes", `status=${e1.status} bytes=${e1Text.length}`);
   check("/envelopes: 200", e1.status === 200, `got ${e1.status}`);
@@ -171,15 +135,16 @@ async function main() {
     e1Text.includes("Move between vessels"),
     "section header not found",
   );
-  // The RebalanceForm should be present (option values = env-* ids)
+  // The RebalanceForm should be present (option values = the user's
+  // envelope ids, which the fixture namespaces per user).
   check(
     "/envelopes RebalanceForm has env-rent option",
-    /value="env-rent"/.test(e1Text),
+    new RegExp(`value="${s.ids.envelopes["env-rent"]}"`).test(e1Text),
     "env-rent option not found",
   );
   check(
     "/envelopes RebalanceForm has env-savings option",
-    /value="env-savings"/.test(e1Text),
+    new RegExp(`value="${s.ids.envelopes["env-savings"]}"`).test(e1Text),
     "env-savings option not found",
   );
 
@@ -198,15 +163,15 @@ async function main() {
     log("rebalance aid", rebalAid.slice(0, 12) + "...");
     // Move $10 from Rent to Groceries
     const rebal = await postForm("/envelopes", {
-      sourceEnvelopeId: "env-rent",
-      destinationEnvelopeId: "env-groceries",
+      sourceEnvelopeId: s.ids.envelopes["env-rent"],
+      destinationEnvelopeId: s.ids.envelopes["env-groceries"],
       amount: "10",
     }, { actionId: rebalAid });
     log("rebalance POST", `status=${rebal.status}`);
 
     // Re-read the DB to confirm the new balances
-    const rentAfter = await prisma.envelope.findFirst({ where: { id: "env-rent", userId: user.id } });
-    const groceriesAfter = await prisma.envelope.findFirst({ where: { id: "env-groceries", userId: user.id } });
+    const rentAfter = await prisma.envelope.findFirst({ where: { id: s.ids.envelopes["env-rent"], userId: s.userId } });
+    const groceriesAfter = await prisma.envelope.findFirst({ where: { id: s.ids.envelopes["env-groceries"], userId: s.userId } });
     check(
       "DB Rent.currentBalance = 79000 after rebalance (-$10)",
       rentAfter && rentAfter.currentBalance === 79000,
@@ -219,7 +184,7 @@ async function main() {
     );
 
     // And the page re-render reflects the new balance
-    const e2 = await get("/envelopes");
+    const e2 = await s.get("/envelopes");
     const e2Text = await e2.text();
     // The "Every envelope" row shows the envelope + current/target.
     // After the rebalance, Rent should be at $790 (79000 cents).
@@ -231,7 +196,12 @@ async function main() {
     );
   }
 
-  // ── 6. Final summary ──────────────────────────────────────────
+  // ── 6. Tear down this test's user, then the final summary.
+  // Teardown runs before the report so a crashed run is self-healing
+  // either way (the next fixture sweeps stale smoke-* users on create).
+  await s.close();
+
+  // ── 7. Final summary ──────────────────────────────────────────
   console.log("\n--- checks ---");
   let pass = 0, fail = 0;
   for (const [name, ok] of checks) {

@@ -8,62 +8,28 @@
  *   - The rebalance action against the reset state succeeds (so the
  *     rebalance can run on freshly-seeded data)
  *
- * Run with: node tests/smoke-reset-seed.mjs
+ * Run with: tsx --conditions=react-server tests/smoke-reset-seed.mjs
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * shared `mom@compass.local`, so this test can neither be poisoned by
+ * nor poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
+ *
+ * KNOWN HAZARD (deliberately not fixed here — see the report):
+ * /api/reset-seed calls resetUserEnvelopesToSeed (src/lib/store.ts),
+ * which deleteMany's ALL of the caller's envelopes and re-inserts the
+ * 7 seed envelopes under GLOBAL fixed primary keys ("env-rent", …).
+ * The same route's ensureUser*Seeded calls insert "acct-chase",
+ * "bill-rent", "goal-emergency", "plan-default" under global pkeys, so
+ * if any other user already holds those keys the route's transaction
+ * dies on a pkey violation and returns 500. The call is kept verbatim
+ * because removing it would change what this test verifies.
  */
 
-const BASE = "http://127.0.0.1:3000";
+import { loginAsFixture } from "./fixture.mjs";
 
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postForm(path, fields, { actionId } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId) {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, { method: "POST", headers, body: form, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postJson(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { method: "POST", headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  return null;
-}
+const BASE = process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3000";
 const log = (k, v) => console.log(`[${k}] ${v}`);
 
 async function main() {
@@ -77,26 +43,19 @@ async function main() {
   });
   log("no-auth POST", `status=${noAuth.status}`);
 
-  // 2. Login
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) { console.log("FATAL: no login aid"); process.exit(1); }
-  const lp = await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
-  }, { actionId: loginAid });
-  log("login", `status=${lp.status} session=${!!jar["compass_session"]}`);
-  if (!jar["compass_session"]) { console.log("FATAL: login failed"); process.exit(1); }
+  // 2. Per-test fixture user, logged in through the real action ──
+  const s = await loginAsFixture("reset-seed");
+  log("fixture", `user=${s.email}`);
 
   // 3. POST /api/reset-seed with a session
-  const r1 = await postJson("/api/reset-seed");
+  const r1 = await s.postJson("/api/reset-seed");
   const j1 = await r1.json();
   log("reset POST", `status=${r1.status} ok=${j1.ok} msg=${j1.message ?? ""}`);
 
   // 4. After reset, /envelopes page should still render (the engine
   //    auto-seeds if the user has no envelopes, but after the reset
   //    the user has 7 fresh envelopes, so reads just work).
-  const env1 = await get("/envelopes");
+  const env1 = await s.get("/envelopes");
   const env1Text = await env1.text();
   const hasGroceries = /Groceries/.test(env1Text);
   log("/envelopes after reset", `status=${env1.status} hasGroceries=${hasGroceries}`);
@@ -104,7 +63,7 @@ async function main() {
   // 5. Trigger a rebalance via the existing action — this is a full
   //    end-to-end check that the engine still works post-reset. We
   //    grab the rebalance form's action id and post a $10 transfer.
-  const env2 = await get("/envelopes");
+  const env2 = await s.get("/envelopes");
   const env2Text = await env2.text();
   const moveIdx = env2Text.indexOf("MOVE BETWEEN VESSELS");
   const formStart = env2Text.indexOf("<form", moveIdx);
@@ -114,8 +73,24 @@ async function main() {
     || rebalanceForm.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/)?.[1];
   log("rebalance form aid", rebalAid ? rebalAid.slice(0, 12) + "..." : "NONE");
 
+  // The rebalance POST keeps its own bound-useActionState wire format
+  // and rides on the fixture's cookie jar by delegating to s.get.
+  const postForm = async (path, fields, { actionId } = {}) => {
+    const form = new FormData();
+    if (actionId) {
+      form.append("$ACTION_REF_1", "");
+      form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
+      form.append("$ACTION_1:1", "[{\"ok\":false}]");
+    }
+    for (const [k, v] of Object.entries(fields)) form.append(k, v);
+    return s.get(path, { method: "POST", body: form });
+  };
+
   // Parse envelope balances from the form (post-reset, should be
-  // the seed values).
+  // the seed values). NOTE: these are the GLOBAL seed envelope ids,
+  // not s.ids.envelopes — the reset above replaces the fixture's
+  // namespaced rows with the canonical global-id seed set, which is
+  // precisely the behaviour under test.
   const rebalance = await postForm("/envelopes", {
     sourceEnvelopeId: "env-rent",
     destinationEnvelopeId: "env-groceries",
@@ -124,7 +99,7 @@ async function main() {
   log("rebalance POST", `status=${rebalance.status}`);
 
   // 6. Read /envelopes again — verify balances shifted by $10.
-  const env3 = await get("/envelopes");
+  const env3 = await s.get("/envelopes");
   const env3Text = await env3.text();
   // Match the full option label (which contains React 19 hydration
   // comments separating the name from the money). We slice from the
@@ -160,6 +135,9 @@ async function main() {
     ["rent lost 1000 cents after rebalance", balances3["env-rent"] === 79000],
     ["groceries gained 1000 cents after rebalance", balances3["env-groceries"] === 62200],
   ];
+
+  // Tear down this test's fixture user before the summary.
+  await s.close();
 
   console.log("\n--- checks ---");
   let pass = 0, fail = 0;

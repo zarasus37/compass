@@ -9,59 +9,19 @@
  *   5. addSink server action: creates a row.
  *   6. deleteSink server action: removes a row.
  *   7. Math invariant: monthlyFillCents returns expected value per cadence.
+ *
+ * Run: tsx --conditions=react-server tests/smoke-sinking-funds.mjs
+ * (dev server up).
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * shared `mom@compass.local`, so this test can neither be poisoned by
+ * nor poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
  */
 
+import { loginAsFixture } from "./fixture.mjs";
 import { prisma } from "./db-client.mjs";
-
-const BASE = "http://127.0.0.1:3000";
-
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  const m = html.match(/[a-f0-9]{20,}/);
-  return m ? m[0] : null;
-}
-async function postForm(path, fields, { actionId } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId) {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-    // Best-effort $ACTION_KEY; not strictly required for the
-    // cluster's add/delete actions but matches the smoke pattern.
-    const akMatch = (await fetch(BASE + path).then((r) => r.text())).match(
-      /name="\$ACTION_KEY"\s+value="([^"]+)"/,
-    );
-    if (akMatch) form.append("$ACTION_KEY", akMatch[1]);
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, { method: "POST", body: form, redirect: "manual", headers });
-  captureSetCookies(r.headers);
-  return r;
-}
 
 const checks = [];
 function check(name, cond, detail = "") {
@@ -70,27 +30,20 @@ function check(name, cond, detail = "") {
   console.log(`[${ok ? "OK" : "MISS"}] ${name}${detail ? `  — ${detail}` : ""}`);
 }
 
-async function login() {
-  const r1 = await get("/login");
-  const aid = extractActionId(await r1.text());
-  if (!aid) throw new Error("no login aid");
-  const r2 = await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
-  }, { actionId: aid });
-  if (!jar["compass_session"]) throw new Error(`login failed status=${r2.status}`);
-  return jar["compass_session"];
-}
-
-async function fetchHtml(path) {
-  const r = await get(path);
+async function fetchHtml(s, path) {
+  const r = await s.get(path);
   return { status: r.status, html: await r.text() };
 }
 
 async function main() {
-  await login();
+  // Per-test fixture user. The fixture creates the user, opens the
+  // onboarding gate both ways, provisions the canonical-shaped
+  // baseline, and performs the server-action login. The cookie jar
+  // rides on `s`, so every page read below is authenticated.
+  const s = await loginAsFixture("sinking-funds");
+  console.log(`[fixture] user=${s.email}`);
 
-  const user = await prisma.user.findUnique({ where: { email: "mom@compass.local" } });
+  const user = await prisma.user.findUnique({ where: { email: s.email } });
   if (!user) {
     console.error("CRASH: user not found");
     process.exit(1);
@@ -111,12 +64,12 @@ async function main() {
   // ============================================================
   // Phase 2 — Lazy-seed inserted default sinks on first read
   // ============================================================
-  const sinksBefore = await prisma.envelopeSink.count({ where: { userId: user.id, isArchived: false } });
+  const sinksBefore = await prisma.envelopeSink.count({ where: { userId: s.userId, isArchived: false } });
   // Trigger seed by fetching /envelopes
-  await fetchHtml("/envelopes");
+  await fetchHtml(s, "/envelopes");
   // Give the server time to commit
   await new Promise((r) => setTimeout(r, 500));
-  const sinksAfter = await prisma.envelopeSink.count({ where: { userId: user.id, isArchived: false } });
+  const sinksAfter = await prisma.envelopeSink.count({ where: { userId: s.userId, isArchived: false } });
   check(
     "lazy-seed inserted at least one sink per seedable envelope (5 envelopes)",
     sinksAfter >= 5,
@@ -125,10 +78,10 @@ async function main() {
 
   // Verify expected seeded names exist (Holiday food, Annual subscription, etc.)
   const seededNames = await prisma.envelopeSink.findMany({
-    where: { userId: user.id, source: "seed" },
+    where: { userId: s.userId, source: "seed" },
     select: { name: true },
   });
-  const nameSet = new Set(seededNames.map((s) => s.name));
+  const nameSet = new Set(seededNames.map((x) => x.name));
   check(
     "Holiday food sink exists (Groceries seed)",
     nameSet.has("Holiday food"),
@@ -145,7 +98,7 @@ async function main() {
   // ============================================================
   // Phase 3 — /envelopes renders sinks inline under each envelope row
   // ============================================================
-  const envHtml = (await fetchHtml("/envelopes")).html;
+  const envHtml = (await fetchHtml(s, "/envelopes")).html;
   check(
     "envelope-sinks-{id} testids render inline under envelope rows",
     /data-testid="envelope-sinks-[^"]+"/.test(envHtml),
@@ -159,12 +112,12 @@ async function main() {
   // Phase 4 — /envelopes/[id] renders the section + form
   // ============================================================
   const groceries = await prisma.envelope.findFirst({
-    where: { userId: user.id, name: "Groceries", isArchived: false },
+    where: { userId: s.userId, name: "Groceries", isArchived: false },
   });
   if (!groceries) {
     check("groceries envelope exists for detail-page smoke", false);
   } else {
-    const detail = await fetchHtml(`/envelopes/${groceries.id}`);
+    const detail = await fetchHtml(s, `/envelopes/${groceries.id}`);
     check(
       "envelope-sinks-section testid rendered on /envelopes/[id]",
       /data-testid="envelope-sinks-section"/.test(detail.html),
@@ -189,8 +142,8 @@ async function main() {
   // ============================================================
   // Hit the /envelopes/[id] page to capture the action id
   if (groceries) {
-    const detailPage = (await fetchHtml(`/envelopes/${groceries.id}`)).html;
-    const detailAction = extractActionId(detailPage);
+    const detailPage = (await fetchHtml(s, `/envelopes/${groceries.id}`)).html;
+    const detailAction = detailPage.match(/[a-f0-9]{20,}/)?.[0] ?? null;
     // Direct DB insert is more reliable for testing the action
     // contract than e2e form submission through React server actions.
     // Verify the action wiring exists by reading actions/sinks.ts.
@@ -211,12 +164,12 @@ async function main() {
     // Also test the underlying Prisma create directly to verify
     // the contract (envelopeId, userId, target cents, cadence).
     const probeBefore = await prisma.envelopeSink.count({
-      where: { envelopeId: groceries.id, userId: user.id },
+      where: { envelopeId: groceries.id, userId: s.userId },
     });
     const newSink = await prisma.envelopeSink.create({
       data: {
         envelopeId: groceries.id,
-        userId: user.id,
+        userId: s.userId,
         name: "Probe sink",
         targetCents: 12_345,
         cadence: "quarterly",
@@ -224,7 +177,7 @@ async function main() {
       },
     });
     const probeAfter = await prisma.envelopeSink.count({
-      where: { envelopeId: groceries.id, userId: user.id },
+      where: { envelopeId: groceries.id, userId: s.userId },
     });
     check(
       "Prisma.create on EnvelopeSink writes the row (addSink contract)",
@@ -258,6 +211,11 @@ async function main() {
   );
 
   // ----- Final -----
+  // Tear down this test's user before reporting. If the test crashed
+  // earlier the next fixture's sweep reclaims the user anyway, so a
+  // failed run never leaks.
+  await s.close();
+
   console.log("\n--- checks ---");
   const pass = checks.filter((c) => c.ok).length;
   const miss = checks.length - pass;

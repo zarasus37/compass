@@ -13,15 +13,20 @@
  *   7. Main padding is reduced at mobile (asserts `<main>` computed
  *      padding-left is 16px, not the desktop 80px)
  *
- * Run: node tests/smoke-mobile-shell.mjs (dev server up).
+ * Run: tsx --conditions=react-server tests/smoke-mobile-shell.mjs
+ * (dev server up).
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * one shared smoke user, so this test can neither be poisoned by nor
+ * poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
  */
 
 import { chromium } from "playwright";
-import { prisma } from "./db-client.mjs";
+import { loginAsFixture } from "./fixture.mjs";
 
 const BASE = "http://127.0.0.1:3000";
-const USER = "mom@compass.local";
-const PASS = "correct-horse-battery-staple";
 
 const TARGETS = [
   { name: "iphone-14", viewport: { width: 393, height: 852 } },
@@ -37,10 +42,10 @@ function check(name, cond, detail = "") {
   console.log(`[${ok ? "OK" : "MISS"}] ${name}${detail ? `  — ${detail}` : ""}`);
 }
 
-async function login(page) {
+async function login(page, s) {
   await page.goto(`${BASE}/login`, { waitUntil: "networkidle" });
-  await page.fill('input[name="email"]', USER);
-  await page.fill('input[name="password"]', PASS);
+  await page.fill('input[name="email"]', s.email);
+  await page.fill('input[name="password"]', s.password);
   await Promise.all([
     page.waitForURL(`${BASE}/`, { timeout: 15000 }),
     page.locator('button[type="submit"]').click(),
@@ -116,6 +121,13 @@ async function openAndProbeSheet(page, targetName) {
   check(`[${targetName}] tapping a nav link closes the sheet`, !stillOpen);
 }
 
+// Per-test fixture user: creates the user, opens the onboarding gate
+// both ways, provisions the seeded baseline, and performs the
+// server-action login. The Playwright contexts below log in through the
+// real form with this user's credentials.
+const s = await loginAsFixture("mobile-shell");
+console.log(`[fixture] user=${s.email}`);
+
 const browser = await chromium.launch({ headless: true });
 
 try {
@@ -127,7 +139,7 @@ try {
       hasTouch: true,
     });
     const page = await ctx.newPage();
-    await login(page);
+    await login(page, s);
 
     // 6. Each main route — no overflow
     for (const r of ROUTES) {
@@ -150,6 +162,11 @@ try {
 } finally {
   await browser.close();
 }
+
+// Tear down this test's user before reporting. If the test crashed
+// earlier the next fixture's sweep reclaims the user anyway, so a
+// failed run never leaks.
+await s.close();
 
 console.log("\n--- checks ---");
 const pass = checks.filter((c) => c.ok).length;

@@ -71,6 +71,24 @@ export async function ensureUserAccountsSeeded(
     };
   }
 
+  // A user who already has accounts of their own must not be handed a
+  // phantom canonical one. This is not hypothetical: the test fixture
+  // provisions a canonical-shaped account under a namespaced id, and the
+  // old "lacks ACCOUNT_SEED.id → seed it" rule responded by inserting a
+  // SECOND "Chase Checking" worth $84,210.00 that the user never added.
+  // The same would happen to any real second user of this app.
+  //
+  // The seed dataset exists to bootstrap an empty account list. If the
+  // list is not empty, the seeder's job is done.
+  const anyAccounts = await prisma.account.count({ where: { userId } });
+  if (anyAccounts > 0) {
+    return {
+      seeded: anyAccounts,
+      version: ACCOUNT_SEED_VERSION,
+      alreadyHadSeed: true,
+    };
+  }
+
   // (Re)seed: drop only the canonical seed row (by id), then re-insert.
   await prisma.account.deleteMany({
     where: { userId, id: ACCOUNT_SEED.id },

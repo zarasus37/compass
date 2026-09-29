@@ -17,55 +17,16 @@
  *   - The Sidebar (the primary nav surface) has 0 entries pointing
  *     to the old paths.
  *
- * Run with: node tests/smoke-deprecated.mjs
+ * Run with: tsx --conditions=react-server tests/smoke-deprecated.mjs
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * shared `mom@compass.local`, so this test can neither be poisoned by
+ * nor poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
  */
 
-const BASE = "http://127.0.0.1:3000";
-
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postForm(path, fields, { actionId } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId) {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[\"$undefined\"]");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, { method: "POST", headers, body: form, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  return null;
-}
+import { loginAsFixture } from "./fixture.mjs";
 
 // The 6 redirects in next.config.ts.
 const REDIRECTS = [
@@ -95,15 +56,9 @@ const NEW_ROUTES = [
 async function main() {
   console.log("--- Deprecated-cleanup smoke ---\n");
 
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) { console.log("FATAL: no login aid"); process.exit(1); }
-  const lp = await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
-  }, { actionId: loginAid });
-  console.log(`[login] status=${lp.status} session=${!!jar["compass_session"]}`);
-  if (!jar["compass_session"]) { console.log("FATAL: login failed"); process.exit(1); }
+  // ── 1. Per-test fixture user, logged in through the real action ──
+  const s = await loginAsFixture("deprecated");
+  console.log(`[fixture] user=${s.email}`);
 
   const results = [];
   const check = (name, ok) => {
@@ -113,7 +68,7 @@ async function main() {
 
   // ---------- 6 redirects ----------
   for (const rd of REDIRECTS) {
-    const r = await get(rd.from);
+    const r = await s.get(rd.from);
     const loc = r.headers.get("location") || "";
     // Location strips the query string when matching on the bare path
     // is enough; for the obligations targets we need a partial match
@@ -132,30 +87,30 @@ async function main() {
   // (or 404 if there's no auth). 308 confirms the redirect is in
   // place and the file is NOT being rendered.
   for (const rd of REDIRECTS) {
-    const r = await get(rd.from);
+    const r = await s.get(rd.from);
     check(`${rd.from} returns redirect (not 200/404 page render)`, r.status === 308);
   }
 
   // ---------- Following redirects lands on 200 ----------
   for (const rd of REDIRECTS) {
-    const r = await get(rd.from);
+    const r = await s.get(rd.from);
     const loc = r.headers.get("location") || "";
     if (!loc) continue;
     // Re-fetch the destination; if it's a 200, the redirect target
     // is alive and serving.
-    const target = loc.startsWith("http") ? loc.replace(BASE, "") : loc;
-    const r2 = await get(target);
+    const target = loc.startsWith("http") ? loc.replace(s.base, "") : loc;
+    const r2 = await s.get(target);
     check(`redirect target ${target} resolves to 200`, r2.status === 200);
   }
 
   // ---------- New routes resolve to 200 ----------
   for (const p of NEW_ROUTES) {
-    const r = await get(p);
+    const r = await s.get(p);
     check(`new route ${p} resolves to 200`, r.status === 200);
   }
 
   // ---------- Sidebar (primary nav surface) has 0 entries to old paths ----------
-  const dash = await get("/");
+  const dash = await s.get("/");
   const asideMatch = (await dash.text()).match(/<aside[\s\S]*?<\/aside>/);
   const aside = asideMatch ? asideMatch[0] : "";
   for (const rd of REDIRECTS) {
@@ -171,6 +126,9 @@ async function main() {
   }
 
   // ---------- Summary ----------
+  // Tear down this test's fixture user before the summary.
+  await s.close();
+
   console.log("\n--- checks ---");
   const pass = results.filter((r) => r.ok).length;
   const miss = results.filter((r) => !r.ok).length;

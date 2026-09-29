@@ -517,6 +517,100 @@ async function provisionMonth(fx, ids) {
 
 
 /**
+ * Create a fixture AND log into the running dev server as that user.
+ *
+ * This is the one-line entry point most smokes want:
+ *
+ *     const s = await loginAsFixture("debts-tier");
+ *     const r = await s.get("/debts");
+ *     ... use s.user.email / s.user.password / s.user.userId
+ *     await s.close();
+ *
+ * It carries the cookie jar, so `get`/`post`/`postJson` behave like an
+ * authenticated browser for the whole test. Keeping the login here
+ * rather than in 40 test files is what makes the per-test-user
+ * migration mechanical instead of bespoke.
+ *
+ * @param {string} slug
+ * @param {object} [opts] forwarded to createFixture
+ */
+export async function loginAsFixture(slug, opts = {}) {
+  const fx = await createFixture(slug, opts);
+  const base = process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3000";
+  const jar = {};
+
+  const absorb = (res) => {
+    for (const raw of res.headers.getSetCookie?.() ?? []) {
+      const [pair] = raw.split(";");
+      const i = pair.indexOf("=");
+      if (i > 0) jar[pair.slice(0, i).trim()] = pair.slice(i + 1).trim();
+    }
+  };
+  const cookieHeader = () =>
+    Object.entries(jar)
+      .map(([k, v]) => `${k}=${v}`)
+      .join("; ");
+
+  const get = async (path, init = {}) => {
+    const headers = new Headers(init.headers ?? {});
+    const c = cookieHeader();
+    if (c) headers.set("cookie", c);
+    const res = await fetch(base + path, { ...init, headers, redirect: "manual" });
+    absorb(res);
+    return res;
+  };
+
+  const post = async (path, fields, { actionId } = {}) => {
+    const form = new FormData();
+    if (actionId) {
+      // Next's bound server-action wire format.
+      form.append("$ACTION_REF_1", "");
+      form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
+      form.append("$ACTION_1:1", '["$undefined"]');
+    }
+    for (const [k, v] of Object.entries(fields)) form.append(k, v);
+    return get(path, { method: "POST", body: form });
+  };
+
+  const postJson = async (path, body) =>
+    get(path, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body ?? {}),
+    });
+
+  // Log in through the real server action, so session handling is
+  // exercised rather than bypassed.
+  const lr = await get("/login");
+  const html = await lr.text();
+  const aid =
+    html.match(/"id":"([a-f0-9]{20,})"/)?.[1] ??
+    html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/)?.[1] ??
+    null;
+  if (!aid) {
+    await fx.cleanup();
+    throw new Error("[fixture] no login action id on /login — is the dev server up?");
+  }
+  const lp = await post("/login", { email: fx.email, password: fx.password }, { actionId: aid });
+  absorb(lp);
+  if (!jar.compass_session) {
+    await fx.cleanup();
+    throw new Error(`[fixture] login failed for ${fx.email} (status ${lp.status})`);
+  }
+
+  return {
+    ...fx,
+    base,
+    jar,
+    get,
+    post,
+    postJson,
+    login: { status: lp.status, actionId: aid },
+    close: () => fx.cleanup(),
+  };
+}
+
+/**
  * Create a fixture, run `fn`, and always tear down. The callback's
  * return value is passed through.
  */

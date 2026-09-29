@@ -4,8 +4,12 @@
  *
  * Verifies:
  *   1. After /api/reset-seed, the user has 1 seed Account row
- *      (id="acct-chase", name="Chase Checking",
- *      currentBalance=8_421_000 cents, source="seed").
+ *      (the canonical Chase Checking account —
+ *      currentBalance=8_421_000 cents, source="seed"). The
+ *      canonical seed id is a GLOBAL primary key in the product
+ *      seeders, so the fixture namespaces it per user
+ *      ("acct-chase" → "acct-chase--<slug>"); the VALUES stay
+ *      canonical and the id assertion derives from the fixture.
  *   2. The /accounts page renders 200 + surfaces the canonical
  *      account (name, institution, mask, type, balance).
  *   3. The balance cell renders the live `currentBalance` (was
@@ -19,73 +23,21 @@
  *   6. The reset endpoint re-seeds idempotently (counts stay
  *      stable across calls; projection rows are wiped).
  *
- * Run with: node tests/smoke-accounts-db.mjs
+ * Run with: tsx --conditions=react-server tests/smoke-accounts-db.mjs
  * (dev server must be running on 127.0.0.1:3000)
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * shared `mom@compass.local`, so this test can neither be poisoned by
+ * nor poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
  */
 
 import { createRequire } from "node:module";
 import { join } from "node:path";
 
+import { loginAsFixture } from "./fixture.mjs";
 import { prisma } from "./db-client.mjs";
-
-const BASE = "http://127.0.0.1:3000";
-
-// ── HTTP helpers (jar pattern; smoke-bills-db.mjs style) ────────────────────
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postJson(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { method: "POST", headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  m = html.match(/\$ACTION_ID_([a-f0-9]{20,})/);
-  if (m) return m[1];
-  return null;
-}
-async function postForm(path, fields, { actionId, kind = "plain" } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId && kind === "bound") {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-  } else if (actionId) {
-    form.append(`$ACTION_ID_${actionId}`, "");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, { method: "POST", headers, body: form, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
 
 const log = (k, v) => console.log(`[${k}] ${v}`);
 const checks = [];
@@ -98,41 +50,48 @@ function check(name, cond, detail) {
 async function main() {
   console.log("--- Accounts DB widget switch smoke (Cluster 5.2.6) ---\n");
 
-  // ── 1. Login as mom@compass.local (the canonical seed user) ─────
-  // The login form uses useActionState (bound form pattern).
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) { console.log("FATAL: no login aid"); process.exit(1); }
-  const lp = await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
-  }, { actionId: loginAid, kind: "bound" });
-  log("login", `status=${lp.status} session=${!!jar["compass_session"]}`);
-  if (!jar["compass_session"]) { console.log("FATAL: login failed"); process.exit(1); }
+  // ── 1. Per-test fixture user, logged in through the real action ──
+  // The fixture creates the user, opens the onboarding gate both ways,
+  // provisions the canonical-shaped baseline under per-user ids, and
+  // performs the server-action login. The cookie jar rides on `s`, so
+  // s.get / s.post / s.postJson are authenticated for the whole test.
+  const s = await loginAsFixture("accounts-db");
+  log("fixture", `user=${s.email} account=${s.ids.account}`);
+  log("login", `status=${s.login.status} session=${!!s.jar["compass_session"]}`);
 
   // ── 2. Reset + clean up any projection rows from previous runs ───
-  const r1 = await postJson("/api/reset-seed");
+  const r1 = await s.postJson("/api/reset-seed");
   const j1 = await r1.json();
   log("reset", `status=${r1.status} ok=${j1.ok} msg=${j1.message ?? ""}`);
 
-  const user = await prisma.user.findUnique({ where: { email: "mom@compass.local" } });
-  if (!user) { console.log("FATAL: no mom user"); process.exit(1); }
+  const user = await prisma.user.findUnique({ where: { email: s.email } });
+  if (!user) { console.log("FATAL: no fixture user"); process.exit(1); }
 
   // Clean up any leftover projection rows from previous smoke runs
-  // so the page-state assertions are deterministic.
+  // so the page-state assertions are deterministic. A fresh fixture
+  // user has none, but the delete keeps the smoke idempotent.
   await prisma.account.deleteMany({
-    where: { userId: user.id, name: { startsWith: "[identity] " } },
+    where: { userId: s.userId, name: { startsWith: "[identity] " } },
   });
 
   // ── 3. Verify the seed Account row in the DB ────────────────────
   const seed = await prisma.account.findFirst({
-    where: { userId: user.id, source: "seed" },
+    where: { userId: s.userId, source: "seed" },
   });
   log("seed account in DB", seed ? `id=${seed.id} name=${seed.name} balance=${seed.currentBalance}` : "MISSING");
 
   check("DB has 1 seed Account row", seed !== null, "no seed row");
   if (seed) {
-    check("Seed account id = acct-chase", seed.id === "acct-chase", `got ${seed.id}`);
+    // The canonical seed id is a global singleton primary key
+    // ("acct-chase" in mock-seed.ts), so two users cannot both hold
+    // it. The fixture namespaces it per user and the VALUES below stay
+    // canonical — that is what makes the row recognisably THE seeded
+    // Chase Checking account.
+    check(
+      "Seed account id is the fixture's namespaced acct-chase",
+      seed.id === s.ids.account && seed.id.startsWith("acct-chase--"),
+      `got ${seed.id}`,
+    );
     check("Seed account name = Chase Checking", seed.name === "Chase Checking", `got ${seed.name}`);
     check("Seed account type = checking", seed.type === "checking", `got ${seed.type}`);
     check("Seed account currentBalance = 8_421_000 cents ($84,210)", seed.currentBalance === 8_421_000, `got ${seed.currentBalance}`);
@@ -142,7 +101,7 @@ async function main() {
   }
 
   // ── 4. /accounts renders 200 and the canonical account is shown ──
-  const a1 = await get("/accounts");
+  const a1 = await s.get("/accounts");
   const a1Text = await a1.text();
   log("/accounts", `status=${a1.status} bytes=${a1Text.length}`);
   check("/accounts: 200", a1.status === 200, `got ${a1.status}`);
@@ -222,7 +181,7 @@ async function main() {
   await prisma.account.createMany({
     data: [
       {
-        userId: user.id,
+        userId: s.userId,
         name: "[identity] Main Salary",
         type: "checking",
         currentBalance: 0,
@@ -231,7 +190,7 @@ async function main() {
         sortOrder: 1,
       },
       {
-        userId: user.id,
+        userId: s.userId,
         name: "[identity] Emergency Savings",
         type: "savings",
         currentBalance: 20_000_00, // $20,000
@@ -240,7 +199,7 @@ async function main() {
         sortOrder: 2,
       },
       {
-        userId: user.id,
+        userId: s.userId,
         name: "[identity] Chase Sapphire",
         type: "other",
         currentBalance: -4_820_00, // -$4,820 (debt — negative)
@@ -251,7 +210,7 @@ async function main() {
     ],
   });
 
-  const a2 = await get("/accounts");
+  const a2 = await s.get("/accounts");
   const a2Text = await a2.text();
   log("/accounts (with projection rows)", `status=${a2.status} bytes=${a2Text.length}`);
 
@@ -299,10 +258,10 @@ async function main() {
   // ── 7. Round-trip: change the canonical account's balance in the DB
   log("round-trip", "change acct-chase balance 8_421_000 → 999_999_99");
   await prisma.account.update({
-    where: { id: "acct-chase" },
+    where: { id: s.ids.account },
     data: { currentBalance: 999_999_99 },
   });
-  const a3 = await get("/accounts");
+  const a3 = await s.get("/accounts");
   const a3Text = await a3.text();
   check(
     "/accounts reflects DB write: shows $999,999.99 (was $84,210.00)",
@@ -316,10 +275,10 @@ async function main() {
   );
   // Restore
   await prisma.account.update({
-    where: { id: "acct-chase" },
+    where: { id: s.ids.account },
     data: { currentBalance: 8_421_000 },
   });
-  const a4 = await get("/accounts");
+  const a4 = await s.get("/accounts");
   const a4Text = await a4.text();
   check(
     "/accounts after restore shows $84,210.00 again",
@@ -329,12 +288,12 @@ async function main() {
 
   // ── 8. The reset endpoint re-seeds idempotently + wipes projection rows
   log("reset again", "should restore the seed account balance and keep projection rows");
-  await postJson("/api/reset-seed");
+  await s.postJson("/api/reset-seed");
   // The reset endpoint doesn't delete projection rows (those are
   // the user's own data from the chat). The canonical account
   // should be re-seeded with the original balance.
   const seedAfter = await prisma.account.findFirst({
-    where: { userId: user.id, id: "acct-chase" },
+    where: { userId: s.userId, id: s.ids.account },
   });
   check(
     "after reset: canonical account balance restored to 8_421_000",
@@ -343,7 +302,7 @@ async function main() {
   );
   // The projection rows should still be there (reset doesn't wipe them).
   const projAfter = await prisma.account.count({
-    where: { userId: user.id, name: { startsWith: "[identity] " } },
+    where: { userId: s.userId, name: { startsWith: "[identity] " } },
   });
   check(
     "after reset: 3 projection rows still present (reset doesn't wipe them)",
@@ -353,11 +312,15 @@ async function main() {
 
   // Clean up the projection rows we created
   await prisma.account.deleteMany({
-    where: { userId: user.id, name: { startsWith: "[identity] " } },
+    where: { userId: s.userId, name: { startsWith: "[identity] " } },
   });
   log("cleanup", "removed 3 projection rows");
 
-  // ── 9. Final summary
+  // ── 9. Tear down this test's user, then the final summary.
+  // Teardown runs before the report so a crashed run is self-healing
+  // either way (the next fixture sweeps stale smoke-* users on create).
+  await s.close();
+
   console.log("\n--- checks ---");
   let pass = 0, fail = 0;
   for (const [, ok, detail] of checks) {

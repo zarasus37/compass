@@ -13,74 +13,25 @@
  *   4. Updating a goal's currentAmount in the DB is reflected
  *      on the next page render.
  *
- * Run with: node tests/smoke-goals-db.mjs
+ * Run with: tsx --conditions=react-server tests/smoke-goals-db.mjs
  * (dev server must be running on 127.0.0.1:3000)
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * shared `mom@compass.local`, so this test can neither be poisoned by
+ * nor poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
+ *
+ * NOTE: the canonical goal ids ("goal-emergency", "goal-invest", ...)
+ * are global primary keys, so the fixture namespaces them per user.
+ * Every id assertion below resolves through `s.ids`.
  */
 
 import { createRequire } from "node:module";
 import { join } from "node:path";
 
+import { loginAsFixture } from "./fixture.mjs";
 import { prisma } from "./db-client.mjs";
-
-const BASE = "http://127.0.0.1:3000";
-
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postJson(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { method: "POST", headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postForm(path, fields, { actionId, kind = "bound" } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId) {
-    if (kind === "bound") {
-      form.append("$ACTION_REF_1", "");
-      form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-      form.append("$ACTION_1:1", "[{\"ok\":false}]");
-    } else {
-      form.append(`$ACTION_ID_${actionId}`, "");
-    }
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, { method: "POST", headers, body: form, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  m = html.match(/\$ACTION_ID_([a-f0-9]{20,})/);
-  if (m) return m[1];
-  return null;
-}
 
 const log = (k, v) => console.log(`[${k}] ${v}`);
 const checks = [];
@@ -93,27 +44,21 @@ function check(name, cond, detail) {
 async function main() {
   console.log("--- Goals DB widget switch smoke (Cluster 5.2.6) ---\n");
 
-  // ── 1. Login ────────────────────────────────────────────────
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) { console.log("FATAL: no login aid"); process.exit(1); }
-  await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
-  }, { actionId: loginAid });
-  log("login", `session=${!!jar["compass_session"]}`);
-  if (!jar["compass_session"]) { console.log("FATAL: login failed"); process.exit(1); }
+  // ── 1. Per-test fixture user, logged in through the real action ──
+  const s = await loginAsFixture("goals-db");
+  log("fixture", `user=${s.email}`);
+  log("login", `status=${s.login.status} session=${!!s.jar["compass_session"]}`);
 
   // ── 2. Reset to seed ────────────────────────────────────────
-  const r1 = await postJson("/api/reset-seed");
+  const r1 = await s.postJson("/api/reset-seed");
   const j1 = await r1.json();
   log("reset", `status=${r1.status} ok=${j1.ok} msg=${j1.message ?? ""}`);
 
   // ── 3. Inspect the Goal table ───────────────────────────────
-  const user = await prisma.user.findUnique({ where: { email: "mom@compass.local" } });
-  if (!user) { console.log("FATAL: no mom user"); process.exit(1); }
+  const user = await prisma.user.findUnique({ where: { email: s.email } });
+  if (!user) { console.log("FATAL: no fixture user"); process.exit(1); }
   const goals = await prisma.goal.findMany({
-    where: { userId: user.id, source: "seed" },
+    where: { userId: s.userId, source: "seed" },
     orderBy: { sortOrder: "asc" },
   });
   log("seed goals in DB", `count=${goals.length}`);
@@ -152,7 +97,7 @@ async function main() {
   }
 
   // ── 4. /goals renders those rows ────────────────────────────
-  const g1 = await get("/goals");
+  const g1 = await s.get("/goals");
   const g1Text = await g1.text();
   log("/goals", `status=${g1.status} bytes=${g1Text.length}`);
   check("/goals: 200", g1.status === 200, `got ${g1.status}`);
@@ -178,7 +123,7 @@ async function main() {
   // goal IS in the page (via the chart) and that the page header
   // reflects the filter (the "ALL" tab is no longer the active
   // filter — the matching kind tab is).
-  const gEmerg = await get("/goals?kind=emergency");
+  const gEmerg = await s.get("/goals?kind=emergency");
   const gEmergText = await gEmerg.text();
   log("/goals?kind=emergency", `status=${gEmerg.status} bytes=${gEmergText.length}`);
   check("/goals?kind=emergency: 200", gEmerg.status === 200);
@@ -193,7 +138,7 @@ async function main() {
   );
 
   // ── 6. ?kind=invest filter narrows the goal list ────────────
-  const gInvest = await get("/goals?kind=invest");
+  const gInvest = await s.get("/goals?kind=invest");
   const gInvestText = await gInvest.text();
   log("/goals?kind=invest", `status=${gInvest.status} bytes=${gInvestText.length}`);
   check("/goals?kind=invest: 200", gInvest.status === 200);
@@ -209,10 +154,10 @@ async function main() {
   // Bump Emergency Fund's currentAmount by $100 (10000 cents) in
   // the DB and verify the page reflects the new value.
   await prisma.goal.update({
-    where: { id: "goal-emergency" },
+    where: { id: s.ids.goals["goal-emergency"] },
     data: { currentAmount: 780000 }, // was 680000, now $7800
   });
-  const g2 = await get("/goals");
+  const g2 = await s.get("/goals");
   const g2Text = await g2.text();
   // $7,800 should appear in the page
   check(
@@ -222,11 +167,16 @@ async function main() {
   );
   // Reset
   await prisma.goal.update({
-    where: { id: "goal-emergency" },
+    where: { id: s.ids.goals["goal-emergency"] },
     data: { currentAmount: 680000 },
   });
 
-  // ── 8. Summary ──────────────────────────────────────────────
+  // ── 8. Tear down this test's user, then the summary.
+  // Teardown runs before the report so a crashed run is self-healing
+  // either way (the next fixture sweeps stale smoke-* users on create).
+  await s.close();
+
+  // ── 9. Summary ──────────────────────────────────────────────
   console.log("\n--- checks ---");
   let pass = 0, fail = 0;
   for (const [name, ok] of checks) {

@@ -24,55 +24,17 @@
  *     structural check is enough).
  *   - The pace projection math (covered by visual inspection in dev).
  *
- * Run with: node tests/smoke-period.mjs
+ * Run with: tsx --conditions=react-server tests/smoke-period.mjs
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * shared `mom@compass.local`, so this test can neither be poisoned by
+ * nor poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
  */
 
-const BASE = "http://127.0.0.1:3000";
+import { loginAsFixture } from "./fixture.mjs";
 
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postForm(path, fields, { useActionState } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (useActionState) {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: useActionState.id, bound: "$@1" }));
-    form.append("$ACTION_1:1", JSON.stringify(useActionState.initial));
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, { method: "POST", headers, body: form, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractUseActionStateId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  return null;
-}
 const log = (k, v) => console.log(`[${k}] ${v}`);
 function countMatches(html, pattern) {
   return (html.match(pattern) ?? []).length;
@@ -81,19 +43,17 @@ function countMatches(html, pattern) {
 async function main() {
   console.log("--- Period smoke ---\n");
 
-  // Login (useActionState form)
-  const lr = await get("/login");
-  const loginAid = extractUseActionStateId(await lr.text());
-  if (!loginAid) { console.log("FATAL: no login aid"); process.exit(1); }
-  const lp = await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
-  }, { useActionState: { id: loginAid, initial: [{ ok: false }] } });
-  log("login", `status=${lp.status} session=${!!jar["compass_session"]}`);
-  if (!jar["compass_session"]) { console.log("FATAL: login failed"); process.exit(1); }
+  // Per-test fixture user. The fixture creates the user, opens the
+  // onboarding gate both ways, provisions a biweekly paycheck and a
+  // month of spending, and performs the server-action login. The
+  // cookie jar rides on `s`, so every page read below is
+  // authenticated for the whole test.
+  const s = await loginAsFixture("period");
+  log("fixture", `user=${s.email}`);
+  log("login", `status=${s.login.status} session=${!!s.jar["compass_session"]}`);
 
   // Hit /period
-  const r = await get("/period");
+  const r = await s.get("/period");
   const html = await r.text();
   log("period", `status=${r.status} bytes=${html.length}`);
 
@@ -345,6 +305,11 @@ async function main() {
   );
 
   // ── Report ─────────────────────────────────────────────────────
+  // Tear down this test's user before reporting. If the test crashed
+  // earlier the next fixture's sweep reclaims the user anyway, so a
+  // failed run never leaks.
+  await s.close();
+
   console.log("\n--- checks ---");
   let pass = 0, fail = 0;
   for (const c of checks) {

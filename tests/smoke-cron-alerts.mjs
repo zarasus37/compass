@@ -28,82 +28,23 @@
  * checks; the user verifies it in production by setting
  * the env var and watching the receiver.
  *
- * Run: `node tests/smoke-cron-alerts.mjs` (dev server must
- * be up).
+ * Run: `tsx --conditions=react-server tests/smoke-cron-alerts.mjs`
+ * (dev server must be up).
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs), so the
+ * `vault.cron_prune_failure` sentinel rows this smoke writes and
+ * sweeps are scoped to a throwaway user instead of the shared
+ * smoke user. tsx + the react-server condition are required
+ * because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
  */
 
 import { prisma } from "./db-client.mjs";
+import { loginAsFixture } from "./fixture.mjs";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
-const BASE = "http://127.0.0.1:3000";
 const ROOT = process.cwd();
-
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  m = html.match(/[$]ACTION_ID_([a-f0-9]{20,})/);
-  if (m) return m[1];
-  return null;
-}
-async function postForm(path, fields, { actionId, kind = "plain" } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId && kind === "bound") {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-  } else if (actionId) {
-    form.append(`$ACTION_ID_${actionId}`, "");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers,
-    body: form,
-    redirect: "manual",
-  });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postJson(path, body) {
-  const headers = new Headers();
-  applyCookies(headers);
-  headers.set("content-type", "application/json");
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body ?? {}),
-    redirect: "manual",
-  });
-  return { status: r.status, body: await r.json() };
-}
 
 const log = (k, v) => console.log(`[${k}] ${v}`);
 const checks = [];
@@ -115,14 +56,6 @@ function check(name, cond, detail) {
 
 const SENTINEL_PREFIX = "smoke.cron_alert.";
 const ALERT_SENTINEL = `${SENTINEL_PREFIX}test_error_message`;
-
-async function getUserId() {
-  const row = await prisma.user.findFirst({
-    where: { email: "mom@compass.local" },
-    select: { id: true },
-  });
-  return row?.id ?? null;
-}
 
 async function cleanupSentinels(userId) {
   await prisma.auditLog.deleteMany({
@@ -137,24 +70,16 @@ async function cleanupSentinels(userId) {
 async function main() {
   console.log("\n--- Cron alert smoke (Cluster 7.10) ---\n");
 
-  // ── 1. Login + cleanup
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) {
-    console.log("FATAL: no login aid");
-    process.exit(1);
-  }
-  const lp = await postForm(
-    "/login",
-    { email: "mom@compass.local", password: "correct-horse-battery-staple" },
-    { actionId: loginAid, kind: "bound" },
-  );
-  check("login: 303", lp.status === 303, `status=${lp.status}`);
-  const userId = await getUserId();
-  if (!userId) {
-    console.log("FATAL: no user id");
-    process.exit(1);
-  }
+  // ── 1. Per-test fixture user (creates + seeds + logs in)
+  const s = await loginAsFixture("cron-alerts");
+  log("fixture", `user=${s.email}`);
+  log("login", `status=${s.login.status} session=${!!s.jar["compass_session"]}`);
+  // The local shape ({ status, body }) the checks below assert on.
+  const postJson = async (path, body) => {
+    const r = await s.postJson(path, body ?? {});
+    return { status: r.status, body: await r.json() };
+  };
+  const userId = s.userId;
   await cleanupSentinels(userId);
 
   // ── 2. POST /api/dev/cron-alerts — write a fake alert
@@ -179,7 +104,7 @@ async function main() {
   );
 
   // ── 3. GET /api/dev/cron-alerts — read the alert back
-  const getResp = await get("/api/dev/cron-alerts?limit=20");
+  const getResp = await s.get("/api/dev/cron-alerts?limit=20");
   check(
     "dev: GET /api/dev/cron-alerts returns 200",
     getResp.status === 200,
@@ -258,7 +183,7 @@ async function main() {
   );
 
   // ── 5. ?limit= parameter is respected
-  const limitResp = await get("/api/dev/cron-alerts?limit=1");
+  const limitResp = await s.get("/api/dev/cron-alerts?limit=1");
   const limitBody = await limitResp.json();
   check(
     "dev: GET ?limit=1 returns at most 1 alert",
@@ -360,7 +285,7 @@ async function main() {
   // doesn't need to know about the new type — it falls
   // through the djb2 hash. We just check the page renders
   // the table.
-  const auditPage = await get("/vault/audit?type=smoke.cron_alert.test_error_message");
+  const auditPage = await s.get("/vault/audit?type=smoke.cron_alert.test_error_message");
   const auditHtml = await auditPage.text();
   check(
     "audit page: filter by sentinel actionType renders 200",
@@ -377,6 +302,8 @@ async function main() {
   await cleanupSentinels(userId);
 
   // ── Summary
+  await s.close();
+
   console.log("\n--- checks ---");
   const pass = checks.filter((c) => c[1]).length;
   const miss = checks.length - pass;

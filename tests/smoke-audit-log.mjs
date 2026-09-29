@@ -26,69 +26,22 @@
  *  12. The headline strip has growth-oriented suggestion
  *      chips (per the xKryptic 2026-08-24 directive).
  *
- * Run: `node tests/smoke-audit-log.mjs` (dev server must be up).
+ * Run: `tsx --conditions=react-server tests/smoke-audit-log.mjs`
+ * (dev server must be up).
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * one shared smoke user, so this test can neither be poisoned by nor
+ * poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
  */
 
 import { prisma } from "./db-client.mjs";
+import { loginAsFixture } from "./fixture.mjs";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
-const BASE = "http://127.0.0.1:3000";
 const ROOT = process.cwd();
-
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  m = html.match(/\$ACTION_ID_([a-f0-9]{20,})/);
-  if (m) return m[1];
-  return null;
-}
-async function postForm(path, fields, { actionId, kind = "plain" } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId && kind === "bound") {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-  } else if (actionId) {
-    form.append(`$ACTION_ID_${actionId}`, "");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers,
-    body: form,
-    redirect: "manual",
-  });
-  captureSetCookies(r.headers);
-  return r;
-}
 
 const log = (k, v) => console.log(`[${k}] ${v}`);
 const checks = [];
@@ -101,32 +54,17 @@ function check(name, cond, detail) {
 async function main() {
   console.log("\n--- Audit log smoke (Cluster 7.4) ---\n");
 
-  // ── 1. Login + reset
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) {
-    console.log("FATAL: no login aid");
-    process.exit(1);
-  }
-  const lp = await postForm(
-    "/login",
-    { email: "mom@compass.local", password: "correct-horse-battery-staple" },
-    { actionId: loginAid, kind: "bound" },
-  );
-  check("login: 303", lp.status === 303, `status=${lp.status}`);
+  // ── 1. Per-test fixture user (creates + seeds + logs in)
+  const s = await loginAsFixture("audit-log");
+  log("fixture", `user=${s.email}`);
+  log("login", `status=${s.login.status} session=${!!s.jar["compass_session"]}`);
 
   // The smoke is self-contained: we write a sentinel audit event
   // directly via the shared Prisma client so the page has at least
   // one row to render. Without this, the page can render the
-  // empty state when prior smokes have left the user with 0 events
-  // (or when the smoke runs in a fresh-DB state after a prior
-  // suite run wiped mom@compass.local's data). The sentinel type
+  // empty state when the user has 0 events. The sentinel type
   // is unique to this smoke so it doesn't collide with real events.
-  const userId = await getCurrentUserId();
-  if (!userId) {
-    console.log("FATAL: no user id");
-    process.exit(1);
-  }
+  const userId = s.userId;
   // Clean up any prior sentinel rows from previous smoke runs.
   await prisma.auditLog.deleteMany({
     where: { userId, actionType: "smoke.test_audit_event" },
@@ -154,7 +92,7 @@ async function main() {
   // user has a non-empty log.
 
   // ── 2. /vault/audit returns 200, page is non-empty
-  const audit1 = await get("/vault/audit");
+  const audit1 = await s.get("/vault/audit");
   check("audit: 200", audit1.status === 200, `status=${audit1.status}`);
   const html1 = await audit1.text();
   check("audit: non-empty", html1.length > 1000, `bytes=${html1.length}`);
@@ -223,7 +161,7 @@ async function main() {
   const beforeVisit = await prisma.auditLog.count({
     where: { userId, actionType: "vault.audit_log_viewed" },
   });
-  await get("/vault/audit");
+  await s.get("/vault/audit");
   // Give the server a moment to commit the write (fire-and-forget).
   await new Promise((r) => setTimeout(r, 200));
   const afterVisit = await prisma.auditLog.count({
@@ -245,7 +183,7 @@ async function main() {
     where: { userId, actionType: SENTINEL_TYPE },
   });
   if (sentinelCount >= 1) {
-    const typedPage = await get(
+    const typedPage = await s.get(
       `/vault/audit?type=${encodeURIComponent(SENTINEL_TYPE)}`,
     );
     const typedHtml = await typedPage.text();
@@ -268,7 +206,7 @@ async function main() {
   // (the TypeFilterPills component hides it otherwise) — so this
   // check is just that the page renders and the "all" pill is
   // still there. The prefix pill presence is a soft check.
-  const prefixPage = await get("/vault/audit?prefix=vault.");
+  const prefixPage = await s.get("/vault/audit?prefix=vault.");
   const prefixHtml = await prefixPage.text();
   check(
     "audit: ?prefix=vault. renders the prefix-filtered page",
@@ -310,7 +248,7 @@ async function main() {
   }
 
   // ── 9. Filter contract: ?q=nonmatching shows empty
-  const qPage = await get("/vault/audit?q=zzzznonexistentzzzzz");
+  const qPage = await s.get("/vault/audit?q=zzzznonexistentzzzzz");
   const qHtml = await qPage.text();
   check(
     "audit: ?q=nonmatching shows the empty table state",
@@ -318,7 +256,7 @@ async function main() {
   );
 
   // ── 10. Filter contract: ?take=200 doesn't break the page
-  const takePage = await get("/vault/audit?take=200");
+  const takePage = await s.get("/vault/audit?take=200");
   const takeHtml = await takePage.text();
   // Cluster 7.6: the table now renders as LiveAuditTable with
   // data-testid="vault-audit-table-live". The legacy
@@ -332,7 +270,7 @@ async function main() {
   );
 
   // ── 11. /vault/preferences has the [AUDIT] chip
-  const prefsPage = await get("/vault/preferences");
+  const prefsPage = await s.get("/vault/preferences");
   const prefsHtml = await prefsPage.text();
   check(
     "audit: /vault/preferences has the [AUDIT] → chip",
@@ -342,7 +280,7 @@ async function main() {
   );
 
   // ── 12. /vault/schedule has the // view full history → link
-  const schedPage = await get("/vault/schedule");
+  const schedPage = await s.get("/vault/schedule");
   const schedHtml = await schedPage.text();
   check(
     "audit: /vault/schedule has the view full history link",
@@ -528,7 +466,7 @@ async function main() {
     nextDay.setDate(nextDay.getDate() + 1);
     const nextDayYmd = nextDay.toISOString().slice(0, 10);
 
-    const fromPage = await get(`/vault/audit?from=${rowDate}`);
+    const fromPage = await s.get(`/vault/audit?from=${rowDate}`);
     const fromHtml = await fromPage.text();
     const fromRows = (
       fromHtml.match(/data-testid="vault-audit-row"/g) ?? []
@@ -539,7 +477,7 @@ async function main() {
       `from=${rowDate} rows=${fromRows}`,
     );
 
-    const afterPage = await get(`/vault/audit?from=${nextDayYmd}`);
+    const afterPage = await s.get(`/vault/audit?from=${nextDayYmd}`);
     const afterHtml = await afterPage.text();
     const afterRows = (
       afterHtml.match(/data-testid="vault-audit-row"/g) ?? []
@@ -551,7 +489,7 @@ async function main() {
     );
 
     // ── 24. ?from + ?type composes (AND).
-    const composedPage = await get(
+    const composedPage = await s.get(
       `/vault/audit?type=smoke.test_audit_event&from=${rowDate}`,
     );
     const composedHtml = await composedPage.text();
@@ -563,7 +501,7 @@ async function main() {
       composedRows >= 1,
       `composed rows=${composedRows}`,
     );
-    const composedNoMatchPage = await get(
+    const composedNoMatchPage = await s.get(
       `/vault/audit?type=vault.never_matches_anything&from=${rowDate}`,
     );
     const composedNoMatchHtml = await composedNoMatchPage.text();
@@ -582,7 +520,7 @@ async function main() {
     // We assert via the table containing the sentinel's
     // actionType text (not via row count, since there are
     // other older rows that legitimately pass the filter).
-    const toPage = await get(`/vault/audit?to=${rowDate}`);
+    const toPage = await s.get(`/vault/audit?to=${rowDate}`);
     const toHtml = await toPage.text();
     check(
       "audit: ?to=<rowDate> includes the sentinel row (inclusive upper bound)",
@@ -610,7 +548,7 @@ async function main() {
     const d = String(fiveAgo.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   })();
-  const rangePage = await get(
+  const rangePage = await s.get(
     `/vault/audit?from=${fiveAgoYmd}&to=${todayYmd}`,
   );
   const rangeHtml = await rangePage.text();
@@ -653,7 +591,7 @@ async function main() {
   // in-range). To exercise dimming we need a from-only
   // request that keeps the strip at 30 days.
   const fromOnlyDate = fiveAgoYmd; // 5 days back, local
-  const fromOnlyPage = await get(
+  const fromOnlyPage = await s.get(
     `/vault/audit?from=${fromOnlyDate}`,
   );
   const fromOnlyHtml = await fromOnlyPage.text();
@@ -685,7 +623,7 @@ async function main() {
 
   // ── 27. Malformed ?from= is silently dropped (no range
   // active, no CLEAR chip).
-  const malformedPage = await get("/vault/audit?from=garbage");
+  const malformedPage = await s.get("/vault/audit?from=garbage");
   const malformedHtml = await malformedPage.text();
   check(
     "audit: malformed ?from= is silently dropped (no CLEAR chip)",
@@ -693,7 +631,7 @@ async function main() {
   );
 
   // ── 28. ?from > ?to drops `to` (more useful than returning 0).
-  const reversedPage = await get("/vault/audit?from=2026-12-31&to=2026-01-01");
+  const reversedPage = await s.get("/vault/audit?from=2026-12-31&to=2026-01-01");
   const reversedHtml = await reversedPage.text();
   // The reversed range should still render (no 500, no error)
   // and should NOT have a CLEAR chip if from-only was kept
@@ -745,6 +683,8 @@ async function main() {
   );
 
   // ── Summary
+  await s.close();
+
   const passed = checks.filter((c) => c[1]).length;
   const total = checks.length;
   console.log(`\n--- checks ---`);
@@ -754,20 +694,6 @@ async function main() {
     process.exit(1);
   }
   console.log("ALL GREEN");
-}
-
-function applyHeadersForRequest(headers) {
-  const h = new Headers(headers);
-  applyCookies(h);
-  return h;
-}
-
-async function getCurrentUserId() {
-  const row = await prisma.user.findFirst({
-    where: { email: "mom@compass.local" },
-    select: { id: true },
-  });
-  return row?.id ?? null;
 }
 
 main()

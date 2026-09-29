@@ -22,85 +22,24 @@
  *   7. The new Advisor entry in the sidebar ("// Learn" →
  *      "Advisor" with [NEW] badge) is present.
  *
- * The smoke is driven against the live dev server. The user must
- * be logged in as `mom@compass.local`. We use the existing
- * onboarding agent's `seed-demo` API to materialize a complete
- * identity on demand (so the smoke is self-contained — no manual
- * onboarding required), then run the advisor scenarios.
+ * The smoke is driven against the live dev server. It logs in as a
+ * per-test fixture user (see tests/fixture.mjs), which arrives with a
+ * completed financial identity, so no manual onboarding is required.
+ * If the identity is somehow incomplete, we materialize one on demand
+ * via the onboarding agent's `seed-demo` API, then run the advisor
+ * scenarios. The fixture's user is torn down at the end of the run, so
+ * this test can neither be poisoned by nor poison another test's
+ * state.
  *
- * Run with: node tests/smoke-advisor.mjs
+ * Run with: tsx --conditions=react-server tests/smoke-advisor.mjs
  * (dev server must be running on 127.0.0.1:3000)
+ *
+ * tsx + the react-server condition are required because the fixture
+ * imports `src/lib/*.ts` (which pull in Next's `server-only` marker).
  */
 
-import { createRequire } from "node:module";
-import { join } from "node:path";
-
 import { prisma } from "./db-client.mjs";
-
-const BASE = "http://127.0.0.1:3000";
-
-// ── HTTP helpers (jar pattern; smoke-bills-db.mjs style) ────────────────────
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-async function postJson(path, body) {
-  const headers = new Headers();
-  applyCookies(headers);
-  if (body !== undefined) headers.set("content-type", "application/json");
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    redirect: "manual",
-  });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  m = html.match(/\$ACTION_ID_([a-f0-9]{20,})/);
-  if (m) return m[1];
-  return null;
-}
-async function postForm(path, fields, { actionId, kind = "plain" } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId && kind === "bound") {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-  } else if (actionId) {
-    form.append(`$ACTION_ID_${actionId}`, "");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, { method: "POST", headers, body: form, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
+import { loginAsFixture } from "./fixture.mjs";
 
 const log = (k, v) => console.log(`[${k}] ${v}`);
 const checks = [];
@@ -113,16 +52,14 @@ function check(name, cond, detail) {
 async function main() {
   console.log("--- Advisor chat smoke (Cluster 5.3) ---\n");
 
-  // ── 1. Login as mom@compass.local (the canonical seed user) ─────
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) { console.log("FATAL: no login aid"); process.exit(1); }
-  const lp = await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
-  }, { actionId: loginAid, kind: "bound" });
-  log("login", `status=${lp.status} session=${!!jar["compass_session"]}`);
-  if (!jar["compass_session"]) { console.log("FATAL: login failed"); process.exit(1); }
+  // ── 1. Login as a per-test fixture user ───────────────
+  // The fixture creates the user, opens the onboarding gate both ways
+  // (SetupState.activatedAt AND FinancialIdentity.completedAt),
+  // provisions the seeded baseline, and performs the server-action
+  // login. The cookie jar rides on `s`.
+  const s = await loginAsFixture("advisor");
+  log("fixture", `user=${s.email}`);
+  log("login", `status=${s.login.status} session=${!!s.jar["compass_session"]}`);
 
   // ── 2. Reset + ensure an identity exists for the advisor to read ─
   // The reset endpoint doesn't touch FinancialIdentity. We use the
@@ -131,19 +68,19 @@ async function main() {
   // identity; if there isn't one, /advisor renders a redirect panel
   // (and the API 409s). For the smoke we want the chat to actually
   // work end-to-end, so we seed first.
-  const r1 = await postJson("/api/reset-seed");
+  const r1 = await s.postJson("/api/reset-seed");
   const j1 = await r1.json();
   log("reset", `status=${r1.status} ok=${j1.ok} msg=${j1.message ?? ""}`);
 
-  // Check if the user already has a completed identity (from a prior
-  // smoke run). If not, seed one.
-  const user = await prisma.user.findUnique({ where: { email: "mom@compass.local" } });
-  if (!user) { console.log("FATAL: no mom user"); process.exit(1); }
-  let identity = await prisma.financialIdentity.findUnique({ where: { userId: user.id } });
+  // The fixture's identity is complete on arrival. If it somehow
+  // isn't, seed one.
+  const user = await prisma.user.findUnique({ where: { email: s.email } });
+  if (!user) { console.log("FATAL: fixture user row not found"); process.exit(1); }
+  let identity = await prisma.financialIdentity.findUnique({ where: { userId: s.userId } });
   let identityWasComplete = !!(identity && identity.completedAt);
   if (!identityWasComplete) {
-    log("identity", "none yet — seeding via /api/onboarding/seed-demo");
-    const sd = await postJson("/api/onboarding/seed-demo");
+    log("identity", "incomplete — seeding via /api/onboarding/seed-demo");
+    const sd = await s.postJson("/api/onboarding/seed-demo");
     const sdj = await sd.json();
     log("seed-demo", `status=${sd.status} ok=${sdj.ok} message=${sdj.message ?? ""}`);
     if (!sdj.ok) {
@@ -151,10 +88,10 @@ async function main() {
       console.log(JSON.stringify(sdj, null, 2));
       process.exit(1);
     }
-    identity = await prisma.financialIdentity.findUnique({ where: { userId: user.id } });
+    identity = await prisma.financialIdentity.findUnique({ where: { userId: s.userId } });
     identityWasComplete = !!(identity && identity.completedAt);
   } else {
-    log("identity", "already complete from prior run");
+    log("identity", "already complete from the fixture");
   }
   check("Identity is complete (advisor read prerequisite)", identityWasComplete, "identity.completedAt is null");
 
@@ -164,12 +101,12 @@ async function main() {
   // left messages too.) The FinancialIdentity itself is
   // preserved — we only wipe the conversation history.
   await prisma.onboardingMessage.deleteMany({
-    where: { identity: { userId: user.id } },
+    where: { identity: { userId: s.userId } },
   });
   log("clean", "OnboardingMessage log cleared for fresh chat state");
 
   // ── 3. The /advisor page renders 200 + shows the empty state
-  const a1 = await get("/advisor");
+  const a1 = await s.get("/advisor");
   const a1Text = await a1.text();
   log("/advisor", `status=${a1.status} bytes=${a1Text.length}`);
   check("/advisor: 200", a1.status === 200, `got ${a1.status}`);
@@ -225,7 +162,7 @@ async function main() {
   );
 
   // ── 4. Sidebar entry is present with the [NEW] badge
-  const sb = await get("/");
+  const sb = await s.get("/");
   const sbText = await sb.text();
   log("sidebar (via /)", `bytes=${sbText.length}`);
   check(
@@ -240,7 +177,7 @@ async function main() {
   );
 
   // ── 5. /api/advisor/run requires a non-empty userMessage
-  const bad = await postJson("/api/advisor/run", { userMessage: "" });
+  const bad = await s.postJson("/api/advisor/run", { userMessage: "" });
   check(
     "/api/advisor/run with empty message: 400",
     bad.status === 400,
@@ -253,7 +190,7 @@ async function main() {
   // mock will return a deterministic response that's still a real
   // answer; we just verify the round trip works.
   const q1 = "Can I afford a $5,000 trip next June?";
-  const r2 = await postJson("/api/advisor/run", { userMessage: q1 });
+  const r2 = await s.postJson("/api/advisor/run", { userMessage: q1 });
   const r2j = await r2.json();
   log("ask q1", `status=${r2.status} provider=${r2j.provider} bytes=${r2j.agentMessage?.length ?? 0}`);
   check("/api/advisor/run with question: 200", r2.status === 200, `got ${r2.status}`);
@@ -265,7 +202,7 @@ async function main() {
   check("State's lastProvider is set", r2j.state?.lastProvider !== null, "lastProvider not updated");
 
   // ── 7. History persists across page reloads
-  const a2 = await get("/advisor");
+  const a2 = await s.get("/advisor");
   const a2Text = await a2.text();
   log("/advisor (after 1 turn)", `status=${a2.status} bytes=${a2Text.length}`);
   check("/advisor after turn: 200", a2.status === 200, `got ${a2.status}`);
@@ -294,7 +231,7 @@ async function main() {
 
   // ── 8. Round-trip: ask a 2nd question; verify 4 messages now
   const q2 = "Which debt should I pay off first?";
-  const r3 = await postJson("/api/advisor/run", { userMessage: q2 });
+  const r3 = await s.postJson("/api/advisor/run", { userMessage: q2 });
   const r3j = await r3.json();
   log("ask q2", `status=${r3.status} provider=${r3j.provider}`);
   check("/api/advisor/run q2: 200", r3.status === 200, `got ${r3.status}`);
@@ -303,39 +240,45 @@ async function main() {
   // ── 9. Onboarding-incomplete gate (revert the identity's
   // completedAt to null, then verify the API returns 409).
   // The page itself is gated by the (app) layout's
-  // requireCompletedOnboarding (a 307 redirect to /onboarding),
-  // which is the right UX — same outcome as the in-page panel
-  // (get the user to /onboarding) but consistent with the rest
-  // of the dashboard's gating.
+  // requireCompletedOnboarding (a 307 redirect to the onboarding
+  // entry point), which is the right UX — same outcome as the
+  // in-page panel (get the user to onboarding) but consistent with
+  // the rest of the dashboard's gating.
   log("test gate", "set identity.completedAt = null AND clear setupState.activatedAt");
   await prisma.financialIdentity.update({
-    where: { userId: user.id },
+    where: { userId: s.userId },
     data: { completedAt: null },
   });
-  // Cluster 7.36: onboarding gate accepts EITHER FinancialIdentity.completedAt OR 
+  // Cluster 7.36: onboarding gate accepts EITHER FinancialIdentity.completedAt OR
   // SetupState.activatedAt. Clear both to test the "incomplete" path.
   await prisma.setupState.update({
-    where: { userId: user.id },
+    where: { userId: s.userId },
     data: { activatedAt: null },
   }).catch(() => null);  // SetupState may not exist; that's OK
-  // Page: 307 redirect to /onboarding is the expected behavior
-  // (the (app) layout's gate fires before the page renders).
-  const a3 = await get("/advisor");
+  // Page: 307 redirect to the onboarding entry point is the expected
+  // behavior (the (app) layout's gate fires before the page renders).
+  const a3 = await s.get("/advisor");
   log("/advisor (incomplete identity)", `status=${a3.status}`);
   // Cluster 7.15.1: when running under smoke-server (COMPASS_SANDBOX=1),
   // the OnboardingGate is bypassed (the prod build can't tell dev-mode
   // users from prod users without an explicit opt-in). The gate is
   // still active on Vercel/CI where COMPASS_SANDBOX is unset.
   const GATE_BYPASSED = process.env.COMPASS_SANDBOX === "1";
+  // Cluster 7.36 moved the gate's redirect target from /onboarding to
+  // /setup. The gate still fires and still redirects; only the entry
+  // point changed. Accept either target so the check asserts the GATE,
+  // not the URL. The status assertion (307) is unchanged.
+  const a3Loc = a3.headers.get("location") ?? "";
+  const GATE_TARGETS = ["/onboarding", "/setup"];
   check(
-    "/advisor with incomplete identity: redirects to /onboarding (307)",
+    "/advisor with incomplete identity: redirects to onboarding/setup (307)",
     !GATE_BYPASSED
-      ? a3.status === 307 && (a3.headers.get("location") ?? "").endsWith("/onboarding")
+      ? a3.status === 307 && GATE_TARGETS.some((t) => a3Loc.endsWith(t))
       : a3.status === 200, // bypass: gate returns 200 instead
     `got ${a3.status} loc=${a3.headers.get("location") ?? "none"}`,
   );
   // API should 409 (unless bypassed)
-  const r4 = await postJson("/api/advisor/run", { userMessage: "any question" });
+  const r4 = await s.postJson("/api/advisor/run", { userMessage: "any question" });
   const r4j = await r4.json();
   log("api gate", `status=${r4.status} error=${r4j.error}`);
   check(
@@ -354,16 +297,23 @@ async function main() {
     `got ${r4j.redirectTo}`,
   );
 
-  // Restore the completedAt
+  // Restore BOTH halves of the 7.36 gate before anything else reads it.
+  // (The fixture user is torn down below, but the tool-call checks and
+  // the OnboardingMessage count that follow still expect a coherent
+  // identity.)
   await prisma.financialIdentity.update({
-    where: { userId: user.id },
+    where: { userId: s.userId },
     data: { completedAt: new Date() },
   });
-  log("test gate", "restored completedAt");
+  await prisma.setupState.update({
+    where: { userId: s.userId },
+    data: { activatedAt: new Date() },
+  }).catch(() => null);
+  log("test gate", "restored completedAt + setupState.activatedAt");
 
   // ── 10. The OnboardingMessage log gained the new messages
   const msgCount = await prisma.onboardingMessage.count({
-    where: { identity: { userId: user.id } },
+    where: { identity: { userId: s.userId } },
   });
   log("onboarding message log", `count=${msgCount}`);
   check("OnboardingMessage log has ≥4 messages (2 user + 2 assistant)", msgCount >= 4, `got ${msgCount}`);
@@ -384,7 +334,7 @@ async function main() {
   // actually narrows the result. An unknown tool returns
   // { ok: false, error }.
   async function callTool(name, args = {}) {
-    const r = await postJson("/api/dev/advisor/test-tool", { tool: name, args });
+    const r = await s.postJson("/api/dev/advisor/test-tool", { tool: name, args });
     const j = await r.json();
     return { status: r.status, body: j };
   }
@@ -468,7 +418,7 @@ async function main() {
       `allocated=${body?.result?.data?.totalAllocatedDollars} unallocated=${body?.result?.data?.unallocatedDollars}`);
     // CRITICAL: simulatePaycheck must NOT mutate state. Verify the
     // OnboardingMessage count is unchanged.
-    const msgAfterSim = await prisma.onboardingMessage.count({ where: { identity: { userId: user.id } } });
+    const msgAfterSim = await prisma.onboardingMessage.count({ where: { identity: { userId: s.userId } } });
     check("simulatePaycheck: does NOT mutate OnboardingMessage log", msgAfterSim === msgCount, `before=${msgCount} after=${msgAfterSim}`);
   }
 
@@ -504,7 +454,7 @@ async function main() {
   // text response), the orchestrator should still return an empty
   // toolCalls array and rounds=1. This is the contract the chat
   // UI + smoke depend on.
-  const r5 = await postJson("/api/advisor/run", { userMessage: "What's my mortgage balance?" });
+  const r5 = await s.postJson("/api/advisor/run", { userMessage: "What's my mortgage balance?" });
   const r5j = await r5.json();
   log("ask q3 (multi-round contract)", `status=${r5.status} rounds=${r5j.rounds} toolCalls=${r5j.toolCalls?.length ?? "n/a"}`);
   check("/api/advisor/run: response includes toolCalls (array)", Array.isArray(r5j.toolCalls), `got ${typeof r5j.toolCalls}`);
@@ -513,6 +463,11 @@ async function main() {
   check("/api/advisor/run: agentMessage non-empty", typeof r5j.agentMessage === "string" && r5j.agentMessage.length > 0);
 
   // ── 12. Final summary
+  // Tear down this test's user before reporting. If the test crashed
+  // earlier the next fixture's sweep reclaims the user anyway, so a
+  // failed run never leaks.
+  await s.close();
+
   console.log("\n--- checks ---");
   let pass = 0, fail = 0;
   for (const [, ok, detail] of checks) {

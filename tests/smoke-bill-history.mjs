@@ -30,69 +30,23 @@
  * (smoke.test_bill_event) so it doesn't collide with real
  * events from prior smoke runs.
  *
- * Run: `node tests/smoke-bill-history.mjs` (dev server must be up).
+ * Run: `tsx --conditions=react-server tests/smoke-bill-history.mjs`
+ * (dev server must be up).
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs), so the
+ * sentinel ScheduledBill + the `smoke.test_bill_event` audit rows
+ * this smoke writes belong to a throwaway user instead of the
+ * shared smoke user. tsx + the react-server condition are required
+ * because the fixture imports `src/lib/*.ts` (which pull in Next's
+ * `server-only` marker).
  */
 
 import { prisma } from "./db-client.mjs";
+import { loginAsFixture } from "./fixture.mjs";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
-const BASE = "http://127.0.0.1:3000";
 const ROOT = process.cwd();
-
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  m = html.match(/\$ACTION_ID_([a-f0-9]{20,})/);
-  if (m) return m[1];
-  return null;
-}
-async function postForm(path, fields, { actionId, kind = "plain" } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId && kind === "bound") {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-  } else if (actionId) {
-    form.append(`$ACTION_ID_${actionId}`, "");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers,
-    body: form,
-    redirect: "manual",
-  });
-  captureSetCookies(r.headers);
-  return r;
-}
 
 const log = (k, v) => console.log(`[${k}] ${v}`);
 const checks = [];
@@ -105,26 +59,13 @@ function check(name, cond, detail) {
 async function main() {
   console.log("\n--- Bill history smoke (Cluster 7.5) ---\n");
 
-  // ── 1. Login ──────────────────────────────────────────────────────
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) {
-    console.log("FATAL: no login aid");
-    process.exit(1);
-  }
-  const lp = await postForm(
-    "/login",
-    { email: "mom@compass.local", password: "correct-horse-battery-staple" },
-    { actionId: loginAid, kind: "bound" },
-  );
-  check("login: 303", lp.status === 303, `status=${lp.status}`);
+  // ── 1. Per-test fixture user (creates + seeds + logs in) ────────
+  const s = await loginAsFixture("bill-history");
+  log("fixture", `user=${s.email}`);
+  log("login", `status=${s.login.status} session=${!!s.jar["compass_session"]}`);
 
   // ── 2. Find or create a bill to test against ────────────────────
-  const userId = await getCurrentUserId();
-  if (!userId) {
-    console.log("FATAL: no user id");
-    process.exit(1);
-  }
+  const userId = s.userId;
   const bill = await getOrCreateTestBill(userId);
   if (!bill) {
     console.log("FATAL: could not create or find a test bill");
@@ -197,7 +138,7 @@ async function main() {
   );
 
   // ── 4. /vault/bills/[id]/history renders 200 ────────────────────
-  const hist1 = await get(`/vault/bills/${encodeURIComponent(bill.id)}/history`);
+  const hist1 = await s.get(`/vault/bills/${encodeURIComponent(bill.id)}/history`);
   check(
     "history: 200",
     hist1.status === 200,
@@ -278,10 +219,10 @@ async function main() {
     "executing",
     "settled",
   ];
-  for (const s of happyPathSteps) {
+  for (const step of happyPathSteps) {
     check(
-      `history: timeline step ${s} rendered`,
-      html1.includes(`data-testid="vault-bill-timeline-step-${s}"`),
+      `history: timeline step ${step} rendered`,
+      html1.includes(`data-testid="vault-bill-timeline-step-${step}"`),
     );
   }
 
@@ -366,7 +307,7 @@ async function main() {
 
   // ── 10. Filter contract: ?type=vault.payment_settled narrows the table ─
   const SENTINEL_FILTER_TYPE = "vault.payment_settled";
-  const typedPage = await get(
+  const typedPage = await s.get(
     `/vault/bills/${encodeURIComponent(bill.id)}/history?type=${encodeURIComponent(SENTINEL_FILTER_TYPE)}`,
   );
   const typedHtml = await typedPage.text();
@@ -393,7 +334,7 @@ async function main() {
   );
 
   // ── 11. Filter contract: ?take=200 doesn't break the page ──────
-  const takePage = await get(
+  const takePage = await s.get(
     `/vault/bills/${encodeURIComponent(bill.id)}/history?take=200`,
   );
   const takeHtml = await takePage.text();
@@ -408,7 +349,7 @@ async function main() {
   const beforeVisit = await prisma.auditLog.count({
     where: { userId, actionType: "vault.bill_history_viewed" },
   });
-  await get(`/vault/bills/${encodeURIComponent(bill.id)}/history`);
+  await s.get(`/vault/bills/${encodeURIComponent(bill.id)}/history`);
   // Give the server a moment to commit the write (fire-and-forget).
   await new Promise((r) => setTimeout(r, 200));
   const afterVisit = await prisma.auditLog.count({
@@ -452,7 +393,7 @@ async function main() {
   }
 
   // ── 13. 404 path: a bill id that doesn't exist ─────────────────
-  const notFound = await get(
+  const notFound = await s.get(
     "/vault/bills/smoke-nonexistent-bill-id-7-5/history",
   );
   const notFoundHtml = await notFound.text();
@@ -590,7 +531,7 @@ async function main() {
   // the payload) and visit /vault/audit, then check the page
   // HTML for a data-testid="vault-audit-row-when-link" element
   // with an href to the bill.
-  const auditPage = await get("/vault/audit?type=vault.payment_settled");
+  const auditPage = await s.get("/vault/audit?type=vault.payment_settled");
   const auditHtml = await auditPage.text();
   check(
     "history: /vault/audit table row with billId has a deep-link to the bill",
@@ -603,7 +544,7 @@ async function main() {
   // <Link> to its history. The BillScheduleClient is a client
   // island; the SSR-rendered initial HTML should already have
   // the link.
-  const vaultPage = await get("/vault");
+  const vaultPage = await s.get("/vault");
   const vaultHtml = await vaultPage.text();
   check(
     "history: /vault bill list links the bill name to its history",
@@ -637,6 +578,8 @@ async function main() {
   );
 
   // ── Summary
+  await s.close();
+
   const passed = checks.filter((c) => c[1]).length;
   const total = checks.length;
   console.log(`\n--- checks ---`);
@@ -646,14 +589,6 @@ async function main() {
     process.exit(1);
   }
   console.log("ALL GREEN");
-}
-
-async function getCurrentUserId() {
-  const row = await prisma.user.findFirst({
-    where: { email: "mom@compass.local" },
-    select: { id: true },
-  });
-  return row?.id ?? null;
 }
 
 /**

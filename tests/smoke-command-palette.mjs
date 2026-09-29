@@ -24,79 +24,28 @@
  * needed to simulate it; the existing smoke harness is
  * HTTP-only).
  *
- * Run: `node tests/smoke-command-palette.mjs` (dev server up).
+ * Run: `tsx --conditions=react-server tests/smoke-command-palette.mjs`
+ * (dev server up).
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * one shared smoke user, so this test can neither be poisoned by nor
+ * poison another test's state. tsx + the react-server condition are
+ * required because the fixture imports `src/lib/*.ts` (which pull in
+ * Next's `server-only` marker).
  */
 
 import { prisma } from "./db-client.mjs";
+import { loginAsFixture } from "./fixture.mjs";
 
-const BASE = "http://127.0.0.1:3000";
-
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path, { allow401 = false } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
+/**
+ * Authenticated GET via the fixture's cookie jar, with the 401 guard
+ * the original helper carried.
+ */
+async function get(s, path, { allow401 = false } = {}) {
+  const r = await s.get(path);
   if (!allow401 && r.status === 401) {
     throw new Error(`401 on ${path}`);
   }
-  return r;
-}
-async function postJson(path, body) {
-  const headers = new Headers({ "content-type": "application/json" });
-  applyCookies(headers);
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    redirect: "manual",
-  });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  m = html.match(/\$ACTION_ID_([a-f0-9]{20,})/);
-  if (m) return m[1];
-  return null;
-}
-async function postForm(path, fields, { actionId, kind = "plain" } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId && kind === "bound") {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append("$ACTION_1:1", "[{\"ok\":false}]");
-  } else if (actionId) {
-    form.append(`$ACTION_ID_${actionId}`, "");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers,
-    body: form,
-    redirect: "manual",
-  });
-  captureSetCookies(r.headers);
   return r;
 }
 
@@ -112,29 +61,19 @@ async function main() {
   console.log("\n--- Command palette smoke (Cluster 7.1) ---\n");
 
   // ── 1. Login + reset
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) {
-    console.log("FATAL: no login aid");
-    process.exit(1);
-  }
-  const lp = await postForm(
-    "/login",
-    { email: "mom@compass.local", password: "correct-horse-battery-staple" },
-    { actionId: loginAid, kind: "bound" },
-  );
-  log("login", `status=${lp.status} session=${!!jar["compass_session"]}`);
-  if (!jar["compass_session"]) {
-    console.log("FATAL: login failed");
-    process.exit(1);
-  }
-  const r1Reset = await postJson("/api/reset-seed");
+  // Per-test fixture user: creates the user, opens the onboarding gate
+  // both ways, provisions the seeded baseline, and performs the
+  // server-action login. The cookie jar rides on `s`.
+  const s = await loginAsFixture("command-palette");
+  log("fixture", `user=${s.email}`);
+  log("login", `status=${s.login.status} session=${!!s.jar["compass_session"]}`);
+  const r1Reset = await s.postJson("/api/reset-seed");
   log("reset", `status=${r1Reset.status}`);
 
   // ── 2. The TopAppBar renders the [⌘K] Search button on
   // every signed-in page. Test on /vault (the most populous
   // page), then verify a few others.
-  const v0 = await get("/vault");
+  const v0 = await get(s, "/vault");
   const v0Text = await v0.text();
   check("/vault returns 200", v0.status === 200, `got ${v0.status}`);
   check(
@@ -157,7 +96,7 @@ async function main() {
   // of the layout, so it appears on every page in the (app)
   // group).
   for (const path of ["/", "/envelopes", "/goals", "/obligations", "/vault/preferences", "/settings"]) {
-    const r = await get(path);
+    const r = await get(s, path);
     const t = await r.text();
     check(
       `${path} has the search button`,
@@ -177,7 +116,7 @@ async function main() {
   );
 
   // ── 5. /api/command-palette returns the search index.
-  const api = await get("/api/command-palette");
+  const api = await get(s, "/api/command-palette");
   const apiJson = await api.json();
   check(
     "/api/command-palette returns 200",
@@ -324,8 +263,8 @@ async function main() {
   // OR 307 (redirect to /login by the middleware). Either
   // response indicates the endpoint is auth-gated.
   // Reset the jar to clear the session cookie.
-  Object.keys(jar).forEach((k) => delete jar[k]);
-  const apiUnauth = await get("/api/command-palette", { allow401: true });
+  Object.keys(s.jar).forEach((k) => delete s.jar[k]);
+  const apiUnauth = await get(s, "/api/command-palette", { allow401: true });
   check(
     "unauthenticated /api/command-palette returns 401 or 307 (auth-gated)",
     apiUnauth.status === 401 || apiUnauth.status === 307,
@@ -333,17 +272,21 @@ async function main() {
   );
 
   // Re-login (we need the session to continue testing).
-  const lr2 = await get("/login");
-  const loginAid2 = extractActionId(await lr2.text());
-  await postForm(
+  const lr2 = await s.get("/login");
+  const loginHtml2 = await lr2.text();
+  const loginAid2 =
+    loginHtml2.match(/"id":"([a-f0-9]{20,})"/)?.[1] ??
+    loginHtml2.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/)?.[1] ??
+    null;
+  await s.post(
     "/login",
-    { email: "mom@compass.local", password: "correct-horse-battery-staple" },
-    { actionId: loginAid2, kind: "bound" },
+    { email: s.email, password: s.password },
+    { actionId: loginAid2 },
   );
 
   // ── 12. /api/command-palette?q=period returns the right
   // ranked results.
-  const qp = await get("/api/command-palette?q=period");
+  const qp = await get(s, "/api/command-palette?q=period");
   const qpJson = await qp.json();
   check(
     "/api/command-palette?q=period returns 200",
@@ -369,7 +312,7 @@ async function main() {
 
   // ── 13. /api/command-palette?q= returns everything (empty
   // query returns the full index).
-  const qa = await get("/api/command-palette?q=");
+  const qa = await get(s, "/api/command-palette?q=");
   const qaJson = await qa.json();
   check(
     "empty query returns all items",
@@ -378,7 +321,7 @@ async function main() {
   );
 
   // ── 14. /api/command-palette?q=nonsense returns 0 results.
-  const qn = await get("/api/command-palette?q=zzzzz-no-match");
+  const qn = await get(s, "/api/command-palette?q=zzzzz-no-match");
   const qnJson = await qn.json();
   check(
     "nonsense query returns 0 results",
@@ -390,7 +333,7 @@ async function main() {
   // The "Goals" route has title "Goals" (starts with "g" when
   // lowercased). The "Emergency Fund" goal contains "g" but
   // doesn't start with it. So q=g should rank Goals first.
-  const qg = await get("/api/command-palette?q=g");
+  const qg = await get(s, "/api/command-palette?q=g");
   const qgJson = await qg.json();
   const goalsResult = qgJson.results.find((r) => r.id === "route:/goals");
   const emergencyResult = qgJson.results.find(
@@ -528,13 +471,17 @@ async function main() {
   // ── 13. Direct DB read of seed counts to confirm the
   // items are sourced from the user's real data.
   const user = await prisma.user.findUnique({
-    where: { email: "mom@compass.local" },
+    where: { email: s.email },
   });
+  if (!user) {
+    console.log("FATAL: fixture user row not found");
+    process.exit(1);
+  }
   const [envCount, goalCount, billCount, accountCount] = await Promise.all([
-    prisma.envelope.count({ where: { userId: user.id, isArchived: false } }),
-    prisma.goal.count({ where: { userId: user.id, isArchived: false } }),
-    prisma.bill.count({ where: { userId: user.id, isArchived: false } }),
-    prisma.account.count({ where: { userId: user.id, isArchived: false } }),
+    prisma.envelope.count({ where: { userId: s.userId, isArchived: false } }),
+    prisma.goal.count({ where: { userId: s.userId, isArchived: false } }),
+    prisma.bill.count({ where: { userId: s.userId, isArchived: false } }),
+    prisma.account.count({ where: { userId: s.userId, isArchived: false } }),
   ]);
   check(
     "envelope item count == DB envelope count",
@@ -558,6 +505,11 @@ async function main() {
   );
 
   // ── Summary
+  // Tear down this test's user before reporting. If the test crashed
+  // earlier the next fixture's sweep reclaims the user anyway, so a
+  // failed run never leaks.
+  await s.close();
+
   const total = checks.length;
   const pass = checks.filter((c) => c[1]).length;
   const miss = total - pass;

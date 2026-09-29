@@ -30,7 +30,14 @@
  *      href="/settings/password") is in the rendered settings grid.
  *  10. package.json smoke script picks up the new file.
  *
- * Run: `node tests/smoke-change-password.mjs` (dev server must be up).
+ * Run: `tsx --conditions=react-server tests/smoke-change-password.mjs`
+ * (dev server must be up).
+ *
+ * Uses a per-test fixture user (see tests/fixture.mjs) rather than the
+ * shared `mom@compass.local`, so the change+restore round-trip can no
+ * longer lock out the account every other test shares. tsx + the
+ * react-server condition are required because the fixture imports
+ * `src/lib/*.ts` (which pull in Next's `server-only` marker).
  *
  * Why we don't fire useActionState over the wire: the form wire
  * format is brittle (see the existing memory note on server-action
@@ -41,6 +48,7 @@
 
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import { createFixture, loginAsFixture } from "./fixture.mjs";
 import { prisma } from "./db-client.mjs";
 import { hash, verify } from "@node-rs/argon2";
 import { exitCodeFor, recordSkip } from "./skip-guard.mjs";
@@ -62,12 +70,12 @@ const verifyPassword = async (hashed, plaintext) => {
   }
 };
 
-const BASE = "http://127.0.0.1:3000";
+const BASE = process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3000";
 const ROOT = process.cwd();
-const SMOKE_USER_EMAIL = "mom@compass.local";
-const SMOKE_USER_PASSWORD = "correct-horse-battery-staple";
+// The fixture mints a unique password per run. The "new" password is
+// this test's own; the "restore" password is s.password, which the
+// fixture wrote as the user's original hash.
 const SMOKE_USER_NEW_PASSWORD = "smoke-change-pw-7-16-new-battery";
-const SMOKE_USER_RESTORE_PASSWORD = "correct-horse-battery-staple";
 
 const log = (k, v) => console.log(`[${k}] ${v}`);
 const checks = [];
@@ -89,65 +97,6 @@ function checkSkip(name, reason) {
   log(name, `[SKIP-NO-SERVER] ${reason}`);
 }
 
-const jar = {};
-function applyCookies(headers) {
-  const cookies = Object.entries(jar)
-    .map(([k, v]) => `${k}=${v}`)
-    .join("; ");
-  if (cookies) headers.set("cookie", cookies);
-}
-function captureSetCookies(headers) {
-  const list = headers.getSetCookie?.() ?? [];
-  for (const sc of list) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    if (!k) continue;
-    const v = rest.join("=").replace(/^"|"$/g, "");
-    if (v === "" || /Expires=.*1970/i.test(sc)) delete jar[k];
-    else jar[k] = v;
-  }
-}
-async function get(path) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const r = await fetch(BASE + path, { headers, redirect: "manual" });
-  captureSetCookies(r.headers);
-  return r;
-}
-function extractActionId(html) {
-  let m = html.match(/"id":"([a-f0-9]{20,})"/);
-  if (m) return m[1];
-  m = html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/);
-  if (m) return m[1];
-  m = html.match(/\$ACTION_ID_([a-f0-9]{20,})/);
-  if (m) return m[1];
-  return null;
-}
-async function postForm(path, fields, { actionId, kind = "bound", initial } = {}) {
-  const headers = new Headers();
-  applyCookies(headers);
-  const form = new FormData();
-  if (actionId && kind === "bound") {
-    form.append("$ACTION_REF_1", "");
-    form.append("$ACTION_1:0", JSON.stringify({ id: actionId, bound: "$@1" }));
-    form.append(
-      "$ACTION_1:1",
-      JSON.stringify(initial ?? [{ ok: false }]),
-    );
-  } else if (actionId) {
-    form.append(`$ACTION_ID_${actionId}`, "");
-  }
-  for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers,
-    body: form,
-    redirect: "manual",
-  });
-  captureSetCookies(r.headers);
-  return r;
-}
-
 async function main() {
   console.log("\n--- Change Password smoke (Cluster 7.16) ---\n");
 
@@ -163,30 +112,26 @@ async function main() {
   }
   log("server-probe", serverUp ? "UP" : "DOWN (HTTP-only checks will skip)");
 
-  // ── 1. Login (useActionState form) — only when server is up
+  // ── 1. Per-test fixture user. When the server is up we also log in
+  //      through the real action; when it is down we fall back to the
+  //      DB-only fixture (no HTTP) so the password round-trip below
+  //      still runs against an isolated throwaway user.
+  let s;
   if (serverUp) {
-    const lr = await get("/login");
-    const loginHtml = await lr.text();
-    const loginAid = extractActionId(loginHtml);
-    if (!loginAid) {
-      console.log("FATAL: no login aid");
-      process.exit(1);
-    }
-    const lp = await postForm(
-      "/login",
-      { email: SMOKE_USER_EMAIL, password: SMOKE_USER_PASSWORD },
-      { actionId: loginAid, kind: "bound" },
-    );
-    check("login: 303 (redirect home)", lp.status === 303, `status=${lp.status}`);
-    if (!jar["compass_session"]) {
-      console.log("FATAL: login failed (no session cookie)");
-      process.exit(1);
-    }
+    s = await loginAsFixture("change-password");
+    log("fixture", `user=${s.email}`);
+    check("login: 303 (redirect home)", s.login.status === 303, `status=${s.login.status}`);
   } else {
+    s = await createFixture("change-password", { scenario: "minimal" });
+    log("fixture", `user=${s.email} (no login — server down)`);
     // The HTTP chain (login → GET /settings/password → round-trip
     // follow-up) collapses to "skip" without the server. The DB
     // round-trip is what actually verifies the contract; we still
-    // do that below against the seeded smoke user.
+    // do that below against the fixture user.
+    checkSkip(
+      "login: 303 (redirect home)",
+      "dev server unreachable (Windows + Turbopack PostCSS subprocess timeout — see memory)",
+    );
     checkSkip(
       "change-password: page returns 200 while signed in",
       "dev server unreachable (Windows + Turbopack PostCSS subprocess timeout — see memory)",
@@ -209,24 +154,20 @@ async function main() {
     );
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email: SMOKE_USER_EMAIL },
-  });
-  if (!user) {
-    console.log("FATAL: smoke user not found in DB");
-    process.exit(1);
-  }
   // Capture the pre-change state so we can restore it at the end.
-  const originalHash = user.passwordHash;
+  const originalHash = (await prisma.user.findUnique({
+    where: { id: s.userId },
+    select: { passwordHash: true },
+  })).passwordHash;
   const sessionsBefore = await prisma.session.count({
-    where: { userId: user.id },
+    where: { userId: s.userId },
   });
-  log("pre-change", `userId=${user.id} sessions=${sessionsBefore}`);
+  log("pre-change", `userId=${s.userId} sessions=${sessionsBefore}`);
 
   try {
     // ── 2. GET /settings/password renders the form (HTTP — server-only)
     if (serverUp) {
-      const cp = await get("/settings/password");
+      const cp = await s.get("/settings/password");
       check(
         "change-password: page returns 200 while signed in",
         cp.status === 200,
@@ -262,15 +203,15 @@ async function main() {
       );
 
       // ── 3. When logged out, the page redirects to /login
-      const savedCookie = jar["compass_session"];
-      delete jar["compass_session"];
-      const cpOut = await get("/settings/password");
+      const savedCookie = s.jar["compass_session"];
+      delete s.jar["compass_session"];
+      const cpOut = await s.get("/settings/password");
       check(
         "change-password: redirects to /login when not signed in",
         cpOut.status === 303 || cpOut.status === 307,
         `status=${cpOut.status}`,
       );
-      jar["compass_session"] = savedCookie;
+      s.jar["compass_session"] = savedCookie;
     }
 
     // ── 4. Round-trip: simulate changePasswordAction atomically
@@ -278,7 +219,7 @@ async function main() {
     // DB directly to verify the contract end-to-end; the actual
     // action invocation via useActionState wire format is too
     // brittle to test deterministically without a browser harness.
-    const oldOk = await verifyPassword(originalHash, SMOKE_USER_PASSWORD);
+    const oldOk = await verifyPassword(originalHash, s.password);
     check(
       "round-trip: old password matches original hash before change",
       oldOk === true,
@@ -291,16 +232,16 @@ async function main() {
     );
     check(
       "round-trip: new password does NOT verify against old password",
-      (await verifyPassword(newHash, SMOKE_USER_PASSWORD)) === false,
+      (await verifyPassword(newHash, s.password)) === false,
     );
 
     // Apply the same atomic write the action performs.
     const created = await prisma.$transaction(async (tx) => {
       await tx.user.update({
-        where: { id: user.id },
+        where: { id: s.userId },
         data: { passwordHash: newHash },
       });
-      await tx.session.deleteMany({ where: { userId: user.id } });
+      await tx.session.deleteMany({ where: { userId: s.userId } });
       const tokenBytes = new Uint8Array(32);
       // Use the same @node-rs/argon2 hasher nothing — we just need
       // a token here. Use crypto.getRandomValues.
@@ -313,7 +254,7 @@ async function main() {
         .digest("hex");
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       await tx.session.create({
-        data: { userId: user.id, tokenHash, expiresAt },
+        data: { userId: s.userId, tokenHash, expiresAt },
       });
       return { token, expiresAt };
     });
@@ -321,7 +262,7 @@ async function main() {
     // After the atomic write: only ONE session for this user (the
     // fresh one), and the pre-change session (if any) is gone.
     const sessionsAfter = await prisma.session.count({
-      where: { userId: user.id },
+      where: { userId: s.userId },
     });
     check(
       "round-trip: post-change, exactly one session remains for the current device",
@@ -331,7 +272,7 @@ async function main() {
 
     // The user row now has the new hash.
     const userAfter = await prisma.user.findUnique({
-      where: { id: user.id },
+      where: { id: s.userId },
     });
     check(
       "round-trip: user.passwordHash was swapped to the new hash",
@@ -340,7 +281,7 @@ async function main() {
     );
     check(
       "round-trip: user.passwordHash no longer matches the old password",
-      (await verifyPassword(userAfter.passwordHash, SMOKE_USER_PASSWORD)) ===
+      (await verifyPassword(userAfter.passwordHash, s.password)) ===
         false,
     );
 
@@ -350,7 +291,7 @@ async function main() {
     // the smoke chain anyway).
     check(
       "round-trip: login attempt with old password is rejected",
-      (await verifyPassword(userAfter.passwordHash, SMOKE_USER_PASSWORD)) ===
+      (await verifyPassword(userAfter.passwordHash, s.password)) ===
         false,
     );
 
@@ -458,7 +399,7 @@ async function main() {
 
     // ── 6. The /settings hub has row 02.5 (Change Password) wired (HTTP)
     if (serverUp) {
-      const sp = await get("/settings");
+      const sp = await s.get("/settings");
       check("settings: 200", sp.status === 200, `status=${sp.status}`);
       const spHtml = await sp.text();
       check(
@@ -491,22 +432,26 @@ async function main() {
     );
   } finally {
     // ── 8. ALWAYS restore the user's password to its pre-change
-    // value so re-running the smoke chain stays idempotent. If we
-    // crash before this point, the next operator would need to
-    // run `pnpm auth:reset-password` to get back in — but the
-    // cluster is idempotent across its own runs.
+    // value so the round-trip is a true round-trip and the
+    // fixture's own credentials still work. (With an isolated
+    // fixture user this is belt-and-braces, not a rescue: the
+    // user row is deleted on teardown either way.)
     try {
-      const restoreHash = await hashPassword(SMOKE_USER_RESTORE_PASSWORD);
+      const restoreHash = await hashPassword(s.password);
       await prisma.user.update({
-        where: { id: user.id },
+        where: { id: s.userId },
         data: { passwordHash: restoreHash },
       });
       // Don't restore sessions; let the next smoke recreate what it needs.
-      log("cleanup", `passwordHash restored for ${SMOKE_USER_EMAIL}`);
+      log("cleanup", `passwordHash restored for ${s.email}`);
     } catch (e) {
-      console.error(`WARN: failed to restore passwordHash for ${SMOKE_USER_EMAIL}:`, e);
+      console.error(`WARN: failed to restore passwordHash for ${s.email}:`, e);
     }
   }
+
+  // Tear down this test's fixture user. This must run AFTER the
+  // finally-restore above — teardown deletes the user row.
+  await s.close();
 
   console.log("\n--- checks ---");
   let pass = 0, fail = 0;
