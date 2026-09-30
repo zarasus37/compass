@@ -10,10 +10,39 @@
 
 import { addDays } from "./format";
 
-export const TODAY = new Date("2026-08-30T18:30:00");
-export const PERIOD_START = new Date("2026-08-22T00:00:00");
-export const PERIOD_END = new Date("2026-09-05T00:00:00"); // exclusive end
-export const NEXT_PAY_DATE = new Date("2026-08-28T00:00:00");
+export const TODAY = new Date();
+
+/**
+ * Pay-period window.
+ *
+ * These three were pinned literals (2026-08-22 → 2026-09-05) and went
+ * stale the moment the period ended — the whole app reported "Sunday,
+ * August 30" and "5 days to the next paycheck" for weeks after the real
+ * date moved past it. They are now the *fallback* only: the live window
+ * comes from the active `PayPeriod` row via
+ * `getCurrentPayPeriod()` in `@/lib/mock`, which rolls forward off the
+ * user's `PaySchedule` cadence. These constants are what that function
+ * falls back to when the table is unreadable or empty, and what seeds a
+ * brand-new user before they have a period row.
+ *
+ * Anchor them to the current week rather than a fixed literal so a
+ * fresh install is never born already-expired.
+ */
+export const PERIOD_START = (() => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return addDays(d, -8);
+})();
+export const PERIOD_END = (() => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return addDays(d, 6);
+})(); // exclusive end
+export const NEXT_PAY_DATE = (() => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return addDays(d, -2);
+})();
 
 /**
  * Prior-period summary stats (for the /period comparison chart).

@@ -461,10 +461,27 @@ async function main() {
     orderBy: { createdAt: "desc" },
   });
   if (sentinelRow) {
-    const rowDate = sentinelRow.createdAt.toISOString().slice(0, 10);
+    // Derive the Y-M-D the same way the page derives it.
+    //
+    // This used to be `sentinelRow.createdAt.toISOString().slice(0, 10)`,
+    // which is the UTC calendar date — but `?from=` / `?to=` are parsed
+    // as LOCAL midnight. Between local midnight and UTC midnight the two
+    // disagree, and the sentinel lands before the filter's lower bound
+    // and vanishes. On this machine that window is every evening
+    // (~19:00-24:00 CDT), which made the check pass at 18:54 UTC and
+    // fail at 02:55 UTC with no code change in between.
+    //
+    // Format from local components, exactly like `todayYmd` below.
+    const localYmd = (d) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+    const rowDate = localYmd(sentinelRow.createdAt);
     const nextDay = new Date(sentinelRow.createdAt);
     nextDay.setDate(nextDay.getDate() + 1);
-    const nextDayYmd = nextDay.toISOString().slice(0, 10);
+    const nextDayYmd = localYmd(nextDay);
 
     const fromPage = await s.get(`/vault/audit?from=${rowDate}`);
     const fromHtml = await fromPage.text();

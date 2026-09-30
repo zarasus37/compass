@@ -64,6 +64,30 @@ export { TODAY, PERIOD_START, PERIOD_END, NEXT_PAY_DATE };
  * will have at least one active row seeded; the fallback just keeps
  * the dev experience smooth before the seed step runs.
  */
+/**
+ * Period length in days, per `PaySchedule.cadence`.
+ *
+ * Deliberately day-based rather than calendar-aware. A "monthly"
+ * period as 30 days drifts against real months, but the alternative
+ * (clamping to month length) makes the window length depend on which
+ * month you happen to land in, which is worse for a countdown the user
+ * reads every day. 30 days is the conventional approximation and keeps
+ * `endDate - startDate` constant, so the roll-forward below is exact.
+ */
+const CADENCE_DAYS: Record<string, number> = {
+  weekly: 7,
+  biweekly: 14,
+  semi_monthly: 15,
+  monthly: 30,
+};
+
+const DEFAULT_PERIOD_DAYS = 14;
+
+function periodDaysFor(cadence: string | null | undefined): number {
+  if (!cadence) return DEFAULT_PERIOD_DAYS;
+  return CADENCE_DAYS[cadence] ?? DEFAULT_PERIOD_DAYS;
+}
+
 export interface PayPeriodSnapshot {
   startDate: Date;
   endDate: Date;
@@ -72,12 +96,23 @@ export interface PayPeriodSnapshot {
 }
 
 export async function getCurrentPayPeriod(): Promise<PayPeriodSnapshot> {
+  const now = new Date();
   try {
     const row = await prisma.payPeriod.findFirst({
       where: { isActive: true },
       orderBy: { startDate: "desc" },
     });
     if (row) {
+      // The active row can expire. The app used to ship one row seeded
+      // to a fixed window and nothing ever advanced it, so every date
+      // on the dashboard silently froze at the end of that period.
+      // Roll the window forward off the user's pay cadence until it
+      // actually contains "now", then persist it so every reader sees
+      // the same window.
+      if (row.endDate.getTime() <= now.getTime()) {
+        const rolled = await rollForward(row, now);
+        if (rolled) return rolled;
+      }
       return {
         startDate: row.startDate,
         endDate: row.endDate,
@@ -95,6 +130,63 @@ export async function getCurrentPayPeriod(): Promise<PayPeriodSnapshot> {
     endDate: PERIOD_END,
     fromDb: false,
   };
+}
+
+/**
+ * Advance an expired PayPeriod forward, one cadence-length at a time,
+ * until it contains `now`, and persist the result.
+ *
+ * Each step is exact: the new start is the old end (the schema stores
+ * `endDate` as EXCLUSIVE), and the new end is that plus one period. So
+ * a user who has not opened the app for six weeks lands on the correct
+ * current window rather than one period after the original.
+ *
+ * Returns null if the write fails or the row vanished underneath us —
+ * the caller then falls back to the un-rolled row, which is stale but
+ * not wrong-shaped. A read path should never throw because a period
+ * needs advancing.
+ */
+async function rollForward(
+  row: { id: string; startDate: Date; endDate: Date },
+  now: Date,
+): Promise<PayPeriodSnapshot | null> {
+  try {
+    const schedule = await prisma.paySchedule.findFirst({
+      where: { isActive: true },
+      orderBy: { createdAt: "desc" },
+    });
+    const days = periodDaysFor(schedule?.cadence);
+
+    // The caller only calls this when `row.endDate <= now`, so the very
+    // first advance ALWAYS happens — that advance is what brings the
+    // window back over the present. Counting it as step 1 matters: an
+    // earlier version started steps at 0 and bailed out with
+    // "nothing to do" whenever that first advance already overshot
+    // `now`, which is the common case for a period that lapsed by less
+    // than one cadence length. That left the row expired forever.
+    let start = row.endDate;
+    let end = new Date(start.getTime() + days * 24 * 60 * 60 * 1000);
+    let steps = 1;
+    while (end.getTime() <= now.getTime() && steps < 400) {
+      start = end;
+      end = new Date(start.getTime() + days * 24 * 60 * 60 * 1000);
+      steps += 1;
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.payPeriod.update({
+        where: { id: row.id },
+        data: { startDate: start, endDate: end, isActive: true },
+      });
+      return true;
+    });
+
+    if (!updated) return null;
+    return { startDate: start, endDate: end, fromDb: true };
+  } catch (err) {
+    console.warn("getCurrentPayPeriod: roll-forward failed, using stale row:", err);
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
