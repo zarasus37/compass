@@ -17,6 +17,7 @@ this session is in §3.
 
 | Commit | What it is |
 |---|---|
+| `d5d22f4` | clear `smoke-envelopes-list-defensive-reads` (5th landmine wall) |
 | `b9c3c51` | clear `smoke-envelope-detail-section-errors` (4th landmine wall) |
 | `e2be407` | clear `smoke-envelope-detail-null-planet` (the vacuous pass) |
 | `424ab47` | clear `smoke-ui-envelope-reads` |
@@ -38,9 +39,10 @@ CI is the arbiter. Runtime is the tell: a longer run means it got
 | `8ed91f4` | 9m32s | **smoke-ui-envelope-reads** |
 | `424ab47` | 9m20s | **smoke-envelope-detail-null-planet** |
 | `e2be407` | 9m30s | **smoke-envelope-detail-section-errors** |
-| `b9c3c51` | *see §6* | *see §6* |
+| `b9c3c51` | 9m33s | **smoke-envelopes-list-defensive-reads** |
+| `d5d22f4` | *see §6* | *see §6* |
 
-Six walls cleared in one session:
+Seven walls cleared in one session:
 
 | Wall | Before | After |
 |---|---|---|
@@ -50,6 +52,7 @@ Six walls cleared in one session:
 | `smoke-ui-envelope-reads` | 2 MISS + 30s hang | **20 / 0** |
 | `smoke-envelope-detail-null-planet` | 1 MISS | **6 / 0** |
 | `smoke-envelope-detail-section-errors` | 1 MISS | **12 / 0** |
+| `smoke-envelopes-list-defensive-reads` | 1 MISS | **8 / 0** |
 
 `pnpm tsc` exit 0 · `pnpm lint` exit 0 (543 warnings, 0 errors).
 
@@ -91,7 +94,7 @@ wiping that account's `FinancialIdentity`. Every later entry that still
 signs in as mom then sits **behind the onboarding gate**, and its pages
 never render at all.
 
-**Four of the six walls trace to this one test.** It is worth more than
+**Five of the seven walls trace to this one test.** It is worth more than
 any single failing entry, because each wall it causes has to be
 diagnosed and migrated one at a time.
 
@@ -106,8 +109,10 @@ The nastiest symptom, in `smoke-envelope-detail-null-planet`:
 
 **A negative assertion cannot distinguish "the thing worked" from "the
 thing never ran."** That is the generalisable lesson, and it is why
-`[5a]` / `[11a]` now assert the browser is still on the detail page
-before the negative assertion is trusted.
+`[5a]` / `[7a]` / `[11a]` now assert the browser is still on the page
+before the negative assertion is trusted. Three of the five migrated
+tests needed this; `smoke-envelopes-list-defensive-reads` needed it
+most, because its primary clause *is* the negative one.
 
 ### 3b. Two recurring sub-shapes
 
@@ -130,9 +135,8 @@ code change, is a clock bug until proven otherwise.
 
 ## 5. 🎯 NEXT — the tail of the chain
 
-`smoke-envelope-detail-section-errors` was entry 41. Remaining:
-`smoke-envelopes-list-defensive-reads`, `smoke-client-error-capture`,
-and the seven `smoke-debts-*`.
+`smoke-envelopes-list-defensive-reads` was entry 42. Remaining:
+`smoke-client-error-capture` and the seven `smoke-debts-*`.
 
 **Do `smoke-escape-hatches` first** (entry 34) — see §3a. It is worth
 more than any single failing entry, because it is poisoning the ones
@@ -156,12 +160,10 @@ behind it.
 
    - `smoke-escape-hatches.mjs` — entry 34, **the landmine**
    - `smoke-onboarding-chat-escape.mjs`
-   - `smoke-envelopes-list-defensive-reads.mjs`
    - `smoke-client-error-capture.mjs`
    - `smoke-debts-{tier,interest,utilization,rainbow,interactive,mobile,cross-extra}.mjs`
 
-   (`smoke-envelope-detail-section-errors.mjs` and
-   `smoke-envelope-detail-null-planet.mjs` are now migrated.)
+   (the three envelope-detail/list tests are now migrated)
 
    **The seven `smoke-debts-*` are source-regex only** — they cannot
    catch a wrong number until debts get a persistence model. That is a
