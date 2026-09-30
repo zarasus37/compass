@@ -24,11 +24,10 @@
 import { chromium } from "playwright";
 import { existsSync, readFileSync } from "node:fs";
 import { prisma } from "./db-client.mjs";
+import { createFixture } from "./fixture.mjs";
 import { exitCodeFor, recordSkip } from "./skip-guard.mjs";
 
 const BASE = "http://127.0.0.1:3000";
-const SMOKE_USER_EMAIL = "mom@compass.local";
-const SMOKE_USER_PASSWORD = "correct-horse-battery-staple";
 
 const checks = [];
 function check(name, cond, detail = "") {
@@ -76,7 +75,14 @@ for (const { file, desc } of sourceChecks) {
 
 {
   const src = readFileSync("src/app/(app)/debts/page.tsx", "utf8");
-  check("[1.debts] uses livePlanFromDb", src.includes("livePlanFromDb"));
+  // This used to assert the page imports `livePlanFromDb`. That was true
+  // from 94dd126 (7.40), but 1149c49 (7.46 visible UI polish) refactored
+  // the debts page and replaced the plan reader with `liveDebts(user.id)`
+  // + `liveAccountsFromDb(user.id)`. The check never got the memo.
+  // What it is actually protecting is "the debts page reads the DB, not
+  // the in-memory store" — assert that, against the readers in use today.
+  check("[1.debts] uses liveDebts(user.id) (DB-backed debt reader)", /liveDebts\(\s*user\.id\s*\)/.test(src));
+  check("[1.debts] uses liveAccountsFromDb (DB-backed account reader)", src.includes("liveAccountsFromDb"));
   check("[1.debts] does NOT use in-memory livePlan()", !/^\s*const PLAN\s*=\s*livePlan\(\)/m.test(src));
 }
 
@@ -87,49 +93,57 @@ if (!serverUp) {
   checkSkip("[3] /goals/new picker shows DB-written sentinel envelope", "dev server unreachable");
   checkSkip("[4] /recurring/new picker shows DB-written sentinel envelope", "dev server unreachable");
 } else {
-  const u = await prisma.user.findUnique({ where: { email: SMOKE_USER_EMAIL } });
-  if (!u) {
-    check("[2] transactions picker renders sentinel envelope", false, "smoke user not in DB");
-    check("[3] goals picker renders sentinel envelope", false, "smoke user not in DB");
-    check("[4] recurring picker renders sentinel envelope", false, "smoke user not in DB");
-  } else {
-    const sentinelName = `Smoke Sentinel 740 ${Date.now()}`;
-    await prisma.envelope.deleteMany({ where: { userId: u.id, name: sentinelName } });
-    const sentinel = await prisma.envelope.create({
-      data: {
-        userId: u.id,
-        name: sentinelName,
-        planet: null,
-        targetBalance: 50000,
-        currentBalance: 0,
-        sortOrder: 999,
-        source: "user",
-      },
-    });
+  // Per-test fixture user. This used to sign in as the shared
+  // mom@compass.local, which made the result depend on chain order —
+  // smoke-escape-hatches (entry 34) wipes that account's identity via
+  // POST /api/onboarding/reset, and every other fixture test now leaves
+  // it alone, so its envelope set is whatever the chain happened to
+  // leave behind. The fixture owns its own user and its own envelopes.
+  const fx = await createFixture("ui-envelope-reads", { scenario: "minimal" });
+  const u = { id: fx.userId };
 
-    const browser = await chromium.launch({ headless: true });
-    const p = await (await browser.newContext()).newPage();
+  const sentinelName = `Smoke Sentinel 740 ${Date.now()}`;
+  const sentinel = await prisma.envelope.create({
+    data: {
+      userId: u.id,
+      name: sentinelName,
+      planet: null,
+      targetBalance: 50000,
+      currentBalance: 0,
+      sortOrder: 999,
+      source: "user",
+    },
+  });
 
-    async function loginAndCheck(path, checkName) {
-      await p.goto(`${BASE}/login`);
-      await p.fill('input[name=email]', SMOKE_USER_EMAIL);
-      await p.fill('input[name=password]', SMOKE_USER_PASSWORD);
-      await p.locator('button[type=submit]:has-text("Sign in")').click();
-      await p.waitForURL(`${BASE}/`);
-      await p.goto(`${BASE}${path}`);
-      await p.waitForLoadState("networkidle");
-      const html = await p.content();
-      check(checkName, html.includes(sentinelName));
-    }
+  const browser = await chromium.launch({ headless: true });
+  const p = await (await browser.newContext()).newPage();
 
-    try {
-      await loginAndCheck("/transactions/new", "[2] /transactions/new picker shows DB-written sentinel envelope");
-      await loginAndCheck("/goals/new", "[3] /goals/new picker shows DB-written sentinel envelope");
-      await loginAndCheck("/recurring/new", "[4] /recurring/new picker shows DB-written sentinel envelope");
-    } finally {
-      await prisma.envelope.delete({ where: { id: sentinel.id } }).catch(() => {});
-      await browser.close();
-    }
+  // Log in ONCE. This used to log in inside the per-page helper, so the
+  // second call navigated to /login while already holding a session —
+  // the app redirected straight to / and `input[name=email]` never
+  // rendered, hanging 30s on a Playwright fill timeout before the file
+  // could even print its summary.
+  await p.goto(`${BASE}/login`);
+  await p.fill('input[name=email]', fx.email);
+  await p.fill('input[name=password]', fx.password);
+  await p.locator('button[type=submit]:has-text("Sign in")').click();
+  await p.waitForURL(`${BASE}/`);
+
+  async function checkPicker(path, checkName) {
+    await p.goto(`${BASE}${path}`);
+    await p.waitForLoadState("networkidle");
+    const html = (await p.content()).replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+    check(checkName, html.includes(sentinelName));
+  }
+
+  try {
+    await checkPicker("/transactions/new", "[2] /transactions/new picker shows DB-written sentinel envelope");
+    await checkPicker("/goals/new", "[3] /goals/new picker shows DB-written sentinel envelope");
+    await checkPicker("/recurring/new", "[4] /recurring/new picker shows DB-written sentinel envelope");
+  } finally {
+    await prisma.envelope.delete({ where: { id: sentinel.id } }).catch(() => {});
+    await browser.close();
+    await fx.cleanup();
   }
 }
 
