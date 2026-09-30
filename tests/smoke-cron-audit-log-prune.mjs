@@ -53,8 +53,26 @@ function check(name, cond, detail) {
 
 const SENTINEL_PREFIX = "smoke.cron_prune.";
 
-/** Pin a "now" for deterministic date arithmetic. */
-const NOW = new Date("2026-08-30T12:00:00");
+/**
+ * Anchor for the sentinel date arithmetic.
+ *
+ * This used to be pinned to `2026-08-30T12:00:00` "for deterministic
+ * date arithmetic". But the endpoint cannot be pinned — the bulk prune
+ * helper always uses `new Date()` — so a pinned test-side "now" drifts
+ * away from the prune's notion of now without anything failing loudly.
+ * Once the real date passed 30 Aug + 60d + 90d, the test's 60-day
+ * sentinel fell on the wrong side of the 90-day retention cutoff and
+ * got pruned: 2 live rows instead of 3, 2 rollup buckets instead of 1.
+ *
+ * The offsets below (0/30/60/100 days) are what make the assertions
+ * meaningful, and they only mean anything relative to the prune's own
+ * clock. So anchor to the real clock and keep the offsets.
+ *
+ * Deliberately NOT `TODAY` from `@/lib/mock-seed` — this test asserts
+ * on wall-clock behaviour, and importing the app's date constant here
+ * would just move the coupling somewhere less obvious.
+ */
+const NOW = new Date();
 
 function addDays(d, days) {
   const out = new Date(d);
@@ -104,9 +122,13 @@ async function main() {
   // ── 3. POST /api/cron/audit-log-prune — happy path
   // We can't pin `now` via the endpoint (the bulk helper always
   // uses new Date() unless we add an env override). The smoke
-  // uses a sentinel at 100d ago which is well outside the 90d
-  // retention horizon (today is 2026-08-31, so 100d ago is
-  // 2026-05-23 — well past the 90-day cutoff).
+  // uses sentinels at 0d/30d/60d (inside the default 90d retention
+  // horizon, margins of 30 and 60 days) and 2x at 100d (outside it,
+  // margin of 10 days). All offsets are relative to NOW above, which
+  // is anchored to the real clock to match the prune.
+  // Invariant worth preserving if anyone retunes: 60 < retentionDays
+  // < 100, with comfortable margin on both sides, or the boundary
+  // assertions become date-sensitive.
   const cronResp = await s.postJson("/api/cron/audit-log-prune", {});
   check(
     "cron: POST /api/cron/audit-log-prune returns 200",
