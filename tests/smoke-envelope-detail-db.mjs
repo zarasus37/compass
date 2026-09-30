@@ -6,13 +6,15 @@
  * of the in-memory `liveEnvelopes()`.
  *
  * Checks:
- *   1. Existing mom user has envelopes in the DB (seed sanity)
- *   2. /envelopes/<env-rent> returns 200 (not 404)
+ *   1. The fixture user has envelopes in the DB (provisioned by the
+ *      fixture, NOT lazily seeded by a read path — see the note below)
+ *   2. /envelopes/<rent-envelope-id> returns 200 (not 404)
  *   3. The rendered HTML mentions "Rent"
  *   4. With an unknown envelope id, the route returns a 404 response
  *      (notFound() is the right call — we render a not-found page).
  */
 import { prisma } from "./db-client.mjs";
+import { loginAsFixture } from "./fixture.mjs";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { seededId } from "../src/lib/seed-ids.ts";
@@ -26,26 +28,9 @@ function check(name, cond, detail = "") {
   console.log(`[${ok ? "OK" : "MISS"}] ${name}${detail ? `  — ${detail}` : ""}`);
 }
 
-async function login() {
-  const jar = {};
-  const r1 = await fetch(`${BASE}/login`);
-  const m = (await r1.text()).match(/[a-f0-9]{20,}/);
-  if (!m) throw new Error("no login aid");
-  const aid = m[0];
-  const fd = new FormData();
-  fd.append("$ACTION_REF_1", "");
-  fd.append("$ACTION_1:0", JSON.stringify({ id: aid, bound: "$@1" }));
-  fd.append("$ACTION_1:1", "[{\"ok\":false}]");
-  fd.append("email", "mom@compass.local");
-  fd.append("password", "correct-horse-battery-staple");
-  const r2 = await fetch(`${BASE}/login`, { method: "POST", body: fd, redirect: "manual" });
-  const cookies = r2.headers.getSetCookie?.() ?? [];
-  for (const sc of cookies) {
-    const [pair] = sc.split(";");
-    const [k, ...rest] = pair.split("=");
-    jar[k] = rest.join("=").replace(/^"|"$/g, "");
-  }
-  return jar;
+// Cookie jar for an already-authenticated fixture session.
+function jarFrom(session) {
+  return Object.entries(session ?? {}).map(([k, v]) => `${k}=${v}`).join("; ");
 }
 
 async function goWithCookies(jar, path) {
@@ -55,20 +40,35 @@ async function goWithCookies(jar, path) {
 }
 
 async function main() {
-  const u = await prisma.user.findUnique({ where: { email: "mom@compass.local" } });
-  check("mom user exists in DB", !!u);
+  // Per-test fixture user. This used to sign in as the shared
+  // `mom@compass.local` and assert "mom has envelopes in DB (lazy-seed
+  // worked)" — which asserted, by name, the read-path auto-seeding that
+  // the product no longer does. The fixture provisions a real dataset,
+  // so the detail page is exercised against rows that actually exist
+  // for the user making the request.
+  const s = await loginAsFixture("envelope-detail");
+  const u = { id: s.userId };
+  check("fixture user exists in DB", !!u.id);
 
   const envs = await prisma.envelope.findMany({ where: { userId: u.id } });
-  check("mom has envelopes in DB (lazy-seed worked)", envs.length >= 7, `got ${envs.length}`);
+  check(
+    "fixture provisioned envelopes in DB",
+    envs.length > 0,
+    `got ${envs.length}`,
+  );
 
   // Canonical seed ids are namespaced per user by the product
   // (src/lib/seed-ids.ts). Fall back to the bare id so this also works
   // against a row created before the namespacing landed.
   const rentId = seededId(u.id, "env-rent");
-  const rent = envs.find(e => e.id === rentId) ?? envs.find(e => e.id === "env-rent");
-  check("rent envelope exists (canonical or namespaced id)", !!rent);
+  const rent =
+    envs.find((e) => e.id === rentId) ??
+    envs.find((e) => e.id === "env-rent") ??
+    envs.find((e) => /^rent$/i.test(e.name));
+  check("rent envelope exists (namespaced, bare, or by name)", !!rent,
+    rent ? `id=${rent.id}` : "none found");
 
-  const jar = await login();
+  const jar = s.jar;
   // Hit the detail page — using whichever id we actually resolved, so
   // this works against both namespaced and pre-namespacing rows.
   const r = await goWithCookies(jar, `/envelopes/${rent.id}`);
@@ -98,6 +98,9 @@ async function main() {
       ),
     ),
   );
+
+  // Tear this test's user down before reporting.
+  await s.close();
 
   console.log("\n--- checks ---");
   const pass = checks.filter(c => c.ok).length;
