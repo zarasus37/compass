@@ -49,7 +49,22 @@ async function main() {
 
   // ---------- Dashboard page ----------
   const r = await s.get("/");
-  const html = await r.text();
+  // Count over the RENDERED markup only.
+  //
+  // The App Router streams its RSC flight payload as `self.__next_f.push`,
+  // and that payload embeds an escaped JSON copy of the element tree —
+  // including the element tree of boundaries that never render. That bit
+  // this test in CI: `var(--surface)` and `var(--line)` appeared exactly
+  // once each, both inside a <script>, from the idle error boundary at
+  // src/app/(app)/not-found.tsx, while the rendered dashboard contained
+  // zero of them. This is a visual-token audit, so the question is what
+  // the browser actually draws; the payload is transport, not UI.
+  //
+  // The vessel-token checks below keep their teeth: measured on this page,
+  // --vessel-border is 182 occurrences raw / 98 after stripping, and the
+  // other three are 121→80, 70→54, 29→21. A real regression that rendered
+  // a legacy token in the DOM would still fail here.
+  const html = (await r.text()).replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
   check("/ resolves to 200", r.status === 200);
 
   // The dashboard body region: from the first <main> to the end of

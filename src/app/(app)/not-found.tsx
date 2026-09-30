@@ -15,8 +15,17 @@ export default function AppNotFound() {
         maxWidth: 560,
         margin: "64px auto",
         padding: 32,
-        background: "var(--surface)",
-        border: "1px solid var(--line)",
+        // Vessel tokens, not the old terminal ones. This card is never
+        // rendered on a healthy page, but Next serializes the error
+        // boundary's element tree into the RSC flight payload for EVERY
+        // (app) route — so the legacy `var(--surface)` / `var(--line)`
+        // leaked into the payload of every page and tripped
+        // smoke-visual-finish's "old terminal tokens absent" assertion.
+        // --vessel-surface is documented as the elevated-layer container
+        // background and --vessel-border as the structural tracking line,
+        // which is what these two properties actually mean.
+        background: "var(--vessel-surface)",
+        border: "1px solid var(--vessel-border)",
         borderLeft: "3px solid var(--vessel-watch)",
         borderRadius: 6,
         textAlign: "center",
