@@ -12,37 +12,51 @@ nine of them.
 
 | Commit | What it is |
 |---|---|
+| `d0b2dcc` | anchor the cron-prune smoke's sentinel dates to the real clock |
+| `38e3653` | unfreeze the app clock; roll the pay period forward; add `clear-demo-data` |
+| `4ce0a1c` | docs: 404 fixed + CI-confirmed; setup-wizard is the next wall |
 | `daabae5` | scope the loading shell so `notFound()` can set a real 404 |
-| `d0e6df9` | rewrite the briefing (this file) + COORDINATION status |
+| `d0e6df9` | rewrite this briefing + COORDINATION status |
 | `5861f50` | run src-importing smokes under tsx; un-orphan the stuck-detector users |
 | `79a1478` | install Playwright's Chromium in CI; fail mobile-shell clearly |
 | `5795fbc` | stop the vault reconciliation assertion matching the RSC flight payload |
 | `cf34584` | fix four environment-coupled defects the honest suite exposed |
-| `a0e9ecc` | *(previous session)* namespace canonical seed ids per user |
 
 All pushed to `origin/main`. Working tree clean for tracked files.
 
 ## 2. The headline
 
-**The 404 is fixed and CI-confirmed. The chain has advanced to the next
-wall: `smoke-setup-wizard`. Fully diagnosed, not yet fixed — see §5a.**
+**The chain now dies at exactly one place, and it is the same place
+every time: `smoke-setup-wizard`, 2 checks.** Fully diagnosed, not yet
+fixed — see §5a.
 
-Stage summary from the last full local run
-(`pnpm smoke:strict`, 47 green entries):
+The CI runtime series across this session, one wall removed per commit:
+
+| Commit | Runtime | Died at |
+|---|---|---|
+| `cf34584` | 3m25s | smoke-live-ticker `take=5` |
+| `5795fbc` | 6m21s | Playwright browser missing |
+| `79a1478` | 7m47s | directory import in stuck-detector |
+| `5861f50` | 8m00s | smoke-setup-wizard |
+| `d0e6df9` | 4m41s | smoke-audit-log (time-of-day flake, not a regression) |
+| `38e3653` | 4m37s | smoke-cron-audit-log-prune |
+| `d0b2dcc` | 7m47s | **smoke-setup-wizard** ← current |
+
+Note the `d0e6df9` dip: same code as the row above it, but it ran in the
+evening window where the audit-log timezone flake fires. That is the
+flake, not a regression — worth recognising before chasing it.
+
+Stage summary from the last full local `pnpm smoke:strict` (47 green):
 
 | Stage | Result |
 |---|---|
-| `smoke` | **FAIL** — 2 checks in `smoke-setup-wizard` (§5a) |
+| `smoke` | **FAIL** — 2 checks in `smoke-setup-wizard` |
 | `smoke:ui` | **PASS** |
 | `smoke:integration` | **PASS** |
 | `smoke:deploy` | **PASS** (149/0) |
 
 `pnpm tsc` exit 0 · `pnpm lint` exit 0 (542 warnings, 0 errors).
 
-CI runtime is the honest progress signal, because the chain is
-`&&`-joined — every entry after a failure is dead and never runs. The
-series this session: **3m25s → 6m21s → 7m47s → 8m0s → 8m46s**, one wall
-removed per commit. A longer run means it got further.
 
 ## 3. What this session fixed (all measured, not assumed)
 
@@ -181,11 +195,96 @@ It also uses Playwright, so it must keep running under
 it imports `../src/`).
 
 
+## 5b. Side quest — the app clock was frozen (shipped, `38e3653`)
+
+Not part of the CI work, but found mid-session and worth its own record
+because it was a **live-user-facing product bug**, not a test issue.
+
+`src/lib/mock-seed.ts` pinned the entire date model to literals:
+
+    TODAY         = new Date("2026-08-30T18:30:00")
+    PERIOD_START  = new Date("2026-08-22T00:00:00")
+    PERIOD_END    = new Date("2026-09-05T00:00:00")
+    NEXT_PAY_DATE = new Date("2026-08-28T00:00:00")
+
+**106 references across 21 files** read `TODAY` — dashboard,
+safe-to-spend, horizon strip, top priority, calendar, transactions,
+obligations, goals, debts, insights, envelopes, vault activity strip.
+So the production site reported "Day 9 of 14 in this pay period — 5
+days to the next paycheck" and "$24.4/day to last 5 days" weeks after
+that period ended. It never errored; a frozen clock renders a complete,
+plausible dashboard, so it reads as "working".
+
+Shipped in `38e3653`:
+- `TODAY` is now `new Date()` — one line at the single source, all 106
+  follow.
+- The period constants are no longer a frozen literal and are now only
+  the *fallback* for `getCurrentPayPeriod()`.
+- `getCurrentPayPeriod()` already read the active `PayPeriod` row but
+  nothing advanced it. It now rolls an expired window forward off the
+  user's `PaySchedule` cadence until it contains today, then persists
+  it. Verified by planting an expired row: `Sep 6 → Sep 20` rolled to
+  `Sep 20 → Oct 5`, idempotent on the second call.
+
+**Known follow-ups, deliberately not done:**
+- `TODAY` is module-scope, so it is fixed for the life of the process.
+  Accurate on Vercel (cold start per deploy); a long-lived dev server
+  can go stale across midnight. Per-request would mean 106 edits.
+- `PayPeriod` has **no `userId`** — one global active row, so the roll
+  is single-user. First thing to fix if a second person signs in.
+- The period is written during a GET render. Idempotent and guarded, but
+  it is a write on a read path.
+- Unrelated but noticed: the dashboard's over-limit banner says
+  Groceries is over by **$424** while the card below says **+$212** (the
+  suite confirms $212 is correct). Not chased.
+
+### Clearing the demo data
+
+`scripts/clear-demo-data.mjs` strips the seeded demo persona from one
+account while leaving `User`, `Session` and `FinancialIdentity` alone —
+login, password and onboarding answers survive. Its model list is
+derived from `prisma/schema.prisma` at runtime (a hardcoded list had
+already rotted: `PaymentAttempt` has no `userId`). It requires an
+explicit `DATABASE_URL`, prints the resolved host before acting, and
+defaults to a dry run.
+
+**Not yet run against production** — the Vercel CLI cannot spawn a
+worker from the dev machine, so this needs an operator with the
+production `DATABASE_URL`:
+
+```powershell
+$env:DATABASE_URL = "<production url>"
+npx tsx scripts/clear-demo-data.mjs <email>            # dry run
+npx tsx scripts/clear-demo-data.mjs <email> --confirm  # delete
+```
+
+## 5c. Three hardcoded dates, one lesson
+
+Three separate clock bugs in one session, all the same shape, all found
+only by running the thing:
+
+1. `TODAY` frozen in product code (§5b).
+2. `smoke-audit-log` derived a row date with `toISOString()` (UTC) while
+   the page parses `?from=` as **local** midnight. Passed at 18:54 UTC,
+   failed at 02:55 UTC, identical code — fires every evening in US
+   timezones. Fixed in `38e3653`.
+3. `smoke-cron-audit-log-prune` pinned its own `NOW` to 2026-08-30
+   while the endpoint under test always used real `new Date()`. Once the
+   real date passed `pinned + 60d + 90d`, a "60d" sentinel fell on the
+   wrong side of the 90-day retention cutoff and got pruned — exactly 2
+   live rows and 2 rollup buckets in CI. Fixed in `d0b2dcc`.
+
+**The diagnostic that keeps working:** a check that passes at one
+wall-clock time and fails at another, with no code change, is a clock
+bug until proven otherwise. Confirm by re-running against a stashed
+pre-change tree before blaming your own work — that is how #2 and #3
+were separated from the real fix in #1.
+
 ## 6. Pre-flight
 
 ```bash
 cd "C:\Users\crisc\OneDrive - Southern Careers Institute\My Drive\Budget planner app"
-git log --oneline -4                    # 5861f50, 79a1478, 5795fbc, cf34584
+git log --oneline -4                    # d0b2dcc, 38e3653, 4ce0a1c, daabae5
 pnpm tsc                                # exit 0
 pnpm lint                               # exit 0
 pnpm dev                                # REQUIRED before any HTTP smoke
