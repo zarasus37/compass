@@ -17,10 +17,12 @@ this session is in §3.
 
 | Commit | What it is |
 |---|---|
+| `e2be407` | clear `smoke-envelope-detail-null-planet` (the vacuous pass) |
+| `424ab47` | clear `smoke-ui-envelope-reads` |
 | `8ed91f4` | root `app/not-found.tsx`; clear `smoke-ui-dashboard-db` |
 | `05e64e8` | clear `smoke-setup-wizard`, then `smoke-change-password` |
 
-Both pushed to `origin/main`.
+All pushed to `origin/main`.
 
 ## 2. What the chain has cleared, and what it died on
 
@@ -31,54 +33,90 @@ CI is the arbiter. Runtime is the tell: a longer run means it got
 |---|---|---|
 | `8ae8912` | 7m48s | smoke-envelope-detail-db ("lazy-seed worked") |
 | `ae0596e` | 9m24s | **smoke-setup-wizard** |
-| `05e64e8` | 9m0s | **smoke-ui-dashboard-db** |
-| `8ed91f4` | *see §6* | *see §6* |
+| `05e64e8` | 9m4s | **smoke-ui-dashboard-db** |
+| `8ed91f4` | 9m32s | **smoke-ui-envelope-reads** |
+| `424ab47` | 9m20s | **smoke-envelope-detail-null-planet** |
+| `e2be407` | *see §6* | *see §6* |
 
-Three walls cleared in one session:
+Five walls cleared in one session:
 
-| Wall | Misses before | After |
+| Wall | Before | After |
 |---|---|---|
 | `smoke-setup-wizard` | 2 MISS + P2025 crash | **31 / 0** |
 | `smoke-change-password` | 4 MISS | **40 / 0** |
 | `smoke-ui-dashboard-db` | 4 MISS | **11 / 0** |
+| `smoke-ui-envelope-reads` | 2 MISS + 30s hang | **20 / 0** |
+| `smoke-envelope-detail-null-planet` | 1 MISS | **6 / 0** |
 
 `pnpm tsc` exit 0 · `pnpm lint` exit 0 (543 warnings, 0 errors).
 
-## 3. 🎯 The lesson that found all three
+## 3. 🎯 The lesson that found them
 
 **A red check is not a bug report. It is a claim that some contract
 moved, and the first question is which side moved.**
 
-Every one of these walls was an assertion encoding a contract that had
-*already been deliberately changed by an earlier commit*, which the
-assertion was never updated to match. Not one was a product defect.
-The pattern across all seven individual defects:
+Of the eleven individual defects, **ten** were an assertion encoding a
+contract that an *earlier* commit had already deliberately changed.
+The test was the stale side, not the product. The recurring shapes:
 
 - `smoke-setup-wizard` did `update({ where: { userId } })` on a row a
   *previous check deliberately deleted*, to reproduce a bug shape.
-- The same test's 7.38-B1 table expected `completedStep=1 → pay-schedule`
-  — the step just *completed*, not the next one. Rows 3 and 4 were
-  already right, so only half the loop ever reported.
+- Its 7.38-B1 table expected `completedStep=1 → pay-schedule` — the
+  step just *completed*, not the next one. Rows 3 and 4 were already
+  right, so only half the loop ever reported.
 - `smoke-change-password` asserted `type="password"` rendered *after*
-  `data-testid`. React emits JSX props in order; the form writes `type`
-  first. The regex could never match, whatever the component did.
+  `data-testid`. React emits JSX props in order; the form writes
+  `type` first. The regex could never match, whatever the component did.
 - `smoke-ui-dashboard-db` `[5]` asserted `(app)/loading.tsx` exists.
   `daabae5` deleted it on purpose.
 - Its `[8]` asserted an envelope's `planet` column renders as a string.
   Measured: it renders nowhere, raw or stripped. Unsatisfiable.
+- `smoke-ui-envelope-reads` `[1.debts]` asserted the debts page imports
+  `livePlanFromDb` — true from `94dd126` (7.40), replaced by `1149c49`
+  (7.46) on purpose.
 
-**Apply:** before fixing a check, diff the commit that last touched the
-file it asserts about. If that commit is recent and deliberate, the
-assertion is the stale side. Two of the three walls had a comment or
-docstring in the repo explaining the *new* behaviour while the test
-asserted the *old* one.
+**Apply:** before fixing a check, `git log` the file it asserts about.
+If that commit is recent and deliberate, the assertion is the stale
+side. Three of these had a comment or docstring in the repo explaining
+the *new* behaviour while the test asserted the *old* one.
 
-**Two recurring sub-shapes, both already documented but both still
-being hit:**
-- **Attribute-order regexes over rendered HTML.** `/data-testid="x"[^>]*type="y"/`
-  is unsound; resolve the tag by testid, then assert on it.
+### 3a. 🚨 The eleventh: `smoke-escape-hatches` is a landmine
+
+`smoke-onboarding-chat-escape`/`smoke-envelope-detail-null-planet`
+failed for a different reason, and the most misleading reason yet.
+
+**Three of the five walls trace to one test.** `smoke-escape-hatches`
+(chain entry 34) is still hardwired to `mom@compass.local` and calls
+`POST /api/onboarding/reset` on it, wiping that account's
+`FinancialIdentity`. Every later entry that still signs in as mom then
+sits **behind the onboarding gate**, and its pages never render.
+
+The nastiest symptom was in `smoke-envelope-detail-null-planet`:
+
+```
+[5] PASSED — asserts the page contains no "[ERR]" card.
+             A gate redirect to /setup contains no error card.
+             It passed for the WRONG REASON.
+[6] FAILED — the envelope name and balance genuinely were not there.
+```
+
+**A negative assertion cannot distinguish "the thing worked" from "the
+thing never ran."** That is the generalisable lesson from wall 5, and
+it is the reason `[5a]` now asserts the browser is still on the detail
+page before trusting `[5]`.
+
+**Highest-value remaining fix in the suite: migrate
+`smoke-escape-hatches` to the fixture.** It is the last test that
+destructively mutates the shared account, and it poisons every entry
+after it that still signs in as mom.
+
+### 3b. Two recurring sub-shapes
+
+- **Attribute-order regexes over rendered HTML.**
+  `/data-testid="x"[^>]*type="y"/` is unsound — resolve the tag by
+  testid, then assert on it.
 - **Matching raw HTML without stripping `<script>`.** The RSC flight
-  payload contains an escaped second copy of the same text (§4).
+  payload embeds an escaped second copy of the same text (§4).
 
 ## 4. Carried forward from the 2026-09-29 briefing (still true)
 
@@ -91,35 +129,64 @@ active: it caused the `smoke-change-password` regex failure above, and
 A check that passes at one wall-clock time and fails at another, with no
 code change, is a clock bug until proven otherwise.
 
-## 5. 🎯 NEXT — `smoke-ui-envelope-reads` and the tail
+## 5. 🎯 NEXT — the tail of the chain
 
-`smoke-ui-dashboard-db` was chain entry 37. Remaining entries:
-`smoke-ui-envelope-reads`, `smoke-onboarding-chat-escape`,
-`smoke-envelope-detail-null-planet`, `smoke-envelope-detail-section-errors`,
+`smoke-envelope-detail-null-planet` was entry 40. Remaining:
+`smoke-envelope-detail-section-errors`,
 `smoke-envelopes-list-defensive-reads`, `smoke-client-error-capture`,
 and the seven `smoke-debts-*`.
 
-Expect each to be cheap now: after `8ae8912` the read paths no longer
-seed, and after the fixture migration most tests own their user. The
-recurring failure modes to look for are in §3.
+**Do `smoke-escape-hatches` first** (entry 34) — see §3a. It is worth
+more than any single failing entry, because it is poisoning the ones
+behind it.
 
-Two known-open items, unchanged:
+**Priority order for the tail:**
 
-1. **`smoke-escape-hatches` is still hardwired to `mom@compass.local`**
-   and destructively calls `POST /api/onboarding/reset` on it. It is
-   chain entry 34. This is what made `smoke-ui-dashboard-db`
-   order-dependent. It is a latent wall for whatever runs after it.
-2. **The `smoke-setup-wizard` live walk-through still reports
-   `step 4 (bills) did not advance SetupState.completedStep`.** It is a
-   non-gating `[warn]`. The old briefing blamed the missing-`SetupState`
-   row; that is **wrong** — the missing row was the P2025 crash, fixed.
-   `saveBillsAction` calls `markStepCompleted` unconditionally
-   (`src/app/setup/actions.ts:222`), so if the action runs the step must
-   advance. Untested hypothesis: the walk-through's `callStep` posts an
-   empty `FormData` with a bare `Next-Action` header, whereas the
-   fixture's own helper (`tests/fixture.mjs:573`) uses the
-   `$ACTION_REF_1` + `$ACTION_1:0` bound-action encoding. **Measure this
-   before naming it** — it is a best-effort path, not a product bug yet.
+1. **`smoke-escape-hatches`** (entry 34) — migrate to the fixture.
+   Defuses the landmine for everything still on the shared user.
+2. **Migrate the rest of the shared-user set.** These still sign in as
+   `mom@compass.local` (grep for the password literal, not the email —
+   the email appears in ~50 files as prose, which drowns the signal):
+
+   ```powershell
+   Select-String -Path "tests/*.mjs" -Pattern "correct-horse-battery-staple" |
+     ForEach-Object { $_.Filename } | Sort-Object -Unique
+   ```
+
+   The real list, excluding `smoke-auth.mjs` (which legitimately
+   *creates* mom) and the untracked `tests/_debug-*.mjs` scratch files:
+
+   - `smoke-escape-hatches.mjs` — entry 34, the landmine
+   - `smoke-onboarding-chat-escape.mjs`
+   - `smoke-envelope-detail-section-errors.mjs`
+   - `smoke-envelopes-list-defensive-reads.mjs`
+   - `smoke-client-error-capture.mjs`
+   - `smoke-debts-{tier,interest,utilization,rainbow,interactive,mobile,cross-extra}.mjs`
+
+3. **Audit the remaining negative assertions for vacuous passes.** §3a.
+   A `!html.includes(...)` check passes just as happily on a login page
+   as on a working page. Ask what page it would pass on if the feature
+   were entirely absent.
+4. Then the tail itself, which is expected to be quick.
+
+Note: `tests/_debug-insights.mjs`, `_debug-insights2.mjs`,
+`_debug-login.mjs`, `_check-user.mjs` and `_cleanup-alloc.mjs` are
+untracked scratch. Do not stage them; delete them with the recoverable
+launcher when convenient.
+
+Two other known-open items, unchanged:
+
+- **The `smoke-setup-wizard` live walk-through still reports
+  `step 4 (bills) did not advance SetupState.completedStep`.** It is a
+  non-gating `[warn]`. The old briefing blamed the missing-`SetupState`
+  row; that is **wrong** — the missing row was the P2025 crash, fixed.
+  `saveBillsAction` calls `markStepCompleted` unconditionally
+  (`src/app/setup/actions.ts:222`), so if the action runs the step must
+  advance. Untested hypothesis: the walk-through's `callStep` posts an
+  empty `FormData` with a bare `Next-Action` header, whereas the
+  fixture's own helper (`tests/fixture.mjs:573`) uses the
+  `$ACTION_REF_1` + `$ACTION_1:0` bound-action encoding. **Measure this
+  before naming it** — it is a best-effort path, not a product bug yet.
 
 ## 6. Pre-flight
 
