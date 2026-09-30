@@ -167,8 +167,8 @@ export async function saveAccountsAction(formData: FormData) {
 
 export async function saveEnvelopesAction(formData: FormData) {
   const user = await requireUser();
-  const { ensureUserEnvelopesSeeded } = await import("@/lib/store");
-  await ensureUserEnvelopesSeeded(user.id);
+  const { seedZeroedEnvelopesForOnboarding } = await import("@/lib/store");
+  await seedZeroedEnvelopesForOnboarding(user.id);
 
   const envs = await prisma.envelope.findMany({
     where: { userId: user.id },

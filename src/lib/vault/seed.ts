@@ -20,7 +20,12 @@
  */
 
 import "server-only";
-import { liveEnvelopes, liveBills, TODAY, PERIOD_START } from "@/lib/mock";
+import {
+  liveEnvelopesFromDb,
+  liveBillsFromDb,
+  TODAY,
+  PERIOD_START,
+} from "@/lib/mock";
 import {
   getOrCreateVault,
   upsertVaultEnvelope,
@@ -70,8 +75,18 @@ export interface SeedResult {
 export async function seedVaultFromEnvelopes(
   userId: string,
 ): Promise<SeedResult> {
-  const sourceEnvelopes = liveEnvelopes(userId);
-  const sourceBills = liveBills(userId);
+  // Read from the DB, not the in-memory store.
+  //
+  // These two used to be `liveEnvelopes()` / `liveBills()`, which are
+  // backed by the in-memory store that `seedState` populates from
+  // ENVELOPES_SEED regardless of what the user actually has. So the
+  // vault seed believed 7 envelopes existed while the Envelope table
+  // had none, and `upsertVaultEnvelope` then failed on the
+  // `compassEnvelopeId` foreign key — a sync that errored on an empty
+  // account. Reading the same source everything else reads means an
+  // account with nothing simply has nothing to sync.
+  const sourceEnvelopes = await liveEnvelopesFromDb(userId);
+  const sourceBills = await liveBillsFromDb(userId);
 
   // Read the active yield adapter's APY for the seed. The adapter
   // may throw (env misconfigured, etc.) — we fall back to 0 so

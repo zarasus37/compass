@@ -74,20 +74,19 @@ async function isDemoDataCleared(userId: string): Promise<boolean> {
   }
 }
 
+/**
+ * Seed the 7 canonical vessels for a user, WITH the demo persona's
+ * balances.
+ *
+ * Demo data — for seeding a throwaway account to look at, never for a
+ * real one. The read paths no longer call any seeder at all, so this
+ * runs only from explicit tooling (`POST /api/reset-seed`,
+ * `scripts/clear-demo-data --with-demo`).
+ */
 export async function ensureUserEnvelopesSeeded(userId: string): Promise<void> {
   const count = await prisma.envelope.count({ where: { userId } });
   if (count > 0) return;
   // A user whose demo data was deliberately cleared must stay empty.
-  //
-  // The `count > 0` guard above cannot tell a brand-new user (who
-  // needs the starter vessels) from a user who deliberately emptied
-  // their account. Without this second check the clear is a no-op: the
-  // very next read re-seeds the canonical persona's balances. Measured
-  // on a freshly cleared account — 0 envelopes / 0 accounts, then
-  // 7 envelopes and Rent $800.00 after a single `liveEnvelopesFromDb`.
-  //
-  // Only read the flag on the seed path, so the hot path stays at one
-  // query.
   if (await isDemoDataCleared(userId)) return;
   await prisma.envelope.createMany({
     data: ENVELOPES_SEED.map((e, index) => ({
@@ -109,6 +108,41 @@ export async function ensureUserEnvelopesSeeded(userId: string): Promise<void> {
       // rebalance form, advisor reads) sees the vessels in a different
       // order on every call. SQLite's btree storage happened to be
       // stable for the same data; Postgres isn't.
+      sortOrder: index,
+      source: "seed",
+    })),
+  });
+}
+
+/**
+ * Seed the 7 canonical vessels for the setup wizard — structure only,
+ * every balance zeroed.
+ *
+ * The wizard step is "rename, retarget, add more", so the useful part
+ * of the seed is the SHAPE: seven named categories, in a stable order,
+ * that the user edits into their own budget. The money is the part that
+ * is a lie — pre-filling Rent at $800 and Groceries at $612 means a new
+ * user opens their first real budget already holding someone else's
+ * numbers, and has to notice and overwrite each one. Zeroed rows make
+ * the same wizard step with nothing fictional in it.
+ *
+ * Deliberately a separate function from `ensureUserEnvelopesSeeded` so
+ * "structure for onboarding" and "demo persona for a throwaway
+ * account" can't be confused for one another later.
+ */
+export async function seedZeroedEnvelopesForOnboarding(
+  userId: string,
+): Promise<void> {
+  const count = await prisma.envelope.count({ where: { userId } });
+  if (count > 0) return;
+  await prisma.envelope.createMany({
+    data: ENVELOPES_SEED.map((e, index) => ({
+      id: seededId(userId, e.id),
+      userId,
+      name: e.name,
+      planet: e.planet,
+      currentBalance: 0,
+      targetBalance: 0,
       sortOrder: index,
       source: "seed",
     })),
@@ -196,7 +230,12 @@ export interface Transaction {
 }
 
 export interface AllocationPlan {
-  id: string;
+  /**
+   * `null` means the user has no allocation plan at all — a new
+   * account, or one whose demo data was deliberately cleared. That is a
+   * normal state, not an error, so callers must handle it.
+   */
+  id: string | null;
   strategy: "envelope" | "zero-based" | "fifty-thirty-twenty" | "pay-yourself-first";
   isArmed: boolean;
   rules: AllocationRule[];

@@ -326,10 +326,16 @@ export function liveEnvelopes(userId: string) {
  * for the other with no other changes.
  */
 export async function liveEnvelopesFromDb(userId: string) {
-  // ensureUserEnvelopesSeeded is idempotent: a no-op once the
-  // user has envelopes. Calling it on every read costs one cheap
-  // COUNT query.
-  await ensureUserEnvelopesSeeded(userId);
+  // No auto-seed. This is a READ, and a read must not write. It used to
+  // call `ensureUserEnvelopesSeeded` here, which meant that any account
+  // with zero envelopes was handed the demo persona's vessels and
+  // balances — Rent $800, Groceries $612 — on its very first page load,
+  // with nothing in the UI saying so and no way to opt out that
+  // actually held. A real account now reads back as empty until the
+  // user (or the setup wizard) creates something.
+  //
+  // Creating rows is explicit: the setup wizard step for envelopes, and
+  // `POST /api/reset-seed` / `scripts/clear-demo-data` for tooling.
   const rows = await prisma.envelope.findMany({
     where: { userId, isArchived: false },
     orderBy: { sortOrder: "asc" },
@@ -360,8 +366,7 @@ export function liveGoals(userId: string) {
  * changes.
  */
 export async function liveGoalsFromDb(userId: string) {
-  const { ensureUserGoalsSeeded } = await import("./seed-goals");
-  await ensureUserGoalsSeeded(userId);
+  // No auto-seed — see `liveEnvelopesFromDb` for the reasoning.
   const rows = await prisma.goal.findMany({
     where: { userId, isArchived: false },
     orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
@@ -419,8 +424,14 @@ export function liveBills(userId: string) {
  * with no other changes.
  */
 export async function liveBillsFromDb(userId: string) {
-  const { ensureUserBillsSeeded } = await import("./seed-bills");
-  await ensureUserBillsSeeded(userId);
+  // No auto-seed, for the same reason as `liveEnvelopesFromDb`.
+  //
+  // This one is worse than it looks: BILLS_SEED rows carry an
+  // `envelopeId` pointing at the seeded vessel ids. With the envelope
+  // seeder removed but this one left running, a cleared account regrows
+  // 6 bills whose envelope ids resolve to nothing, and the dashboard's
+  // `ENVELOPES.find(e => e.id === b.envelopeId)` hands back undefined
+  // for every one of them — a 500 on the root page.
   const rows = await prisma.bill.findMany({
     where: { userId, isArchived: false },
     orderBy: { sortOrder: "asc" },
@@ -492,8 +503,12 @@ export function livePlan(userId: string) {
  * as a secondary list.
  */
 export async function liveAccountsFromDb(userId: string) {
-  const { ensureUserAccountsSeeded } = await import("./seed-accounts");
-  await ensureUserAccountsSeeded(userId);
+  // No auto-seed. A read must not write: a real account that has added
+  // nothing should read back as empty, not as a fictional "Chase
+  // Checking" it never created. Demo data belongs on the marketing
+  // side of the product, not inside someone's budget. Seeding is
+  // explicit now — the setup wizard and `scripts/clear-demo-data` /
+  // `POST /api/reset-seed` are the only paths that create rows.
   const rows = await prisma.account.findMany({
     where: { userId, isArchived: false },
     orderBy: [{ source: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
@@ -580,8 +595,14 @@ export async function liveAccountsFromDb(userId: string) {
  * so the page can render a helpful empty state.
  */
 export async function livePlanFromDb(userId: string) {
-  const { ensureUserAllocationSeeded } = await import("./seed-allocation");
-  await ensureUserAllocationSeeded(userId);
+  // No auto-seed — see `liveEnvelopesFromDb` for the reasoning.
+  //
+  // This was the one that actually crashed the dashboard on an empty
+  // account. `ensureUserAllocationSeeded` inserts AllocationRules whose
+  // `envelopeId` points at the seeded vessel ids, so with the envelopes
+  // gone the insert fails on `AllocationRule_envelopeId_fkey` and the
+  // whole render 500s. A read must not write, and certainly must not
+  // write something that depends on rows it did not create.
   const plan = await prisma.allocationPlan.findFirst({
     where: { userId, source: "seed", isArmed: true },
     include: {
@@ -599,11 +620,21 @@ export async function livePlanFromDb(userId: string) {
         },
       });
   if (!fallback) {
-    // The seeder just ran and found nothing — shouldn't happen, but
-    // surface a clear error so the page can render an empty state.
-    throw new Error(
-      "livePlanFromDb: no seed plan found for user after seeding. This is a bug.",
-    );
+    // An account with no allocation plan is a normal state, not a bug:
+    // a new user has not set one up, and a deliberate clear leaves none.
+    // This used to throw — the comment claimed "the seeder just ran, so
+    // this shouldn't happen" — which was true only while the read path
+    // auto-seeded. Removing that auto-seed made the assumption false and
+    // turned every empty account's dashboard into a 500.
+    //
+    // Return an unarmed plan with no rules so callers render an empty
+    // state instead of crashing.
+    return {
+      id: null,
+      strategy: "zero-based" as const,
+      isArmed: false,
+      rules: [],
+    };
   }
   return {
     id: fallback.id,

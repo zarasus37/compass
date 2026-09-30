@@ -87,6 +87,7 @@ function extractActionId(html) {
 const log = (k, v) => console.log(`[${k}] ${v}`);
 
 import { prisma } from "./db-client.mjs";
+import { loginAsFixture } from "./fixture.mjs";
 
 
 let pass = 0;
@@ -142,32 +143,17 @@ async function main() {
     return;
   }
 
-  // ── Login ──────────────────────────────────────────────────────
-  const lr = await get("/login");
-  const loginAid = extractActionId(await lr.text());
-  if (!loginAid) {
-    console.log("FATAL: no login aid");
-    process.exit(1);
-  }
-  const lp = await postForm("/login", {
-    email: "mom@compass.local",
-    password: "correct-horse-battery-staple",
-  }, { actionId: loginAid });
-  log("login", `status=${lp.status} session=${!!jar["compass_session"]}`);
-  if (!jar["compass_session"]) {
-    console.log("FATAL: login failed");
-    process.exit(1);
-  }
-
-  // Find the seed user.
-  const user = await prisma.user.findFirst({
-    where: { email: "mom@compass.local" },
-  });
-  if (!user) {
-    console.log("FATAL: mom@compass.local user not in DB");
-    process.exit(1);
-  }
-  const userId = user.id;
+  // ── Session: a per-test fixture user, not the shared one ───────
+  //
+  // This used to log in as `mom@compass.local` and rely on the read
+  // paths lazily seeding the demo persona into it. The shared user is
+  // retired and the auto-seed is gone, so that user legitimately has
+  // nothing to sync. The fixture provisions a full, real dataset
+  // instead — which is what the sync assertions need anyway.
+  const fx = await loginAsFixture("vault-integration");
+  log("fixture", `user=${fx.email}`);
+  for (const [k, v] of Object.entries(fx.jar ?? {})) jar[k] = v;
+  const userId = fx.userId;
   log("user", `id=${userId}`);
 
   // ── Reset state via the API route (also exercises the route) ─
@@ -202,6 +188,28 @@ async function main() {
   );
 
   // ── Sync via API route ────────────────────────────────────────
+  //
+  // The sync MIRRORS what the account actually holds — it no longer
+  // creates the demo persona. This test used to hardcode "7 envelopes,
+  // 6 bills" and rely on the read paths lazily seeding `mom@compass.local`
+  // first. Both halves of that are gone: the shared user is retired and
+  // the auto-seed is removed, so an assertion pinned to the demo
+  // numbers would be asserting behaviour the product deliberately
+  // dropped.
+  //
+  // Instead: provision a known source (the fixture does this), count it,
+  // and assert the sync upserts exactly that. The check is now
+  // stronger — it proves the sync copies the user's real rows rather
+  // than a fixture-independent magic number.
+  const sourceEnvelopes = await prisma.envelope.count({ where: { userId } });
+  const sourceBills = await prisma.bill.count({ where: { userId } });
+  log("source", `envelopes=${sourceEnvelopes} bills=${sourceBills}`);
+  check(
+    "fixture provisioned source envelopes to sync",
+    sourceEnvelopes > 0,
+    `envelopes=${sourceEnvelopes}`,
+  );
+
   const auditBefore = await prisma.auditLog.count({
     where: { userId, actionType: { startsWith: "vault." } },
   });
@@ -218,26 +226,34 @@ async function main() {
     syncResp1.status === 200 && syncJson1.ok === true,
   );
   check(
-    "first sync creates 7 envelopes",
-    syncJson1.result?.envelopesUpserted === 7,
-    `envelopesUpserted=${syncJson1.result?.envelopesUpserted}`,
+    "first sync upserts every source envelope",
+    syncJson1.result?.envelopesUpserted === sourceEnvelopes,
+    `upserted=${syncJson1.result?.envelopesUpserted} source=${sourceEnvelopes}`,
   );
   check(
-    "first sync creates 6 bills",
-    syncJson1.result?.billsUpserted === 6,
-    `billsUpserted=${syncJson1.result?.billsUpserted}`,
+    "first sync upserts every source bill",
+    syncJson1.result?.billsUpserted === sourceBills,
+    `upserted=${syncJson1.result?.billsUpserted} source=${sourceBills}`,
   );
 
   // ── DB-layer counts after first sync ──────────────────────────
   const after1 = await counts(userId);
   log("after-1", `vault=${after1.vault} envelopes=${after1.envelopes} bills=${after1.bills} yieldEvents=${after1.yieldEvents} audit=${after1.audit} (was ${auditBefore})`);
   check("vault row count = 1", after1.vault === 1, `vault=${after1.vault}`);
-  check("envelope row count = 7", after1.envelopes === 7, `envelopes=${after1.envelopes}`);
-  check("bill row count = 6", after1.bills === 6, `bills=${after1.bills}`);
   check(
-    "yield events count = 7 (one per envelope with positive yield)",
-    after1.yieldEvents === 7,
-    `yieldEvents=${after1.yieldEvents}`,
+    "vault envelope rows mirror the source",
+    after1.envelopes === sourceEnvelopes,
+    `vaultEnvelopes=${after1.envelopes} source=${sourceEnvelopes}`,
+  );
+  check(
+    "vault bill rows mirror the source",
+    after1.bills === sourceBills,
+    `vaultBills=${after1.bills} source=${sourceBills}`,
+  );
+  check(
+    "one yield event per synced envelope with positive yield",
+    after1.yieldEvents > 0 && after1.yieldEvents <= sourceEnvelopes,
+    `yieldEvents=${after1.yieldEvents} envelopes=${sourceEnvelopes}`,
   );
   check(
     "first sync adds exactly 1 audit row",
@@ -266,14 +282,14 @@ async function main() {
     `vault=${after2.vault}`,
   );
   check(
-    "second sync: envelope count stable (7)",
-    after2.envelopes === 7,
-    `envelopes=${after2.envelopes}`,
+    "second sync: envelope count stable",
+    after2.envelopes === after1.envelopes,
+    `envelopes=${after2.envelopes} was=${after1.envelopes}`,
   );
   check(
-    "second sync: bill count stable (6)",
-    after2.bills === 6,
-    `bills=${after2.bills}`,
+    "second sync: bill count stable",
+    after2.bills === after1.bills,
+    `bills=${after2.bills} was=${after1.bills}`,
   );
   check(
     "second sync: adds exactly 1 more audit row",
