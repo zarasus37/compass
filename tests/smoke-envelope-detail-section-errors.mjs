@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Smoke for Cluster 7.43 — Envelope detail per-section error boundaries.
  *
  * The bug xKryptic reported 2026-09-26: mom still saw the same
@@ -26,11 +26,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { chromium } from "playwright";
 import { prisma } from "./db-client.mjs";
+import { createFixture } from "./fixture.mjs";
 import { exitCodeFor, recordSkip } from "./skip-guard.mjs";
 
 const BASE = "http://127.0.0.1:3000";
-const SMOKE_USER_EMAIL = "mom@compass.local";
-const SMOKE_USER_PASSWORD = "correct-horse-battery-staple";
 
 const checks = [];
 function check(name, cond, detail = "") {
@@ -111,48 +110,59 @@ check(
 if (!serverUp) {
   checkSkip("[11] /envelopes/[id] still renders envelope header + name", "dev server unreachable");
 } else {
-  const u = await prisma.user.findUnique({ where: { email: SMOKE_USER_EMAIL } });
-  if (!u) {
-    check("[11] /envelopes/[id] still renders envelope header + name", false, "smoke user not in DB");
-  } else {
-    const sentinelName = `Smoke Sentinel 743 ${Date.now()}`;
-    await prisma.envelope.deleteMany({ where: { userId: u.id, name: sentinelName } });
-    // Use a real planet here (the structural sections should work even
-    // when the page is otherwise healthy). The point is that even with
-    // a healthy data set, the safeSection wrappers are present.
-    const sentinel = await prisma.envelope.create({
-      data: {
-        userId: u.id,
-        name: sentinelName,
-        planet: "jupiter",
-        targetBalance: 50000,
-        currentBalance: 21200,
-        sortOrder: 999,
-        source: "user",
-      },
-    });
+  // Per-test fixture user. This used to sign in as the shared
+  // mom@compass.local, which smoke-escape-hatches (chain entry 34)
+  // destroys via POST /api/onboarding/reset — so by this entry the
+  // shared account is behind the onboarding gate and the envelope
+  // detail page never renders. Fourth wall traced to that one test.
+  const fx = await createFixture("envelope-detail-section-errors", { scenario: "minimal" });
+  const u = { id: fx.userId };
 
-    const browser = await chromium.launch({ headless: true });
-    const p = await (await browser.newContext()).newPage();
-    await p.goto(`${BASE}/login`);
-    await p.fill('input[name=email]', SMOKE_USER_EMAIL);
-    await p.fill('input[name=password]', SMOKE_USER_PASSWORD);
-    await p.locator('button[type=submit]:has-text("Sign in")').click();
-    await p.waitForURL(`${BASE}/`);
-    await p.goto(`${BASE}/envelopes/${sentinel.id}`);
-    await p.waitForLoadState("networkidle");
-    const html = await p.content();
+  const sentinelName = `Smoke Sentinel 743 ${Date.now()}`;
+  // Use a real planet here (the structural sections should work even
+  // when the page is otherwise healthy). The point is that even with
+  // a healthy data set, the safeSection wrappers are present.
+  const sentinel = await prisma.envelope.create({
+    data: {
+      userId: u.id,
+      name: sentinelName,
+      planet: "jupiter",
+      targetBalance: 50000,
+      currentBalance: 21200,
+      sortOrder: 999,
+      source: "user",
+    },
+  });
 
-    check(
-      "[11] /envelopes/[id] still renders envelope header + name",
+  const browser = await chromium.launch({ headless: true });
+  const p = await (await browser.newContext()).newPage();
+  await p.goto(`${BASE}/login`);
+  await p.fill('input[name=email]', fx.email);
+  await p.fill('input[name=password]', fx.password);
+  await p.locator('button[type=submit]:has-text("Sign in")').click();
+  await p.waitForURL(`${BASE}/`);
+  await p.goto(`${BASE}/envelopes/${sentinel.id}`);
+  await p.waitForLoadState("networkidle");
+  const html = await p.content();
+
+  // Confirm we are actually ON the detail page before trusting the
+  // negative half of this assertion. A gate redirect contains no
+  // "[ERR]" card, so without this the check passes vacuously —
+  // "the thing never ran" looks identical to "the thing worked".
+  const onDetailPage = p.url().endsWith(`/envelopes/${sentinel.id}`);
+  check("[11a] /envelopes/[id] is actually rendered (not redirected by a gate)", onDetailPage, `url=${p.url()}`);
+
+  check(
+    "[11] /envelopes/[id] still renders envelope header + name",
+    onDetailPage &&
       !html.includes("[ERR]") &&
-        !html.includes("We hit a snag") &&
-        html.includes(sentinelName),
-    );
+      !html.includes("We hit a snag") &&
+      html.includes(sentinelName),
+  );
 
-    await prisma.envelope.delete({ where: { id: sentinel.id } }).catch(() => {});
-    await browser.close();
-  }
+  await prisma.envelope.delete({ where: { id: sentinel.id } }).catch(() => {});
+  await browser.close();
+  await fx.cleanup();
 }
 
 // ── Summary ────────────────────────────────────────────────────────
