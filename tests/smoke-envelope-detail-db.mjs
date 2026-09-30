@@ -74,18 +74,54 @@ async function main() {
   const r = await goWithCookies(jar, `/envelopes/${rent.id}`);
   check("[1] rent envelope detail returns 200", r.status === 200, `got ${r.status}`);
   const html = await r.text();
+
+  // Visible text only. Stripping <script> alone is not enough: a 404
+  // can still survive in markup, not text — most plausibly inside a
+  // Next chunk filename, whose content hash is hex and can contain the
+  // literal "404" (e.g. `...-a4041b2.js`). That is exactly what bit a
+  // cold CI run: this file reported [1] 200, [2] "Rent" and [3] the
+  // title, yet [2b] still matched, because a hash in an href is not
+  // visible content. CI builds a fresh hash per run, so this reproduced
+  // on the runner and never locally. Strip every tag so the assertion
+  // measures what a reader could actually see.
+  const visibleText = (h) =>
+    h
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]*>/g, " ");
+
   check("[2] HTML mentions the envelope name (Rent)", html.includes("Rent"));
   check("[2b] the HTML's visible content does not include the notFound() fallback",
     // Next.js compiles the notFound() page into _app bundle; the
     // string "This page could not be found" is in there even when
     // unused. So check what's IN the page DOM, not the raw HTML.
-    !/(?:404|This page could not be found)/.test(html.replace(/<script[\s\S]*?<\/script>/g, "")),
+    !/(?:404|This page could not be found)/.test(visibleText(html)),
     "no 404 visible content");
   check("[3] HTML includes the title 'one vessel'", /one vessel|full|just one/.test(html));
 
   // Unknown envelope id should notFound() (still a 404, but a different body)
   const r404 = await goWithCookies(jar, "/envelopes/does-not-exist");
+  const html404 = await r404.text();
   check("[4] unknown envelope id returns 404", r404.status === 404);
+
+  // Teeth for [2b]. A negative assertion cannot tell "the page worked"
+  // from "the page never rendered", so prove the detector actually fires
+  // on a real 404 render using the very same function. Without this,
+  // [2b] could go permanently green by matching nothing.
+  //
+  // Probed on a non-(app) route deliberately. A notFound() raised INSIDE
+  // the (app) group currently returns 404 with an EMPTY body — only
+  // NEXT_HTTP_ERROR_FALLBACK;404 in a <template> attribute, with the
+  // (app) not-found card present in the flight payload but never mounted.
+  // So the (app) 404 has no visible 404 text to find, and using it here
+  // would assert something false. That blank (app) 404 body is a real
+  // product bug, reported separately; this check only needs SOME page that
+  // genuinely renders the 404 card.
+  const rRoot404 = await goWithCookies(jar, "/definitely-not-a-route");
+  const rootHtml404 = await rRoot404.text();
+  check("[2c] the [2b] detector does fire on a real rendered 404 page",
+    /(?:404|This page could not be found)/.test(visibleText(rootHtml404)),
+    "guards [2b] from becoming vacuous");
 
   // New behavior: even if the in-memory mock was emptied, the page must work.
   // We don't have a way to "evict" the in-memory store from here, but the
