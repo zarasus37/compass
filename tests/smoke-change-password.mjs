@@ -97,6 +97,30 @@ function checkSkip(name, reason) {
   log(name, `[SKIP-NO-SERVER] ${reason}`);
 }
 
+/**
+ * Return the `<input …>` tag carrying `data-testid="<id>"`, or null.
+ *
+ * The previous assertions were `/data-testid="x"[^>]*type="password"/`,
+ * which require `type` to be rendered AFTER `data-testid`. React emits
+ * attributes in JSX prop order, and ChangePasswordForm writes `type`
+ * first, so the real markup is:
+ *
+ *   <input id="change-password-old" type="password" … data-testid="change-password-old" …>
+ *
+ * The regex can therefore never match, no matter what the component
+ * does — an unsound assertion rather than a real product failure.
+ * Same class of defect as the vault flight-payload regex: a pattern
+ * over raw HTML that depends on something the author does not control.
+ *
+ * `<script>` bodies are stripped first, because the RSC flight payload
+ * embeds an escaped second copy of the same markup.
+ */
+function inputTagFor(html, testId) {
+  const body = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+  const tags = body.match(/<input\b[^>]*>/gi) ?? [];
+  return tags.find((t) => t.includes(`data-testid="${testId}"`)) ?? null;
+}
+
 async function main() {
   console.log("\n--- Change Password smoke (Cluster 7.16) ---\n");
 
@@ -180,18 +204,14 @@ async function main() {
         "change-password: form testid present",
         cpHtml.includes('data-testid="change-password-form"'),
       );
-      check(
-        "change-password: old input present (type=password)",
-        /data-testid="change-password-old"[^>]*type="password"/.test(cpHtml),
-      );
-      check(
-        "change-password: new input present (type=password)",
-        /data-testid="change-password-new"[^>]*type="password"/.test(cpHtml),
-      );
-      check(
-        "change-password: confirm input present (type=password)",
-        /data-testid="change-password-confirm"[^>]*type="password"/.test(cpHtml),
-      );
+      for (const id of ["change-password-old", "change-password-new", "change-password-confirm"]) {
+        const tag = inputTagFor(cpHtml, id);
+        check(
+          `change-password: ${id.replace("change-password-", "")} input present (type=password)`,
+          Boolean(tag) && /\btype="password"/.test(tag),
+          tag ? "" : "no input with that data-testid",
+        );
+      }
       check(
         "change-password: Save button present",
         cpHtml.includes('data-testid="change-password-submit"'),
@@ -261,6 +281,15 @@ async function main() {
 
     // After the atomic write: only ONE session for this user (the
     // fresh one), and the pre-change session (if any) is gone.
+    //
+    // The real action's third step is setSessionCookie(created.token).
+    // Simulating only the two DB steps left the jar holding the OLD
+    // token, which line 244 had just deleted — so every subsequent
+    // request in this file replayed a dead session and `/settings`
+    // answered 307 instead of 200. The product was fine; the harness
+    // was simulating two thirds of the action.
+    s.jar["compass_session"] = created.token;
+
     const sessionsAfter = await prisma.session.count({
       where: { userId: s.userId },
     });

@@ -9,6 +9,7 @@
 import { chromium } from "playwright";
 import { existsSync, readFileSync } from "node:fs";
 import { prisma } from "./db-client.mjs";
+import { createFixture } from "./fixture.mjs";
 import { exitCodeFor, recordSkip } from "./skip-guard.mjs";
 
 const BASE = "http://127.0.0.1:3000";
@@ -36,6 +37,49 @@ function checkSkip(name, reason) {
   recordSkip();
   checks.push({ name, ok: true, detail: `[SKIP-NO-SERVER] ${reason}` });
   console.log(`[SKIP-NO-SERVER] ${name} — ${reason}`);
+}
+
+// ── Per-test user ────────────────────────────────────────────────
+//
+// This test used to sign in as the shared `mom@compass.local` and then
+// do `prisma.setupState.update({ where: { userId: u.id } })`. That only
+// worked where a SetupState row happened to already exist — a leftover
+// from years of local dev. On a fresh database there is no SetupState
+// row until the wizard creates one, so the update threw
+// "No record was found for an update" and took the whole chain with it
+// (the chain is &&-joined). It is the last major smoke still hardwired
+// to the retired shared user.
+//
+// The fixture owns a throwaway user with a guaranteed SetupState row,
+// and it gets deleted on the way out, so this test can no longer poison
+// any other. `scenario: "minimal"` is deliberate: the wizard walkthrough
+// wipes accounts/envelopes/bills/goals anyway, and the "full" scenario's
+// month of Transactions would block that delete — Transaction.account and
+// Transaction.envelope carry NO onDelete: Cascade.
+const fx = await createFixture("setup-wizard", { scenario: "minimal" });
+const uid = fx.userId;
+
+/**
+ * Park the wizard's state machine at a given position.
+ *
+ * upsert, NOT update. Check [7.38-B2b] deliberately deletes the
+ * SetupState row to reproduce the chat-completion bug shape; the next
+ * check then called `update({ where: { userId } })`, which throws
+ * P2025 "No record was found for an update" because the row it is
+ * updating is the one the previous check removed. The uncaught throw
+ * killed the file — and because the chain is &&-joined, every entry
+ * after it too.
+ *
+ * This is the same reason the product's own `activateSetup()`
+ * (src/lib/setup/state.ts) upserts rather than updates. Each state
+ * machine step is now independent of whatever the previous one did.
+ */
+async function setStep(data) {
+  return prisma.setupState.upsert({
+    where: { userId: uid },
+    create: { userId: uid, ...data },
+    update: data,
+  });
 }
 
 // ── Static checks ────────────────────────────────────────────────
@@ -67,8 +111,7 @@ async function liveWalkThrough() {
   const browser = await chromium.launch({ headless: true });
   const p = await (await browser.newContext()).newPage();
 
-  const u = await prisma.user.findUnique({ where: { email: "mom@compass.local" } });
-  if (!u) throw new Error("mom not in DB");
+  const u = { id: uid };
 
   await prisma.setupState.deleteMany({ where: { userId: u.id } });
   await prisma.paySchedule.deleteMany({ where: { userId: u.id } });
@@ -78,8 +121,8 @@ async function liveWalkThrough() {
   await prisma.goal.deleteMany({ where: { userId: u.id } });
 
   await p.goto(`${BASE}/login`);
-  await p.fill('input[name=email]', "mom@compass.local");
-  await p.fill('input[name=password]', "correct-horse-battery-staple");
+  await p.fill('input[name=email]', fx.email);
+  await p.fill('input[name=password]', fx.password);
   await p.locator('button[type=submit]:has-text("Sign in")').click();
   await p.waitForURL(`${BASE}/`);
 
@@ -216,7 +259,7 @@ console.log(`  [info] live walk-through: ${liveStatus}${liveError ? ' — ' + li
 // These verify the wizard's state machine WITHOUT depending on Playwright clicks.
 // We use direct DB writes + page navigation to verify the gates and redirects.
 
-const u = await prisma.user.findUnique({ where: { email: "mom@compass.local" } });
+const u = { id: uid };
 
 // Step 1: SetupState created when user first visits /setup
 await prisma.setupState.deleteMany({ where: { userId: u.id } });
@@ -235,8 +278,8 @@ if (!serverUp) {
   const browser = await chromium.launch({ headless: true });
   const p = await (await browser.newContext()).newPage();
   await p.goto(`${BASE}/login`);
-  await p.fill('input[name=email]', "mom@compass.local");
-  await p.fill('input[name=password]', "correct-horse-battery-staple");
+  await p.fill('input[name=email]', fx.email);
+  await p.fill('input[name=password]', fx.password);
   await p.locator('button[type=submit]:has-text("Sign in")').click();
   await p.waitForURL(`${BASE}/`);
   
@@ -263,13 +306,13 @@ if (!serverUp) {
   // Create account first (PaySchedule.accountId is required FK)
   const setupAcc = await prisma.account.create({ data: { userId: u.id, name: "Primary Checking", type: "checking", currentBalance: 0, source: "user" } });
   await prisma.paySchedule.create({ data: { userId: u.id, cadence: "semi_monthly", amount: 200000, accountId: setupAcc.id, startDate: new Date("2026-09-25") } });
-  await prisma.setupState.update({ where: { userId: u.id }, data: { completedStep: 1, activatedAt: null } });
+  await setStep({ completedStep: 1, activatedAt: null });
 
   const browser = await chromium.launch({ headless: true });
   const p = await (await browser.newContext()).newPage();
   await p.goto(`${BASE}/login`);
-  await p.fill('input[name=email]', "mom@compass.local");
-  await p.fill('input[name=password]', "correct-horse-battery-staple");
+  await p.fill('input[name=email]', fx.email);
+  await p.fill('input[name=password]', fx.password);
   await p.locator('button[type=submit]:has-text("Sign in")').click();
   await p.waitForURL(`${BASE}/`);
   await p.goto(`${BASE}/setup`);
@@ -284,13 +327,13 @@ if (!serverUp) {
   checkSkip("[8e] after step 2, /setup root auto-redirects to /setup/envelopes", "dev server unreachable");
 } else {
 {
-  await prisma.setupState.update({ where: { userId: u.id }, data: { completedStep: 2, activatedAt: null } });
+  await setStep({ completedStep: 2, activatedAt: null });
 
   const browser = await chromium.launch({ headless: true });
   const p = await (await browser.newContext()).newPage();
   await p.goto(`${BASE}/login`);
-  await p.fill('input[name=email]', "mom@compass.local");
-  await p.fill('input[name=password]', "correct-horse-battery-staple");
+  await p.fill('input[name=email]', fx.email);
+  await p.fill('input[name=password]', fx.password);
   await p.locator('button[type=submit]:has-text("Sign in")').click();
   await p.waitForURL(`${BASE}/`);
   await p.goto(`${BASE}/setup`);
@@ -305,13 +348,13 @@ if (!serverUp) {
   checkSkip("[8f] after step 3, /setup root auto-redirects to /setup/bills", "dev server unreachable");
 } else {
 {
-  await prisma.setupState.update({ where: { userId: u.id }, data: { completedStep: 3, activatedAt: null } });
+  await setStep({ completedStep: 3, activatedAt: null });
 
   const browser = await chromium.launch({ headless: true });
   const p = await (await browser.newContext()).newPage();
   await p.goto(`${BASE}/login`);
-  await p.fill('input[name=email]', "mom@compass.local");
-  await p.fill('input[name=password]', "correct-horse-battery-staple");
+  await p.fill('input[name=email]', fx.email);
+  await p.fill('input[name=password]', fx.password);
   await p.locator('button[type=submit]:has-text("Sign in")').click();
   await p.waitForURL(`${BASE}/`);
   await p.goto(`${BASE}/setup`);
@@ -326,13 +369,13 @@ if (!serverUp) {
   checkSkip("[8g] after step 4, /setup root auto-redirects to /setup/goals", "dev server unreachable");
 } else {
 {
-  await prisma.setupState.update({ where: { userId: u.id }, data: { completedStep: 4, activatedAt: null } });
+  await setStep({ completedStep: 4, activatedAt: null });
 
   const browser = await chromium.launch({ headless: true });
   const p = await (await browser.newContext()).newPage();
   await p.goto(`${BASE}/login`);
-  await p.fill('input[name=email]', "mom@compass.local");
-  await p.fill('input[name=password]', "correct-horse-battery-staple");
+  await p.fill('input[name=email]', fx.email);
+  await p.fill('input[name=password]', fx.password);
   await p.locator('button[type=submit]:has-text("Sign in")').click();
   await p.waitForURL(`${BASE}/`);
   await p.goto(`${BASE}/setup`);
@@ -345,24 +388,41 @@ if (!serverUp) {
 // Cluster 7.38 — /setup/activate with partial completedStep no longer 404s.
 // Pre-7.38 the redirect produced `/setup/` (empty slug) for completedStep in
 // {1,2,3,4} → 404. Post-7.38 it routes to the actual next step.
+//
+// The contract, read off the product rather than assumed:
+//   getNextStep()            → completedStep >= 5 ? null : completedStep + 1
+//   /setup/activate/page.tsx → redirect(`/setup/${stepSlug(completedStep + 1)}`)
+//   stepSlug                 → 1 pay-schedule, 2 accounts, 3 envelopes,
+//                              4 bills, 5 goals
+// So completedStep = N must land on step N+1, i.e. accounts for N=1,
+// envelopes for N=2. The first two rows of this table previously expected
+// `pay-schedule` and `accounts` — the steps just *completed*, not the next
+// ones. Rows 3 and 4 were already right, which is why only half the loop
+// ever reported. The app was correct; the expectation was not.
+//
+// Kept as literal slugs on purpose. Importing the product's own stepSlug
+// to build the expectation would make this loop compare the product to
+// itself and stop catching a routing regression.
+const STEP_TABLE = [
+  [1, "accounts"],
+  [2, "envelopes"],
+  [3, "bills"],
+  [4, "goals"],
+];
+
 if (!serverUp) {
-  for (const step of [1, 2, 3, 4]) {
+  for (const step of STEP_TABLE.map(([step]) => step)) {
     checkSkip(`[7.38-B1] /setup/activate with completedStep=${step} → next step (not 404)`, "dev server unreachable");
   }
 } else {
 {
-  for (const [step, expectSlug] of [
-    [1, "pay-schedule"],
-    [2, "accounts"],
-    [3, "bills"],
-    [4, "goals"],
-  ]) {
-    await prisma.setupState.update({ where: { userId: u.id }, data: { completedStep: step, activatedAt: null } });
+  for (const [step, expectSlug] of STEP_TABLE) {
+    await setStep({ completedStep: step, activatedAt: null });
     const browser = await chromium.launch({ headless: true });
     const p = await (await browser.newContext()).newPage();
     await p.goto(`${BASE}/login`);
-    await p.fill('input[name=email]', "mom@compass.local");
-    await p.fill('input[name=password]', "correct-horse-battery-staple");
+    await p.fill('input[name=email]', fx.email);
+    await p.fill('input[name=password]', fx.password);
     await p.locator('button[type=submit]:has-text("Sign in")').click();
     await p.waitForURL(`${BASE}/`);
     await p.goto(`${BASE}/setup/activate`);
@@ -411,13 +471,13 @@ if (!serverUp) {
   checkSkip("[9] post-activation /setup root → /", "dev server unreachable");
 } else {
 {
-  await prisma.setupState.update({ where: { userId: u.id }, data: { completedStep: 5, activatedAt: new Date() } });
+  await setStep({ completedStep: 5, activatedAt: new Date() });
 
   const browser = await chromium.launch({ headless: true });
   const p = await (await browser.newContext()).newPage();
   await p.goto(`${BASE}/login`);
-  await p.fill('input[name=email]', "mom@compass.local");
-  await p.fill('input[name=password]', "correct-horse-battery-staple");
+  await p.fill('input[name=email]', fx.email);
+  await p.fill('input[name=password]', fx.password);
   await p.locator('button[type=submit]:has-text("Sign in")').click();
   await p.waitForURL(`${BASE}/`);
   await p.goto(`${BASE}/setup`);
@@ -435,8 +495,8 @@ if (!serverUp) {
   const browser = await chromium.launch({ headless: true });
   const p = await (await browser.newContext()).newPage();
   await p.goto(`${BASE}/login`);
-  await p.fill('input[name=email]', "mom@compass.local");
-  await p.fill('input[name=password]', "correct-horse-battery-staple");
+  await p.fill('input[name=email]', fx.email);
+  await p.fill('input[name=password]', fx.password);
   await p.locator('button[type=submit]:has-text("Sign in")').click();
   await p.waitForURL(`${BASE}/`);
   await p.goto(`${BASE}/insights`);
@@ -451,6 +511,12 @@ if (!serverUp) {
 const finalState = await prisma.setupState.findUnique({ where: { userId: u.id } });
 check("[11] SetupState.completedStep = 5", finalState?.completedStep === 5);
 check("[12] SetupState.activatedAt is set", !!finalState?.activatedAt);
+
+// Drop this test's user before reporting. If a run crashes before here
+// the row survives, but createFixture's sweepStaleFixtures() removes
+// every `smoke-` user at the start of the next one, so a crashed run
+// cannot poison the following test the way the shared mom@ user did.
+await fx.cleanup();
 
 await prisma.$disconnect();
 
