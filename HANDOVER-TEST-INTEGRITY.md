@@ -1,20 +1,19 @@
-﻿# 🚨 READ FIRST — Session Briefing (2026-09-30 ~12:15 UTC)
+﻿# 🚨 READ FIRST — Session Briefing (2026-09-30 ~13:20 UTC)
 
 > ## 🎯 If you are here to build DEBTS, read `DEBTS-PERSISTENCE-BRIEF.md`
 > That is the pickup brief: what to build, the exact field shape, the
 > files to touch, the trap, and what "done" means. xKryptic approved it
 > explicitly. Everything below is the test-suite state that leads to it.
 
-**Supersedes the 2026-09-30 00:05 UTC briefing this file previously
-contained.** The three walls below were found, fixed and CI-confirmed.
-The chain has advanced again; this briefing records what is now known to
-be true and what the next blocker is.
+**Supersedes every earlier briefing in this file.** The shared-user
+landmine is defused, wall 8 is CI-confirmed cleared, and the seven
+`smoke-debts-*` are migrated and green locally. The test tail is done —
+the next block of work is the debts persistence feature.
 
-**The headline correction: the previous briefing recorded ONE blocker
-and was wrong on all three counts.** Each of the three walls it walked
-past was a *stale assertion describing a contract that had already
-moved* — not the cause it named. The single most useful lesson from
-this session is in §3.
+**The headline finding is §3b, and it is a product bug, not a test bug.**
+`toDisplayDebt` silently dropped `creditLimitCents`, so the utilization
+caption, gauge and rainbow gradient had never rendered for any user.
+Seven source-regex smokes could not see it.
 
 ---
 
@@ -22,6 +21,9 @@ this session is in §3.
 
 | Commit | What it is |
 |---|---|
+| `066270e` | restore `creditLimitCents` in `toDisplayDebt`; migrate the 7 debts smokes to the fixture |
+| `09efb0a` | defuse the `escape-hatches` landmine; clear wall 8; fix a vacuous pass |
+| `de3b688` | docs: add the debts persistence pickup brief |
 | `d5d22f4` | clear `smoke-envelopes-list-defensive-reads` (5th landmine wall) |
 | `b9c3c51` | clear `smoke-envelope-detail-section-errors` (4th landmine wall) |
 | `e2be407` | clear `smoke-envelope-detail-null-planet` (the vacuous pass) |
@@ -33,194 +35,199 @@ All pushed to `origin/main`.
 
 ## 2. What the chain has cleared, and what it died on
 
-CI is the arbiter. Runtime is the tell: a longer run means it got
-*further*.
+CI is the arbiter.
 
 | Commit | Runtime | Died at |
 |---|---|---|
-| `8ae8912` | 7m48s | smoke-envelope-detail-db ("lazy-seed worked") |
-| `ae0596e` | 9m24s | **smoke-setup-wizard** |
-| `05e64e8` | 9m4s | **smoke-ui-dashboard-db** |
-| `8ed91f4` | 9m32s | **smoke-ui-envelope-reads** |
-| `424ab47` | 9m20s | **smoke-envelope-detail-null-planet** |
-| `e2be407` | 9m30s | **smoke-envelope-detail-section-errors** |
-| `b9c3c51` | 9m33s | **smoke-envelopes-list-defensive-reads** |
-| `d5d22f4` | 9m34s | **smoke-client-error-capture** ← current, diagnosed not yet fixed |
+| `424ab47` | 9m20s | `smoke-envelope-detail-null-planet` |
+| `e2be407` | 9m30s | `smoke-envelope-detail-section-errors` |
+| `b9c3c51` | 9m33s | `smoke-envelopes-list-defensive-reads` |
+| `d5d22f4` | 9m34s | `smoke-client-error-capture` ← wall 8 |
+| `09efb0a` | 9m25s | `smoke-debts-tier` [23] — **wall 8 passed** |
+| `066270e` | ? | ? ← **the only open CI question** |
 
-Seven walls fixed and CI-confirmed; an eighth diagnosed:
+Eight walls fixed. Wall 8 is CI-confirmed: `smoke-client-error-capture`
+reported **24 pass / 0 miss** on run `36717670391`, and the chain
+advanced past it for the first time.
 
 | Wall | Before | After |
 |---|---|---|
-| `smoke-setup-wizard` | 2 MISS + P2025 crash | **31 / 0** |
-| `smoke-change-password` | 4 MISS | **40 / 0** |
-| `smoke-ui-dashboard-db` | 4 MISS | **11 / 0** |
-| `smoke-ui-envelope-reads` | 2 MISS + 30s hang | **20 / 0** |
-| `smoke-envelope-detail-null-planet` | 1 MISS | **6 / 0** |
-| `smoke-envelope-detail-section-errors` | 1 MISS | **12 / 0** |
-| `smoke-envelopes-list-defensive-reads` | 1 MISS | **8 / 0** |
-| `smoke-client-error-capture` | 1 MISS `[22]` | **not yet fixed** — see §5 |
+| `smoke-setup-wizard` | 2 MISS + P2025 crash | 31 / 0 |
+| `smoke-change-password` | 4 MISS | 40 / 0 |
+| `smoke-ui-dashboard-db` | 4 MISS | 11 / 0 |
+| `smoke-ui-envelope-reads` | 2 MISS + 30s hang | 20 / 0 |
+| `smoke-envelope-detail-null-planet` | 1 MISS | 6 / 0 |
+| `smoke-envelope-detail-section-errors` | 1 MISS | 12 / 0 |
+| `smoke-envelopes-list-defensive-reads` | 1 MISS | 8 / 0 |
+| `smoke-client-error-capture` | 1 MISS `[22]` | **24 / 0 — CI-confirmed** |
+| `smoke-debts-tier` | 1 MISS `[23]` | **26 / 0 — local, awaiting CI** |
+| the other six `smoke-debts-*` | 5 failing | **all green — local, awaiting CI** |
 
-### 2a. 🎯 Wall 8, already diagnosed — just apply the §3a fix
+⚠️ **Runtime alone is no longer a reliable progress signal.** The
+`09efb0a` run was *shorter* (9m25s vs 9m54s) while getting strictly
+further, because the chain moved from dying inside a Playwright timeout
+to dying on a fast assertion. Read *which* entry died, not only how long
+it took.
 
-`smoke-client-error-capture` `[22] ClientErrorCapture mounted on
-/envelopes`. Same landmine, sixth time. The component *does* render
-`<span data-testid="client-error-capture" />` (`src/components/
-ClientErrorCapture.tsx:196-202`), so the test is correct — the shared
-account simply never rendered `/envelopes`. Migrate to the fixture and
-it should pass; no assertion change is expected. **Check this first in
-the next session — it is the last non-debts entry.**
+### 2a. ✅ The landmine is defused
 
-`pnpm tsc` exit 0 · `pnpm lint` exit 0 (543 warnings, 0 errors).
+`smoke-escape-hatches` no longer touches `mom@compass.local`. It uses
+**two** fixture users — one for the dashboard/settings checks and one for
+the reset test, because check [14] destroys the identity by design and
+sharing a user would have reintroduced the bug it caused. 15 → 17 checks
+(the two extra are `[8a]`/`[10a]` "the page actually rendered" guards).
+
+`smoke-onboarding-chat-escape` and `smoke-client-error-capture` are
+migrated too. `smoke-auth.mjs` still creates mom on purpose — correct,
+it is the test that owns that account.
 
 ## 3. 🎯 The lesson that found them
 
 **A red check is not a bug report. It is a claim that some contract
 moved, and the first question is which side moved.**
 
-Of the eleven individual defects, **ten** were an assertion encoding a
-contract that an *earlier* commit had already deliberately changed.
-The test was the stale side, not the product. The recurring shapes:
+Of the individual defects cleared, **most** were an assertion encoding
+a contract that an *earlier* commit had already deliberately changed. The
+test was the stale side, not the product. The recurring shapes:
 
 - `smoke-setup-wizard` did `update({ where: { userId } })` on a row a
   *previous check deliberately deleted*, to reproduce a bug shape.
-- Its 7.38-B1 table expected `completedStep=1 → pay-schedule` — the
-  step just *completed*, not the next one. Rows 3 and 4 were already
-  right, so only half the loop ever reported.
 - `smoke-change-password` asserted `type="password"` rendered *after*
-  `data-testid`. React emits JSX props in order; the form writes
-  `type` first. The regex could never match, whatever the component did.
-- `smoke-ui-dashboard-db` `[5]` asserted `(app)/loading.tsx` exists.
-  `daabae5` deleted it on purpose.
-- Its `[8]` asserted an envelope's `planet` column renders as a string.
-  Measured: it renders nowhere, raw or stripped. Unsatisfiable.
-- `smoke-ui-envelope-reads` `[1.debts]` asserted the debts page imports
-  `livePlanFromDb` — true from `94dd126` (7.40), replaced by `1149c49`
-  (7.46) on purpose.
+  `data-testid`. React emits JSX props in order; the form writes `type`
+  first. The regex could never match, whatever the component did.
+- `smoke-ui-dashboard-db` `[5]` asserted `(app)/loading.tsx` exists;
+  `daabae5` deleted it on purpose. Its `[8]` asserted a `planet` column
+  that renders nowhere.
+- `smoke-debts-mobile` `[1]` required `useState<boolean>(false)` and a
+  `typeof window` guard. `useMediaQuery` was deliberately moved to
+  `useSyncExternalStore`, where the `false` server snapshot is the
+  *third argument* and there is no window check to grep for at all.
 
 **Apply:** before fixing a check, `git log` the file it asserts about.
-If that commit is recent and deliberate, the assertion is the stale
-side. Three of these had a comment or docstring in the repo explaining
-the *new* behaviour while the test asserted the *old* one.
+If that commit is recent and deliberate, the assertion is the stale side.
 
-### 3a. 🚨 The landmine — `smoke-escape-hatches`, and it has cost FOUR walls
+### 3a. A negative assertion cannot fail
 
-`smoke-escape-hatches` (chain entry 34) is still hardwired to
-`mom@compass.local` and calls `POST /api/onboarding/reset` on it,
-wiping that account's `FinancialIdentity`. Every later entry that still
-signs in as mom then sits **behind the onboarding gate**, and its pages
-never render at all.
-
-**Five of the seven FIXED walls trace to this one test** — plus wall 8 (§2a), the same cause, not yet fixed. It is worth more than any single failing entry, because each wall it causes has to be diagnosed and migrated one at a time.
-
-The nastiest symptom, in `smoke-envelope-detail-null-planet`:
+`smoke-envelope-detail-null-planet` had this:
 
 ```
 [5] PASSED — asserts the page contains no "[ERR]" card.
              A gate redirect to /setup contains no error card.
              It passed for the WRONG REASON.
-[6] FAILED — the envelope name and balance genuinely were not there.
 ```
 
 **A negative assertion cannot distinguish "the thing worked" from "the
-thing never ran."** That is the generalisable lesson, and it is why
-`[5a]` / `[7a]` / `[11a]` now assert the browser is still on the page
-before the negative assertion is trusted. Three of the five migrated
-tests needed this; `smoke-envelopes-list-defensive-reads` needed it
-most, because its primary clause *is* the negative one.
+thing never ran."** Guard every negative assertion with positive proof
+that the page actually rendered. Settled shape, now used throughout:
 
-### 3b. Two recurring sub-shapes
+```js
+const onPage = p.url().endsWith("/debts");          // or status === 200
+check("[x] page actually rendered", onPage, `url=${p.url()}`);
+check("[y] the real assertion", onPage && <the thing>);
+```
 
-- **Attribute-order regexes over rendered HTML.**
-  `/data-testid="x"[^>]*type="y"/` is unsound — resolve the tag by
-  testid, then assert on it.
-- **Matching raw HTML without stripping `<script>`.** The RSC flight
-  payload embeds an escaped second copy of the same text (§4).
+### 3b. 🚨 The one that was a PRODUCT bug
 
-## 4. Carried forward from the 2026-09-29 briefing (still true)
+**Seven source-regex smokes passed green for weeks while the feature they
+cover had never rendered once.**
 
-The four layered defects fixed then remain fixed. The **flight-payload
-regex lesson** (§4 of the old briefing) is not historical — it is
-active: it caused the `smoke-change-password` regex failure above, and
-`smoke-ui-dashboard-db` now strips scripts for the same reason.
+`toDisplayDebt` in `src/lib/mock.ts` copied every field of a `Debt`
+*except* `creditLimitCents`:
+
+```js
+function toDisplayDebt(d: Debt) {
+  return { id, name, balanceCents, originalBalanceCents, aprBps,
+           minPaymentCents, dueDay, accountId, sortOrder, isArchived };
+}                                   // creditLimitCents: never copied
+```
+
+So `liveDebts()` handed `/debts` a debt with no credit limit, `DebtCard`'s
+`debt.creditLimitCents ?? null` was always `null`, and `utilizationPct`
+was always `null`. The `% used` caption, the utilization gauge and the
+rainbow gradient (Clusters 7.48, 7.49, 7.50) never rendered for any
+user. Fixed in `066270e`; verified by probe — the strings are absent
+before the change and present after (page 50,043 → 50,413 bytes).
+
+**The generalisable lesson:** a mapping layer between the data and the
+component is the blind spot of source-regex testing. `DebtCard` was never
+wrong; the object handed to it was. When a source-regex suite is green,
+assert at least one **value** on one page before believing the feature
+renders.
+
+### 3c. The three debts assertions that could not pass
+
+- `smoke-debts-tier` `[23]` asserted `DebtDetailExpand` labels on a
+  **collapsed** list. `DebtListInteractive` starts with
+  `expandedId = null` and renders `{isExpanded && <DebtDetailExpand/>}`,
+  so those labels exist nowhere until a card is expanded. Now `[23]`
+  (collapsed) + `[23b]` (click `[aria-controls^="debt-detail-"]`, then
+  assert).
+- `smoke-debts-mobile` `[15]` was named "narrow + wide" but captured only
+  a 375px viewport, then asserted the caption inside `DebtCard`'s
+  `{!isMobile && ...}` **desktop** column. Now `[15]` (narrow: column
+  collapsed) + `[15b]` (`setViewportSize(1280)`, reload, caption present).
+- `smoke-debts-mobile` `[1]` — the stale useMediaQuery shape, §3.
+
+## 4. Carried forward (still true)
+
+**A `GET /login` server probe with `AbortSignal.timeout(2000)` reports a
+healthy dev server as unreachable.** A dev server compiles `/login` on
+demand, and a cold first compile outruns a 2s budget. Measured directly:
+`/api/health` returned 200 at the same moment the probe said unreachable.
+All migrated tests now probe `GET /api/health` at 10s.
 
 **The three hardcoded-date bugs are still fixed and still load-bearing.**
 A check that passes at one wall-clock time and fails at another, with no
 code change, is a clock bug until proven otherwise.
 
-## 5. 🎯 NEXT — the tail of the chain
+**The flight-payload regex lesson is active.** The RSC payload embeds an
+escaped second copy of the same text; strip `<script>` bodies before
+matching, or scope to a `data-testid`.
 
-`smoke-envelopes-list-defensive-reads` was entry 42. Remaining:
-`smoke-client-error-capture` and the seven `smoke-debts-*`.
+## 5. 🎯 NEXT — the debts persistence feature
 
-**Do `smoke-escape-hatches` first** (entry 34) — see §3a. It has now
-cost five walls, and fixing it once is worth more than clearing the
-whole remaining tail entry by entry.
+The test tail is **done**. Nothing between here and the end of the chain
+is left to fix; the seven debts smokes are green locally and awaiting CI
+on `066270e`.
 
-**Priority order for the tail:**
+Read `DEBTS-PERSISTENCE-BRIEF.md` and start there. Three things this
+session changed that the brief should absorb:
 
-1. **`smoke-escape-hatches`** (entry 34) — migrate to the fixture.
-   Defuses the landmine for everything still on the shared user.
-2. **Migrate the rest of the shared-user set.** These still sign in as
-   `mom@compass.local` (grep for the password literal, not the email —
-   the email appears in ~50 files as prose, which drowns the signal):
+1. **Debts are still in-memory only.** `readDebts` →
+   `getState(userId).debts` in `src/lib/store.ts`, seeded lazily from
+   `DEBTS_SEED` via `seededId` for *any* unknown userId, pinned on
+   `globalThis.__COMPASS_STORE__`. The store is **per dev-server
+   process** — a test process cannot seed it. That is why the fixture
+   cannot provision debts today, and why the debts live checks were
+   written to expand a real card rather than rely on seeded rows.
+2. **`Debt.creditLimitCents?: number` already exists** on the store type
+   (`store.ts:305`) with a docstring saying utilization applies when it
+   is set. Any new `Debt` model must carry it, or §3b recurs.
+3. `tests/fixture.mjs` provisions account/envelope/goal/bill/plan. **Add
+   debts there** once they persist.
 
-   ```powershell
-   Select-String -Path "tests/*.mjs" -Pattern "correct-horse-battery-staple" |
-     ForEach-Object { $_.Filename } | Sort-Object -Unique
-   ```
-
-   The real list, excluding `smoke-auth.mjs` (which legitimately
-   *creates* mom) and the untracked `tests/_debug-*.mjs` scratch files:
-
-   - `smoke-escape-hatches.mjs` — entry 34, **the landmine**
-   - `smoke-onboarding-chat-escape.mjs`
-   - `smoke-client-error-capture.mjs`
-   - `smoke-debts-{tier,interest,utilization,rainbow,interactive,mobile,cross-extra}.mjs`
-
-   (the three envelope-detail/list tests are now migrated)
-
-   > **Building the debts feature? Read `DEBTS-PERSISTENCE-BRIEF.md` —
-   > that is the pickup brief.** xKryptic approved it explicitly. The
-   > seven `smoke-debts-*` are source-regex only and cannot catch a
-   > wrong number until debts are persisted. It is a real feature,
-   > several times the size of the walls cleared here.
-
-   **The seven `smoke-debts-*` are source-regex only** — they cannot
-   catch a wrong number until debts get a persistence model. That is a
-   product decision for xKryptic, not a unilateral start.
-
-3. **Audit the remaining negative assertions for vacuous passes.** §3a.
-   A `!html.includes(...)` check passes just as happily on a login page
-   as on a working page. Ask what page it would pass on if the feature
-   were entirely absent.
-4. Then the tail itself, which is expected to be quick.
-
-Note: `tests/_debug-insights.mjs`, `_debug-insights2.mjs`,
-`_debug-login.mjs`, `_check-user.mjs` and `_cleanup-alloc.mjs` are
-untracked scratch. Do not stage them; delete them with the recoverable
-launcher when convenient.
-
-Two other known-open items, unchanged:
+Remaining known-open items, unchanged:
 
 - **The `smoke-setup-wizard` live walk-through still reports
-  `step 4 (bills) did not advance SetupState.completedStep`.** It is a
-  non-gating `[warn]`. The old briefing blamed the missing-`SetupState`
-  row; that is **wrong** — the missing row was the P2025 crash, fixed.
+  `step 4 (bills) did not advance SetupState.completedStep`.** Non-gating
+  `[warn]`. The old "missing SetupState row" diagnosis was **wrong** —
   `saveBillsAction` calls `markStepCompleted` unconditionally
   (`src/app/setup/actions.ts:222`), so if the action runs the step must
   advance. Untested hypothesis: the walk-through's `callStep` posts an
   empty `FormData` with a bare `Next-Action` header, whereas the
-  fixture's own helper (`tests/fixture.mjs:573`) uses the
-  `$ACTION_REF_1` + `$ACTION_1:0` bound-action encoding. **Measure this
-  before naming it** — it is a best-effort path, not a product bug yet.
+  fixture's helper (`tests/fixture.mjs:573`) uses the `$ACTION_REF_1` +
+  `$ACTION_1:0` bound-action encoding. **Measure before naming it.**
+- `tests/_debug-insights.mjs`, `_debug-insights2.mjs`, `_debug-login.mjs`,
+  `_check-user.mjs`, `_cleanup-alloc.mjs` are untracked scratch. Do not
+  stage them.
 
 ## 6. Pre-flight
 
 ```bash
 cd "C:\Users\crisc\OneDrive - Southern Careers Institute\My Drive\Budget planner app"
-git log --oneline -3                    # 8ed91f4, 05e64e8, 7ee48ee
+git log --oneline -3                    # 066270e, 09efb0a, de3b688
 pnpm tsc                                # exit 0
-pnpm lint                               # exit 0
+pnpm lint                               # exit 0 (543 warnings, 0 errors)
 pnpm dev                                # REQUIRED before any HTTP smoke
 ```
 
@@ -228,11 +235,13 @@ Verify: `Invoke-WebRequest http://127.0.0.1:3000/api/health -UseBasicParsing`
 → `"status":"ok"`, `checks.db.ok: true`.
 
 A dev server from a *previous* session may still be running on :3000
-(Next.js prints "Another next dev server is already running" and exits
-1 if you start a second). Check first; reuse it.
+(Next.js prints "Another next dev server is already running" and exits 1
+if you start a second). Check first; reuse it.
 
-Background `pnpm dev` tasks get reaped in this environment. If health
-fails, restart it before believing any HTTP smoke.
+Background `pnpm dev` tasks get reaped in this environment, and it can
+happen **between** two test runs — a run can report "dev server
+unreachable" while `/api/health` is 200. If health fails, restart before
+believing any HTTP smoke.
 
 Anything importing `tests/fixture.mjs` **or** `../src/` must run under
 `tsx --conditions=react-server`. Do not hand-edit the chain — run
@@ -246,25 +255,33 @@ conditions.
 2. `src/lib/seed-ids.ts` — `seededId(userId, canonicalId)`.
 3. `tests/skip-guard.mjs` — exit contract: 0 pass / 1 fail / 2 skipped.
 4. `scripts/fix-smoke-runners.mjs` — how the chain is generated.
-5. `src/lib/setup/state.ts` — `getNextStep` is the contract the
-   7.38-B1 checks encode.
+5. `src/lib/store.ts` — `getState` / `seedState` / `readDebts`: the
+   in-memory layer the debts feature has to replace.
+6. `src/lib/setup/state.ts` — `getNextStep` is the contract the 7.38-B1
+   checks encode.
 
 ## 8. Stop conditions
 
 - **Check `gh run list` before believing any status.** This repo has a
   documented history of six weeks of "all green, ~1,580 checks" claims
-  while CI failed 60 consecutive runs. Runtime is the tell.
+  while CI failed 60 consecutive runs. Read *which entry* died, not just
+  the runtime (§2).
 - **Do not skip or weaken assertions to make a suite green.** Every fix
-  in this session either restored something the assertion already
-  demanded, or corrected the assertion to the contract the product
-  actually documents. None removed a check — `smoke-ui-dashboard-db`
-  went from 9 to 11 checks while going green.
-- **Do not name a cause before measuring it.** Two predecessor sessions
-  produced confident wrong diagnoses; this session's briefing named a
-  cause for a warning that had a different cause. Write a throwaway
-  probe that prints the real markup. That is what cracked all three
-  walls in minutes.
-- **A red check may mean the assertion is stale, not the code.** See §3.
+  in these sessions either restored something the assertion already
+  demanded, corrected the assertion to the contract the product actually
+  documents, or gave an unsatisfiable assertion a real subject. None
+  removed a check.
+- **Do not name a cause before measuring it.** Three predecessor sessions
+  produced confident wrong diagnoses. Write a throwaway probe that
+  prints the real markup or the real values, then delete it with the
+  recoverable-delete launcher. That is what cracked every wall here,
+  and what found the `toDisplayDebt` bug.
+- **Never hand-transcribe an assertion when you can edit in place.** A
+  file read collapsed a space in a regex; retyping it produced a check
+  that had always passed and now failed. Use targeted edits, then diff
+  the untouched assertions against `git show HEAD:<file>` to prove they
+  are byte-identical.
+- **A red check may mean the assertion is stale, not the code.** §3.
   Check `git log` on the file under test first.
 - **Prefer a config change over patching `node_modules`.**
 - **Env-local assertions do not belong in CI.**
@@ -277,11 +294,10 @@ conditions.
 - Delete scratch files (`*.log`, throwaway probe scripts) with the
   runtime's recoverable-delete launcher, not `Remove-Item`.
 - PowerShell has no heredoc: write the commit message to a file and use
-  `git commit -F`.
+  `git commit -F`. It also has no `&&` in 5.1 — use `;` or separate
+  statements.
 
 
-
----
 
 # 📎 ARCHIVE — 2026-09-29 / 09-30 session detail (still true unless noted)
 
