@@ -1,4 +1,9 @@
-﻿# 🚨 READ FIRST — Session Briefing (2026-09-30 ~11:00 CDT)
+﻿# 🚨 READ FIRST — Session Briefing (2026-09-30 ~12:15 UTC)
+
+> ## 🎯 If you are here to build DEBTS, read `DEBTS-PERSISTENCE-BRIEF.md`
+> That is the pickup brief: what to build, the exact field shape, the
+> files to touch, the trap, and what "done" means. xKryptic approved it
+> explicitly. Everything below is the test-suite state that leads to it.
 
 **Supersedes the 2026-09-30 00:05 UTC briefing this file previously
 contained.** The three walls below were found, fixed and CI-confirmed.
@@ -40,9 +45,9 @@ CI is the arbiter. Runtime is the tell: a longer run means it got
 | `424ab47` | 9m20s | **smoke-envelope-detail-null-planet** |
 | `e2be407` | 9m30s | **smoke-envelope-detail-section-errors** |
 | `b9c3c51` | 9m33s | **smoke-envelopes-list-defensive-reads** |
-| `d5d22f4` | *see §6* | *see §6* |
+| `d5d22f4` | 9m34s | **smoke-client-error-capture** ← current, diagnosed not yet fixed |
 
-Seven walls cleared in one session:
+Seven walls fixed and CI-confirmed; an eighth diagnosed:
 
 | Wall | Before | After |
 |---|---|---|
@@ -53,6 +58,17 @@ Seven walls cleared in one session:
 | `smoke-envelope-detail-null-planet` | 1 MISS | **6 / 0** |
 | `smoke-envelope-detail-section-errors` | 1 MISS | **12 / 0** |
 | `smoke-envelopes-list-defensive-reads` | 1 MISS | **8 / 0** |
+| `smoke-client-error-capture` | 1 MISS `[22]` | **not yet fixed** — see §5 |
+
+### 2a. 🎯 Wall 8, already diagnosed — just apply the §3a fix
+
+`smoke-client-error-capture` `[22] ClientErrorCapture mounted on
+/envelopes`. Same landmine, sixth time. The component *does* render
+`<span data-testid="client-error-capture" />` (`src/components/
+ClientErrorCapture.tsx:196-202`), so the test is correct — the shared
+account simply never rendered `/envelopes`. Migrate to the fixture and
+it should pass; no assertion change is expected. **Check this first in
+the next session — it is the last non-debts entry.**
 
 `pnpm tsc` exit 0 · `pnpm lint` exit 0 (543 warnings, 0 errors).
 
@@ -94,9 +110,7 @@ wiping that account's `FinancialIdentity`. Every later entry that still
 signs in as mom then sits **behind the onboarding gate**, and its pages
 never render at all.
 
-**Five of the seven walls trace to this one test.** It is worth more than
-any single failing entry, because each wall it causes has to be
-diagnosed and migrated one at a time.
+**Five of the seven FIXED walls trace to this one test** — plus wall 8 (§2a), the same cause, not yet fixed. It is worth more than any single failing entry, because each wall it causes has to be diagnosed and migrated one at a time.
 
 The nastiest symptom, in `smoke-envelope-detail-null-planet`:
 
@@ -138,9 +152,9 @@ code change, is a clock bug until proven otherwise.
 `smoke-envelopes-list-defensive-reads` was entry 42. Remaining:
 `smoke-client-error-capture` and the seven `smoke-debts-*`.
 
-**Do `smoke-escape-hatches` first** (entry 34) — see §3a. It is worth
-more than any single failing entry, because it is poisoning the ones
-behind it.
+**Do `smoke-escape-hatches` first** (entry 34) — see §3a. It has now
+cost five walls, and fixing it once is worth more than clearing the
+whole remaining tail entry by entry.
 
 **Priority order for the tail:**
 
@@ -164,6 +178,12 @@ behind it.
    - `smoke-debts-{tier,interest,utilization,rainbow,interactive,mobile,cross-extra}.mjs`
 
    (the three envelope-detail/list tests are now migrated)
+
+   > **Building the debts feature? Read `DEBTS-PERSISTENCE-BRIEF.md` —
+   > that is the pickup brief.** xKryptic approved it explicitly. The
+   > seven `smoke-debts-*` are source-regex only and cannot catch a
+   > wrong number until debts are persisted. It is a real feature,
+   > several times the size of the walls cleared here.
 
    **The seven `smoke-debts-*` are source-regex only** — they cannot
    catch a wrong number until debts get a persistence model. That is a
