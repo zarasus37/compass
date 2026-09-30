@@ -12,9 +12,12 @@ nine of them.
 
 | Commit | What it is |
 |---|---|
-| `d0b2dcc` | anchor the cron-prune smoke's sentinel dates to the real clock |
+| `ae0596e` | finish the demo-data migration in the last two tests |
+| `8ae8912` | stop seeding demo data into real accounts |
+| `74a8848` | make a deliberate demo-data clear actually stick |
+| `a67580f` | `clear-demo-data`: FK-safe ordering + atomic delete |
 | `38e3653` | unfreeze the app clock; roll the pay period forward; add `clear-demo-data` |
-| `4ce0a1c` | docs: 404 fixed + CI-confirmed; setup-wizard is the next wall |
+| `4ce0a1c` | docs: 404 fixed + CI-confirmed |
 | `daabae5` | scope the loading shell so `notFound()` can set a real 404 |
 | `d0e6df9` | rewrite this briefing + COORDINATION status |
 | `5861f50` | run src-importing smokes under tsx; un-orphan the stuck-detector users |
@@ -26,11 +29,10 @@ All pushed to `origin/main`. Working tree clean for tracked files.
 
 ## 2. The headline
 
-**The chain now dies at exactly one place, and it is the same place
-every time: `smoke-setup-wizard`, 2 checks.** Fully diagnosed, not yet
-fixed — see §5a.
+**The chain now dies at exactly one place, the same place every time:
+`smoke-setup-wizard`, 2 checks.** Fully diagnosed, not yet fixed — §5a.
 
-The CI runtime series across this session, one wall removed per commit:
+CI runtime across the session, one wall removed per commit:
 
 | Commit | Runtime | Died at |
 |---|---|---|
@@ -38,24 +40,36 @@ The CI runtime series across this session, one wall removed per commit:
 | `5795fbc` | 6m21s | Playwright browser missing |
 | `79a1478` | 7m47s | directory import in stuck-detector |
 | `5861f50` | 8m00s | smoke-setup-wizard |
-| `d0e6df9` | 4m41s | smoke-audit-log (time-of-day flake, not a regression) |
+| `d0e6df9` | 4m41s | smoke-audit-log (evening timezone flake, not a regression) |
 | `38e3653` | 4m37s | smoke-cron-audit-log-prune |
-| `d0b2dcc` | 7m47s | **smoke-setup-wizard** ← current |
+| `d0b2dcc` | 7m47s | smoke-setup-wizard |
+| `8ae8912` | 7m48s | smoke-envelope-detail-db ("lazy-seed worked") |
+| `ae0596e` | **9m24s** | **smoke-setup-wizard** ← current |
 
-Note the `d0e6df9` dip: same code as the row above it, but it ran in the
-evening window where the audit-log timezone flake fires. That is the
-flake, not a regression — worth recognising before chasing it.
+Note the two dips: same code, different wall-clock time. That is the
+audit-log timezone flake (§5c), not a regression — recognise it before
+chasing it.
 
-Stage summary from the last full local `pnpm smoke:strict` (47 green):
-
-| Stage | Result |
+| Stage | Result (last full local `pnpm smoke:strict`) |
 |---|---|
 | `smoke` | **FAIL** — 2 checks in `smoke-setup-wizard` |
 | `smoke:ui` | **PASS** |
-| `smoke:integration` | **PASS** |
+| `smoke:integration` | **PASS** (368/0) |
 | `smoke:deploy` | **PASS** (149/0) |
 
-`pnpm tsc` exit 0 · `pnpm lint` exit 0 (542 warnings, 0 errors).
+`pnpm tsc` exit 0 · `pnpm lint` exit 0 (543 warnings, 0 errors).
+
+## 1b. 🚨 Two traps this session paid for
+
+1. **A "passing" suite can be a silent skip.** The dev server had been
+   reaped, so `integration-vault` took its `server-probe DOWN` branch:
+   exit 0, no failures, **22 source-only checks instead of 368**. Under
+   `SMOKE_REQUIRE_SERVER` a skip is supposed to be fatal; it wasn't.
+   Always confirm `[server-probe] UP` before believing an integration
+   result, and fix the skip-to-pass hole.
+2. **Background `pnpm dev` gets reaped here.** Restart it and check
+   `/api/health` before trusting any HTTP smoke.
+
 
 
 ## 3. What this session fixed (all measured, not assumed)
@@ -257,6 +271,59 @@ $env:DATABASE_URL = "<production url>"
 npx tsx scripts/clear-demo-data.mjs <email>            # dry run
 npx tsx scripts/clear-demo-data.mjs <email> --confirm  # delete
 ```
+
+## 5d. Demo data no longer enters a real account (`8ae8912`, `ae0596e`)
+
+Operator decision: a real account starts **empty**. Demos belong on the
+marketing side — homepage, a video, or a public no-signup demo before
+signup. Demo seeding is still fine for testing; it just must not be
+automatic.
+
+**The root problem was five read paths that wrote.** Each
+`live*FromDb` reader called a seeder on every read:
+
+    liveEnvelopesFromDb -> ensureUserEnvelopesSeeded
+    liveAccountsFromDb  -> ensureUserAccountsSeeded
+    liveBillsFromDb     -> ensureUserBillsSeeded
+    liveGoalsFromDb     -> ensureUserGoalsSeeded
+    livePlanFromDb      -> ensureUserAllocationSeeded
+
+So an account with nothing got the demo persona on its first page
+load, invisibly. All five now just read. Creating rows is explicit:
+the setup wizard, `POST /api/reset-seed`, `scripts/clear-demo-data`.
+
+**Four real bugs were hiding behind the seeded rows** — each only ever
+happened because something else had been created first:
+
+1. The dashboard 500'd on an empty account. `livePlanFromDb` threw
+   `"no seed plan found for user after seeding. This is a bug."` —
+   true only while the read path seeded. "No plan" is now a normal
+   state returning an unarmed plan, so `AllocationPlan.id` is
+   `string | null`.
+2. `AllocationRule_envelopeId_fkey` violation.
+3. The vault sync errored: `seedVaultFromEnvelopes` read the
+   **in-memory** store (populated from `ENVELOPES_SEED` regardless of
+   reality) while its FK target was the empty DB table. It now reads
+   `liveEnvelopesFromDb` / `liveBillsFromDb`, which also closes the
+   in-memory/DB split the 7.39 notes deferred.
+4. A class of undefined-envelope failures across bills/goals.
+
+**The wizard keeps structure, loses the fiction:**
+`seedZeroedEnvelopesForOnboarding` writes the same seven categories in
+the same order with every balance zeroed.
+
+Verified: all 15 main surfaces render 200 on a genuinely empty account,
+and after browsing every one the account still has 0 envelopes /
+0 accounts. `POST /api/vault/sync` → `{"ok":true,"envelopesUpserted":0,…}`.
+
+**Tests that described the old behaviour were migrated, not deleted:**
+`integration-vault` and `smoke-envelope-detail-db` were the last two
+hardwired to `mom@compass.local`. The latter asserted, by name,
+"mom has envelopes in DB (lazy-seed worked)". Both now use the fixture
+and assert against real data. The integration test's "sync creates 7
+envelopes, 6 bills" became "sync upserts exactly the source counts" —
+stronger, because it proves the sync mirrors the user's rows rather
+than a magic number.
 
 ## 5c. Three hardcoded dates, one lesson
 
