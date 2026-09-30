@@ -25,11 +25,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { chromium } from "playwright";
 import { prisma } from "./db-client.mjs";
+import { createFixture } from "./fixture.mjs";
 import { exitCodeFor, recordSkip } from "./skip-guard.mjs";
 
 const BASE = "http://127.0.0.1:3000";
-const SMOKE_USER_EMAIL = "mom@compass.local";
-const SMOKE_USER_PASSWORD = "correct-horse-battery-staple";
 
 const checks = [];
 function check(name, cond, detail = "") {
@@ -103,34 +102,45 @@ check(
 // ── Live verification (server-gated) ───────────────────────────────
 
 if (!serverUp) {
-  checkSkip("[7] /envelopes renders for mom (no [ERR] card)", "dev server unreachable");
+  checkSkip("[7] /envelopes renders (no [ERR] card)", "dev server unreachable");
 } else {
-  const u = await prisma.user.findUnique({ where: { email: SMOKE_USER_EMAIL } });
-  if (!u) {
-    check("[7] /envelopes renders for mom (no [ERR] card)", false, "smoke user not in DB");
-  } else {
-    const browser = await chromium.launch({ headless: true });
-    const p = await (await browser.newContext()).newPage();
-    await p.goto(`${BASE}/login`);
-    await p.fill('input[name=email]', SMOKE_USER_EMAIL);
-    await p.fill('input[name=password]', SMOKE_USER_PASSWORD);
-    await p.locator('button[type=submit]:has-text("Sign in")').click();
-    await p.waitForURL(`${BASE}/`);
-    await p.goto(`${BASE}/envelopes`);
-    await p.waitForLoadState("networkidle");
-    const html = await p.content();
+  // Per-test fixture user. This used to sign in as the shared
+  // mom@compass.local, which smoke-escape-hatches (chain entry 34)
+  // destroys via POST /api/onboarding/reset — so by this entry the
+  // shared account is behind the onboarding gate and /envelopes never
+  // renders. Fifth wall traced to that one test.
+  const fx = await createFixture("envelopes-list-defensive-reads", { scenario: "minimal" });
 
-    check(
-      "[7] /envelopes renders for mom (no [ERR] card)",
+  const browser = await chromium.launch({ headless: true });
+  const p = await (await browser.newContext()).newPage();
+  await p.goto(`${BASE}/login`);
+  await p.fill('input[name=email]', fx.email);
+  await p.fill('input[name=password]', fx.password);
+  await p.locator('button[type=submit]:has-text("Sign in")').click();
+  await p.waitForURL(`${BASE}/`);
+  await p.goto(`${BASE}/envelopes`);
+  await p.waitForLoadState("networkidle");
+  const html = await p.content();
+
+  // This check is a negative assertion on its most important clause
+  // (no "[ERR]" card), so it needs the same guard the envelope-detail
+  // tests got: a gate redirect contains no error card, and would make
+  // this pass without the page ever rendering.
+  const onListPage = p.url().endsWith("/envelopes");
+  check("[7a] /envelopes is actually rendered (not redirected by a gate)", onListPage, `url=${p.url()}`);
+
+  check(
+    "[7] /envelopes renders (no [ERR] card)",
+    onListPage &&
       !html.includes("[ERR]") &&
-        !html.includes("We hit a snag") &&
-        // The page head + summary strip are always present
-        html.includes("Envelopes") &&
-        html.includes("total balance"),
-    );
+      !html.includes("We hit a snag") &&
+      // The page head + summary strip are always present
+      html.includes("Envelopes") &&
+      html.includes("total balance"),
+  );
 
-    await browser.close();
-  }
+  await browser.close();
+  await fx.cleanup();
 }
 
 // ── Summary ────────────────────────────────────────────────────────
