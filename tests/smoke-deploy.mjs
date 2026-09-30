@@ -48,8 +48,27 @@ function read(path) {
 }
 
 // ── 1. Env files ─────────────────────────────────────────────────
-for (const f of [".env", ".env.example", ".env.production.example"]) {
+// `.env` and `.env.local` are BOTH gitignored (`.gitignore:29` `.env`
+// and `.gitignore:95` `.env*`) and neither is tracked, so neither can
+// ever exist on a CI runner. Asserting their presence unconditionally
+// makes the suite fail on every CI run regardless of code health — the
+// same defect already fixed for `.env.local` just below. This is a
+// local-setup guard, not a product invariant.
+//
+// The two TRACKED example files are the real deploy contract: they are
+// what an operator copies, so they are asserted everywhere and did pass
+// in CI.
+for (const f of [".env.example", ".env.production.example"]) {
   check(`env file present: ${f}`, existsSync(join(ROOT, f)));
+}
+for (const f of [".env", ".env.local"]) {
+  if (read(f) !== null) {
+    check(`env file present: ${f}`, true);
+  } else {
+    console.log(
+      `[SKIP] ${f} not present (gitignored, developer-local only) — presence unchecked`,
+    );
+  }
 }
 
 // `.env.local` is gitignored (`.gitignore: .env*`) and exists only on a
