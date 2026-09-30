@@ -42,6 +42,7 @@ import {
   type DebtSeed,
 } from "./mock-seed";
 import { seededId } from "./seed-ids";
+import { isDemoCleared } from "./json";
 
 /**
  * Ensure the DB has the 7 default envelopes for the given user. Called
@@ -52,9 +53,42 @@ import { seededId } from "./seed-ids";
  * `source="seed"` so production reads can filter canonical vessels
  * apart from any future user- or identity-projected envelopes.
  */
+/**
+ * DB-backed wrapper around `isDemoCleared` (src/lib/json.ts).
+ *
+ * Returns true when `scripts/clear-demo-data.mjs` has emptied this
+ * user's demo data and the lazy seeders must leave it alone. Any read
+ * failure is treated as "not cleared", which preserves the original
+ * bootstrap behaviour rather than stranding a new user with no
+ * starter vessels.
+ */
+async function isDemoDataCleared(userId: string): Promise<boolean> {
+  try {
+    const u = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { settings: true },
+    });
+    return isDemoCleared(u?.settings);
+  } catch {
+    return false;
+  }
+}
+
 export async function ensureUserEnvelopesSeeded(userId: string): Promise<void> {
   const count = await prisma.envelope.count({ where: { userId } });
   if (count > 0) return;
+  // A user whose demo data was deliberately cleared must stay empty.
+  //
+  // The `count > 0` guard above cannot tell a brand-new user (who
+  // needs the starter vessels) from a user who deliberately emptied
+  // their account. Without this second check the clear is a no-op: the
+  // very next read re-seeds the canonical persona's balances. Measured
+  // on a freshly cleared account — 0 envelopes / 0 accounts, then
+  // 7 envelopes and Rent $800.00 after a single `liveEnvelopesFromDb`.
+  //
+  // Only read the flag on the seed path, so the hot path stays at one
+  // query.
+  if (await isDemoDataCleared(userId)) return;
   await prisma.envelope.createMany({
     data: ENVELOPES_SEED.map((e, index) => ({
       // Namespaced to the user: a bare `env-rent` is a global primary

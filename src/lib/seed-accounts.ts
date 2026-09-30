@@ -31,6 +31,26 @@ import "server-only";
 import { prisma } from "@/server/db";
 import { ACCOUNT_SEED } from "./mock-seed";
 import { seededId } from "./seed-ids";
+import { isDemoCleared } from "./json";
+
+/**
+ * DB-backed wrapper around `isDemoCleared` (src/lib/json.ts).
+ *
+ * See `isDemoDataCleared` in ./store.ts for why this exists. A read
+ * failure is treated as "not cleared" so a transient DB error can never
+ * strand a brand-new user without starter vessels.
+ */
+async function isDemoDataCleared(userId: string): Promise<boolean> {
+  try {
+    const u = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { settings: true },
+    });
+    return isDemoCleared(u?.settings);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Bump this when ACCOUNT_SEED changes. On mismatch, the seeder
@@ -93,6 +113,15 @@ export async function ensureUserAccountsSeeded(
       version: ACCOUNT_SEED_VERSION,
       alreadyHadSeed: true,
     };
+  }
+
+  // Same reasoning as `ensureUserEnvelopesSeeded`: an empty list means
+  // "bootstrap me" for a new user, but it means "I emptied this on
+  // purpose" for someone who ran scripts/clear-demo-data.mjs. Without
+  // this the canonical account — and its balance — comes straight back
+  // on the next read.
+  if (await isDemoDataCleared(userId)) {
+    return { seeded: 0, version: ACCOUNT_SEED_VERSION, alreadyHadSeed: false };
   }
 
   // (Re)seed: drop only the canonical seed row (by id), then re-insert.

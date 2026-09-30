@@ -193,7 +193,7 @@ if (!email) {
 async function main() {
   const user = await prisma.user.findUnique({
     where: { email },
-    select: { id: true, email: true, name: true },
+    select: { id: true, email: true, name: true, settings: true },
   });
   if (!user) {
     console.error(`No user with email ${email} on ${target}. Nothing to do.`);
@@ -245,13 +245,31 @@ async function main() {
   for (const { model, count } of deleted) {
     console.log(`  deleted ${count} from ${model}`);
   }
+
+  // Mark the account so the lazy seeders leave it alone.
+  //
+  // Without this the clear is a no-op: `ensureUserEnvelopesSeeded` and
+  // `ensureUserAccountsSeeded` guard on "is the list empty?", and an
+  // empty list is exactly the state a clear leaves behind — so the next
+  // page read re-seeds the canonical demo vessels and balances. Measured
+  // before this flag existed: 0 envelopes / 0 accounts after the clear,
+  // 7 envelopes / Rent $800.00 after one read.
+  //
+  // Merged into whatever settings already exist rather than replacing
+  // the blob, so theme/currency/locale survive.
+  const current = JSON.parse(user.settings || "{}");
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      settings: JSON.stringify({ ...current, demoDataCleared: true }),
+    },
+  });
+  console.log("  set User.settings.demoDataCleared = true");
+
   console.log("\nDone. Login, password and onboarding answers were left intact.");
   console.log(
-    "\nNOTE: the lazy seeders will re-seed on the next page load.\n" +
-      "  ensureUserEnvelopesSeeded / ensureUserAccountsSeeded only check whether\n" +
-      "  the list is EMPTY, so a cleared account gets the canonical demo vessels\n" +
-      "  and balances straight back. See the handover note on making the clear\n" +
-      "  durable.",
+    "\nThis clear is now durable: the lazy seeders will not repopulate the\n" +
+      "account, so it stays empty until real data is entered.",
   );
 }
 
