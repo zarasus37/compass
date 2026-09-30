@@ -25,11 +25,10 @@
 import { chromium } from "playwright";
 import { existsSync, readFileSync } from "node:fs";
 import { prisma } from "./db-client.mjs";
+import { createFixture } from "./fixture.mjs";
 import { exitCodeFor, recordSkip } from "./skip-guard.mjs";
 
 const BASE = "http://127.0.0.1:3000";
-const SMOKE_USER_EMAIL = "mom@compass.local";
-const SMOKE_USER_PASSWORD = "correct-horse-battery-staple";
 
 const checks = [];
 function check(name, cond, detail = "") {
@@ -74,64 +73,96 @@ check("[3] dashboard reads livePlanFromDb (was livePlan)", (() => {
 })());
 
 check("[4] (app)/error.tsx exists", existsSync("src/app/(app)/error.tsx"));
-check("[5] (app)/loading.tsx exists", existsSync("src/app/(app)/loading.tsx"));
+// The group-root loading.tsx was deliberately REMOVED in daabae5: a
+// loading file at the (app) group root made the whole group one Suspense
+// boundary, so Next flushed a 200 shell and no page under (app) could ever
+// return 404. The shell moved to components and each nav segment carries
+// its own one-line re-export. Assert the current contract, not the file
+// that used to be there.
+check("[5] loading shell lives in components, not the (app) group root",
+  existsSync("src/components/shell/AppLoadingShell.tsx") &&
+  !existsSync("src/app/(app)/loading.tsx"));
+check("[5b] the 14 primary nav segments re-export the shell", (() => {
+  const segs = ["period","calendar","insights","accounts","allocation","obligations",
+    "holdings","recurring","settings","debts","transactions","vault","advisor","learn"];
+  const missing = segs.filter((s) => !existsSync(`src/app/(app)/${s}/loading.tsx`));
+  return missing.length === 0;
+})());
 check("[6] (app)/not-found.tsx exists", existsSync("src/app/(app)/not-found.tsx"));
+check("[6b] root app/not-found.tsx exists (unknown URLs get the calm 404)", existsSync("src/app/not-found.tsx"));
 
 // ── Live verification (server-gated) ───────────────────────────────
 
 if (!serverUp) {
   checkSkip("[7] dashboard renders DB-written envelope name (proves the migration)", "dev server unreachable");
-  checkSkip("[8] dashboard does NOT render in-memory seed envelope name", "dev server unreachable");
-  checkSkip("[9] /not-a-real-route renders the (app)/not-found.tsx component", "dev server unreachable");
-  checkSkip("[10] /forced-error renders the (app)/error.tsx component", "dev server unreachable");
+  checkSkip("[8] dashboard renders the DB row's data, not the in-memory seed", "dev server unreachable");
+  checkSkip("[9] /not-a-real-route renders the app not-found component", "dev server unreachable");
 } else {
-  const u = await prisma.user.findUnique({ where: { email: SMOKE_USER_EMAIL } });
-  if (!u) {
-    check("[7] sentinel envelope renders on dashboard", false, "smoke user not in DB");
-    check("[8] seed envelope name not on dashboard", false, "smoke user not in DB");
-  } else {
-    // Insert a sentinel envelope with a unique planet string so we can
-    // distinguish it from any seed row that might still be in memory.
-    const sentinelPlanet = `smoke_${Date.now()}`;
-    const sentinelName = `Smoke Sentinel ${Date.now()}`;
-    await prisma.envelope.deleteMany({ where: { userId: u.id, name: sentinelName } });
-    const sentinel = await prisma.envelope.create({
-      data: {
-        userId: u.id,
-        name: sentinelName,
-        planet: sentinelPlanet,
-        targetBalance: 100000,
-        currentBalance: 0,
-        sortOrder: 999,
-        source: "user",
-      },
-    });
+  // Per-test fixture user. This used to sign in as the shared
+  // mom@compass.local, which made the result depend on chain order:
+  // smoke-escape-hatches runs a few entries earlier and wipes mom's
+  // FinancialIdentity via POST /api/onboarding/reset, so by the time we
+  // get here the shared account is not the account the assertion was
+  // written against. The fixture owns its own gate-open user instead.
+  const fx = await createFixture("ui-dashboard-db", { scenario: "minimal" });
+  const u = { id: fx.userId };
 
-    // Login + GET /
-    const browser = await chromium.launch({ headless: true });
-    const p = await (await browser.newContext()).newPage();
-    await p.goto(`${BASE}/login`);
-    await p.fill('input[name=email]', SMOKE_USER_EMAIL);
-    await p.fill('input[name=password]', SMOKE_USER_PASSWORD);
-    await p.locator('button[type=submit]:has-text("Sign in")').click();
-    await p.waitForURL(`${BASE}/`);
-    await p.waitForLoadState("networkidle");
-    const html = await p.content();
+  // Start from ONLY the sentinel, so "the dashboard is reading this
+  // user's rows" is a statement with real force. That is also the CI
+  // condition: after 8ae8912 the read paths no longer seed, so a real
+  // account legitimately has nothing until something creates a row.
+  await prisma.envelope.deleteMany({ where: { userId: u.id } });
 
-    check("[7] dashboard renders DB-written envelope name (proves the migration)", html.includes(sentinelName));
-    check("[8] dashboard renders DB-written envelope planet (sentinel marker)", html.includes(sentinelPlanet));
+  const sentinelPlanet = `smoke_${Date.now()}`;
+  const sentinelName = `Smoke Sentinel ${Date.now()}`;
+  await prisma.envelope.create({
+    data: {
+      userId: u.id,
+      name: sentinelName,
+      planet: sentinelPlanet,
+      targetBalance: 100000,
+      currentBalance: 0,
+      sortOrder: 999,
+      source: "user",
+    },
+  });
 
-    // Cleanup
-    await prisma.envelope.delete({ where: { id: sentinel.id } });
+  const browser = await chromium.launch({ headless: true });
+  const p = await (await browser.newContext()).newPage();
+  await p.goto(`${BASE}/login`);
+  await p.fill('input[name=email]', fx.email);
+  await p.fill('input[name=password]', fx.password);
+  await p.locator('button[type=submit]:has-text("Sign in")').click();
+  await p.waitForURL(`${BASE}/`);
+  await p.waitForLoadState("networkidle");
+  // Strip <script> before matching: the RSC flight payload embeds an
+  // escaped second copy of the same text and can match first.
+  const html = (await p.content()).replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
 
-    // Check the not-found route renders our component
-    await p.goto(`${BASE}/some-route-that-does-not-exist-7-39`);
-    await p.waitForLoadState("networkidle");
-    const notFoundHtml = await p.content();
-    check("[9] /not-a-real-route renders the (app)/not-found.tsx component", notFoundHtml.includes("[404] not found") || notFoundHtml.includes("That page doesn"));
+  check("[7] dashboard renders DB-written envelope name (proves the migration)", html.includes(sentinelName));
 
-    await browser.close();
-  }
+  // The previous [8] asserted the sentinel's `planet` string appeared on
+  // the page. It never does — measured on a clean account, the planet is
+  // absent from the raw response AND from the script-stripped markup.
+  // The column is a visual glyph source, not a rendered string, so that
+  // check could never pass no matter what the product did.
+  // What the check was FOR — "the dashboard reads the DB, not the
+  // in-memory seed" — is testable: Utilities, Dining and Savings are 0
+  // occurrences on a page whose only vessel is the sentinel.
+  const seedLeaks = ["Utilities", "Dining", "Savings"].filter((s) => html.includes(s));
+  check("[8] dashboard renders the DB row's data, not the in-memory seed",
+    seedLeaks.length === 0,
+    seedLeaks.length ? `seed vessels leaked: ${seedLeaks.join(", ")}` : "");
+
+  // Check the not-found route renders our component
+  await p.goto(`${BASE}/some-route-that-does-not-exist-7-39`);
+  await p.waitForLoadState("networkidle");
+  const notFoundHtml = (await p.content()).replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+  check("[9] /not-a-real-route renders the app not-found component",
+    notFoundHtml.includes("[404] not found") && notFoundHtml.includes("Back to dashboard"));
+
+  await browser.close();
+  await fx.cleanup();
 }
 
 // ── Cleanup + summary ───────────────────────────────────────────────
