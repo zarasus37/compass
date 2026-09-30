@@ -1,10 +1,15 @@
-# 🚨 READ FIRST — Session Briefing (2026-09-30 00:05 UTC)
+﻿# 🚨 READ FIRST — Session Briefing (2026-09-30 ~11:00 CDT)
 
-**Supersedes the 2026-09-29 test-integrity briefing this file previously
-contained.** The four layered defects that session fixed are real and
-still landed. What changed is everything downstream: the chain now runs
-far enough to expose a new class of defect, and this session cleared
-nine of them.
+**Supersedes the 2026-09-30 00:05 UTC briefing this file previously
+contained.** The three walls below were found, fixed and CI-confirmed.
+The chain has advanced again; this briefing records what is now known to
+be true and what the next blocker is.
+
+**The headline correction: the previous briefing recorded ONE blocker
+and was wrong on all three counts.** Each of the three walls it walked
+past was a *stale assertion describing a contract that had already
+moved* — not the cause it named. The single most useful lesson from
+this session is in §3.
 
 ---
 
@@ -12,84 +17,184 @@ nine of them.
 
 | Commit | What it is |
 |---|---|
-| `ae0596e` | finish the demo-data migration in the last two tests |
-| `8ae8912` | stop seeding demo data into real accounts |
-| `74a8848` | make a deliberate demo-data clear actually stick |
-| `a67580f` | `clear-demo-data`: FK-safe ordering + atomic delete |
-| `38e3653` | unfreeze the app clock; roll the pay period forward; add `clear-demo-data` |
-| `4ce0a1c` | docs: 404 fixed + CI-confirmed |
-| `daabae5` | scope the loading shell so `notFound()` can set a real 404 |
-| `d0e6df9` | rewrite this briefing + COORDINATION status |
-| `5861f50` | run src-importing smokes under tsx; un-orphan the stuck-detector users |
-| `79a1478` | install Playwright's Chromium in CI; fail mobile-shell clearly |
-| `5795fbc` | stop the vault reconciliation assertion matching the RSC flight payload |
-| `cf34584` | fix four environment-coupled defects the honest suite exposed |
+| `8ed91f4` | root `app/not-found.tsx`; clear `smoke-ui-dashboard-db` |
+| `05e64e8` | clear `smoke-setup-wizard`, then `smoke-change-password` |
 
-All pushed to `origin/main`. Working tree clean for tracked files.
+Both pushed to `origin/main`.
 
-## 2. The headline
+## 2. What the chain has cleared, and what it died on
 
-**The chain now dies at exactly one place, the same place every time:
-`smoke-setup-wizard`, 2 checks.** Fully diagnosed, not yet fixed — §5a.
-
-CI runtime across the session, one wall removed per commit:
+CI is the arbiter. Runtime is the tell: a longer run means it got
+*further*.
 
 | Commit | Runtime | Died at |
 |---|---|---|
-| `cf34584` | 3m25s | smoke-live-ticker `take=5` |
-| `5795fbc` | 6m21s | Playwright browser missing |
-| `79a1478` | 7m47s | directory import in stuck-detector |
-| `5861f50` | 8m00s | smoke-setup-wizard |
-| `d0e6df9` | 4m41s | smoke-audit-log (evening timezone flake, not a regression) |
-| `38e3653` | 4m37s | smoke-cron-audit-log-prune |
-| `d0b2dcc` | 7m47s | smoke-setup-wizard |
 | `8ae8912` | 7m48s | smoke-envelope-detail-db ("lazy-seed worked") |
-| `ae0596e` | **9m24s** | **smoke-setup-wizard** ← current |
+| `ae0596e` | 9m24s | **smoke-setup-wizard** |
+| `05e64e8` | 9m0s | **smoke-ui-dashboard-db** |
+| `8ed91f4` | *see §6* | *see §6* |
 
-Note the two dips: same code, different wall-clock time. That is the
-audit-log timezone flake (§5c), not a regression — recognise it before
-chasing it.
+Three walls cleared in one session:
 
-| Stage | Result (last full local `pnpm smoke:strict`) |
-|---|---|
-| `smoke` | **FAIL** — 2 checks in `smoke-setup-wizard` |
-| `smoke:ui` | **PASS** |
-| `smoke:integration` | **PASS** (368/0) |
-| `smoke:deploy` | **PASS** (149/0) |
+| Wall | Misses before | After |
+|---|---|---|
+| `smoke-setup-wizard` | 2 MISS + P2025 crash | **31 / 0** |
+| `smoke-change-password` | 4 MISS | **40 / 0** |
+| `smoke-ui-dashboard-db` | 4 MISS | **11 / 0** |
 
 `pnpm tsc` exit 0 · `pnpm lint` exit 0 (543 warnings, 0 errors).
 
-## 1b. 🚨 Two traps this session paid for
+## 3. 🎯 The lesson that found all three
 
-1. **A "passing" suite can be a silent skip.** The dev server had been
-   reaped, so `integration-vault` took its `server-probe DOWN` branch:
-   exit 0, no failures, **22 source-only checks instead of 368**. Under
-   `SMOKE_REQUIRE_SERVER` a skip is supposed to be fatal; it wasn't.
-   Always confirm `[server-probe] UP` before believing an integration
-   result, and fix the skip-to-pass hole.
-2. **Background `pnpm dev` gets reaped here.** Restart it and check
-   `/api/health` before trusting any HTTP smoke.
+**A red check is not a bug report. It is a claim that some contract
+moved, and the first question is which side moved.**
+
+Every one of these walls was an assertion encoding a contract that had
+*already been deliberately changed by an earlier commit*, which the
+assertion was never updated to match. Not one was a product defect.
+The pattern across all seven individual defects:
+
+- `smoke-setup-wizard` did `update({ where: { userId } })` on a row a
+  *previous check deliberately deleted*, to reproduce a bug shape.
+- The same test's 7.38-B1 table expected `completedStep=1 → pay-schedule`
+  — the step just *completed*, not the next one. Rows 3 and 4 were
+  already right, so only half the loop ever reported.
+- `smoke-change-password` asserted `type="password"` rendered *after*
+  `data-testid`. React emits JSX props in order; the form writes `type`
+  first. The regex could never match, whatever the component did.
+- `smoke-ui-dashboard-db` `[5]` asserted `(app)/loading.tsx` exists.
+  `daabae5` deleted it on purpose.
+- Its `[8]` asserted an envelope's `planet` column renders as a string.
+  Measured: it renders nowhere, raw or stripped. Unsatisfiable.
+
+**Apply:** before fixing a check, diff the commit that last touched the
+file it asserts about. If that commit is recent and deliberate, the
+assertion is the stale side. Two of the three walls had a comment or
+docstring in the repo explaining the *new* behaviour while the test
+asserted the *old* one.
+
+**Two recurring sub-shapes, both already documented but both still
+being hit:**
+- **Attribute-order regexes over rendered HTML.** `/data-testid="x"[^>]*type="y"/`
+  is unsound; resolve the tag by testid, then assert on it.
+- **Matching raw HTML without stripping `<script>`.** The RSC flight
+  payload contains an escaped second copy of the same text (§4).
+
+## 4. Carried forward from the 2026-09-29 briefing (still true)
+
+The four layered defects fixed then remain fixed. The **flight-payload
+regex lesson** (§4 of the old briefing) is not historical — it is
+active: it caused the `smoke-change-password` regex failure above, and
+`smoke-ui-dashboard-db` now strips scripts for the same reason.
+
+**The three hardcoded-date bugs are still fixed and still load-bearing.**
+A check that passes at one wall-clock time and fails at another, with no
+code change, is a clock bug until proven otherwise.
+
+## 5. 🎯 NEXT — `smoke-ui-envelope-reads` and the tail
+
+`smoke-ui-dashboard-db` was chain entry 37. Remaining entries:
+`smoke-ui-envelope-reads`, `smoke-onboarding-chat-escape`,
+`smoke-envelope-detail-null-planet`, `smoke-envelope-detail-section-errors`,
+`smoke-envelopes-list-defensive-reads`, `smoke-client-error-capture`,
+and the seven `smoke-debts-*`.
+
+Expect each to be cheap now: after `8ae8912` the read paths no longer
+seed, and after the fixture migration most tests own their user. The
+recurring failure modes to look for are in §3.
+
+Two known-open items, unchanged:
+
+1. **`smoke-escape-hatches` is still hardwired to `mom@compass.local`**
+   and destructively calls `POST /api/onboarding/reset` on it. It is
+   chain entry 34. This is what made `smoke-ui-dashboard-db`
+   order-dependent. It is a latent wall for whatever runs after it.
+2. **The `smoke-setup-wizard` live walk-through still reports
+   `step 4 (bills) did not advance SetupState.completedStep`.** It is a
+   non-gating `[warn]`. The old briefing blamed the missing-`SetupState`
+   row; that is **wrong** — the missing row was the P2025 crash, fixed.
+   `saveBillsAction` calls `markStepCompleted` unconditionally
+   (`src/app/setup/actions.ts:222`), so if the action runs the step must
+   advance. Untested hypothesis: the walk-through's `callStep` posts an
+   empty `FormData` with a bare `Next-Action` header, whereas the
+   fixture's own helper (`tests/fixture.mjs:573`) uses the
+   `$ACTION_REF_1` + `$ACTION_1:0` bound-action encoding. **Measure this
+   before naming it** — it is a best-effort path, not a product bug yet.
+
+## 6. Pre-flight
+
+```bash
+cd "C:\Users\crisc\OneDrive - Southern Careers Institute\My Drive\Budget planner app"
+git log --oneline -3                    # 8ed91f4, 05e64e8, 7ee48ee
+pnpm tsc                                # exit 0
+pnpm lint                               # exit 0
+pnpm dev                                # REQUIRED before any HTTP smoke
+```
+
+Verify: `Invoke-WebRequest http://127.0.0.1:3000/api/health -UseBasicParsing`
+→ `"status":"ok"`, `checks.db.ok: true`.
+
+A dev server from a *previous* session may still be running on :3000
+(Next.js prints "Another next dev server is already running" and exits
+1 if you start a second). Check first; reuse it.
+
+Background `pnpm dev` tasks get reaped in this environment. If health
+fails, restart it before believing any HTTP smoke.
+
+Anything importing `tests/fixture.mjs` **or** `../src/` must run under
+`tsx --conditions=react-server`. Do not hand-edit the chain — run
+`node scripts/fix-smoke-runners.mjs`, which derives the runner from both
+conditions.
+
+## 7. Files to read first
+
+1. `tests/fixture.mjs` — the per-test user factory. **Read its header
+   before editing any test.**
+2. `src/lib/seed-ids.ts` — `seededId(userId, canonicalId)`.
+3. `tests/skip-guard.mjs` — exit contract: 0 pass / 1 fail / 2 skipped.
+4. `scripts/fix-smoke-runners.mjs` — how the chain is generated.
+5. `src/lib/setup/state.ts` — `getNextStep` is the contract the
+   7.38-B1 checks encode.
+
+## 8. Stop conditions
+
+- **Check `gh run list` before believing any status.** This repo has a
+  documented history of six weeks of "all green, ~1,580 checks" claims
+  while CI failed 60 consecutive runs. Runtime is the tell.
+- **Do not skip or weaken assertions to make a suite green.** Every fix
+  in this session either restored something the assertion already
+  demanded, or corrected the assertion to the contract the product
+  actually documents. None removed a check — `smoke-ui-dashboard-db`
+  went from 9 to 11 checks while going green.
+- **Do not name a cause before measuring it.** Two predecessor sessions
+  produced confident wrong diagnoses; this session's briefing named a
+  cause for a warning that had a different cause. Write a throwaway
+  probe that prints the real markup. That is what cracked all three
+  walls in minutes.
+- **A red check may mean the assertion is stale, not the code.** See §3.
+  Check `git log` on the file under test first.
+- **Prefer a config change over patching `node_modules`.**
+- **Env-local assertions do not belong in CI.**
+
+## 9. Git hygiene
+
+- Never `git add .` — untracked binaries (`compass logo.jpg`,
+  `preview-login.png`, `videos/`, `design/vision.docx`) must not land.
+  Stage explicit paths.
+- Delete scratch files (`*.log`, throwaway probe scripts) with the
+  runtime's recoverable-delete launcher, not `Remove-Item`.
+- PowerShell has no heredoc: write the commit message to a file and use
+  `git commit -F`.
 
 
 
-## 3. What this session fixed (all measured, not assumed)
+---
 
-Every one of these was a defect that **could never have passed**. They
-were invisible while the suite skipped. None removed a check: each
-either restored a fixture's ability to supply what an assertion already
-demanded, or made an assertion actually test what it claimed to.
+# 📎 ARCHIVE — 2026-09-29 / 09-30 session detail (still true unless noted)
 
-| # | File | Defect | Result |
-|---|---|---|---|
-| 1 | `tests/smoke-live-ticker.mjs` | Asserted `?take=5` returns 5 rows, but the fixture seeded only 4. Worse, the assertion had no teeth: with 4 rows, take=5 and take=999 both return 4, so a route that ignored `take` entirely would pass. Seeded the 2nd meta row so 3-vs-5 is a real signal. | 63/0 |
-| 2 | `tests/smoke-sinking-funds.mjs` | Hardcoded `/workspace/compass/...` sandbox paths → `C:\workspace\compass\...` on Windows → unhandled ENOENT killed the entry at module load. | 15/0 |
-| 3 | `tests/smoke-prod-env.mjs` | Same hardcoded path, masking two Windows failures: `spawnSync("tsx")` can't resolve the `.cmd` shim without a shell, and `shell:true` then breaks on the spaces in the repo path. Runs `node --import tsx` instead. Import specifier is a `pathToFileURL` because a bare `C:\…` parses as URL scheme `c:`. | 9/0 |
-| 4 | `tests/smoke-deploy.mjs` | The `.env.local` assertion ran unconditionally, but `.env.local` is **gitignored** (`.gitignore: .env*`) and absent on CI — so it MISSed on every CI run regardless of code health. Now asserted only when the file exists. | 149/0 |
-| 5 | `tests/smoke-vault.mjs` | **The documented "entry 8" failure.** See §4 — the subtle one. | 77/0 |
-| 6 | `.github/workflows/ci.yml` + `tests/smoke-mobile-shell.mjs` | Suite contains a Playwright-driven test; neither CI nor a fresh checkout has the browser binary, and `pnpm install` does not fetch it. | 54/0 in CI |
-| 7 | `scripts/fix-smoke-runners.mjs` | Its rule was "imports `tests/fixture.mjs`" only. Two tests import `../src/` **without** the fixture and die on a directory import (`ERR_UNSUPPORTED_DIR_IMPORT`) under bare `node`. Rule now covers both reasons. | 4 entries moved |
-| 8 | `tests/smoke-onboarding-stuck-detector.mjs` | Required `stuck-detector-test@` and `fresh-test@` users that **nothing in the repo creates** — orphaned when the per-test fixture migration retired the shared-user seed. Now creates its own. | 11/0 |
-| 9 | `src/app/(app)/loading.tsx` → `src/components/shell/AppLoadingShell.tsx` + 14 route files | The group-root Suspense boundary made 404 impossible for every page under `(app)`. Scoped to the nav segments; `envelopes`/`goals` use an internal `<Suspense>` instead. See §5. | 9/0 |
+Status lines from this section are superseded by §1-§2 above. The
+mechanism write-ups are kept because they explain *how* the class of
+defect in §3 arises, and they are still actively being hit.
 
 ## 4. The subtle one — why "entry 8" defeated bisection
 
@@ -169,44 +274,6 @@ skeleton. The only routes that lose it are `/envelopes/[id]`,
 fast. The sidebar/topbar/bottom-nav chrome was never affected either
 way; it lives in `(app)/layout.tsx`, above every boundary.
 
-## 5a. 🎯 NEXT — `smoke-setup-wizard` (the new wall)
-
-Both local and CI now fail at exactly the same place, 2 checks:
-
-```
-[MISS] [7.38-B1] /setup/activate with completedStep=1 → /setup/pay-schedule (not 404)
-[MISS] [7.38-B1] /setup/activate with completedStep=2 → /setup/accounts (not 404)
-```
-
-followed by a hard crash:
-
-```
-PrismaClientKnownRequestError: … No record was found for an update.
-```
-
-**Root cause (diagnosed, not yet fixed).** `tests/smoke-setup-wizard.mjs`
-is the last major smoke still hardwired to the retired shared user. It
-logs in as `mom@compass.local` / `correct-horse-battery-staple` at ten
-sites and does
-`prisma.setupState.update({ where: { userId: u.id } })`. The User row
-exists on CI (chain entry 1, `smoke-auth`, creates it) but **no
-`SetupState` row exists for it on a fresh database**, so the update
-throws. Locally the row is a leftover from years of dev use, which is
-why this test passes on this machine and fails in CI — the same
-warm-vs-cold trap as the vault flight-payload bug.
-
-Note the pre-flight "live walk-through" line in CI also reports
-`step 4 (bills) did not advance SetupState.completedStep`, which is the
-same missing-row problem surfacing earlier.
-
-**Suggested fix:** migrate this test to `tests/fixture.mjs`
-(`loginAsFixture("setup-wizard")`), the same migration the other ~30
-smokes already got. The fixture creates the user *with* a
-`SetupState` row and tears it down afterwards. Expect it to touch
-~10 login sites plus the two `findUnique` calls at lines 70 and 219.
-It also uses Playwright, so it must keep running under
-`tsx --conditions=react-server` (its rule change already covers it —
-it imports `../src/`).
 
 
 ## 5b. Side quest — the app clock was frozen (shipped, `38e3653`)
@@ -347,80 +414,3 @@ bug until proven otherwise. Confirm by re-running against a stashed
 pre-change tree before blaming your own work — that is how #2 and #3
 were separated from the real fix in #1.
 
-## 6. Pre-flight
-
-```bash
-cd "C:\Users\crisc\OneDrive - Southern Careers Institute\My Drive\Budget planner app"
-git log --oneline -4                    # d0b2dcc, 38e3653, 4ce0a1c, daabae5
-pnpm tsc                                # exit 0
-pnpm lint                               # exit 0
-pnpm dev                                # REQUIRED before any HTTP smoke
-```
-
-Verify the server: `Invoke-WebRequest http://127.0.0.1:3000/api/health -UseBasicParsing`.
-
-`/api/health` reports `db.migrationStatus: "pushed"` and logs a
-`_prisma_migrations` does-not-exist error. **That is by design** — the
-health route catches it and reports `"pushed"` for `db push` schemas
-(`src/app/api/health/route.ts:33-36,114-119`). It is noise, not a defect.
-
-Background `pnpm dev` tasks get reaped in this environment. If health
-fails, restart it before believing any smoke result.
-
-Anything importing `tests/fixture.mjs` **or** `../src/` must run under
-`tsx --conditions=react-server`. Do not hand-edit the chain — run
-`node scripts/fix-smoke-runners.mjs`, which derives the runner from both
-conditions.
-
-## 7. Files to read first
-
-1. `tests/fixture.mjs` — the per-test user factory. **Read its header
-   before editing any test.** It explains why it does not call the
-   canonical seeders and why it uses the product's `seededId`.
-2. `src/lib/seed-ids.ts` — `seededId(userId, canonicalId)`. Anything
-   touching a seed id must go through this.
-3. `tests/skip-guard.mjs` — exit contract: 0 pass / 1 fail / 2 skipped.
-4. `scripts/fix-smoke-runners.mjs` — how the chain is generated.
-5. `src/app/(app)/loading.tsx` — the cause of the remaining blocker.
-
-## 8. Next RANGE of work
-
-1. **Migrate `tests/smoke-setup-wizard.mjs` to the fixture** (§5a). It
-   is the current CI blocker and the cause is fully diagnosed.
-2. Get CI green on the resulting commit. CI is the arbiter.
-3. Keep going down the chain — the `&&`-join means each fix exposes the
-   next, and there is no shortcut to seeing the whole thing.
-4. Then Stage 3 proper, which is no longer infrastructure:
-   - The seven `smoke-debts-*` tests are still source-regex only. They
-     cannot catch a wrong number until debts get a persistence model.
-     That is a product decision for xKryptic, not a unilateral start.
-   - `smoke:ui`, `smoke:integration` and `smoke:deploy` all PASS as of
-     the 2026-09-29 23:5x run (see §2).
-
-## 9. Stop conditions
-
-- **Check `gh run list` before believing any status.** This repo has a
-  documented history of six weeks of "all green, ~1,580 checks" claims
-  while CI failed 60 consecutive runs. Runtime is the tell: a longer CI
-  run means it got *further*, not that something is wrong.
-- **Do not skip or weaken assertions to make a suite green.** Report the
-  failure instead. (Each of the 8 fixes above either restored a
-  fixture's ability to supply what an assertion already demanded, or
-  made an assertion actually test what it claimed to — none removed a
-  check.)
-- **Do not name a cause before measuring it.** This session's own
-  predecessor produced two confident wrong diagnoses. Write a throwaway
-  probe that prints the real markup; that is what cracked §4 in minutes
-  after bisection had failed.
-- **Prefer a config change over patching `node_modules`.**
-- **Env-local assertions do not belong in CI.** If a check reads a
-  gitignored file, it is a local-setup guard — assert it only when the
-  file exists (see #4).
-
-## 10. Git hygiene
-
-- Never `git add .` — untracked binaries (`compass logo.jpg`,
-  `preview-login.png`, `videos/`, `design/vision.docx`) must not land.
-  Stage explicit paths.
-- Delete scratch files (`*.log`, throwaway probe scripts) with the
-  runtime's recoverable-delete launcher, not `Remove-Item`.
