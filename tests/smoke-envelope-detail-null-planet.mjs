@@ -29,11 +29,10 @@
 import { chromium } from "playwright";
 import { existsSync, readFileSync } from "node:fs";
 import { prisma } from "./db-client.mjs";
+import { createFixture } from "./fixture.mjs";
 import { exitCodeFor, recordSkip } from "./skip-guard.mjs";
 
 const BASE = "http://127.0.0.1:3000";
-const SMOKE_USER_EMAIL = "mom@compass.local";
-const SMOKE_USER_PASSWORD = "correct-horse-battery-staple";
 
 const checks = [];
 function check(name, cond, detail = "") {
@@ -81,49 +80,65 @@ if (!serverUp) {
   checkSkip("[5] /envelopes/[id] renders for an envelope with planet=null (no [ERR] card)", "dev server unreachable");
   checkSkip("[6] /envelopes/[id] shows the envelope name + balance", "dev server unreachable");
 } else {
-  const u = await prisma.user.findUnique({ where: { email: SMOKE_USER_EMAIL } });
-  if (!u) {
-    check("[5] /envelopes/[id] renders (no error)", false, "smoke user not in DB");
-    check("[6] /envelopes/[id] shows envelope name + balance", false, "smoke user not in DB");
-  } else {
-    const sentinelName = `Smoke Sentinel 742 ${Date.now()}`;
-    await prisma.envelope.deleteMany({ where: { userId: u.id, name: sentinelName } });
-    // Explicit planet=null (the regression scenario).
-    const sentinel = await prisma.envelope.create({
-      data: {
-        userId: u.id,
-        name: sentinelName,
-        planet: null,
-        targetBalance: 50000,
-        currentBalance: 21200,
-        sortOrder: 999,
-        source: "user",
-      },
-    });
+  // Per-test fixture user. This used to sign in as the shared
+  // mom@compass.local. smoke-escape-hatches (chain entry 34) wipes that
+  // account's FinancialIdentity via POST /api/onboarding/reset, so by
+  // the time this entry runs the shared account is behind the onboarding
+  // gate and /envelopes/[id] never renders.
+  //
+  // That produced a particularly nasty pair of results: [5] asserts the
+  // page contains no "[ERR]" card, and a gate redirect to /setup contains
+  // no error card — so [5] passed VACUOUSLY, for the wrong reason, while
+  // [6] failed. A negative assertion cannot tell "the thing worked" from
+  // "the thing never ran".
+  const fx = await createFixture("envelope-detail-null-planet", { scenario: "minimal" });
+  const u = { id: fx.userId };
 
-    const browser = await chromium.launch({ headless: true });
-    const p = await (await browser.newContext()).newPage();
-    await p.goto(`${BASE}/login`);
-    await p.fill('input[name=email]', SMOKE_USER_EMAIL);
-    await p.fill('input[name=password]', SMOKE_USER_PASSWORD);
-    await p.locator('button[type=submit]:has-text("Sign in")').click();
-    await p.waitForURL(`${BASE}/`);
-    await p.goto(`${BASE}/envelopes/${sentinel.id}`);
-    await p.waitForLoadState("networkidle");
-    const html = await p.content();
+  const sentinelName = `Smoke Sentinel 742 ${Date.now()}`;
+  // Explicit planet=null (the regression scenario).
+  const sentinel = await prisma.envelope.create({
+    data: {
+      userId: u.id,
+      name: sentinelName,
+      planet: null,
+      targetBalance: 50000,
+      currentBalance: 21200,
+      sortOrder: 999,
+      source: "user",
+    },
+  });
 
-    check(
-      "[5] /envelopes/[id] renders for an envelope with planet=null (no [ERR] card)",
-      !html.includes("[ERR]") && !html.includes("We hit a snag"),
-    );
-    check(
-      "[6] /envelopes/[id] shows the envelope name + balance",
-      html.includes(sentinelName) && html.includes("$212.00"),
-    );
+  const browser = await chromium.launch({ headless: true });
+  const p = await (await browser.newContext()).newPage();
+  await p.goto(`${BASE}/login`);
+  await p.fill('input[name=email]', fx.email);
+  await p.fill('input[name=password]', fx.password);
+  await p.locator('button[type=submit]:has-text("Sign in")').click();
+  await p.waitForURL(`${BASE}/`);
+  await p.goto(`${BASE}/envelopes/${sentinel.id}`);
+  await p.waitForLoadState("networkidle");
+  const html = await p.content();
 
-    await prisma.envelope.delete({ where: { id: sentinel.id } }).catch(() => {});
-    await browser.close();
-  }
+  // Guard the vacuous pass: confirm we are actually ON the detail page
+  // before trusting the negative assertion below.
+  const onDetailPage = p.url().endsWith(`/envelopes/${sentinel.id}`);
+  check(
+    "[5a] /envelopes/[id] is actually rendered (not redirected by a gate)",
+    onDetailPage,
+    `url=${p.url()}`,
+  );
+  check(
+    "[5] /envelopes/[id] renders for an envelope with planet=null (no [ERR] card)",
+    onDetailPage && !html.includes("[ERR]") && !html.includes("We hit a snag"),
+  );
+  check(
+    "[6] /envelopes/[id] shows the envelope name + balance",
+    onDetailPage && html.includes(sentinelName) && html.includes("$212.00"),
+  );
+
+  await prisma.envelope.delete({ where: { id: sentinel.id } }).catch(() => {});
+  await browser.close();
+  await fx.cleanup();
 }
 
 // ── Summary ────────────────────────────────────────────────────────
