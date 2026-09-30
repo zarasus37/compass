@@ -91,18 +91,95 @@ const prisma = new PrismaClient({
  * single global active row) and it now rolls itself forward, so
  * clearing demo data must not touch it.
  */
-function modelsWithUserId() {
+const SKIP = new Set(["User", "Session", "FinancialIdentity"]);
+
+/** model -> models it has an FK to (so it must be deleted BEFORE them) */
+function parseDependencies() {
   const schema = readFileSync(
     join(process.cwd(), "prisma", "schema.prisma"),
     "utf8",
   );
-  const out = [];
+  const deps = new Map();
   for (const m of schema.matchAll(/^model\s+(\w+)\s*\{([\s\S]*?)^\}/gm)) {
     const [, name, body] = m;
-    if (/^\s*userId\s/m.test(body)) out.push(name);
+    const targets = new Set();
+    for (const line of body.split("\n")) {
+      const rel = line.match(
+        /^\s*\w+\s+(\w+)\s+@relation\(\s*fields:\s*\[[^\]]*\]\s*,\s*references:\s*\[[^\]]*\]\s*\)/,
+      );
+      if (rel) targets.add(rel[1]); // the model named before @relation
+    }
+    deps.set(name, targets);
   }
-  // Never touch the account or its auth. This is a data reset.
-  return out.filter((n) => !["User", "Session", "FinancialIdentity"].includes(n));
+  return deps;
+}
+
+/**
+ * Delete order: children first.
+ *
+ * The first version of this script deleted in schema order, which put
+ * `Account` before `PaySchedule` — and `PaySchedule.accountId` is a
+ * RESTRICT foreign key, so the delete threw:
+ *
+ *   update or delete on table "Account" violates RESTRICT setting of
+ *   foreign key constraint "PaySchedule_accountId_fkey"
+ *
+ * Worse, the deletes were not in a transaction, so the script left the
+ * account PARTIALLY cleared (envelopes gone, account still there). For
+ * a destructive reset that is the worst possible outcome, so the order
+ * is now derived from the schema's own relations and the whole delete
+ * runs atomically.
+ */
+function deleteOrder() {
+  const deps = parseDependencies(); // model -> models it references
+  const models = [...deps.keys()].filter(
+    (n) => !SKIP.has(n) && /userId/.test(modelBody(n)),
+  );
+
+  // Kahn's algorithm, emitting DEPENDENTS before the rows they
+  // reference. A plain recursive DFS is not enough here: the outer
+  // loop visits models in schema order, so `Account` (early in the
+  // file) gets emitted before `PaySchedule` even though PaySchedule
+  // holds the FK to it. So build the reverse edges explicitly —
+  // "who depends on me" — and only emit a model once everything that
+  // depends on it has already gone out.
+  const dependents = new Map(models.map((m) => [m, []]));
+  for (const m of models) {
+    for (const t of deps.get(m) ?? []) {
+      if (dependents.has(t)) dependents.get(t).push(m);
+    }
+  }
+
+  const remaining = new Set(models);
+  const out = [];
+  while (remaining.size > 0) {
+    const ready = [...remaining].filter(
+      (m) => dependents.get(m).every((d) => !remaining.has(d)),
+    );
+    if (ready.length === 0) {
+      // A cycle in the schema. Emit whatever is left in a stable order
+      // rather than looping forever; the transaction will roll back if
+      // the order turns out to be wrong.
+      out.push(...[...remaining].sort());
+      break;
+    }
+    for (const m of ready) {
+      out.push(m);
+      remaining.delete(m);
+    }
+  }
+  return out;
+}
+
+const schemaCache = readFileSync(
+  join(process.cwd(), "prisma", "schema.prisma"),
+  "utf8",
+);
+function modelBody(name) {
+  const m = schemaCache.match(
+    new RegExp(`^model\\s+${name}\\s*\\{([\\s\\S]*?)^\\}`, "m"),
+  );
+  return m ? m[1] : "";
 }
 
 const email = process.argv[2];
@@ -124,7 +201,7 @@ async function main() {
   }
 
   const plan = [];
-  for (const model of modelsWithUserId()) {
+  for (const model of deleteOrder()) {
     const count = await prisma[model]?.count({ where: { userId: user.id } });
     if (typeof count === "number" && count > 0) plan.push({ model, count });
   }
@@ -152,11 +229,30 @@ async function main() {
   }
 
   console.log("\nDeletingâ€¦");
-  for (const { model } of plan) {
-    const { count } = await prisma[model].deleteMany({ where: { userId: user.id } });
+  // Atomic on purpose, and children-before-parents. A partial clear is
+  // worse than no clear: the account is left in a state neither the app
+  // nor the operator expects. If any table refuses (an FK the order did
+  // not account for), the whole thing rolls back and the account is
+  // exactly as it was.
+  const deleted = await prisma.$transaction(async (tx) => {
+    const out = [];
+    for (const { model } of plan) {
+      const { count } = await tx[model].deleteMany({ where: { userId: user.id } });
+      out.push({ model, count });
+    }
+    return out;
+  });
+  for (const { model, count } of deleted) {
     console.log(`  deleted ${count} from ${model}`);
   }
   console.log("\nDone. Login, password and onboarding answers were left intact.");
+  console.log(
+    "\nNOTE: the lazy seeders will re-seed on the next page load.\n" +
+      "  ensureUserEnvelopesSeeded / ensureUserAccountsSeeded only check whether\n" +
+      "  the list is EMPTY, so a cleared account gets the canonical demo vessels\n" +
+      "  and balances straight back. See the handover note on making the clear\n" +
+      "  durable.",
+  );
 }
 
 main()
