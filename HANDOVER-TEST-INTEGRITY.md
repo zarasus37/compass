@@ -17,6 +17,7 @@ this session is in §3.
 
 | Commit | What it is |
 |---|---|
+| `b9c3c51` | clear `smoke-envelope-detail-section-errors` (4th landmine wall) |
 | `e2be407` | clear `smoke-envelope-detail-null-planet` (the vacuous pass) |
 | `424ab47` | clear `smoke-ui-envelope-reads` |
 | `8ed91f4` | root `app/not-found.tsx`; clear `smoke-ui-dashboard-db` |
@@ -36,9 +37,10 @@ CI is the arbiter. Runtime is the tell: a longer run means it got
 | `05e64e8` | 9m4s | **smoke-ui-dashboard-db** |
 | `8ed91f4` | 9m32s | **smoke-ui-envelope-reads** |
 | `424ab47` | 9m20s | **smoke-envelope-detail-null-planet** |
-| `e2be407` | *see §6* | *see §6* |
+| `e2be407` | 9m30s | **smoke-envelope-detail-section-errors** |
+| `b9c3c51` | *see §6* | *see §6* |
 
-Five walls cleared in one session:
+Six walls cleared in one session:
 
 | Wall | Before | After |
 |---|---|---|
@@ -47,6 +49,7 @@ Five walls cleared in one session:
 | `smoke-ui-dashboard-db` | 4 MISS | **11 / 0** |
 | `smoke-ui-envelope-reads` | 2 MISS + 30s hang | **20 / 0** |
 | `smoke-envelope-detail-null-planet` | 1 MISS | **6 / 0** |
+| `smoke-envelope-detail-section-errors` | 1 MISS | **12 / 0** |
 
 `pnpm tsc` exit 0 · `pnpm lint` exit 0 (543 warnings, 0 errors).
 
@@ -80,18 +83,19 @@ If that commit is recent and deliberate, the assertion is the stale
 side. Three of these had a comment or docstring in the repo explaining
 the *new* behaviour while the test asserted the *old* one.
 
-### 3a. 🚨 The eleventh: `smoke-escape-hatches` is a landmine
+### 3a. 🚨 The landmine — `smoke-escape-hatches`, and it has cost FOUR walls
 
-`smoke-onboarding-chat-escape`/`smoke-envelope-detail-null-planet`
-failed for a different reason, and the most misleading reason yet.
+`smoke-escape-hatches` (chain entry 34) is still hardwired to
+`mom@compass.local` and calls `POST /api/onboarding/reset` on it,
+wiping that account's `FinancialIdentity`. Every later entry that still
+signs in as mom then sits **behind the onboarding gate**, and its pages
+never render at all.
 
-**Three of the five walls trace to one test.** `smoke-escape-hatches`
-(chain entry 34) is still hardwired to `mom@compass.local` and calls
-`POST /api/onboarding/reset` on it, wiping that account's
-`FinancialIdentity`. Every later entry that still signs in as mom then
-sits **behind the onboarding gate**, and its pages never render.
+**Four of the six walls trace to this one test.** It is worth more than
+any single failing entry, because each wall it causes has to be
+diagnosed and migrated one at a time.
 
-The nastiest symptom was in `smoke-envelope-detail-null-planet`:
+The nastiest symptom, in `smoke-envelope-detail-null-planet`:
 
 ```
 [5] PASSED — asserts the page contains no "[ERR]" card.
@@ -101,14 +105,9 @@ The nastiest symptom was in `smoke-envelope-detail-null-planet`:
 ```
 
 **A negative assertion cannot distinguish "the thing worked" from "the
-thing never ran."** That is the generalisable lesson from wall 5, and
-it is the reason `[5a]` now asserts the browser is still on the detail
-page before trusting `[5]`.
-
-**Highest-value remaining fix in the suite: migrate
-`smoke-escape-hatches` to the fixture.** It is the last test that
-destructively mutates the shared account, and it poisons every entry
-after it that still signs in as mom.
+thing never ran."** That is the generalisable lesson, and it is why
+`[5a]` / `[11a]` now assert the browser is still on the detail page
+before the negative assertion is trusted.
 
 ### 3b. Two recurring sub-shapes
 
@@ -131,8 +130,7 @@ code change, is a clock bug until proven otherwise.
 
 ## 5. 🎯 NEXT — the tail of the chain
 
-`smoke-envelope-detail-null-planet` was entry 40. Remaining:
-`smoke-envelope-detail-section-errors`,
+`smoke-envelope-detail-section-errors` was entry 41. Remaining:
 `smoke-envelopes-list-defensive-reads`, `smoke-client-error-capture`,
 and the seven `smoke-debts-*`.
 
@@ -156,12 +154,18 @@ behind it.
    The real list, excluding `smoke-auth.mjs` (which legitimately
    *creates* mom) and the untracked `tests/_debug-*.mjs` scratch files:
 
-   - `smoke-escape-hatches.mjs` — entry 34, the landmine
+   - `smoke-escape-hatches.mjs` — entry 34, **the landmine**
    - `smoke-onboarding-chat-escape.mjs`
-   - `smoke-envelope-detail-section-errors.mjs`
    - `smoke-envelopes-list-defensive-reads.mjs`
    - `smoke-client-error-capture.mjs`
    - `smoke-debts-{tier,interest,utilization,rainbow,interactive,mobile,cross-extra}.mjs`
+
+   (`smoke-envelope-detail-section-errors.mjs` and
+   `smoke-envelope-detail-null-planet.mjs` are now migrated.)
+
+   **The seven `smoke-debts-*` are source-regex only** — they cannot
+   catch a wrong number until debts get a persistence model. That is a
+   product decision for xKryptic, not a unilateral start.
 
 3. **Audit the remaining negative assertions for vacuous passes.** §3a.
    A `!html.includes(...)` check passes just as happily on a login page
