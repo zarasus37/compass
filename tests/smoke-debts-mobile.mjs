@@ -22,11 +22,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { chromium } from "playwright";
 import { prisma } from "./db-client.mjs";
+import { createFixture } from "./fixture.mjs";
 import { exitCodeFor, recordSkip } from "./skip-guard.mjs";
 
 const BASE = "http://127.0.0.1:3000";
-const SMOKE_USER_EMAIL = "mom@compass.local";
-const SMOKE_USER_PASSWORD = "correct-horse-battery-staple";
 
 const checks = [];
 function check(name, cond, detail = "") {
@@ -43,9 +42,9 @@ function checkSkip(name, reason) {
 // ── Server probe ───────────────────────────────────────────────────
 let serverUp = false;
 try {
-  const probe = await fetch(BASE + "/login", {
+  const probe = await fetch(BASE + "/api/health", {
     redirect: "manual",
-    signal: AbortSignal.timeout(2000),
+    signal: AbortSignal.timeout(10000),
   });
   serverUp = probe.status > 0;
 } catch {
@@ -59,9 +58,17 @@ const hookPath = "src/lib/use-media-query.ts";
 check("[0] src/lib/use-media-query.ts exists", existsSync(hookPath));
 const hookSrc = existsSync(hookPath) ? readFileSync(hookPath, "utf8") : "";
 check(
-  "[1] useMediaQuery hook is SSR-safe (returns false + checks window)",
-  /useState<boolean>\(false\)/.test(hookSrc) &&
-    /typeof window === "undefined"/.test(hookSrc),
+  "[1] useMediaQuery hook is SSR-safe (false server snapshot)",
+  // The SSR guarantee is unchanged, but it is no longer implemented as
+  // `useState<boolean>(false)` plus a `typeof window` guard. The hook was
+  // deliberately moved to useSyncExternalStore, whose third argument IS
+  // the server snapshot — so "returns false on the server" is now
+  // `() => false`, and there is no window check to grep for at all.
+  // Asserting the old shape made this check unsatisfiable.
+  /useSyncExternalStore/.test(hookSrc) &&
+    /return useSyncExternalStore\(\s*subscribe,\s*getSnapshot,\s*\(\)\s*=>\s*false,?\s*\)/.test(
+      hookSrc,
+    ),
 );
 check(
   "[2] useMediaQuery uses matchMedia + listens for change events",
@@ -140,44 +147,72 @@ check(
 
 if (!serverUp) {
   checkSkip(
-    "[15] /debts renders responsively at narrow + wide viewports (no [ERR])",
+    "[15] /debts at NARROW viewport collapses the desktop right column",
+    "dev server unreachable",
+  );
+  checkSkip(
+    "[15b] /debts at WIDE viewport renders the utilization caption + rainbow",
+    "dev server unreachable",
+  );
+  checkSkip(
+    "[guard] fixture user is on-boarded (gate open, so /debts renders)",
     "dev server unreachable",
   );
 } else {
-  const u = await prisma.user.findUnique({ where: { email: SMOKE_USER_EMAIL } });
-  if (!u) {
-    check(
-      "[15] /debts renders responsively at narrow + wide viewports (no [ERR])",
-      false,
-      "smoke user not in DB",
-    );
-  } else {
+  const fx = await createFixture("debts-mobile", { scenario: "minimal" });
+  {
+    // Real pre-condition: /debts only renders because the fixture opened
+    // the onboarding gate. Without this the [ERR] assertions below would
+    // pass against a gate-redirected page.
+    const fxIdentity = await prisma.financialIdentity.findUnique({ where: { userId: fx.userId } });
+    check("[guard] fixture user is on-boarded (gate open, so /debts renders)", !!fxIdentity);
     const browser = await chromium.launch({ headless: true });
     const ctx = await browser.newContext({
       viewport: { width: 375, height: 812 }, // iPhone X
     });
     const p = await ctx.newPage();
     await p.goto(`${BASE}/login`);
-    await p.fill('input[name=email]', SMOKE_USER_EMAIL);
-    await p.fill('input[name=password]', SMOKE_USER_PASSWORD);
+    await p.fill('input[name=email]', fx.email);
+    await p.fill('input[name=password]', fx.password);
     await p.locator('button[type=submit]:has-text("Sign in")').click();
     await p.waitForURL(`${BASE}/`);
     await p.goto(`${BASE}/debts`);
     await p.waitForLoadState("networkidle");
-    const html = await p.content();
+    const narrowHtml = await p.content();
 
+    // [15] is named "narrow + wide" but used to capture ONLY the narrow
+    // viewport and then assert on the desktop-only right column
+    // (DebtCard: `{!isMobile && (...)}` holds the utilization caption).
+    // So the caption could never appear at 375px and the check was
+    // asserting the wrong layout's content. Measured, not assumed: the
+    // caption is inside the `!isMobile` branch, the mobile top row is
+    // inside the `isMobile` one.
     check(
-      "[15] /debts renders responsively at narrow + wide viewports (no [ERR])",
-      !html.includes("[ERR]") &&
-        !html.includes("We hit a snag") &&
-        html.includes("debt-list-interactive") &&
-        // Card + utilization caption still render
-        html.includes("% used") &&
-        // The rainbow gradient still renders
-        html.includes("linear-gradient"),
+      "[15] /debts at NARROW viewport collapses the desktop right column",
+      !narrowHtml.includes("[ERR]") &&
+        !narrowHtml.includes("We hit a snag") &&
+        narrowHtml.includes("debt-list-interactive") &&
+        narrowHtml.includes("debt-card-") &&
+        // The desktop-only utilization caption must NOT be there at 375px.
+        !narrowHtml.includes("% used"),
+    );
+
+    // [15b] the same page at desktop width, where that column returns.
+    await p.setViewportSize({ width: 1280, height: 800 });
+    await p.reload();
+    await p.waitForLoadState("networkidle");
+    const wideHtml = await p.content();
+    check(
+      "[15b] /debts at WIDE viewport renders the utilization caption + rainbow",
+      !wideHtml.includes("[ERR]") &&
+        !wideHtml.includes("We hit a snag") &&
+        wideHtml.includes("debt-list-interactive") &&
+        wideHtml.includes("% used") &&
+        wideHtml.includes("linear-gradient"),
     );
 
     await browser.close();
+    await fx.cleanup();
   }
 }
 

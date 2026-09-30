@@ -26,11 +26,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { chromium } from "playwright";
 import { prisma } from "./db-client.mjs";
+import { createFixture } from "./fixture.mjs";
 import { exitCodeFor, recordSkip } from "./skip-guard.mjs";
 
 const BASE = "http://127.0.0.1:3000";
-const SMOKE_USER_EMAIL = "mom@compass.local";
-const SMOKE_USER_PASSWORD = "correct-horse-battery-staple";
 
 const checks = [];
 function check(name, cond, detail = "") {
@@ -47,9 +46,9 @@ function checkSkip(name, reason) {
 // ── Server probe ───────────────────────────────────────────────────
 let serverUp = false;
 try {
-  const probe = await fetch(BASE + "/login", {
+  const probe = await fetch(BASE + "/api/health", {
     redirect: "manual",
-    signal: AbortSignal.timeout(2000),
+    signal: AbortSignal.timeout(10000),
   });
   serverUp = probe.status > 0;
 } catch {
@@ -180,19 +179,18 @@ if (!serverUp) {
     "dev server unreachable",
   );
 } else {
-  const u = await prisma.user.findUnique({ where: { email: SMOKE_USER_EMAIL } });
-  if (!u) {
-    check(
-      "[21] /debts renders yearly hints + Wasted banner + Wasted cell (no [ERR])",
-      false,
-      "smoke user not in DB",
-    );
-  } else {
+  const fx = await createFixture("debts-interest", { scenario: "minimal" });
+  {
+    // Real pre-condition: /debts only renders because the fixture opened
+    // the onboarding gate. Without this the [ERR] assertions below would
+    // pass against a gate-redirected page.
+    const fxIdentity = await prisma.financialIdentity.findUnique({ where: { userId: fx.userId } });
+    check("[guard] fixture user is on-boarded (gate open, so /debts renders)", !!fxIdentity);
     const browser = await chromium.launch({ headless: true });
     const p = await (await browser.newContext()).newPage();
     await p.goto(`${BASE}/login`);
-    await p.fill('input[name=email]', SMOKE_USER_EMAIL);
-    await p.fill('input[name=password]', SMOKE_USER_PASSWORD);
+    await p.fill('input[name=email]', fx.email);
+    await p.fill('input[name=password]', fx.password);
     await p.locator('button[type=submit]:has-text("Sign in")').click();
     await p.waitForURL(`${BASE}/`);
     await p.goto(`${BASE}/debts`);
@@ -214,6 +212,7 @@ if (!serverUp) {
     );
 
     await browser.close();
+    await fx.cleanup();
   }
 }
 

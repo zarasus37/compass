@@ -282,6 +282,14 @@ function toDisplayDebt(d: Debt) {
     accountId: d.accountId,
     sortOrder: d.sortOrder,
     isArchived: d.isArchived,
+    // Cluster 7.48/7.49/7.50 depend on this and it was missing here, so
+    // liveDebts() handed the page a debt with no credit limit. DebtCard
+    // reads `debt.creditLimitCents ?? null` and falls back to null when it
+    // is missing, which made utilizationPct null for EVERY debt — so the
+    // "% used" caption, the utilization gauge and the rainbow gradient
+    // never rendered for any user. The source-regex smokes could not see
+    // it because they only read DebtCard's source, never the value.
+    creditLimitCents: d.creditLimitCents,
   };
 }
 
