@@ -33,11 +33,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { chromium } from "playwright";
 import { prisma } from "./db-client.mjs";
+import { createFixture } from "./fixture.mjs";
 import { exitCodeFor, recordSkip } from "./skip-guard.mjs";
 
 const BASE = "http://127.0.0.1:3000";
-const SMOKE_USER_EMAIL = "mom@compass.local";
-const SMOKE_USER_PASSWORD = "correct-horse-battery-staple";
 
 const checks = [];
 function check(name, cond, detail = "") {
@@ -52,11 +51,14 @@ function checkSkip(name, reason) {
 }
 
 // ── Server probe ───────────────────────────────────────────────────
+// /api/health, not /login: a dev server compiles /login on demand and a
+// cold first compile outruns a 2s budget, so probing /login reports a
+// healthy server as unreachable and skips every live check below.
 let serverUp = false;
 try {
-  const probe = await fetch(BASE + "/login", {
+  const probe = await fetch(BASE + "/api/health", {
     redirect: "manual",
-    signal: AbortSignal.timeout(2000),
+    signal: AbortSignal.timeout(10000),
   });
   serverUp = probe.status > 0;
 } catch {
@@ -213,27 +215,43 @@ if (!serverUp) {
   checkSkip("[20] POST /api/client-error (window.onerror source) returns ok", "dev server unreachable");
   checkSkip("[21] POST /api/client-error (unhandledrejection source) returns ok", "dev server unreachable");
   checkSkip("[22] /envelopes renders with ClientErrorCapture mounted", "dev server unreachable");
+  checkSkip("[22a] /envelopes actually rendered (not redirected by a gate)", "dev server unreachable");
 } else {
+  // Per-test fixture user. This used to sign in as the shared
+  // mom@compass.local, which smoke-escape-hatches (chain entry 34)
+  // destroys via POST /api/onboarding/reset — so by this entry the shared
+  // account sat behind the onboarding gate, /envelopes never rendered,
+  // and the capture element was absent for a reason that had nothing to
+  // do with client-error capture. That was wall 8.
+  const fx = await createFixture("client-error-capture", { scenario: "minimal" });
+
   // Login
   const browser = await chromium.launch({ headless: true });
   const ctx = await browser.newContext();
   const p = await ctx.newPage();
 
   await p.goto(`${BASE}/login`);
-  await p.fill('input[name=email]', SMOKE_USER_EMAIL);
-  await p.fill('input[name=password]', SMOKE_USER_PASSWORD);
+  await p.fill('input[name=email]', fx.email);
+  await p.fill('input[name=password]', fx.password);
   await p.locator('button[type=submit]:has-text("Sign in")').click();
   await p.waitForURL(`${BASE}/`);
 
   // [22] ClientErrorCapture is mounted on a signed-in page (presence check, no throw)
   await p.goto(`${BASE}/envelopes`);
   await p.waitForLoadState("networkidle");
+
+  // Guard first. A gate redirect to /setup or /login serves markup that
+  // simply lacks the testid, so without this the check below would pass
+  // for the wrong reason whenever the gate closed.
+  const onEnvelopes = p.url().endsWith("/envelopes");
+  check("[22a] /envelopes actually rendered (not redirected by a gate)", onEnvelopes, `url=${p.url()}`);
+
   const capturePresent = await p.evaluate(() => {
     return !!document.querySelector('[data-testid="client-error-capture"]');
   });
   check(
     "[22] ClientErrorCapture mounted on /envelopes (data-testid present)",
-    capturePresent,
+    onEnvelopes && capturePresent,
   );
 
   // [19–21] Direct POSTs to /api/client-error
@@ -293,6 +311,7 @@ if (!serverUp) {
   );
 
   await browser.close();
+  await fx.cleanup();
 }
 
 // ── Summary ────────────────────────────────────────────────────────
