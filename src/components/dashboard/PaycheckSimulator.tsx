@@ -36,7 +36,13 @@ import { formatMoney } from "@/lib/money";
 
 const INITIAL: SimulatePaycheckResult = { ok: true, planArmed: true };
 
-export function PaycheckSimulator() {
+export function PaycheckSimulator({
+  vessels = [],
+}: {
+  /** The user's real vessels, passed from the server page. */
+  vessels?: Array<{ name: string; planet?: string | null }>;
+}) {
+  const vesselNames = vessels.map((v) => v.name);
   const [state, formAction, isPending] = useActionState(simulatePaycheck, INITIAL);
   const formRef = useRef<HTMLFormElement>(null);
   const bannerRef = useRef<HTMLDivElement>(null);
@@ -317,25 +323,34 @@ export function PaycheckSimulator() {
               marginBottom: 12,
             }}
           >
-            {PLAN_GLYPHS.map((g) => (
-              <div
-                key={g.planet}
-                style={{
-                  textAlign: "center",
-                  fontFamily: "var(--font-sora)",
-                  fontSize: 22,
-                  color: g.color,
-                  lineHeight: 1,
-                  padding: "8px 0",
-                  background: "var(--vessel-surface)",
-                  border: "1px solid var(--vessel-border)",
-                  borderRadius: 2,
-                }}
-                title={g.label}
-              >
-                {g.glyph}
-              </div>
-            ))}
+            {vessels.map((v, i) => {
+              const g = PLANET_GLYPHS[v.planet ?? ""];
+              return (
+                <div
+                  key={`${v.name}-${i}`}
+                  style={{
+                    textAlign: "center",
+                    fontFamily: "var(--font-sora)",
+                    fontSize: 22,
+                    color: g?.color ?? "var(--ink-3)",
+                    lineHeight: 1,
+                    padding: "8px 0",
+                    background: "var(--vessel-surface)",
+                    border: "1px solid var(--vessel-border)",
+                    borderRadius: 2,
+                  }}
+                  // The title is the user's own vessel name. It used to
+                  // be a hardcoded PLAN_GLYPHS label, which put
+                  // "Utilities" and "Savings" into an ATTRIBUTE — so
+                  // stripping <script> did not hide it, and
+                  // smoke-ui-dashboard-db [8] correctly failed on CI for
+                  // an account with a single sentinel vessel.
+                  title={v.name}
+                >
+                  {g?.glyph ?? "○"}
+                </div>
+              );
+            })}
           </div>
           <div
             style={{
@@ -346,8 +361,22 @@ export function PaycheckSimulator() {
               color: "var(--ink-3)",
                           }}
           >
-            <span>Rent · Utilities · Groceries</span>
-            <span>Joy · Savings · Debt · Buffer</span>
+            {/* The user's ACTUAL vessel names, not a hardcoded list. */}
+            {/* This used to print "Rent · Utilities · Groceries" and      */}
+            {/* "Joy · Savings · Debt · Buffer" unconditionally, which is */}
+            {/* a lie for anyone whose vessels are named differently —    */}
+            {/* and it broke smoke-ui-dashboard-db [8], which asserts    */}
+            {/* that a single-envelope account shows none of the canonical */}
+            {/* seed names. The static copy leaked "Utilities" and        */}
+            {/* "Savings" onto that page regardless of the data.          */}
+            {vesselNames.length > 0 ? (
+              <>
+                <span>{vesselNames.slice(0, 3).join(" · ")}</span>
+                <span>{vesselNames.slice(3).join(" · ")}</span>
+              </>
+            ) : (
+              <span>Set up your vessels to see where each check lands.</span>
+            )}
           </div>
         </div>
       </div>
@@ -528,15 +557,19 @@ function AllocationRow({
 // 7-rule plan in the store seed (priority 1..7).
 // ---------------------------------------------------------------------------
 
-const PLAN_GLYPHS: Array<{ planet: PlanetId; glyph: string; label: string; color: string }> = [
-  { planet: "sol",     glyph: "☉", label: "Rent",      color: "var(--sol)" },
-  { planet: "mercury", glyph: "☿", label: "Utilities", color: "var(--mercury)" },
-  { planet: "luna",    glyph: "☽", label: "Groceries", color: "var(--luna)" },
-  { planet: "venus",   glyph: "♀", label: "Joy",       color: "var(--venus)" },
-  { planet: "jupiter", glyph: "♃", label: "Savings",   color: "var(--jupiter)" },
-  { planet: "saturn",  glyph: "♄", label: "Debt",      color: "var(--saturn)" },
-  { planet: "mars",    glyph: "♂", label: "Buffer",    color: "var(--mars)" },
-];
+// Planet glyph + colour, keyed by the vessel's planet. There are NO
+// hardcoded vessel NAMES here any more: the card is driven by the
+// user's actual vessels, so an account with one sentinel envelope does
+// not see "Utilities" and "Savings" printed on its dashboard.
+const PLANET_GLYPHS: Record<string, { glyph: string; color: string }> = {
+  sol: { glyph: "☉", color: "var(--sol)" },
+  mercury: { glyph: "☿", color: "var(--mercury)" },
+  luna: { glyph: "☽", color: "var(--luna)" },
+  venus: { glyph: "♀", color: "var(--venus)" },
+  jupiter: { glyph: "♃", color: "var(--jupiter)" },
+  saturn: { glyph: "♄", color: "var(--saturn)" },
+  mars: { glyph: "♂", color: "var(--mars)" },
+};
 
 const PLANET_COLOR: Record<PlanetId, string> = {
   sol: "var(--sol)",

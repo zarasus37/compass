@@ -573,7 +573,14 @@ export default async function Dashboard() {
         em="apply the plan."
         accent="cyan"
       >
-        <PaycheckSimulator />
+        <PaycheckSimulator
+          // The user's real vessels, read from the same DB-backed
+          // ENVELOPES the rest of the dashboard uses. The component used
+          // to hardcode "Rent · Utilities · Groceries …" plus per-glyph
+          // title attributes, which is untrue for anyone else and is what
+          // broke smoke-ui-dashboard-db [8] on CI.
+          vessels={ENVELOPES.map((e) => ({ name: e.name, planet: e.planet }))}
+        />
       </DashboardCard>
     ),
     "next-step": (
