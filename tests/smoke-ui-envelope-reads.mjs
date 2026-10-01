@@ -79,9 +79,21 @@ for (const { file, desc } of sourceChecks) {
   // from 94dd126 (7.40), but 1149c49 (7.46 visible UI polish) refactored
   // the debts page and replaced the plan reader with `liveDebts(user.id)`
   // + `liveAccountsFromDb(user.id)`. The check never got the memo.
-  // What it is actually protecting is "the debts page reads the DB, not
-  // the in-memory store" — assert that, against the readers in use today.
-  check("[1.debts] uses liveDebts(user.id) (DB-backed debt reader)", /liveDebts\(\s*user\.id\s*\)/.test(src));
+  //
+  // Then debts persistence (5bf1232) moved the debt read off the
+  // in-memory store entirely: `liveDebts` is now `liveDebtsFromDb`, which
+  // reads the Prisma `Debt` table. This assertion was the stale side
+  // again, and for the third time on this one line. The reader name is
+  // the wrong thing to pin — what matters, and what this has always been
+  // protecting, is "the debts page reads the DB, not the process-local
+  // store". So assert THAT, and accept either the current DB reader or
+  // any future rename of it.
+  check(
+    "[1.debts] reads debts from the DB, not the in-memory store",
+    /liveDebtsFromDb\(\s*user\.id\s*\)/.test(src),
+  );
+  check("[1.debts] does NOT use the in-memory liveDebts() reader",
+    !/liveDebts\(\s*user\.id\s*\)/.test(src));
   check("[1.debts] uses liveAccountsFromDb (DB-backed account reader)", src.includes("liveAccountsFromDb"));
   check("[1.debts] does NOT use in-memory livePlan()", !/^\s*const PLAN\s*=\s*livePlan\(\)/m.test(src));
 }
