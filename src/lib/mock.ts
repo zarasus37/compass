@@ -464,6 +464,51 @@ export async function liveBillsFromDb(userId: string) {
 export function liveDebts(userId: string) {
   return readDebts(userId).map(toDisplayDebt);
 }
+
+/**
+ * Durable debt read. This is the one `/debts` uses.
+ *
+ * The old `liveDebts` read `globalThis.__COMPASS_STORE__`, which lives
+ * inside the dev-server process: debts rendered, and disappeared on
+ * restart. Anything a user entered via `/debts/new` went into the same
+ * store, so a debt the user had just saved vanished on refresh.
+ *
+ * No auto-seed, for the same reason as `liveEnvelopesFromDb`: a reader
+ * that invents rows can leave them pointing at cross-references that no
+ * longer exist. The seeder is `ensureUserDebtsSeeded` in
+ * `./seed-debts.ts`, called from `/api/reset-seed` and from the test
+ * fixture. A user with no debt rows gets a real empty state, not a 500
+ * and not an invented set.
+ */
+export async function liveDebtsFromDb(userId: string) {
+  const rows = await prisma.debt.findMany({
+    where: { userId, isArchived: false },
+    orderBy: { sortOrder: "asc" },
+  });
+  return rows.map((d) => ({
+    id: d.id,
+    name: d.name,
+    balanceCents: d.balanceCents,
+    originalBalanceCents: d.originalBalanceCents,
+    aprBps: d.aprBps,
+    minPaymentCents: d.minPaymentCents,
+    dueDay: d.dueDay,
+    accountId: d.accountId,
+    sortOrder: d.sortOrder,
+    isArchived: d.isArchived,
+    // Carried across deliberately. DebtCard reads
+    // `debt.creditLimitCents ?? null` and derives utilizationPct from
+    // it; dropping this key is exactly the bug that kept Clusters
+    // 7.48/7.49 from ever rendering.
+    //
+    // `?? undefined` normalises the storage detail: the column is
+    // nullable so it yields `null`, while the `Debt` contract has
+    // always used an optional `creditLimitCents?: number`. Both mean
+    // "no limit" and DebtCard's `?? null` accepts either, so the
+    // boundary is where they meet rather than widening the type.
+    creditLimitCents: d.creditLimitCents ?? undefined,
+  }));
+}
 export function livePlan(userId: string) {
   return readPlan(userId);
 }

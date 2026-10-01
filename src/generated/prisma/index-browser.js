@@ -241,6 +241,24 @@ exports.Prisma.BillScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.DebtScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  balanceCents: 'balanceCents',
+  originalBalanceCents: 'originalBalanceCents',
+  aprBps: 'aprBps',
+  minPaymentCents: 'minPaymentCents',
+  dueDay: 'dueDay',
+  accountId: 'accountId',
+  creditLimitCents: 'creditLimitCents',
+  source: 'source',
+  isArchived: 'isArchived',
+  sortOrder: 'sortOrder',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.GoalScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -637,6 +655,7 @@ exports.Prisma.ModelName = {
   Transaction: 'Transaction',
   PaySchedule: 'PaySchedule',
   Bill: 'Bill',
+  Debt: 'Debt',
   Goal: 'Goal',
   AllocationPlan: 'AllocationPlan',
   AllocationRule: 'AllocationRule',

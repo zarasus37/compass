@@ -12,8 +12,9 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { addDebt, applyExtraDebtPayment, type Debt } from "@/lib/store";
+import { prisma } from "@/server/db";
 import { requireUser } from "@/server/auth/user";
+import type { Debt } from "@/lib/store";
 
 export interface ApplyExtraResult {
   ok: boolean;
@@ -42,21 +43,61 @@ export async function applyExtraToDebt(
     return { ok: false, reason: "Missing debt id." };
   }
 
-  const result = applyExtraDebtPayment(
-    user.id,
-    debtId,
-    amountCents,
-    source === "what-if-slider" ? "what-if-slider" : "plan-my-next-check",
-  );
-  if (!result.ok || !result.debt) {
-    return { ok: false, reason: result.reason ?? "Could not apply payment." };
+  // Scoped to the caller's own rows. A debt id that is not theirs (or
+  // does not exist) is "not found" — the same message the store gave,
+  // so the UI is unchanged.
+  const debt = await prisma.debt.findFirst({ where: { id: debtId, userId: user.id } });
+  if (!debt) return { ok: false, reason: "Debt not found." };
+  if (debt.balanceCents <= 0) {
+    return { ok: false, reason: "Debt is already paid off." };
   }
+
+  // Don't overpay — apply the lesser of the two, same rule as before.
+  const applied = Math.min(amountCents, debt.balanceCents);
+  const newBalance = debt.balanceCents - applied;
+
+  await prisma.$transaction([
+    prisma.debt.update({
+      where: { id: debt.id },
+      data: { balanceCents: newBalance },
+    }),
+    prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        actionType: "manual-adjust",
+        // `payload` is a JSON *string* on AuditLog, not an object.
+        payload: JSON.stringify({
+          summary: `Applied $${(applied / 100).toFixed(2)} extra payment to ${debt.name} (balance now $${(newBalance / 100).toFixed(2)}).`,
+          debtId: debt.id,
+          appliedCents: applied,
+          newBalance,
+          source: source === "what-if-slider" ? "what-if-slider" : "plan-my-next-check",
+        }),
+      },
+    }),
+  ]);
 
   revalidatePath("/debts");
   revalidatePath("/");
   revalidatePath("/insights");
 
-  return { ok: true, debt: result.debt };
+  return {
+    ok: true,
+    debt: {
+      id: debt.id,
+      name: debt.name,
+      balanceCents: newBalance,
+      originalBalanceCents: debt.originalBalanceCents,
+      aprBps: debt.aprBps,
+      minPaymentCents: debt.minPaymentCents,
+      dueDay: debt.dueDay,
+      accountId: debt.accountId,
+      sortOrder: debt.sortOrder,
+      isArchived: debt.isArchived,
+      // null (column) -> undefined (Debt contract); see liveDebtsFromDb.
+      creditLimitCents: debt.creditLimitCents ?? undefined,
+    },
+  };
 }
 
 export interface AddDebtResult {
@@ -96,17 +137,60 @@ export async function logDebt(
     return { ok: false, reason: "Due day must be between 1 and 31." };
   }
 
-  const result = addDebt(user.id, {
-    name,
-    balanceCents: Math.round(balanceDollars * 100),
-    aprBps: Math.round(aprPercent * 100),
-    minPaymentCents: Math.round(minPaymentDollars * 100),
-    dueDay,
+  // The APR trap. The form sends a percent ("24.99"); the column is
+  // BASIS POINTS (2499). Converting at this boundary is the only place
+  // it happens, and it must round-trip exactly — a float percent stored
+  // as-is here is a silent 100x error that no source-regex test could
+  // see. `smoke-debts-interest` asserts a known APR round-trips.
+  const aprBps = Math.round(aprPercent * 100);
+  const balanceCents = Math.round(balanceDollars * 100);
+  const minPaymentCents = Math.round(minPaymentDollars * 100);
+
+  // New debts sort after the seeded set, mirroring `addDebt`'s
+  // `maxSort + 1` rule so the list order stays stable.
+  const last = await prisma.debt.findFirst({
+    where: { userId: user.id },
+    orderBy: { sortOrder: "desc" },
+    select: { sortOrder: true },
+  });
+  const sortOrder = (last?.sortOrder ?? 0) + 1;
+
+  // A debt the user just entered is fully outstanding, so
+  // originalBalanceCents starts equal to the balance — the paid-down
+  // bar reads 0%, not a negative number. Mirrors `addDebt`.
+  const debt = await prisma.debt.create({
+    data: {
+      userId: user.id,
+      name,
+      balanceCents,
+      originalBalanceCents: balanceCents,
+      aprBps,
+      minPaymentCents,
+      dueDay,
+      // The form does not collect a linked account or a credit limit.
+      // null accountId is fine: DebtCard simply omits the institution
+      // line. null creditLimitCents is REQUIRED — a debt with no limit
+      // is a loan, and DebtCard falls back to the paid-down bar
+      // instead of showing a utilization gauge it cannot compute.
+      accountId: null,
+      creditLimitCents: null,
+      source: "user",
+      sortOrder,
+    },
   });
 
-  if (!result.ok) {
-    return { ok: false, reason: result.reason ?? "Could not save the debt." };
-  }
+  await prisma.auditLog.create({
+    data: {
+      userId: user.id,
+      actionType: "debt_created",
+      payload: JSON.stringify({
+        summary: `Added debt "${name}" ($${(balanceCents / 100).toFixed(2)} @ ${(aprBps / 100).toFixed(2)}% APR).`,
+        debtId: debt.id,
+        balanceCents,
+        aprBps,
+      }),
+    },
+  });
 
   revalidatePath("/debts");
   revalidatePath("/");

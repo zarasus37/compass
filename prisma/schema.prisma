@@ -79,6 +79,7 @@ model User {
   goals           Goal[]
   allocationPlans AllocationPlan[]
   bills           Bill[]
+  debts           Debt[]
   auditLog        AuditLog[]
   auditLogRollup  AuditLogDailyRollup[]
   envelopeSinks   EnvelopeSink[]
@@ -359,6 +360,65 @@ model Bill {
   @@index([source])
   @@index([userId, source])
   @@index([userId, sortOrder])
+}
+
+/// An obligation the user owes. The debt list on /debts, the payoff
+/// simulator, the "Apply extra" action and the advisor's `queryDebts`
+/// tool all read these rows.
+///
+/// Mirrors `Bill` deliberately: same `source` discipline, same
+/// namespaced-id strategy, same plain-String `accountId` (no FK — the
+/// linked account may be archived or deleted, and a debt must survive
+/// that).
+///
+/// `aprBps` is BASIS POINTS, not percent. 24.99% is stored as 2499.
+/// `logDebt` converts at the form boundary. Storing a float percent
+/// here would be a silent 100x error, which is why
+/// `smoke-debts-interest` asserts a known APR round-trips exactly.
+///
+/// `creditLimitCents` is NULL for loans (student / auto / mortgage /
+/// personal): they have no "limit" concept, so DebtCard falls back to
+/// the paid-down progress bar and the expand panel omits the
+/// utilization gauge. It MUST survive every display mapping — omitting
+/// it from `toDisplayDebt` is what made Clusters 7.48/7.49 never render
+/// for anyone.
+model Debt {
+  id                   String   @id @default(cuid())
+  userId               String
+  name                 String
+  /// Current balance owed, in cents.
+  balanceCents         Int
+  /// Balance when first tracked. Drives the "paid down" progress bar
+  /// and the payoff projection. Equal to `balanceCents` for a debt the
+  /// user just added, so it starts at 0% paid.
+  originalBalanceCents Int
+  /// Annual percentage rate in BASIS POINTS: 2499 = 24.99%.
+  aprBps               Int      @default(0)
+  /// Contractual minimum monthly payment, in cents.
+  minPaymentCents      Int      @default(0)
+  /// Day of month the payment is due (1-31). 0 = not on a schedule.
+  dueDay               Int      @default(0)
+  /// Soft ref to the account this debt is charged to. Namespaced with
+  /// `seededId` for seed rows. No FK on purpose — see the note above.
+  accountId            String?
+  /// Credit limit for card debts, in cents. NULL for loans.
+  creditLimitCents     Int?
+  /// "seed" (the canonical DEBTS_SEED, migrated by
+  /// ensureUserDebtsSeeded), or "user" (entered via /debts/new).
+  source               String   @default("seed")
+  isArchived           Boolean  @default(false)
+  /// Stable list order within the user's debt set. Mirrors
+  /// DEBTS_SEED.sortOrder.
+  sortOrder            Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([source])
+  @@index([userId, source])
+  @@index([userId, isArchived, sortOrder])
 }
 
 /// A life goal the user is working toward. The "Your Direction" section.

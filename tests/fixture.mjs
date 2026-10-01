@@ -51,6 +51,7 @@ import {
   GOALS_SEED,
   BILLS_SEED,
   ALLOCATION_PLAN_SEED,
+  DEBTS_SEED,
 } from "../src/lib/mock-seed.ts";
 import { ensureUserSinksSeeded } from "../src/lib/seed-sinks.ts";
 // The PRODUCT's id-namespacing helper, not a local copy. The fixture
@@ -241,6 +242,7 @@ async function provisionBaseline(fx) {
     envelopes: {},
     goals: {},
     bills: {},
+    debts: {},
   };
 
   await prisma.account.create({
@@ -365,6 +367,41 @@ async function provisionBaseline(fx) {
         fixedCents: r.mode === "fixed" ? (r.value ?? 0) : null,
         source: "seed",
         sortOrder: r.priority ?? i,
+      },
+    });
+  }
+
+  // Debts — the canonical DEBTS_SEED values, rebuilt under per-user ids
+  // for the same reason the bills above are: a bare `debt-discover` would
+  // be a global primary key, so the second fixture user could never hold
+  // a debt set.
+  //
+  // `aprBps` is copied verbatim from the seed (2499 = 24.99%). Nothing
+  // here may re-derive it as a float percent.
+  //
+  // `creditLimitCents` is the field that has to survive: DebtCard
+  // derives utilizationPct from it, and when it was missing from the
+  // display mapping the whole Cluster 7.48/7.49 utilization feature
+  // rendered for nobody. A fixture that dropped it would let that bug
+  // hide again.
+  for (const [i, d] of DEBTS_SEED.entries()) {
+    const debtId = seededId(fx.userId, d.id);
+    ids.debts[d.id] = debtId;
+    await prisma.debt.create({
+      data: {
+        id: debtId,
+        userId: fx.userId,
+        name: d.name,
+        balanceCents: d.balanceCents,
+        originalBalanceCents: d.originalBalanceCents,
+        aprBps: d.aprBps,
+        minPaymentCents: d.minPaymentCents,
+        dueDay: d.dueDay ?? 0,
+        accountId: ids.account,
+        creditLimitCents: d.creditLimitCents ?? null,
+        source: "seed",
+        isArchived: false,
+        sortOrder: d.sortOrder ?? i,
       },
     });
   }

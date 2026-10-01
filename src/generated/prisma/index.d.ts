@@ -88,6 +88,30 @@ export type PaySchedule = $Result.DefaultSelection<Prisma.$PaySchedulePayload>
  */
 export type Bill = $Result.DefaultSelection<Prisma.$BillPayload>
 /**
+ * Model Debt
+ * An obligation the user owes. The debt list on /debts, the payoff
+ * simulator, the "Apply extra" action and the advisor's `queryDebts`
+ * tool all read these rows.
+ * 
+ * Mirrors `Bill` deliberately: same `source` discipline, same
+ * namespaced-id strategy, same plain-String `accountId` (no FK — the
+ * linked account may be archived or deleted, and a debt must survive
+ * that).
+ * 
+ * `aprBps` is BASIS POINTS, not percent. 24.99% is stored as 2499.
+ * `logDebt` converts at the form boundary. Storing a float percent
+ * here would be a silent 100x error, which is why
+ * `smoke-debts-interest` asserts a known APR round-trips exactly.
+ * 
+ * `creditLimitCents` is NULL for loans (student / auto / mortgage /
+ * personal): they have no "limit" concept, so DebtCard falls back to
+ * the paid-down progress bar and the expand panel omits the
+ * utilization gauge. It MUST survive every display mapping — omitting
+ * it from `toDisplayDebt` is what made Clusters 7.48/7.49 never render
+ * for anyone.
+ */
+export type Debt = $Result.DefaultSelection<Prisma.$DebtPayload>
+/**
  * Model Goal
  * A life goal the user is working toward. The "Your Direction" section.
  * Top priority flag controls what shows in the dashboard hero.
@@ -634,6 +658,16 @@ export class PrismaClient<
     * ```
     */
   get bill(): Prisma.BillDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.debt`: Exposes CRUD operations for the **Debt** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Debts
+    * const debts = await prisma.debt.findMany()
+    * ```
+    */
+  get debt(): Prisma.DebtDelegate<ExtArgs, ClientOptions>;
 
   /**
    * `prisma.goal`: Exposes CRUD operations for the **Goal** model.
@@ -1359,6 +1393,7 @@ export namespace Prisma {
     Transaction: 'Transaction',
     PaySchedule: 'PaySchedule',
     Bill: 'Bill',
+    Debt: 'Debt',
     Goal: 'Goal',
     AllocationPlan: 'AllocationPlan',
     AllocationRule: 'AllocationRule',
@@ -1401,7 +1436,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "session" | "account" | "envelope" | "envelopeSink" | "transaction" | "paySchedule" | "bill" | "goal" | "allocationPlan" | "allocationRule" | "auditLog" | "auditLogDailyRollup" | "systemSettings" | "payPeriod" | "financialIdentity" | "identityIncome" | "identityExpense" | "identityDebt" | "identityAsset" | "identityGoal" | "identityEvent" | "identitySpendingHabit" | "identityHouseholdMember" | "onboardingMessage" | "vaultAccount" | "vaultEnvelope" | "scheduledBill" | "yieldEvent" | "paymentAttempt" | "providerEvent" | "vaultPreferences" | "vaultSchedule" | "setupState" | "clientError"
+      modelProps: "user" | "session" | "account" | "envelope" | "envelopeSink" | "transaction" | "paySchedule" | "bill" | "debt" | "goal" | "allocationPlan" | "allocationRule" | "auditLog" | "auditLogDailyRollup" | "systemSettings" | "payPeriod" | "financialIdentity" | "identityIncome" | "identityExpense" | "identityDebt" | "identityAsset" | "identityGoal" | "identityEvent" | "identitySpendingHabit" | "identityHouseholdMember" | "onboardingMessage" | "vaultAccount" | "vaultEnvelope" | "scheduledBill" | "yieldEvent" | "paymentAttempt" | "providerEvent" | "vaultPreferences" | "vaultSchedule" | "setupState" | "clientError"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1994,6 +2029,80 @@ export namespace Prisma {
           count: {
             args: Prisma.BillCountArgs<ExtArgs>
             result: $Utils.Optional<BillCountAggregateOutputType> | number
+          }
+        }
+      }
+      Debt: {
+        payload: Prisma.$DebtPayload<ExtArgs>
+        fields: Prisma.DebtFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.DebtFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$DebtPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.DebtFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$DebtPayload>
+          }
+          findFirst: {
+            args: Prisma.DebtFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$DebtPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.DebtFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$DebtPayload>
+          }
+          findMany: {
+            args: Prisma.DebtFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$DebtPayload>[]
+          }
+          create: {
+            args: Prisma.DebtCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$DebtPayload>
+          }
+          createMany: {
+            args: Prisma.DebtCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.DebtCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$DebtPayload>[]
+          }
+          delete: {
+            args: Prisma.DebtDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$DebtPayload>
+          }
+          update: {
+            args: Prisma.DebtUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$DebtPayload>
+          }
+          deleteMany: {
+            args: Prisma.DebtDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.DebtUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.DebtUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$DebtPayload>[]
+          }
+          upsert: {
+            args: Prisma.DebtUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$DebtPayload>
+          }
+          aggregate: {
+            args: Prisma.DebtAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateDebt>
+          }
+          groupBy: {
+            args: Prisma.DebtGroupByArgs<ExtArgs>
+            result: $Utils.Optional<DebtGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.DebtCountArgs<ExtArgs>
+            result: $Utils.Optional<DebtCountAggregateOutputType> | number
           }
         }
       }
@@ -4126,6 +4235,7 @@ export namespace Prisma {
     transaction?: TransactionOmit
     paySchedule?: PayScheduleOmit
     bill?: BillOmit
+    debt?: DebtOmit
     goal?: GoalOmit
     allocationPlan?: AllocationPlanOmit
     allocationRule?: AllocationRuleOmit
@@ -4241,6 +4351,7 @@ export namespace Prisma {
     goals: number
     allocationPlans: number
     bills: number
+    debts: number
     auditLog: number
     auditLogRollup: number
     envelopeSinks: number
@@ -4255,6 +4366,7 @@ export namespace Prisma {
     goals?: boolean | UserCountOutputTypeCountGoalsArgs
     allocationPlans?: boolean | UserCountOutputTypeCountAllocationPlansArgs
     bills?: boolean | UserCountOutputTypeCountBillsArgs
+    debts?: boolean | UserCountOutputTypeCountDebtsArgs
     auditLog?: boolean | UserCountOutputTypeCountAuditLogArgs
     auditLogRollup?: boolean | UserCountOutputTypeCountAuditLogRollupArgs
     envelopeSinks?: boolean | UserCountOutputTypeCountEnvelopeSinksArgs
@@ -4325,6 +4437,13 @@ export namespace Prisma {
    */
   export type UserCountOutputTypeCountBillsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: BillWhereInput
+  }
+
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountDebtsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: DebtWhereInput
   }
 
   /**
@@ -4977,6 +5096,7 @@ export namespace Prisma {
     goals?: boolean | User$goalsArgs<ExtArgs>
     allocationPlans?: boolean | User$allocationPlansArgs<ExtArgs>
     bills?: boolean | User$billsArgs<ExtArgs>
+    debts?: boolean | User$debtsArgs<ExtArgs>
     auditLog?: boolean | User$auditLogArgs<ExtArgs>
     auditLogRollup?: boolean | User$auditLogRollupArgs<ExtArgs>
     envelopeSinks?: boolean | User$envelopeSinksArgs<ExtArgs>
@@ -5036,6 +5156,7 @@ export namespace Prisma {
     goals?: boolean | User$goalsArgs<ExtArgs>
     allocationPlans?: boolean | User$allocationPlansArgs<ExtArgs>
     bills?: boolean | User$billsArgs<ExtArgs>
+    debts?: boolean | User$debtsArgs<ExtArgs>
     auditLog?: boolean | User$auditLogArgs<ExtArgs>
     auditLogRollup?: boolean | User$auditLogRollupArgs<ExtArgs>
     envelopeSinks?: boolean | User$envelopeSinksArgs<ExtArgs>
@@ -5059,6 +5180,7 @@ export namespace Prisma {
       goals: Prisma.$GoalPayload<ExtArgs>[]
       allocationPlans: Prisma.$AllocationPlanPayload<ExtArgs>[]
       bills: Prisma.$BillPayload<ExtArgs>[]
+      debts: Prisma.$DebtPayload<ExtArgs>[]
       auditLog: Prisma.$AuditLogPayload<ExtArgs>[]
       auditLogRollup: Prisma.$AuditLogDailyRollupPayload<ExtArgs>[]
       envelopeSinks: Prisma.$EnvelopeSinkPayload<ExtArgs>[]
@@ -5508,6 +5630,7 @@ export namespace Prisma {
     goals<T extends User$goalsArgs<ExtArgs> = {}>(args?: Subset<T, User$goalsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$GoalPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     allocationPlans<T extends User$allocationPlansArgs<ExtArgs> = {}>(args?: Subset<T, User$allocationPlansArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AllocationPlanPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     bills<T extends User$billsArgs<ExtArgs> = {}>(args?: Subset<T, User$billsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BillPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    debts<T extends User$debtsArgs<ExtArgs> = {}>(args?: Subset<T, User$debtsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$DebtPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     auditLog<T extends User$auditLogArgs<ExtArgs> = {}>(args?: Subset<T, User$auditLogArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AuditLogPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     auditLogRollup<T extends User$auditLogRollupArgs<ExtArgs> = {}>(args?: Subset<T, User$auditLogRollupArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AuditLogDailyRollupPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     envelopeSinks<T extends User$envelopeSinksArgs<ExtArgs> = {}>(args?: Subset<T, User$envelopeSinksArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$EnvelopeSinkPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -6136,6 +6259,30 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: BillScalarFieldEnum | BillScalarFieldEnum[]
+  }
+
+  /**
+   * User.debts
+   */
+  export type User$debtsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Debt
+     */
+    select?: DebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Debt
+     */
+    omit?: DebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DebtInclude<ExtArgs> | null
+    where?: DebtWhereInput
+    orderBy?: DebtOrderByWithRelationInput | DebtOrderByWithRelationInput[]
+    cursor?: DebtWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: DebtScalarFieldEnum | DebtScalarFieldEnum[]
   }
 
   /**
@@ -15015,6 +15162,1289 @@ export namespace Prisma {
      * Choose, which related nodes to fetch as well
      */
     include?: BillInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model Debt
+   */
+
+  export type AggregateDebt = {
+    _count: DebtCountAggregateOutputType | null
+    _avg: DebtAvgAggregateOutputType | null
+    _sum: DebtSumAggregateOutputType | null
+    _min: DebtMinAggregateOutputType | null
+    _max: DebtMaxAggregateOutputType | null
+  }
+
+  export type DebtAvgAggregateOutputType = {
+    balanceCents: number | null
+    originalBalanceCents: number | null
+    aprBps: number | null
+    minPaymentCents: number | null
+    dueDay: number | null
+    creditLimitCents: number | null
+    sortOrder: number | null
+  }
+
+  export type DebtSumAggregateOutputType = {
+    balanceCents: number | null
+    originalBalanceCents: number | null
+    aprBps: number | null
+    minPaymentCents: number | null
+    dueDay: number | null
+    creditLimitCents: number | null
+    sortOrder: number | null
+  }
+
+  export type DebtMinAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    name: string | null
+    balanceCents: number | null
+    originalBalanceCents: number | null
+    aprBps: number | null
+    minPaymentCents: number | null
+    dueDay: number | null
+    accountId: string | null
+    creditLimitCents: number | null
+    source: string | null
+    isArchived: boolean | null
+    sortOrder: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type DebtMaxAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    name: string | null
+    balanceCents: number | null
+    originalBalanceCents: number | null
+    aprBps: number | null
+    minPaymentCents: number | null
+    dueDay: number | null
+    accountId: string | null
+    creditLimitCents: number | null
+    source: string | null
+    isArchived: boolean | null
+    sortOrder: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type DebtCountAggregateOutputType = {
+    id: number
+    userId: number
+    name: number
+    balanceCents: number
+    originalBalanceCents: number
+    aprBps: number
+    minPaymentCents: number
+    dueDay: number
+    accountId: number
+    creditLimitCents: number
+    source: number
+    isArchived: number
+    sortOrder: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type DebtAvgAggregateInputType = {
+    balanceCents?: true
+    originalBalanceCents?: true
+    aprBps?: true
+    minPaymentCents?: true
+    dueDay?: true
+    creditLimitCents?: true
+    sortOrder?: true
+  }
+
+  export type DebtSumAggregateInputType = {
+    balanceCents?: true
+    originalBalanceCents?: true
+    aprBps?: true
+    minPaymentCents?: true
+    dueDay?: true
+    creditLimitCents?: true
+    sortOrder?: true
+  }
+
+  export type DebtMinAggregateInputType = {
+    id?: true
+    userId?: true
+    name?: true
+    balanceCents?: true
+    originalBalanceCents?: true
+    aprBps?: true
+    minPaymentCents?: true
+    dueDay?: true
+    accountId?: true
+    creditLimitCents?: true
+    source?: true
+    isArchived?: true
+    sortOrder?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type DebtMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    name?: true
+    balanceCents?: true
+    originalBalanceCents?: true
+    aprBps?: true
+    minPaymentCents?: true
+    dueDay?: true
+    accountId?: true
+    creditLimitCents?: true
+    source?: true
+    isArchived?: true
+    sortOrder?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type DebtCountAggregateInputType = {
+    id?: true
+    userId?: true
+    name?: true
+    balanceCents?: true
+    originalBalanceCents?: true
+    aprBps?: true
+    minPaymentCents?: true
+    dueDay?: true
+    accountId?: true
+    creditLimitCents?: true
+    source?: true
+    isArchived?: true
+    sortOrder?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type DebtAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Debt to aggregate.
+     */
+    where?: DebtWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Debts to fetch.
+     */
+    orderBy?: DebtOrderByWithRelationInput | DebtOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: DebtWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Debts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Debts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned Debts
+    **/
+    _count?: true | DebtCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: DebtAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: DebtSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: DebtMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: DebtMaxAggregateInputType
+  }
+
+  export type GetDebtAggregateType<T extends DebtAggregateArgs> = {
+        [P in keyof T & keyof AggregateDebt]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateDebt[P]>
+      : GetScalarType<T[P], AggregateDebt[P]>
+  }
+
+
+
+
+  export type DebtGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: DebtWhereInput
+    orderBy?: DebtOrderByWithAggregationInput | DebtOrderByWithAggregationInput[]
+    by: DebtScalarFieldEnum[] | DebtScalarFieldEnum
+    having?: DebtScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: DebtCountAggregateInputType | true
+    _avg?: DebtAvgAggregateInputType
+    _sum?: DebtSumAggregateInputType
+    _min?: DebtMinAggregateInputType
+    _max?: DebtMaxAggregateInputType
+  }
+
+  export type DebtGroupByOutputType = {
+    id: string
+    userId: string
+    name: string
+    balanceCents: number
+    originalBalanceCents: number
+    aprBps: number
+    minPaymentCents: number
+    dueDay: number
+    accountId: string | null
+    creditLimitCents: number | null
+    source: string
+    isArchived: boolean
+    sortOrder: number
+    createdAt: Date
+    updatedAt: Date
+    _count: DebtCountAggregateOutputType | null
+    _avg: DebtAvgAggregateOutputType | null
+    _sum: DebtSumAggregateOutputType | null
+    _min: DebtMinAggregateOutputType | null
+    _max: DebtMaxAggregateOutputType | null
+  }
+
+  type GetDebtGroupByPayload<T extends DebtGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<DebtGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof DebtGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], DebtGroupByOutputType[P]>
+            : GetScalarType<T[P], DebtGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type DebtSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    name?: boolean
+    balanceCents?: boolean
+    originalBalanceCents?: boolean
+    aprBps?: boolean
+    minPaymentCents?: boolean
+    dueDay?: boolean
+    accountId?: boolean
+    creditLimitCents?: boolean
+    source?: boolean
+    isArchived?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["debt"]>
+
+  export type DebtSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    name?: boolean
+    balanceCents?: boolean
+    originalBalanceCents?: boolean
+    aprBps?: boolean
+    minPaymentCents?: boolean
+    dueDay?: boolean
+    accountId?: boolean
+    creditLimitCents?: boolean
+    source?: boolean
+    isArchived?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["debt"]>
+
+  export type DebtSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    name?: boolean
+    balanceCents?: boolean
+    originalBalanceCents?: boolean
+    aprBps?: boolean
+    minPaymentCents?: boolean
+    dueDay?: boolean
+    accountId?: boolean
+    creditLimitCents?: boolean
+    source?: boolean
+    isArchived?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["debt"]>
+
+  export type DebtSelectScalar = {
+    id?: boolean
+    userId?: boolean
+    name?: boolean
+    balanceCents?: boolean
+    originalBalanceCents?: boolean
+    aprBps?: boolean
+    minPaymentCents?: boolean
+    dueDay?: boolean
+    accountId?: boolean
+    creditLimitCents?: boolean
+    source?: boolean
+    isArchived?: boolean
+    sortOrder?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type DebtOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "name" | "balanceCents" | "originalBalanceCents" | "aprBps" | "minPaymentCents" | "dueDay" | "accountId" | "creditLimitCents" | "source" | "isArchived" | "sortOrder" | "createdAt" | "updatedAt", ExtArgs["result"]["debt"]>
+  export type DebtInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type DebtIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type DebtIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+
+  export type $DebtPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "Debt"
+    objects: {
+      user: Prisma.$UserPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      userId: string
+      name: string
+      /**
+       * Current balance owed, in cents.
+       */
+      balanceCents: number
+      /**
+       * Balance when first tracked. Drives the "paid down" progress bar
+       * and the payoff projection. Equal to `balanceCents` for a debt the
+       * user just added, so it starts at 0% paid.
+       */
+      originalBalanceCents: number
+      /**
+       * Annual percentage rate in BASIS POINTS: 2499 = 24.99%.
+       */
+      aprBps: number
+      /**
+       * Contractual minimum monthly payment, in cents.
+       */
+      minPaymentCents: number
+      /**
+       * Day of month the payment is due (1-31). 0 = not on a schedule.
+       */
+      dueDay: number
+      /**
+       * Soft ref to the account this debt is charged to. Namespaced with
+       * `seededId` for seed rows. No FK on purpose — see the note above.
+       */
+      accountId: string | null
+      /**
+       * Credit limit for card debts, in cents. NULL for loans.
+       */
+      creditLimitCents: number | null
+      /**
+       * "seed" (the canonical DEBTS_SEED, migrated by
+       * ensureUserDebtsSeeded), or "user" (entered via /debts/new).
+       */
+      source: string
+      isArchived: boolean
+      /**
+       * Stable list order within the user's debt set. Mirrors
+       * DEBTS_SEED.sortOrder.
+       */
+      sortOrder: number
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["debt"]>
+    composites: {}
+  }
+
+  type DebtGetPayload<S extends boolean | null | undefined | DebtDefaultArgs> = $Result.GetResult<Prisma.$DebtPayload, S>
+
+  type DebtCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<DebtFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: DebtCountAggregateInputType | true
+    }
+
+  export interface DebtDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['Debt'], meta: { name: 'Debt' } }
+    /**
+     * Find zero or one Debt that matches the filter.
+     * @param {DebtFindUniqueArgs} args - Arguments to find a Debt
+     * @example
+     * // Get one Debt
+     * const debt = await prisma.debt.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends DebtFindUniqueArgs>(args: SelectSubset<T, DebtFindUniqueArgs<ExtArgs>>): Prisma__DebtClient<$Result.GetResult<Prisma.$DebtPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one Debt that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {DebtFindUniqueOrThrowArgs} args - Arguments to find a Debt
+     * @example
+     * // Get one Debt
+     * const debt = await prisma.debt.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends DebtFindUniqueOrThrowArgs>(args: SelectSubset<T, DebtFindUniqueOrThrowArgs<ExtArgs>>): Prisma__DebtClient<$Result.GetResult<Prisma.$DebtPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Debt that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {DebtFindFirstArgs} args - Arguments to find a Debt
+     * @example
+     * // Get one Debt
+     * const debt = await prisma.debt.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends DebtFindFirstArgs>(args?: SelectSubset<T, DebtFindFirstArgs<ExtArgs>>): Prisma__DebtClient<$Result.GetResult<Prisma.$DebtPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Debt that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {DebtFindFirstOrThrowArgs} args - Arguments to find a Debt
+     * @example
+     * // Get one Debt
+     * const debt = await prisma.debt.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends DebtFindFirstOrThrowArgs>(args?: SelectSubset<T, DebtFindFirstOrThrowArgs<ExtArgs>>): Prisma__DebtClient<$Result.GetResult<Prisma.$DebtPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more Debts that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {DebtFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all Debts
+     * const debts = await prisma.debt.findMany()
+     * 
+     * // Get first 10 Debts
+     * const debts = await prisma.debt.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const debtWithIdOnly = await prisma.debt.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends DebtFindManyArgs>(args?: SelectSubset<T, DebtFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$DebtPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a Debt.
+     * @param {DebtCreateArgs} args - Arguments to create a Debt.
+     * @example
+     * // Create one Debt
+     * const Debt = await prisma.debt.create({
+     *   data: {
+     *     // ... data to create a Debt
+     *   }
+     * })
+     * 
+     */
+    create<T extends DebtCreateArgs>(args: SelectSubset<T, DebtCreateArgs<ExtArgs>>): Prisma__DebtClient<$Result.GetResult<Prisma.$DebtPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many Debts.
+     * @param {DebtCreateManyArgs} args - Arguments to create many Debts.
+     * @example
+     * // Create many Debts
+     * const debt = await prisma.debt.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends DebtCreateManyArgs>(args?: SelectSubset<T, DebtCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many Debts and returns the data saved in the database.
+     * @param {DebtCreateManyAndReturnArgs} args - Arguments to create many Debts.
+     * @example
+     * // Create many Debts
+     * const debt = await prisma.debt.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many Debts and only return the `id`
+     * const debtWithIdOnly = await prisma.debt.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends DebtCreateManyAndReturnArgs>(args?: SelectSubset<T, DebtCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$DebtPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a Debt.
+     * @param {DebtDeleteArgs} args - Arguments to delete one Debt.
+     * @example
+     * // Delete one Debt
+     * const Debt = await prisma.debt.delete({
+     *   where: {
+     *     // ... filter to delete one Debt
+     *   }
+     * })
+     * 
+     */
+    delete<T extends DebtDeleteArgs>(args: SelectSubset<T, DebtDeleteArgs<ExtArgs>>): Prisma__DebtClient<$Result.GetResult<Prisma.$DebtPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one Debt.
+     * @param {DebtUpdateArgs} args - Arguments to update one Debt.
+     * @example
+     * // Update one Debt
+     * const debt = await prisma.debt.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends DebtUpdateArgs>(args: SelectSubset<T, DebtUpdateArgs<ExtArgs>>): Prisma__DebtClient<$Result.GetResult<Prisma.$DebtPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more Debts.
+     * @param {DebtDeleteManyArgs} args - Arguments to filter Debts to delete.
+     * @example
+     * // Delete a few Debts
+     * const { count } = await prisma.debt.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends DebtDeleteManyArgs>(args?: SelectSubset<T, DebtDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Debts.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {DebtUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many Debts
+     * const debt = await prisma.debt.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends DebtUpdateManyArgs>(args: SelectSubset<T, DebtUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Debts and returns the data updated in the database.
+     * @param {DebtUpdateManyAndReturnArgs} args - Arguments to update many Debts.
+     * @example
+     * // Update many Debts
+     * const debt = await prisma.debt.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more Debts and only return the `id`
+     * const debtWithIdOnly = await prisma.debt.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends DebtUpdateManyAndReturnArgs>(args: SelectSubset<T, DebtUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$DebtPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one Debt.
+     * @param {DebtUpsertArgs} args - Arguments to update or create a Debt.
+     * @example
+     * // Update or create a Debt
+     * const debt = await prisma.debt.upsert({
+     *   create: {
+     *     // ... data to create a Debt
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the Debt we want to update
+     *   }
+     * })
+     */
+    upsert<T extends DebtUpsertArgs>(args: SelectSubset<T, DebtUpsertArgs<ExtArgs>>): Prisma__DebtClient<$Result.GetResult<Prisma.$DebtPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of Debts.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {DebtCountArgs} args - Arguments to filter Debts to count.
+     * @example
+     * // Count the number of Debts
+     * const count = await prisma.debt.count({
+     *   where: {
+     *     // ... the filter for the Debts we want to count
+     *   }
+     * })
+    **/
+    count<T extends DebtCountArgs>(
+      args?: Subset<T, DebtCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], DebtCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a Debt.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {DebtAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends DebtAggregateArgs>(args: Subset<T, DebtAggregateArgs>): Prisma.PrismaPromise<GetDebtAggregateType<T>>
+
+    /**
+     * Group by Debt.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {DebtGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends DebtGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: DebtGroupByArgs['orderBy'] }
+        : { orderBy?: DebtGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, DebtGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetDebtGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the Debt model
+   */
+  readonly fields: DebtFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for Debt.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__DebtClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the Debt model
+   */
+  interface DebtFieldRefs {
+    readonly id: FieldRef<"Debt", 'String'>
+    readonly userId: FieldRef<"Debt", 'String'>
+    readonly name: FieldRef<"Debt", 'String'>
+    readonly balanceCents: FieldRef<"Debt", 'Int'>
+    readonly originalBalanceCents: FieldRef<"Debt", 'Int'>
+    readonly aprBps: FieldRef<"Debt", 'Int'>
+    readonly minPaymentCents: FieldRef<"Debt", 'Int'>
+    readonly dueDay: FieldRef<"Debt", 'Int'>
+    readonly accountId: FieldRef<"Debt", 'String'>
+    readonly creditLimitCents: FieldRef<"Debt", 'Int'>
+    readonly source: FieldRef<"Debt", 'String'>
+    readonly isArchived: FieldRef<"Debt", 'Boolean'>
+    readonly sortOrder: FieldRef<"Debt", 'Int'>
+    readonly createdAt: FieldRef<"Debt", 'DateTime'>
+    readonly updatedAt: FieldRef<"Debt", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * Debt findUnique
+   */
+  export type DebtFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Debt
+     */
+    select?: DebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Debt
+     */
+    omit?: DebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DebtInclude<ExtArgs> | null
+    /**
+     * Filter, which Debt to fetch.
+     */
+    where: DebtWhereUniqueInput
+  }
+
+  /**
+   * Debt findUniqueOrThrow
+   */
+  export type DebtFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Debt
+     */
+    select?: DebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Debt
+     */
+    omit?: DebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DebtInclude<ExtArgs> | null
+    /**
+     * Filter, which Debt to fetch.
+     */
+    where: DebtWhereUniqueInput
+  }
+
+  /**
+   * Debt findFirst
+   */
+  export type DebtFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Debt
+     */
+    select?: DebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Debt
+     */
+    omit?: DebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DebtInclude<ExtArgs> | null
+    /**
+     * Filter, which Debt to fetch.
+     */
+    where?: DebtWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Debts to fetch.
+     */
+    orderBy?: DebtOrderByWithRelationInput | DebtOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Debts.
+     */
+    cursor?: DebtWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Debts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Debts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Debts.
+     */
+    distinct?: DebtScalarFieldEnum | DebtScalarFieldEnum[]
+  }
+
+  /**
+   * Debt findFirstOrThrow
+   */
+  export type DebtFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Debt
+     */
+    select?: DebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Debt
+     */
+    omit?: DebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DebtInclude<ExtArgs> | null
+    /**
+     * Filter, which Debt to fetch.
+     */
+    where?: DebtWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Debts to fetch.
+     */
+    orderBy?: DebtOrderByWithRelationInput | DebtOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Debts.
+     */
+    cursor?: DebtWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Debts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Debts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Debts.
+     */
+    distinct?: DebtScalarFieldEnum | DebtScalarFieldEnum[]
+  }
+
+  /**
+   * Debt findMany
+   */
+  export type DebtFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Debt
+     */
+    select?: DebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Debt
+     */
+    omit?: DebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DebtInclude<ExtArgs> | null
+    /**
+     * Filter, which Debts to fetch.
+     */
+    where?: DebtWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Debts to fetch.
+     */
+    orderBy?: DebtOrderByWithRelationInput | DebtOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing Debts.
+     */
+    cursor?: DebtWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Debts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Debts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Debts.
+     */
+    distinct?: DebtScalarFieldEnum | DebtScalarFieldEnum[]
+  }
+
+  /**
+   * Debt create
+   */
+  export type DebtCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Debt
+     */
+    select?: DebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Debt
+     */
+    omit?: DebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DebtInclude<ExtArgs> | null
+    /**
+     * The data needed to create a Debt.
+     */
+    data: XOR<DebtCreateInput, DebtUncheckedCreateInput>
+  }
+
+  /**
+   * Debt createMany
+   */
+  export type DebtCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many Debts.
+     */
+    data: DebtCreateManyInput | DebtCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * Debt createManyAndReturn
+   */
+  export type DebtCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Debt
+     */
+    select?: DebtSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the Debt
+     */
+    omit?: DebtOmit<ExtArgs> | null
+    /**
+     * The data used to create many Debts.
+     */
+    data: DebtCreateManyInput | DebtCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DebtIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * Debt update
+   */
+  export type DebtUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Debt
+     */
+    select?: DebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Debt
+     */
+    omit?: DebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DebtInclude<ExtArgs> | null
+    /**
+     * The data needed to update a Debt.
+     */
+    data: XOR<DebtUpdateInput, DebtUncheckedUpdateInput>
+    /**
+     * Choose, which Debt to update.
+     */
+    where: DebtWhereUniqueInput
+  }
+
+  /**
+   * Debt updateMany
+   */
+  export type DebtUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update Debts.
+     */
+    data: XOR<DebtUpdateManyMutationInput, DebtUncheckedUpdateManyInput>
+    /**
+     * Filter which Debts to update
+     */
+    where?: DebtWhereInput
+    /**
+     * Limit how many Debts to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * Debt updateManyAndReturn
+   */
+  export type DebtUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Debt
+     */
+    select?: DebtSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the Debt
+     */
+    omit?: DebtOmit<ExtArgs> | null
+    /**
+     * The data used to update Debts.
+     */
+    data: XOR<DebtUpdateManyMutationInput, DebtUncheckedUpdateManyInput>
+    /**
+     * Filter which Debts to update
+     */
+    where?: DebtWhereInput
+    /**
+     * Limit how many Debts to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DebtIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * Debt upsert
+   */
+  export type DebtUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Debt
+     */
+    select?: DebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Debt
+     */
+    omit?: DebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DebtInclude<ExtArgs> | null
+    /**
+     * The filter to search for the Debt to update in case it exists.
+     */
+    where: DebtWhereUniqueInput
+    /**
+     * In case the Debt found by the `where` argument doesn't exist, create a new Debt with this data.
+     */
+    create: XOR<DebtCreateInput, DebtUncheckedCreateInput>
+    /**
+     * In case the Debt was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<DebtUpdateInput, DebtUncheckedUpdateInput>
+  }
+
+  /**
+   * Debt delete
+   */
+  export type DebtDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Debt
+     */
+    select?: DebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Debt
+     */
+    omit?: DebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DebtInclude<ExtArgs> | null
+    /**
+     * Filter which Debt to delete.
+     */
+    where: DebtWhereUniqueInput
+  }
+
+  /**
+   * Debt deleteMany
+   */
+  export type DebtDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Debts to delete
+     */
+    where?: DebtWhereInput
+    /**
+     * Limit how many Debts to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * Debt without action
+   */
+  export type DebtDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Debt
+     */
+    select?: DebtSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Debt
+     */
+    omit?: DebtOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DebtInclude<ExtArgs> | null
   }
 
 
@@ -47383,6 +48813,27 @@ export namespace Prisma {
   export type BillScalarFieldEnum = (typeof BillScalarFieldEnum)[keyof typeof BillScalarFieldEnum]
 
 
+  export const DebtScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    name: 'name',
+    balanceCents: 'balanceCents',
+    originalBalanceCents: 'originalBalanceCents',
+    aprBps: 'aprBps',
+    minPaymentCents: 'minPaymentCents',
+    dueDay: 'dueDay',
+    accountId: 'accountId',
+    creditLimitCents: 'creditLimitCents',
+    source: 'source',
+    isArchived: 'isArchived',
+    sortOrder: 'sortOrder',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type DebtScalarFieldEnum = (typeof DebtScalarFieldEnum)[keyof typeof DebtScalarFieldEnum]
+
+
   export const GoalScalarFieldEnum: {
     id: 'id',
     userId: 'userId',
@@ -47972,6 +49423,7 @@ export namespace Prisma {
     goals?: GoalListRelationFilter
     allocationPlans?: AllocationPlanListRelationFilter
     bills?: BillListRelationFilter
+    debts?: DebtListRelationFilter
     auditLog?: AuditLogListRelationFilter
     auditLogRollup?: AuditLogDailyRollupListRelationFilter
     envelopeSinks?: EnvelopeSinkListRelationFilter
@@ -48000,6 +49452,7 @@ export namespace Prisma {
     goals?: GoalOrderByRelationAggregateInput
     allocationPlans?: AllocationPlanOrderByRelationAggregateInput
     bills?: BillOrderByRelationAggregateInput
+    debts?: DebtOrderByRelationAggregateInput
     auditLog?: AuditLogOrderByRelationAggregateInput
     auditLogRollup?: AuditLogDailyRollupOrderByRelationAggregateInput
     envelopeSinks?: EnvelopeSinkOrderByRelationAggregateInput
@@ -48031,6 +49484,7 @@ export namespace Prisma {
     goals?: GoalListRelationFilter
     allocationPlans?: AllocationPlanListRelationFilter
     bills?: BillListRelationFilter
+    debts?: DebtListRelationFilter
     auditLog?: AuditLogListRelationFilter
     auditLogRollup?: AuditLogDailyRollupListRelationFilter
     envelopeSinks?: EnvelopeSinkListRelationFilter
@@ -48759,6 +50213,113 @@ export namespace Prisma {
     sortOrder?: IntWithAggregatesFilter<"Bill"> | number
     createdAt?: DateTimeWithAggregatesFilter<"Bill"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Bill"> | Date | string
+  }
+
+  export type DebtWhereInput = {
+    AND?: DebtWhereInput | DebtWhereInput[]
+    OR?: DebtWhereInput[]
+    NOT?: DebtWhereInput | DebtWhereInput[]
+    id?: StringFilter<"Debt"> | string
+    userId?: StringFilter<"Debt"> | string
+    name?: StringFilter<"Debt"> | string
+    balanceCents?: IntFilter<"Debt"> | number
+    originalBalanceCents?: IntFilter<"Debt"> | number
+    aprBps?: IntFilter<"Debt"> | number
+    minPaymentCents?: IntFilter<"Debt"> | number
+    dueDay?: IntFilter<"Debt"> | number
+    accountId?: StringNullableFilter<"Debt"> | string | null
+    creditLimitCents?: IntNullableFilter<"Debt"> | number | null
+    source?: StringFilter<"Debt"> | string
+    isArchived?: BoolFilter<"Debt"> | boolean
+    sortOrder?: IntFilter<"Debt"> | number
+    createdAt?: DateTimeFilter<"Debt"> | Date | string
+    updatedAt?: DateTimeFilter<"Debt"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }
+
+  export type DebtOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    name?: SortOrder
+    balanceCents?: SortOrder
+    originalBalanceCents?: SortOrder
+    aprBps?: SortOrder
+    minPaymentCents?: SortOrder
+    dueDay?: SortOrder
+    accountId?: SortOrderInput | SortOrder
+    creditLimitCents?: SortOrderInput | SortOrder
+    source?: SortOrder
+    isArchived?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    user?: UserOrderByWithRelationInput
+  }
+
+  export type DebtWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: DebtWhereInput | DebtWhereInput[]
+    OR?: DebtWhereInput[]
+    NOT?: DebtWhereInput | DebtWhereInput[]
+    userId?: StringFilter<"Debt"> | string
+    name?: StringFilter<"Debt"> | string
+    balanceCents?: IntFilter<"Debt"> | number
+    originalBalanceCents?: IntFilter<"Debt"> | number
+    aprBps?: IntFilter<"Debt"> | number
+    minPaymentCents?: IntFilter<"Debt"> | number
+    dueDay?: IntFilter<"Debt"> | number
+    accountId?: StringNullableFilter<"Debt"> | string | null
+    creditLimitCents?: IntNullableFilter<"Debt"> | number | null
+    source?: StringFilter<"Debt"> | string
+    isArchived?: BoolFilter<"Debt"> | boolean
+    sortOrder?: IntFilter<"Debt"> | number
+    createdAt?: DateTimeFilter<"Debt"> | Date | string
+    updatedAt?: DateTimeFilter<"Debt"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }, "id">
+
+  export type DebtOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    name?: SortOrder
+    balanceCents?: SortOrder
+    originalBalanceCents?: SortOrder
+    aprBps?: SortOrder
+    minPaymentCents?: SortOrder
+    dueDay?: SortOrder
+    accountId?: SortOrderInput | SortOrder
+    creditLimitCents?: SortOrderInput | SortOrder
+    source?: SortOrder
+    isArchived?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: DebtCountOrderByAggregateInput
+    _avg?: DebtAvgOrderByAggregateInput
+    _max?: DebtMaxOrderByAggregateInput
+    _min?: DebtMinOrderByAggregateInput
+    _sum?: DebtSumOrderByAggregateInput
+  }
+
+  export type DebtScalarWhereWithAggregatesInput = {
+    AND?: DebtScalarWhereWithAggregatesInput | DebtScalarWhereWithAggregatesInput[]
+    OR?: DebtScalarWhereWithAggregatesInput[]
+    NOT?: DebtScalarWhereWithAggregatesInput | DebtScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"Debt"> | string
+    userId?: StringWithAggregatesFilter<"Debt"> | string
+    name?: StringWithAggregatesFilter<"Debt"> | string
+    balanceCents?: IntWithAggregatesFilter<"Debt"> | number
+    originalBalanceCents?: IntWithAggregatesFilter<"Debt"> | number
+    aprBps?: IntWithAggregatesFilter<"Debt"> | number
+    minPaymentCents?: IntWithAggregatesFilter<"Debt"> | number
+    dueDay?: IntWithAggregatesFilter<"Debt"> | number
+    accountId?: StringNullableWithAggregatesFilter<"Debt"> | string | null
+    creditLimitCents?: IntNullableWithAggregatesFilter<"Debt"> | number | null
+    source?: StringWithAggregatesFilter<"Debt"> | string
+    isArchived?: BoolWithAggregatesFilter<"Debt"> | boolean
+    sortOrder?: IntWithAggregatesFilter<"Debt"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"Debt"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"Debt"> | Date | string
   }
 
   export type GoalWhereInput = {
@@ -51099,6 +52660,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
+    debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
@@ -51127,6 +52689,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
@@ -51155,6 +52718,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
+    debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
@@ -51183,6 +52747,7 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
@@ -51995,6 +53560,131 @@ export namespace Prisma {
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     envelopeId?: NullableStringFieldUpdateOperationsInput | string | null
     accountId?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type DebtCreateInput = {
+    id?: string
+    name: string
+    balanceCents: number
+    originalBalanceCents: number
+    aprBps?: number
+    minPaymentCents?: number
+    dueDay?: number
+    accountId?: string | null
+    creditLimitCents?: number | null
+    source?: string
+    isArchived?: boolean
+    sortOrder?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutDebtsInput
+  }
+
+  export type DebtUncheckedCreateInput = {
+    id?: string
+    userId: string
+    name: string
+    balanceCents: number
+    originalBalanceCents: number
+    aprBps?: number
+    minPaymentCents?: number
+    dueDay?: number
+    accountId?: string | null
+    creditLimitCents?: number | null
+    source?: string
+    isArchived?: boolean
+    sortOrder?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type DebtUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    balanceCents?: IntFieldUpdateOperationsInput | number
+    originalBalanceCents?: IntFieldUpdateOperationsInput | number
+    aprBps?: IntFieldUpdateOperationsInput | number
+    minPaymentCents?: IntFieldUpdateOperationsInput | number
+    dueDay?: IntFieldUpdateOperationsInput | number
+    accountId?: NullableStringFieldUpdateOperationsInput | string | null
+    creditLimitCents?: NullableIntFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutDebtsNestedInput
+  }
+
+  export type DebtUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    balanceCents?: IntFieldUpdateOperationsInput | number
+    originalBalanceCents?: IntFieldUpdateOperationsInput | number
+    aprBps?: IntFieldUpdateOperationsInput | number
+    minPaymentCents?: IntFieldUpdateOperationsInput | number
+    dueDay?: IntFieldUpdateOperationsInput | number
+    accountId?: NullableStringFieldUpdateOperationsInput | string | null
+    creditLimitCents?: NullableIntFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type DebtCreateManyInput = {
+    id?: string
+    userId: string
+    name: string
+    balanceCents: number
+    originalBalanceCents: number
+    aprBps?: number
+    minPaymentCents?: number
+    dueDay?: number
+    accountId?: string | null
+    creditLimitCents?: number | null
+    source?: string
+    isArchived?: boolean
+    sortOrder?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type DebtUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    balanceCents?: IntFieldUpdateOperationsInput | number
+    originalBalanceCents?: IntFieldUpdateOperationsInput | number
+    aprBps?: IntFieldUpdateOperationsInput | number
+    minPaymentCents?: IntFieldUpdateOperationsInput | number
+    dueDay?: IntFieldUpdateOperationsInput | number
+    accountId?: NullableStringFieldUpdateOperationsInput | string | null
+    creditLimitCents?: NullableIntFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type DebtUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    balanceCents?: IntFieldUpdateOperationsInput | number
+    originalBalanceCents?: IntFieldUpdateOperationsInput | number
+    aprBps?: IntFieldUpdateOperationsInput | number
+    minPaymentCents?: IntFieldUpdateOperationsInput | number
+    dueDay?: IntFieldUpdateOperationsInput | number
+    accountId?: NullableStringFieldUpdateOperationsInput | string | null
+    creditLimitCents?: NullableIntFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -54682,6 +56372,12 @@ export namespace Prisma {
     none?: BillWhereInput
   }
 
+  export type DebtListRelationFilter = {
+    every?: DebtWhereInput
+    some?: DebtWhereInput
+    none?: DebtWhereInput
+  }
+
   export type AuditLogListRelationFilter = {
     every?: AuditLogWhereInput
     some?: AuditLogWhereInput
@@ -54754,6 +56450,10 @@ export namespace Prisma {
   }
 
   export type BillOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type DebtOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -55366,6 +57066,80 @@ export namespace Prisma {
     _count?: NestedIntNullableFilter<$PrismaModel>
     _min?: NestedDateTimeNullableFilter<$PrismaModel>
     _max?: NestedDateTimeNullableFilter<$PrismaModel>
+  }
+
+  export type DebtCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    name?: SortOrder
+    balanceCents?: SortOrder
+    originalBalanceCents?: SortOrder
+    aprBps?: SortOrder
+    minPaymentCents?: SortOrder
+    dueDay?: SortOrder
+    accountId?: SortOrder
+    creditLimitCents?: SortOrder
+    source?: SortOrder
+    isArchived?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type DebtAvgOrderByAggregateInput = {
+    balanceCents?: SortOrder
+    originalBalanceCents?: SortOrder
+    aprBps?: SortOrder
+    minPaymentCents?: SortOrder
+    dueDay?: SortOrder
+    creditLimitCents?: SortOrder
+    sortOrder?: SortOrder
+  }
+
+  export type DebtMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    name?: SortOrder
+    balanceCents?: SortOrder
+    originalBalanceCents?: SortOrder
+    aprBps?: SortOrder
+    minPaymentCents?: SortOrder
+    dueDay?: SortOrder
+    accountId?: SortOrder
+    creditLimitCents?: SortOrder
+    source?: SortOrder
+    isArchived?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type DebtMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    name?: SortOrder
+    balanceCents?: SortOrder
+    originalBalanceCents?: SortOrder
+    aprBps?: SortOrder
+    minPaymentCents?: SortOrder
+    dueDay?: SortOrder
+    accountId?: SortOrder
+    creditLimitCents?: SortOrder
+    source?: SortOrder
+    isArchived?: SortOrder
+    sortOrder?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type DebtSumOrderByAggregateInput = {
+    balanceCents?: SortOrder
+    originalBalanceCents?: SortOrder
+    aprBps?: SortOrder
+    minPaymentCents?: SortOrder
+    dueDay?: SortOrder
+    creditLimitCents?: SortOrder
+    sortOrder?: SortOrder
   }
 
   export type EnumGoalKindFilter<$PrismaModel = never> = {
@@ -57039,6 +58813,13 @@ export namespace Prisma {
     connect?: BillWhereUniqueInput | BillWhereUniqueInput[]
   }
 
+  export type DebtCreateNestedManyWithoutUserInput = {
+    create?: XOR<DebtCreateWithoutUserInput, DebtUncheckedCreateWithoutUserInput> | DebtCreateWithoutUserInput[] | DebtUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: DebtCreateOrConnectWithoutUserInput | DebtCreateOrConnectWithoutUserInput[]
+    createMany?: DebtCreateManyUserInputEnvelope
+    connect?: DebtWhereUniqueInput | DebtWhereUniqueInput[]
+  }
+
   export type AuditLogCreateNestedManyWithoutUserInput = {
     create?: XOR<AuditLogCreateWithoutUserInput, AuditLogUncheckedCreateWithoutUserInput> | AuditLogCreateWithoutUserInput[] | AuditLogUncheckedCreateWithoutUserInput[]
     connectOrCreate?: AuditLogCreateOrConnectWithoutUserInput | AuditLogCreateOrConnectWithoutUserInput[]
@@ -57138,6 +58919,13 @@ export namespace Prisma {
     connectOrCreate?: BillCreateOrConnectWithoutUserInput | BillCreateOrConnectWithoutUserInput[]
     createMany?: BillCreateManyUserInputEnvelope
     connect?: BillWhereUniqueInput | BillWhereUniqueInput[]
+  }
+
+  export type DebtUncheckedCreateNestedManyWithoutUserInput = {
+    create?: XOR<DebtCreateWithoutUserInput, DebtUncheckedCreateWithoutUserInput> | DebtCreateWithoutUserInput[] | DebtUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: DebtCreateOrConnectWithoutUserInput | DebtCreateOrConnectWithoutUserInput[]
+    createMany?: DebtCreateManyUserInputEnvelope
+    connect?: DebtWhereUniqueInput | DebtWhereUniqueInput[]
   }
 
   export type AuditLogUncheckedCreateNestedManyWithoutUserInput = {
@@ -57315,6 +59103,20 @@ export namespace Prisma {
     update?: BillUpdateWithWhereUniqueWithoutUserInput | BillUpdateWithWhereUniqueWithoutUserInput[]
     updateMany?: BillUpdateManyWithWhereWithoutUserInput | BillUpdateManyWithWhereWithoutUserInput[]
     deleteMany?: BillScalarWhereInput | BillScalarWhereInput[]
+  }
+
+  export type DebtUpdateManyWithoutUserNestedInput = {
+    create?: XOR<DebtCreateWithoutUserInput, DebtUncheckedCreateWithoutUserInput> | DebtCreateWithoutUserInput[] | DebtUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: DebtCreateOrConnectWithoutUserInput | DebtCreateOrConnectWithoutUserInput[]
+    upsert?: DebtUpsertWithWhereUniqueWithoutUserInput | DebtUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: DebtCreateManyUserInputEnvelope
+    set?: DebtWhereUniqueInput | DebtWhereUniqueInput[]
+    disconnect?: DebtWhereUniqueInput | DebtWhereUniqueInput[]
+    delete?: DebtWhereUniqueInput | DebtWhereUniqueInput[]
+    connect?: DebtWhereUniqueInput | DebtWhereUniqueInput[]
+    update?: DebtUpdateWithWhereUniqueWithoutUserInput | DebtUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: DebtUpdateManyWithWhereWithoutUserInput | DebtUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: DebtScalarWhereInput | DebtScalarWhereInput[]
   }
 
   export type AuditLogUpdateManyWithoutUserNestedInput = {
@@ -57509,6 +59311,20 @@ export namespace Prisma {
     update?: BillUpdateWithWhereUniqueWithoutUserInput | BillUpdateWithWhereUniqueWithoutUserInput[]
     updateMany?: BillUpdateManyWithWhereWithoutUserInput | BillUpdateManyWithWhereWithoutUserInput[]
     deleteMany?: BillScalarWhereInput | BillScalarWhereInput[]
+  }
+
+  export type DebtUncheckedUpdateManyWithoutUserNestedInput = {
+    create?: XOR<DebtCreateWithoutUserInput, DebtUncheckedCreateWithoutUserInput> | DebtCreateWithoutUserInput[] | DebtUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: DebtCreateOrConnectWithoutUserInput | DebtCreateOrConnectWithoutUserInput[]
+    upsert?: DebtUpsertWithWhereUniqueWithoutUserInput | DebtUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: DebtCreateManyUserInputEnvelope
+    set?: DebtWhereUniqueInput | DebtWhereUniqueInput[]
+    disconnect?: DebtWhereUniqueInput | DebtWhereUniqueInput[]
+    delete?: DebtWhereUniqueInput | DebtWhereUniqueInput[]
+    connect?: DebtWhereUniqueInput | DebtWhereUniqueInput[]
+    update?: DebtUpdateWithWhereUniqueWithoutUserInput | DebtUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: DebtUpdateManyWithWhereWithoutUserInput | DebtUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: DebtScalarWhereInput | DebtScalarWhereInput[]
   }
 
   export type AuditLogUncheckedUpdateManyWithoutUserNestedInput = {
@@ -58005,6 +59821,20 @@ export namespace Prisma {
     upsert?: UserUpsertWithoutBillsInput
     connect?: UserWhereUniqueInput
     update?: XOR<XOR<UserUpdateToOneWithWhereWithoutBillsInput, UserUpdateWithoutBillsInput>, UserUncheckedUpdateWithoutBillsInput>
+  }
+
+  export type UserCreateNestedOneWithoutDebtsInput = {
+    create?: XOR<UserCreateWithoutDebtsInput, UserUncheckedCreateWithoutDebtsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutDebtsInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type UserUpdateOneRequiredWithoutDebtsNestedInput = {
+    create?: XOR<UserCreateWithoutDebtsInput, UserUncheckedCreateWithoutDebtsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutDebtsInput
+    upsert?: UserUpsertWithoutDebtsInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutDebtsInput, UserUpdateWithoutDebtsInput>, UserUncheckedUpdateWithoutDebtsInput>
   }
 
   export type UserCreateNestedOneWithoutGoalsInput = {
@@ -59720,6 +61550,50 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type DebtCreateWithoutUserInput = {
+    id?: string
+    name: string
+    balanceCents: number
+    originalBalanceCents: number
+    aprBps?: number
+    minPaymentCents?: number
+    dueDay?: number
+    accountId?: string | null
+    creditLimitCents?: number | null
+    source?: string
+    isArchived?: boolean
+    sortOrder?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type DebtUncheckedCreateWithoutUserInput = {
+    id?: string
+    name: string
+    balanceCents: number
+    originalBalanceCents: number
+    aprBps?: number
+    minPaymentCents?: number
+    dueDay?: number
+    accountId?: string | null
+    creditLimitCents?: number | null
+    source?: string
+    isArchived?: boolean
+    sortOrder?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type DebtCreateOrConnectWithoutUserInput = {
+    where: DebtWhereUniqueInput
+    create: XOR<DebtCreateWithoutUserInput, DebtUncheckedCreateWithoutUserInput>
+  }
+
+  export type DebtCreateManyUserInputEnvelope = {
+    data: DebtCreateManyUserInput | DebtCreateManyUserInput[]
+    skipDuplicates?: boolean
+  }
+
   export type AuditLogCreateWithoutUserInput = {
     id?: string
     actionType: string
@@ -60275,6 +62149,43 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"Bill"> | Date | string
   }
 
+  export type DebtUpsertWithWhereUniqueWithoutUserInput = {
+    where: DebtWhereUniqueInput
+    update: XOR<DebtUpdateWithoutUserInput, DebtUncheckedUpdateWithoutUserInput>
+    create: XOR<DebtCreateWithoutUserInput, DebtUncheckedCreateWithoutUserInput>
+  }
+
+  export type DebtUpdateWithWhereUniqueWithoutUserInput = {
+    where: DebtWhereUniqueInput
+    data: XOR<DebtUpdateWithoutUserInput, DebtUncheckedUpdateWithoutUserInput>
+  }
+
+  export type DebtUpdateManyWithWhereWithoutUserInput = {
+    where: DebtScalarWhereInput
+    data: XOR<DebtUpdateManyMutationInput, DebtUncheckedUpdateManyWithoutUserInput>
+  }
+
+  export type DebtScalarWhereInput = {
+    AND?: DebtScalarWhereInput | DebtScalarWhereInput[]
+    OR?: DebtScalarWhereInput[]
+    NOT?: DebtScalarWhereInput | DebtScalarWhereInput[]
+    id?: StringFilter<"Debt"> | string
+    userId?: StringFilter<"Debt"> | string
+    name?: StringFilter<"Debt"> | string
+    balanceCents?: IntFilter<"Debt"> | number
+    originalBalanceCents?: IntFilter<"Debt"> | number
+    aprBps?: IntFilter<"Debt"> | number
+    minPaymentCents?: IntFilter<"Debt"> | number
+    dueDay?: IntFilter<"Debt"> | number
+    accountId?: StringNullableFilter<"Debt"> | string | null
+    creditLimitCents?: IntNullableFilter<"Debt"> | number | null
+    source?: StringFilter<"Debt"> | string
+    isArchived?: BoolFilter<"Debt"> | boolean
+    sortOrder?: IntFilter<"Debt"> | number
+    createdAt?: DateTimeFilter<"Debt"> | Date | string
+    updatedAt?: DateTimeFilter<"Debt"> | Date | string
+  }
+
   export type AuditLogUpsertWithWhereUniqueWithoutUserInput = {
     where: AuditLogWhereUniqueInput
     update: XOR<AuditLogUpdateWithoutUserInput, AuditLogUncheckedUpdateWithoutUserInput>
@@ -60594,6 +62505,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
+    debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
@@ -60621,6 +62533,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
@@ -60664,6 +62577,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
+    debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
@@ -60691,6 +62605,7 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
@@ -60718,6 +62633,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
+    debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
@@ -60745,6 +62661,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
@@ -60866,6 +62783,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
+    debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
@@ -60893,6 +62811,7 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
@@ -60952,6 +62871,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
+    debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
@@ -60979,6 +62899,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
@@ -61175,6 +63096,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
+    debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
@@ -61202,6 +63124,7 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
@@ -61386,6 +63309,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
+    debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
@@ -61413,6 +63337,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
@@ -61509,6 +63434,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
+    debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
@@ -61536,6 +63462,7 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
@@ -61562,6 +63489,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
+    debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
@@ -61589,6 +63517,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
@@ -61718,6 +63647,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
+    debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
@@ -61745,6 +63675,7 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
@@ -61870,6 +63801,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
+    debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
@@ -61897,6 +63829,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
@@ -61979,6 +63912,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
+    debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
@@ -62006,6 +63940,7 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
@@ -62078,6 +64013,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
@@ -62105,6 +64041,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
@@ -62148,6 +64085,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
@@ -62175,6 +64113,135 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
+    auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
+  }
+
+  export type UserCreateWithoutDebtsInput = {
+    id?: string
+    name: string
+    email: string
+    passwordHash: string
+    aiTier?: number
+    routingLevel?: number
+    defaultViewId?: string | null
+    settings?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    sessions?: SessionCreateNestedManyWithoutUserInput
+    accounts?: AccountCreateNestedManyWithoutUserInput
+    envelopes?: EnvelopeCreateNestedManyWithoutUserInput
+    transactions?: TransactionCreateNestedManyWithoutUserInput
+    paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
+    goals?: GoalCreateNestedManyWithoutUserInput
+    allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    bills?: BillCreateNestedManyWithoutUserInput
+    auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutDebtsInput = {
+    id?: string
+    name: string
+    email: string
+    passwordHash: string
+    aiTier?: number
+    routingLevel?: number
+    defaultViewId?: string | null
+    settings?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
+    accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
+    envelopes?: EnvelopeUncheckedCreateNestedManyWithoutUserInput
+    transactions?: TransactionUncheckedCreateNestedManyWithoutUserInput
+    paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
+    goals?: GoalUncheckedCreateNestedManyWithoutUserInput
+    allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutDebtsInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutDebtsInput, UserUncheckedCreateWithoutDebtsInput>
+  }
+
+  export type UserUpsertWithoutDebtsInput = {
+    update: XOR<UserUpdateWithoutDebtsInput, UserUncheckedUpdateWithoutDebtsInput>
+    create: XOR<UserCreateWithoutDebtsInput, UserUncheckedCreateWithoutDebtsInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutDebtsInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutDebtsInput, UserUncheckedUpdateWithoutDebtsInput>
+  }
+
+  export type UserUpdateWithoutDebtsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    aiTier?: IntFieldUpdateOperationsInput | number
+    routingLevel?: IntFieldUpdateOperationsInput | number
+    defaultViewId?: NullableStringFieldUpdateOperationsInput | string | null
+    settings?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    sessions?: SessionUpdateManyWithoutUserNestedInput
+    accounts?: AccountUpdateManyWithoutUserNestedInput
+    envelopes?: EnvelopeUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUpdateManyWithoutUserNestedInput
+    paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
+    goals?: GoalUpdateManyWithoutUserNestedInput
+    allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    bills?: BillUpdateManyWithoutUserNestedInput
+    auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutDebtsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    aiTier?: IntFieldUpdateOperationsInput | number
+    routingLevel?: IntFieldUpdateOperationsInput | number
+    defaultViewId?: NullableStringFieldUpdateOperationsInput | string | null
+    settings?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
+    accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
+    envelopes?: EnvelopeUncheckedUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUncheckedUpdateManyWithoutUserNestedInput
+    paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
+    goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
+    allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
@@ -62202,6 +64269,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
+    debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
@@ -62229,6 +64297,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
@@ -62272,6 +64341,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
+    debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
@@ -62299,6 +64369,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
@@ -62326,6 +64397,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
+    debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
@@ -62353,6 +64425,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
@@ -62426,6 +64499,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
+    debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
@@ -62453,6 +64527,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
@@ -62657,6 +64732,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
+    debts?: DebtCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
@@ -62684,6 +64760,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
@@ -62727,6 +64804,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
+    debts?: DebtUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
@@ -62754,6 +64832,7 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
@@ -62781,6 +64860,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
+    debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityCreateNestedOneWithoutUserInput
@@ -62808,6 +64888,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
     identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
@@ -62851,6 +64932,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
+    debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
@@ -62878,6 +64960,7 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
     identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
@@ -62905,6 +64988,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
+    debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
@@ -62932,6 +65016,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
@@ -63257,6 +65342,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
+    debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
@@ -63284,6 +65370,7 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
@@ -64955,6 +67042,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
+    debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
@@ -64982,6 +67070,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
@@ -65161,6 +67250,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
+    debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
@@ -65188,6 +67278,7 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
@@ -66375,6 +68466,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
+    debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
@@ -66402,6 +68494,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
@@ -66445,6 +68538,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
+    debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
@@ -66472,6 +68566,7 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
@@ -66499,6 +68594,7 @@ export namespace Prisma {
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
+    debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
@@ -66526,6 +68622,7 @@ export namespace Prisma {
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
     envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
@@ -66569,6 +68666,7 @@ export namespace Prisma {
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
+    debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
@@ -66596,6 +68694,7 @@ export namespace Prisma {
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
     envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
@@ -66716,6 +68815,23 @@ export namespace Prisma {
     isArchived?: boolean
     envelopeId?: string | null
     accountId?: string | null
+    sortOrder?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type DebtCreateManyUserInput = {
+    id?: string
+    name: string
+    balanceCents: number
+    originalBalanceCents: number
+    aprBps?: number
+    minPaymentCents?: number
+    dueDay?: number
+    accountId?: string | null
+    creditLimitCents?: number | null
+    source?: string
+    isArchived?: boolean
     sortOrder?: number
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -67112,6 +69228,57 @@ export namespace Prisma {
     isArchived?: BoolFieldUpdateOperationsInput | boolean
     envelopeId?: NullableStringFieldUpdateOperationsInput | string | null
     accountId?: NullableStringFieldUpdateOperationsInput | string | null
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type DebtUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    balanceCents?: IntFieldUpdateOperationsInput | number
+    originalBalanceCents?: IntFieldUpdateOperationsInput | number
+    aprBps?: IntFieldUpdateOperationsInput | number
+    minPaymentCents?: IntFieldUpdateOperationsInput | number
+    dueDay?: IntFieldUpdateOperationsInput | number
+    accountId?: NullableStringFieldUpdateOperationsInput | string | null
+    creditLimitCents?: NullableIntFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type DebtUncheckedUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    balanceCents?: IntFieldUpdateOperationsInput | number
+    originalBalanceCents?: IntFieldUpdateOperationsInput | number
+    aprBps?: IntFieldUpdateOperationsInput | number
+    minPaymentCents?: IntFieldUpdateOperationsInput | number
+    dueDay?: IntFieldUpdateOperationsInput | number
+    accountId?: NullableStringFieldUpdateOperationsInput | string | null
+    creditLimitCents?: NullableIntFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type DebtUncheckedUpdateManyWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    balanceCents?: IntFieldUpdateOperationsInput | number
+    originalBalanceCents?: IntFieldUpdateOperationsInput | number
+    aprBps?: IntFieldUpdateOperationsInput | number
+    minPaymentCents?: IntFieldUpdateOperationsInput | number
+    dueDay?: IntFieldUpdateOperationsInput | number
+    accountId?: NullableStringFieldUpdateOperationsInput | string | null
+    creditLimitCents?: NullableIntFieldUpdateOperationsInput | number | null
+    source?: StringFieldUpdateOperationsInput | string
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
     sortOrder?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string

@@ -23,6 +23,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { chromium } from "playwright";
 import { prisma } from "./db-client.mjs";
+import { assertRealDebtValues, assertDebtRowIntegrity } from "./debt-value-assertions.mjs";
 import { createFixture } from "./fixture.mjs";
 import { exitCodeFor, recordSkip } from "./skip-guard.mjs";
 
@@ -156,6 +157,19 @@ if (!serverUp) {
         // The new interactive list renders a data-testid on the container
         html.includes("debt-list-interactive"),
     );
+
+    // ---- Real-value assertions -------------------------------------
+    // These read the actual rows out of Postgres and require the page
+    // to show those exact figures. The source-regex checks above all
+    // passed while the utilization feature rendered for nobody, because
+    // they never looked at a value.
+    const debtRows = await assertRealDebtValues({
+      prisma,
+      userId: fx.userId,
+      html: html,
+      check,
+    });
+    assertDebtRowIntegrity({ rows: debtRows, check });
 
     await browser.close();
     await fx.cleanup();

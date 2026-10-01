@@ -36,6 +36,7 @@ import { ensureUserBillsSeeded } from "@/lib/seed-bills";
 import { ensureUserGoalsSeeded } from "@/lib/seed-goals";
 import { ensureUserAllocationSeeded } from "@/lib/seed-allocation";
 import { ensureUserAccountsSeeded } from "@/lib/seed-accounts";
+import { ensureUserDebtsSeeded } from "@/lib/seed-debts";
 import { revalidatePath } from "next/cache";
 
 export async function POST() {
@@ -60,6 +61,7 @@ export async function POST() {
     // Prisma Account table, and the canonical ACCOUNT_SEED (1 row)
     // needs to be migrated for the page to render the right data.
     await ensureUserAccountsSeeded(user.id);
+  await ensureUserDebtsSeeded(user.id);
     // Also wipe + reseed the in-memory store for THIS user only. The
     // store keys its state by userId, so a stranger can't reach another
     // user's balances and a reset can't wipe them by accident.

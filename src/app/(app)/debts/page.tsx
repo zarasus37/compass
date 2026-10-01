@@ -2,7 +2,7 @@ import * as React from "react";
 import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
 import {
-  liveDebts,
+  liveDebtsFromDb,
   liveAccountsFromDb,
   TODAY,
 } from "@/lib/mock";
@@ -51,7 +51,13 @@ export default async function DebtsPage() {
     ...ACCOUNTS_BUCKETS.canonical,
     ...ACCOUNTS_BUCKETS.projected,
   ];
-  const DEBTS = liveDebts(user.id);
+  const DEBTS = await liveDebtsFromDb(user.id).catch(() => {
+    // Same defensive posture as the accounts read above: a failed debt
+    // read must still render the page. An empty list here produces the
+    // real empty state, not a crash.
+    console.error("[debts] liveDebtsFromDb failed");
+    return [];
+  });
 
   // Map debtId → linked Account. A debt's `accountId` may not
   // resolve (account deleted, debt was manually entered). The Map
