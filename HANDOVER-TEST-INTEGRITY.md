@@ -168,6 +168,52 @@ renders.
   collapsed) + `[15b]` (`setViewportSize(1280)`, reload, caption present).
 - `smoke-debts-mobile` `[1]` — the stale useMediaQuery shape, §3.
 
+### 3d. OPEN, NOT A PRODUCTION BUG — the blank (app) 404 on `pnpm dev`
+
+On the dev server, a `notFound()` raised by a page inside the `(app)`
+group returns **HTTP 404 with an empty visible body** — the whole body is
+the document title. Five routes call `notFound()`:
+
+- `(app)/envelopes/[id]/page.tsx`
+- `(app)/envelopes/[id]/edit/page.tsx`
+- `(app)/envelopes/[id]/edit-target/page.tsx`
+- `(app)/goals/[id]/page.tsx`
+- `(app)/goals/[id]/edit/page.tsx`
+
+The response is Next's **global error fallback**, identified by
+`<html id="__next_error__">`, `<meta name="next-error" content="not-found">`
+and a `resolveErrorDev` frame in the stack. There is no
+`global-error.tsx`, so in dev nothing fills the gap.
+
+**What was checked before concluding anything:**
+
+- The **root** boundary renders correctly on the same dev server
+  (`/definitely-not-a-route` shows the full card), so this is not a
+  missing-boundary problem in the usual sense.
+- **Deleting `(app)/not-found.tsx` entirely does not change it** —
+  measured, and the deletion was reverted. The theory that a route group
+  with no `page.tsx` never joins the route tree, so the group boundary
+  was shadowed by the root one, is **false**.
+- A **local production build cannot be exercised**: `next build`
+  succeeds, but `next start` refuses with
+  `[prod-env] refused to start in production` unless the real production
+  `DATABASE_URL`, `MAVIS_API_KEY`, `LLM_PROVIDER` and `VAULT_CHAIN_ID`
+  are set. Those were **not** faked.
+- The **real deployment** was checked read-only instead:
+  `compass-mom.vercel.app/definitely-not-a-route` returns the card and
+  contains **no** `__next_error__` document.
+
+So the blank body is **confined to the dev server**, and production does
+not use the global-error fallback. The `(app)` case in production still
+needs one authenticated request to confirm; that is left open rather than
+assumed.
+
+**Consequence for tests:** do **not** add an assertion that a 404 body is
+visibly non-empty — it would fail against dev, and encoding a dev-only
+artifact as an invariant is exactly the mistake §3a is about. `smoke-envelope-detail-db`
+[2c] instead proves its detector fires against a route that genuinely
+renders the card.
+
 ## 4. Carried forward (still true)
 
 **A `GET /login` server probe with `AbortSignal.timeout(2000)` reports a
