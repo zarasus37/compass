@@ -260,6 +260,30 @@ async function provisionBaseline(fx) {
     },
   });
 
+  // PaySchedule — what the AUTOMATIC paycheck trigger reads.
+  //
+  // Only `src/app/setup/actions.ts` creates these, i.e. only the 5-step
+  // setup wizard. Without one here, every fixture user had no pay
+  // schedule and `smoke-auto-paycheck` correctly failed with "no active
+  // schedule" — the scheduler had nothing to read.
+  //
+  // The anchor is placed in the past so `payDateInPeriod` resolves a pay
+  // date inside the CURRENT period rather than a future one.
+  {
+    const anchor = new Date();
+    anchor.setDate(anchor.getDate() - 28); // 2 biweekly periods back
+    await prisma.paySchedule.create({
+      data: {
+        userId: fx.userId,
+        cadence: "biweekly",
+        amount: 182_000, // $1,820 — matches the dashboard simulator default
+        accountId: ids.account,
+        startDate: anchor,
+        isActive: true,
+      },
+    });
+  }
+
   for (const [i, e] of ENVELOPES_SEED.entries()) {
     const id = seededId(fx.userId, e.id);
     ids.envelopes[e.id] = id;

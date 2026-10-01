@@ -1,349 +1,223 @@
-﻿# 🚨 READ FIRST — Session Briefing (2026-09-30 ~13:20 UTC)
+﻿docs(handover): the budgeting loop is persisted and automatic; hand off
 
-> ## 🎯 If you are here to build DEBTS, read `DEBTS-PERSISTENCE-BRIEF.md`
-> That is the pickup brief: what to build, the exact field shape, the
-> files to touch, the trap, and what "done" means. xKryptic approved it
-> explicitly. Everything below is the test-suite state that leads to it.
+Supersedes the previous briefing in this file. The test tail is done AND
+the budgeting side has moved from "never worked" to "persisted, guarded,
+and triggered automatically."
 
-**Supersedes every earlier briefing in this file.** The shared-user
-landmine is defused, wall 8 is CI-confirmed cleared, and the seven
-`smoke-debts-*` are migrated and green locally. The test tail is done —
-the next block of work is the debts persistence feature.
+═══════════════════════════════════════════════════════════════════════
+## (a) COMPLETED WORK
+═══════════════════════════════════════════════════════════════════════
 
-**The headline finding is §3b, and it is a product bug, not a test bug.**
-`toDisplayDebt` silently dropped `creditLimitCents`, so the utilization
-caption, gauge and rainbow gradient had never rendered for any user.
-Seven source-regex smokes could not see it.
+Shipped (all pushed to `main`, all CI-green):
 
----
-
-## 1. Where `main` is
-
-| Commit | What it is |
+| Commit | What |
 |---|---|
-| `066270e` | restore `creditLimitCents` in `toDisplayDebt`; migrate the 7 debts smokes to the fixture |
-| `09efb0a` | defuse the `escape-hatches` landmine; clear wall 8; fix a vacuous pass |
-| `de3b688` | docs: add the debts persistence pickup brief |
-| `d5d22f4` | clear `smoke-envelopes-list-defensive-reads` (5th landmine wall) |
-| `b9c3c51` | clear `smoke-envelope-detail-section-errors` (4th landmine wall) |
-| `e2be407` | clear `smoke-envelope-detail-null-planet` (the vacuous pass) |
-| `424ab47` | clear `smoke-ui-envelope-reads` |
-| `8ed91f4` | root `app/not-found.tsx`; clear `smoke-ui-dashboard-db` |
-| `05e64e8` | clear `smoke-setup-wizard`, then `smoke-change-password` |
+| `09efb0a` | Defused the `smoke-escape-hatches` landmine; cleared wall 8; fixed a vacuous pass |
+| `066270e` | **Product bug** — `toDisplayDebt` dropped `creditLimitCents`; migrated the 7 debts smokes to the fixture |
+| `1677415` | **Product bug** — `(app)/not-found.tsx` leaked legacy tokens into every page's RSC payload |
+| `5bf1232` | Debts persisted (Debt model + `liveDebtsFromDb` + transactional writes) |
+| `35aeafa` | Third-time-stale debt-reader assertion, fixed at the intent not the name |
+| `7266bad` | **Persisted the paycheck allocation engine**; mounted `PaycheckSimulator` |
+| `935b8fb` | Fixed a regression I caused (hardcoded vessel names in the new card) |
+| `1fff191` | **Persisted transactions** — the last entity on the in-memory store |
+| *uncommitted at handoff* | Automatic paycheck trigger + fixture PaySchedule + this handover |
 
-All pushed to `origin/main`.
+**CI is green** on `36829232662` and `36840537868` (13m+ each, full pipeline
+across all four chains). It has been green for several consecutive runs.
 
-## 2. What the chain has cleared, and what it died on
+### Three real product bugs found — none of them visible to the old suite
 
-CI is the arbiter.
+1. **`toDisplayDebt` dropped `creditLimitCents`.** So `utilizationPct` was
+   always null and the utilization caption, gauge and rainbow gradient
+   (Clusters 7.48/7.49/7.50) **had never rendered for any user**.
+2. **`(app)/not-found.tsx` used legacy tokens.** Next serializes the error
+   boundary into the RSC payload for every `(app)` route, so one
+   un-migrated 404 card leaked `var(--surface)`/`var(--line)` into every
+   page's payload.
+3. **The allocation engine wrote to a process-local store** while every
+   page read Postgres. Measured before the fix: **7/7 envelopes moved in
+   memory, 0/7 in the database.**
 
-| Commit | Runtime | Died at |
+### And two of the core flows were unreachable entirely
+
+- `PaycheckSimulator` was written in Cluster 1.8 and **never imported
+  anywhere**. The engine had no reachable UI.
+- `Transaction` rows went only to the in-memory store: **0 rows in
+  Postgres, 6 in memory**, all six rendered on `/transactions`, all six
+  gone on restart.
+
+### What is now durable
+
+Envelopes, bills, goals, accounts, allocation plan, debts, paycheck
+allocation, transactions. **Nothing on a user-facing path reads
+`globalThis.__COMPASS_STORE__` any more.**
+
+═══════════════════════════════════════════════════════════════════════
+## (b) NEXT — THE RANGE
+═══════════════════════════════════════════════════════════════════════
+
+Against xKryptic's own 10-item roadmap:
+
+| # | Item | State |
 |---|---|---|
-| `424ab47` | 9m20s | `smoke-envelope-detail-null-planet` |
-| `e2be407` | 9m30s | `smoke-envelope-detail-section-errors` |
-| `b9c3c51` | 9m33s | `smoke-envelopes-list-defensive-reads` |
-| `d5d22f4` | 9m34s | `smoke-client-error-capture` ← wall 8 |
-| `09efb0a` | 9m25s | `smoke-debts-tier` [23] — **wall 8 passed** |
-| `066270e` | ? | ? ← **the only open CI question** |
+| 1 | Tests | ✅ done, and now trustworthy |
+| 2 | End-to-end budgeting | ⚠️ **substantially advanced, not done** |
+| 3 | State consistency | ⚠️ partial — persistence is real, canonical state is not |
+| 4 | Canonical state | ❌ not started — no `FinancialState` symbol exists |
+| 5 | State-aware rules | ❌ `AllocationRule` is `pct` + `fixedCents` only |
+| 6 | Rule conflicts | ❌ no priority resolution |
+| 7 | Edge cases | ❌ no shortfall model |
+| 8 | Deterministic execution | ⚠️ **partially done** — `PaycheckRun` guards the paycheck; nothing guards rebalance/bills |
+| 9 | Explainability | ⚠️ partial — audit rows exist; no per-decision "why" |
+| 10 | Zero-touch paycheck test | ✅ **done** (`smoke-auto-paycheck`, 10/0) |
 
-Eight walls fixed. Wall 8 is CI-confirmed: `smoke-client-error-capture`
-reported **24 pass / 0 miss** on run `36717670391`, and the chain
-advanced past it for the first time.
+**The next RANGE, in order:**
 
-| Wall | Before | After |
-|---|---|---|
-| `smoke-setup-wizard` | 2 MISS + P2025 crash | 31 / 0 |
-| `smoke-change-password` | 4 MISS | 40 / 0 |
-| `smoke-ui-dashboard-db` | 4 MISS | 11 / 0 |
-| `smoke-ui-envelope-reads` | 2 MISS + 30s hang | 20 / 0 |
-| `smoke-envelope-detail-null-planet` | 1 MISS | 6 / 0 |
-| `smoke-envelope-detail-section-errors` | 1 MISS | 12 / 0 |
-| `smoke-envelopes-list-defensive-reads` | 1 MISS | 8 / 0 |
-| `smoke-client-error-capture` | 1 MISS `[22]` | **24 / 0 — CI-confirmed** |
-| `smoke-debts-tier` | 1 MISS `[23]` | **26 / 0 — local, awaiting CI** |
-| the other six `smoke-debts-*` | 5 failing | **all green — local, awaiting CI** |
+**1. Land and confirm the automatic trigger** (if it is not yet pushed and
+   green). It is written and locally green at 10/0; the commit + CI verdict
+   is the last thing this session did. See §5 "Stop conditions" for what
+   to do if CI is red.
 
-⚠️ **Runtime alone is no longer a reliable progress signal.** The
-`09efb0a` run was *shorter* (9m25s vs 9m54s) while getting strictly
-further, because the chain moved from dying inside a Playwright timeout
-to dying on a fast assertion. Read *which* entry died, not only how long
-it took.
+**2. Verify transaction restart-survival.** Debts were proven across a
+   0-node teardown. Transactions were NOT — they are structurally durable
+   (rows in Postgres, page reads Postgres) but that is an argument, not a
+   measurement. Do the same two-phase test used for debts.
 
-### 2a. ✅ The landmine is defused
+**3. Canonical state (item 4).** This is the real next feature. `Debts`,
+`Transactions`, `Bills`, `Goals`, `Envelopes` all have their own readers
+and each page assembles its own picture. A single
+`src/lib/financial-state.ts` that derives obligations, buffer, shortfall
+and safe-to-spend once is the highest-leverage remaining work — and it is
+the precondition for items 5, 6, 7, 9.
 
-`smoke-escape-hatches` no longer touches `mom@compass.local`. It uses
-**two** fixture users — one for the dashboard/settings checks and one for
-the reset test, because check [14] destroys the identity by design and
-sharing a user would have reintroduced the bug it caused. 15 → 17 checks
-(the two extra are `[8a]`/`[10a]` "the page actually rendered" guards).
+**4. State-aware rules (item 5).** `AllocationRule` cannot express a
+condition. Adding `mode`/`value`/`priority` columns was considered and
+rejected — `livePlanFromDb`'s reverse mapping already round-trips all
+three modes including `remainder`. Re-verify before changing the schema.
 
-`smoke-onboarding-chat-escape` and `smoke-client-error-capture` are
-migrated too. `smoke-auth.mjs` still creates mom on purpose — correct,
-it is the test that owns that account.
+**5. Idempotency for the OTHER writers (item 8).** `PaycheckRun` guards
+the paycheck. `rebalanceEnvelopes` and bill execution are guarded only by
+`prisma.$transaction` atomicity, not by a uniqueness constraint. The
+VAULT is the working precedent: `@@unique([providerName, idempotencyKey])`.
 
-## 3. 🎯 The lesson that found them
+═══════════════════════════════════════════════════════════════════════
+## (c) PICKUP BRIEFING
+═══════════════════════════════════════════════════════════════════════
 
-**A red check is not a bug report. It is a claim that some contract
-moved, and the first question is which side moved.**
-
-Of the individual defects cleared, **most** were an assertion encoding
-a contract that an *earlier* commit had already deliberately changed. The
-test was the stale side, not the product. The recurring shapes:
-
-- `smoke-setup-wizard` did `update({ where: { userId } })` on a row a
-  *previous check deliberately deleted*, to reproduce a bug shape.
-- `smoke-change-password` asserted `type="password"` rendered *after*
-  `data-testid`. React emits JSX props in order; the form writes `type`
-  first. The regex could never match, whatever the component did.
-- `smoke-ui-dashboard-db` `[5]` asserted `(app)/loading.tsx` exists;
-  `daabae5` deleted it on purpose. Its `[8]` asserted a `planet` column
-  that renders nowhere.
-- `smoke-debts-mobile` `[1]` required `useState<boolean>(false)` and a
-  `typeof window` guard. `useMediaQuery` was deliberately moved to
-  `useSyncExternalStore`, where the `false` server snapshot is the
-  *third argument* and there is no window check to grep for at all.
-
-**Apply:** before fixing a check, `git log` the file it asserts about.
-If that commit is recent and deliberate, the assertion is the stale side.
-
-### 3a. A negative assertion cannot fail
-
-`smoke-envelope-detail-null-planet` had this:
-
-```
-[5] PASSED — asserts the page contains no "[ERR]" card.
-             A gate redirect to /setup contains no error card.
-             It passed for the WRONG REASON.
-```
-
-**A negative assertion cannot distinguish "the thing worked" from "the
-thing never ran."** Guard every negative assertion with positive proof
-that the page actually rendered. Settled shape, now used throughout:
-
-```js
-const onPage = p.url().endsWith("/debts");          // or status === 200
-check("[x] page actually rendered", onPage, `url=${p.url()}`);
-check("[y] the real assertion", onPage && <the thing>);
-```
-
-### 3b. 🚨 The one that was a PRODUCT bug
-
-**Seven source-regex smokes passed green for weeks while the feature they
-cover had never rendered once.**
-
-`toDisplayDebt` in `src/lib/mock.ts` copied every field of a `Debt`
-*except* `creditLimitCents`:
-
-```js
-function toDisplayDebt(d: Debt) {
-  return { id, name, balanceCents, originalBalanceCents, aprBps,
-           minPaymentCents, dueDay, accountId, sortOrder, isArchived };
-}                                   // creditLimitCents: never copied
-```
-
-So `liveDebts()` handed `/debts` a debt with no credit limit, `DebtCard`'s
-`debt.creditLimitCents ?? null` was always `null`, and `utilizationPct`
-was always `null`. The `% used` caption, the utilization gauge and the
-rainbow gradient (Clusters 7.48, 7.49, 7.50) never rendered for any
-user. Fixed in `066270e`; verified by probe — the strings are absent
-before the change and present after (page 50,043 → 50,413 bytes).
-
-**The generalisable lesson:** a mapping layer between the data and the
-component is the blind spot of source-regex testing. `DebtCard` was never
-wrong; the object handed to it was. When a source-regex suite is green,
-assert at least one **value** on one page before believing the feature
-renders.
-
-### 3c. The three debts assertions that could not pass
-
-- `smoke-debts-tier` `[23]` asserted `DebtDetailExpand` labels on a
-  **collapsed** list. `DebtListInteractive` starts with
-  `expandedId = null` and renders `{isExpanded && <DebtDetailExpand/>}`,
-  so those labels exist nowhere until a card is expanded. Now `[23]`
-  (collapsed) + `[23b]` (click `[aria-controls^="debt-detail-"]`, then
-  assert).
-- `smoke-debts-mobile` `[15]` was named "narrow + wide" but captured only
-  a 375px viewport, then asserted the caption inside `DebtCard`'s
-  `{!isMobile && ...}` **desktop** column. Now `[15]` (narrow: column
-  collapsed) + `[15b]` (`setViewportSize(1280)`, reload, caption present).
-- `smoke-debts-mobile` `[1]` — the stale useMediaQuery shape, §3.
-
-### 3d. OPEN, NOT A PRODUCTION BUG — the blank (app) 404 on `pnpm dev`
-
-On the dev server, a `notFound()` raised by a page inside the `(app)`
-group returns **HTTP 404 with an empty visible body** — the whole body is
-the document title. Five routes call `notFound()`:
-
-- `(app)/envelopes/[id]/page.tsx`
-- `(app)/envelopes/[id]/edit/page.tsx`
-- `(app)/envelopes/[id]/edit-target/page.tsx`
-- `(app)/goals/[id]/page.tsx`
-- `(app)/goals/[id]/edit/page.tsx`
-
-The response is Next's **global error fallback**, identified by
-`<html id="__next_error__">`, `<meta name="next-error" content="not-found">`
-and a `resolveErrorDev` frame in the stack. There is no
-`global-error.tsx`, so in dev nothing fills the gap.
-
-**What was checked before concluding anything:**
-
-- The **root** boundary renders correctly on the same dev server
-  (`/definitely-not-a-route` shows the full card), so this is not a
-  missing-boundary problem in the usual sense.
-- **Deleting `(app)/not-found.tsx` entirely does not change it** —
-  measured, and the deletion was reverted. The theory that a route group
-  with no `page.tsx` never joins the route tree, so the group boundary
-  was shadowed by the root one, is **false**.
-- A **local production build cannot be exercised**: `next build`
-  succeeds, but `next start` refuses with
-  `[prod-env] refused to start in production` unless the real production
-  `DATABASE_URL`, `MAVIS_API_KEY`, `LLM_PROVIDER` and `VAULT_CHAIN_ID`
-  are set. Those were **not** faked.
-- The **real deployment** was checked read-only instead:
-  `compass-mom.vercel.app/definitely-not-a-route` returns the card and
-  contains **no** `__next_error__` document.
-
-So the blank body is **confined to the dev server**, and production does
-not use the global-error fallback. The `(app)` case in production still
-needs one authenticated request to confirm; that is left open rather than
-assumed.
-
-**Consequence for tests:** do **not** add an assertion that a 404 body is
-visibly non-empty — it would fail against dev, and encoding a dev-only
-artifact as an invariant is exactly the mistake §3a is about. `smoke-envelope-detail-db`
-[2c] instead proves its detector fires against a route that genuinely
-renders the card.
-
-## 4. Carried forward (still true)
-
-**A `GET /login` server probe with `AbortSignal.timeout(2000)` reports a
-healthy dev server as unreachable.** A dev server compiles `/login` on
-demand, and a cold first compile outruns a 2s budget. Measured directly:
-`/api/health` returned 200 at the same moment the probe said unreachable.
-All migrated tests now probe `GET /api/health` at 10s.
-
-**The three hardcoded-date bugs are still fixed and still load-bearing.**
-A check that passes at one wall-clock time and fails at another, with no
-code change, is a clock bug until proven otherwise.
-
-**The flight-payload regex lesson is active.** The RSC payload embeds an
-escaped second copy of the same text; strip `<script>` bodies before
-matching, or scope to a `data-testid`.
-
-## 5. 🎯 NEXT — the debts persistence feature
-
-The test tail is **done**. Nothing between here and the end of the chain
-is left to fix; the seven debts smokes are green locally and awaiting CI
-on `066270e`.
-
-Read `DEBTS-PERSISTENCE-BRIEF.md` and start there. Three things this
-session changed that the brief should absorb:
-
-1. **Debts are still in-memory only.** `readDebts` →
-   `getState(userId).debts` in `src/lib/store.ts`, seeded lazily from
-   `DEBTS_SEED` via `seededId` for *any* unknown userId, pinned on
-   `globalThis.__COMPASS_STORE__`. The store is **per dev-server
-   process** — a test process cannot seed it. That is why the fixture
-   cannot provision debts today, and why the debts live checks were
-   written to expand a real card rather than rely on seeded rows.
-2. **`Debt.creditLimitCents?: number` already exists** on the store type
-   (`store.ts:305`) with a docstring saying utilization applies when it
-   is set. Any new `Debt` model must carry it, or §3b recurs.
-3. `tests/fixture.mjs` provisions account/envelope/goal/bill/plan. **Add
-   debts there** once they persist.
-
-Remaining known-open items, unchanged:
-
-- **The `smoke-setup-wizard` live walk-through still reports
-  `step 4 (bills) did not advance SetupState.completedStep`.** Non-gating
-  `[warn]`. The old "missing SetupState row" diagnosis was **wrong** —
-  `saveBillsAction` calls `markStepCompleted` unconditionally
-  (`src/app/setup/actions.ts:222`), so if the action runs the step must
-  advance. Untested hypothesis: the walk-through's `callStep` posts an
-  empty `FormData` with a bare `Next-Action` header, whereas the
-  fixture's helper (`tests/fixture.mjs:573`) uses the `$ACTION_REF_1` +
-  `$ACTION_1:0` bound-action encoding. **Measure before naming it.**
-- `tests/_debug-insights.mjs`, `_debug-insights2.mjs`, `_debug-login.mjs`,
-  `_check-user.mjs`, `_cleanup-alloc.mjs` are untracked scratch. Do not
-  stage them.
-
-## 6. Pre-flight
+### Pre-flight
 
 ```bash
 cd "C:\Users\crisc\OneDrive - Southern Careers Institute\My Drive\Budget planner app"
-git log --oneline -3                    # 066270e, 09efb0a, de3b688
-pnpm tsc                                # exit 0
-pnpm lint                               # exit 0 (543 warnings, 0 errors)
-pnpm dev                                # REQUIRED before any HTTP smoke
+git log --oneline -3
+gh run list --limit 2          # ← CI is the arbiter. Check it FIRST.
+pnpm tsc                        # exit 0
+pnpm lint                       # exit 0 (543 warnings, 0 errors is the baseline)
+pnpm dev                        # REQUIRED before any HTTP smoke
 ```
 
-Verify: `Invoke-WebRequest http://127.0.0.1:3000/api/health -UseBasicParsing`
-→ `"status":"ok"`, `checks.db.ok: true`.
+Verify health:
+```powershell
+Invoke-WebRequest http://127.0.0.1:3000/api/health -UseBasicParsing
+```
 
-A dev server from a *previous* session may still be running on :3000
-(Next.js prints "Another next dev server is already running" and exits 1
-if you start a second). Check first; reuse it.
+**The Prisma CLI needs the DB URL explicitly.** `prisma.config.ts` reads
+`process.env.DATABASE_URL`, which the CLI does NOT auto-load from
+`.env.local` (and the compose port 5433 is not the live DB — native PG is
+on **5432**):
 
-Background `pnpm dev` tasks get reaped in this environment, and it can
-happen **between** two test runs — a run can report "dev server
-unreachable" while `/api/health` is 200. If health fails, restart before
-believing any HTTP smoke.
+```powershell
+$l = (Get-Content .env.local | Where-Object { $_ -match '^DATABASE_URL=' } | Select-Object -First 1)
+$env:DATABASE_URL = ($l -replace '^DATABASE_URL=','').Trim('"').Trim("'")
+pnpm exec prisma db push
+pnpm exec prisma generate
+```
 
-Anything importing `tests/fixture.mjs` **or** `../src/` must run under
-`tsx --conditions=react-server`. Do not hand-edit the chain — run
-`node scripts/fix-smoke-runners.mjs`, which derives the runner from both
-conditions.
+### The test harness contract
 
-## 7. Files to read first
+- Tests importing `tests/fixture.mjs` OR `../src/` must run under
+  `tsx --conditions=react-server`. Do **not** hand-edit the chain — run
+  `node scripts/fix-smoke-runners.mjs`, then verify it is idempotent.
+- Server probe must be `GET /api/health` at **10s**. `GET /login` at 2s
+  is a false negative on a cold dev server.
+- `tests/fixture.mjs` provisions: account, 7 envelopes, goals, bills, 3
+  debts, allocation plan, **and a biweekly PaySchedule** (added because
+  the automatic trigger reads it and only the setup wizard created one).
+- The fixture sweeps every `smoke-*` user on each `createFixture`. **Never
+  create a fixture in a probe whose subject you are about to measure** —
+  it will delete the evidence.
+- `"use server"` modules cannot be imported from a test (pulls
+  next/navigation → `_react.default.createContext is not a function`).
+  Write logic lives in plain modules: `apply-paycheck.ts`,
+  `log-transaction.ts`, `paycheck-scheduler.ts`.
+- `tests/fixture.mjs`'s `post(path, fields, { actionId })` has **never
+  been proven against a real bound server action** — it hardcodes action
+  index 1 and `["$undefined"]`, while real pages use their own index and
+  carry the useActionState previous state. Do not trust it.
 
-1. `tests/fixture.mjs` — the per-test user factory. **Read its header
-   before editing any test.**
-2. `src/lib/seed-ids.ts` — `seededId(userId, canonicalId)`.
-3. `tests/skip-guard.mjs` — exit contract: 0 pass / 1 fail / 2 skipped.
-4. `scripts/fix-smoke-runners.mjs` — how the chain is generated.
-5. `src/lib/store.ts` — `getState` / `seedState` / `readDebts`: the
-   in-memory layer the debts feature has to replace.
-6. `src/lib/setup/state.ts` — `getNextStep` is the contract the 7.38-B1
-   checks encode.
+### The encoding trap — cost real time
 
-## 8. Stop conditions
+**Never rewrite a source file with PowerShell `Set-Content` without
+`-Encoding UTF8`.** PS 5.1 writes the ANSI codepage. This silently turned
+`.split(/[·\-]/)` into `.split(/[Â·\-]/)` inside a regex character class,
+breaking `payeeKey`. No type error, no lint error, `tsc` green; the app
+only 500'd with `invalid utf-8 sequence of 1 bytes`.
+
+Use the editor tools for source. After any bulk rewrite, verify:
+
+```bash
+node -e "const fs=require('fs');new TextDecoder('utf-8',{fatal:true}).decode(fs.readFileSync('PATH'))"
+```
+
+Recovery is `git checkout -- <file>` then re-apply — never patch mangled bytes.
+
+### Stop conditions
 
 - **Check `gh run list` before believing any status.** This repo has a
-  documented history of six weeks of "all green, ~1,580 checks" claims
-  while CI failed 60 consecutive runs. Read *which entry* died, not just
-  the runtime (§2).
-- **Do not skip or weaken assertions to make a suite green.** Every fix
-  in these sessions either restored something the assertion already
-  demanded, corrected the assertion to the contract the product actually
-  documents, or gave an unsatisfiable assertion a real subject. None
-  removed a check.
-- **Do not name a cause before measuring it.** Three predecessor sessions
-  produced confident wrong diagnoses. Write a throwaway probe that
-  prints the real markup or the real values, then delete it with the
-  recoverable-delete launcher. That is what cracked every wall here,
-  and what found the `toDisplayDebt` bug.
-- **Never hand-transcribe an assertion when you can edit in place.** A
-  file read collapsed a space in a regex; retyping it produced a check
-  that had always passed and now failed. Use targeted edits, then diff
-  the untouched assertions against `git show HEAD:<file>` to prove they
-  are byte-identical.
-- **A red check may mean the assertion is stale, not the code.** §3.
-  Check `git log` on the file under test first.
-- **Prefer a config change over patching `node_modules`.**
-- **Env-local assertions do not belong in CI.**
+  history of six weeks of "all green, ~1,580 checks" while CI failed 60
+  consecutive runs.
+- **Read WHICH entry died, not the runtime.** `09efb0a` ran *shorter*
+  (9m25s vs 9m54s) while getting further, because the chain moved from
+  dying in a Playwright timeout to dying on a fast assertion.
+- **A red check is not a bug report.** Measure the rendered value first.
+  Three product bugs and six stale assertions were separated this way.
+- **A negative assertion cannot distinguish "worked" from "never ran".**
+  Guard it with a positive proof the page rendered.
+- **A source-regex assertion pins a spelling, not a contract.** Two of
+  them were stale for the third time this session.
+- **Do not fake a safety guard.** `next start` refuses to boot without
+  real production secrets; verify production behaviour read-only against
+  the live deployment instead.
 
-## 9. Git hygiene
+### Known open, deliberately not fixed
 
-- Never `git add .` — untracked binaries (`compass logo.jpg`,
-  `preview-login.png`, `videos/`, `design/vision.docx`) must not land.
-  Stage explicit paths.
-- Delete scratch files (`*.log`, throwaway probe scripts) with the
-  runtime's recoverable-delete launcher, not `Remove-Item`.
-- PowerShell has no heredoc: write the commit message to a file and use
-  `git commit -F`. It also has no `&&` in 5.1 — use `;` or separate
-  statements.
+- **The (app) 404 renders an empty body on `pnpm dev`.** Next serves its
+  global-error fallback (`<html id="__next_error__">`); there is no
+  `global-error.tsx`. Confined to dev — the live deployment returns the
+  card with no `__next_error__` document. The (app) case in production is
+  still unverified (needs an authenticated request). **Do not add a test
+  asserting a 404 body is visibly non-empty** — it fails against dev.
+- **`PayPeriod` has no `userId`** — one global active row, and the
+  roll-forward writes during a GET render. Two users would collide. The
+  paycheck guard avoids depending on it by keying on the period's start
+  date instead.
+- **`detect-subscriptions` reads bills from `liveBillsFromDb` and
+  transactions from `liveTransactionsFromDb`** — both durable now, but
+  the whole module was async-ified in one pass and only smoke-covered
+  indirectly.
+- `tests/_debug-*.mjs`, `_check-user.mjs`, `_cleanup-alloc.mjs` are
+  untracked scratch. Do not stage them.
 
+═══════════════════════════════════════════════════════════════════════
+## Files to read first
 
+1. `tests/fixture.mjs` — the per-test user factory. Read its header.
+2. `src/lib/apply-paycheck.ts` — the persisted engine + idempotency.
+3. `src/lib/paycheck-scheduler.ts` — the automatic trigger.
+4. `src/lib/mock.ts` — `live*FromDb` readers, and why they never auto-seed.
+5. `src/lib/store.ts` — what is LEFT on the in-memory store (the advisor's
+   read-only simulation still uses `runAllocation`; that is deliberate).
+6. `tests/debt-value-assertions.mjs` — the real-value pattern the debts
+   tests share. Extend this idea to other surfaces.
 
 # 📎 ARCHIVE — 2026-09-29 / 09-30 session detail (still true unless noted)
 
