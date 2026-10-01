@@ -301,6 +301,22 @@ exports.Prisma.AllocationRuleScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.PaycheckRunScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  periodKey: 'periodKey',
+  paycheckCents: 'paycheckCents',
+  planId: 'planId',
+  totalAllocatedCents: 'totalAllocatedCents',
+  unallocatedCents: 'unallocatedCents',
+  source: 'source',
+  trigger: 'trigger',
+  ledgerJson: 'ledgerJson',
+  paycheckTransactionId: 'paycheckTransactionId',
+  ranAt: 'ranAt',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.AuditLogScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -659,6 +675,7 @@ exports.Prisma.ModelName = {
   Goal: 'Goal',
   AllocationPlan: 'AllocationPlan',
   AllocationRule: 'AllocationRule',
+  PaycheckRun: 'PaycheckRun',
   AuditLog: 'AuditLog',
   AuditLogDailyRollup: 'AuditLogDailyRollup',
   SystemSettings: 'SystemSettings',

@@ -20,6 +20,7 @@ import { loadCashFlowForecast } from "@/lib/forecast/cash-flow";
 import { PayDistributionCard } from "@/components/dashboard/cards/pay-distribution";
 import { IdentitySummaryCard } from "@/components/dashboard/cards/identity-summary";
 import { AllocationFeed, type AllocationRow } from "@/components/dashboard/AllocationFeed";
+import { PaycheckSimulator } from "@/components/dashboard/PaycheckSimulator";
 import { BottomNav } from "@/components/shell/BottomNav";
 import { TopAppBar } from "@/components/shell/TopAppBar";
 import { RebalanceAlertBay } from "@/components/alerts/RebalanceAlertBay";
@@ -556,6 +557,23 @@ export default async function Dashboard() {
         accent={es.accent}
       >
         <EnvelopeStatusCard data={{ rows: envelopesRanked, totalOver: overLimit.length }} />
+      </DashboardCard>
+    ),
+    "paycheck-simulator": (
+      // Mounted here for the first time. The component was written in
+      // Cluster 1.8 and never imported anywhere, so the whole allocation
+      // engine had no reachable UI — see the catalog entry for the full
+      // story. Now that the action writes through Prisma (with the
+      // PaycheckRun idempotency guard), running a paycheck actually moves
+      // the user's money and a duplicate is refused.
+      <DashboardCard
+        cardId="paycheck-simulator"
+        eyebrow="// plan my next check"
+        title="Run My Paycheck"
+        em="apply the plan."
+        accent="cyan"
+      >
+        <PaycheckSimulator />
       </DashboardCard>
     ),
     "next-step": (

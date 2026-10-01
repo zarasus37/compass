@@ -18,7 +18,8 @@ export type CardId =
   | "spend-ring"
   | "net-trajectory"
   | "pay-distribution"
-  | "identity-summary";
+  | "identity-summary"
+  | "paycheck-simulator";
 
 export type CardSpan = "full" | "half";
 
@@ -122,6 +123,34 @@ export const CARD_CATALOG: CardMeta[] = [
     defaultOn: true,
     description:
       "The single most important thing to look at right now. Over-limit envelopes when they exist, calm jade when everything's fine.",
+  },
+  {
+    // Cluster — paycheck allocation.
+    //
+    // This card was written in 1.8 and never mounted anywhere, so the
+    // allocation engine had no reachable UI: `simulatePaycheck` was
+    // callable only from the unmounted component, and the only live
+    // caller of the engine (the advisor's read-only tool) deliberately
+    // discards its result. The core budgeting loop could not be run by
+    // a user at all.
+    //
+    // `defaultOn: true` — flipped deliberately. It was false on the
+    // argument that an action card should be opted into, but that made
+    // the whole budgeting loop unreachable for the user this app is
+    // built for, which is the exact bug this card's mounting fixes.
+    // It is a real action, not a summary, but it is also THE way a
+    // paycheck gets applied, so it belongs on the dashboard.
+    id: "paycheck-simulator",
+    eyebrow: "// plan my next check",
+    title: "Run My Paycheck",
+    em: "apply the plan.",
+    glyph: "◈",
+    accent: "cyan",
+    href: "/allocation",
+    span: "full",
+    defaultOn: true,
+    description:
+      "Run the armed allocation plan against a paycheck. Moves real money into your vessels, records the ledger, and refuses to apply the same paycheck twice.",
   },
   {
     id: "top-priority",

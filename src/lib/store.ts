@@ -1550,15 +1550,28 @@ function nextId(prefix: string): string {
   return `${prefix}-${__idSeq}-${Date.now().toString(36)}`;
 }
 
-export function runAllocation(
-  userId: string,
+/**
+ * The allocation math, as a pure function.
+ *
+ * Extracted from the old `runAllocation`, which read `getState(userId)`
+ * for the plan and envelopes and was therefore only usable against the
+ * process-local store. Every page reads Postgres instead, so a paycheck
+ * computed against memory moved money the user never saw (measured: 7/7
+ * envelopes moved in memory, 0/7 in the database).
+ *
+ * The body below is UNCHANGED — same phases, same rounding, same
+ * remainder split. Only the source of `plan` and `envelopes` moved from
+ * the store to parameters, so there is exactly one implementation of the
+ * rules and the persisted path cannot drift from the read-only advisor
+ * simulation that also calls it.
+ */
+export function computeAllocation(
+  plan: AllocationPlan,
+  envelopes: Array<{ id: string; name: string; currentCents: number; planet: PlanetId }>,
   paycheckCents: number,
   source: string,
   now: Date = new Date(),
 ): AllocationRunResult {
-  const state = getState(userId);
-  const plan = state.plan;
-
   // Resolve rule order
   const orderedRules = [...plan.rules].sort((a, b) => a.priority - b.priority);
 
@@ -1600,7 +1613,7 @@ export function runAllocation(
   let totalAllocated = 0;
   for (const { rule, cents } of partials) {
     if (cents <= 0) continue;
-    const env = state.envelopes.find((e) => e.id === rule.envelopeId);
+    const env = envelopes.find((e) => e.id === rule.envelopeId);
     if (!env) continue;
     const previous = env.currentCents;
     const next = previous + cents;
@@ -1642,4 +1655,28 @@ export function runAllocation(
     remainder,
     ranAt: now,
   };
+}
+
+/**
+ * Compute an allocation against the PROCESS-LOCAL store.
+ *
+ * Kept only for the read-only advisor simulation, which explicitly
+ * discards the result and mutates nothing. Nothing that writes should
+ * call this — use `computeAllocation` with data read from Prisma, via
+ * `applyPaycheck` in `src/lib/apply-paycheck.ts`.
+ */
+export function runAllocation(
+  userId: string,
+  paycheckCents: number,
+  source: string,
+  now: Date = new Date(),
+): AllocationRunResult {
+  const state = getState(userId);
+  return computeAllocation(
+    state.plan,
+    state.envelopes,
+    paycheckCents,
+    source,
+    now,
+  );
 }

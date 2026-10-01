@@ -78,6 +78,7 @@ model User {
   paySchedules     PaySchedule[]
   goals            Goal[]
   allocationPlans  AllocationPlan[]
+  paycheckRuns     PaycheckRun[]
   bills            Bill[]
   debts            Debt[]
   auditLog         AuditLog[]
@@ -551,6 +552,57 @@ model AllocationRule {
 
   @@index([planId])
   @@index([envelopeId])
+}
+
+/// One run of the allocation engine for one paycheck.
+///
+/// This is the app's idempotency guard for the core budgeting loop. It
+/// exists because `applyAllocation` used to mutate a process-local store
+/// that no page ever reads, so a paycheck moved money nobody could see —
+/// and running one twice moved it twice with nothing to stop it.
+///
+/// THE UNIQUE KEY IS THE WHOLE POINT
+/// `@@unique([userId, periodKey, paycheckCents])` means one paycheck of a
+/// given amount, per user, per pay period. A second run of that same
+/// paycheck hits the constraint and is reported as a no-op instead of
+/// double-allocating.
+///
+/// `periodKey` is the period's START date as YYYY-MM-DD, NOT
+/// `PayPeriod.id`. `rollForward()` advances the period row IN PLACE — the
+/// id never changes — so an id-keyed guard would keep refusing a
+/// legitimate paycheck in the next period forever. Keying on the start
+/// date rotates the guard naturally when the window rolls, which is why
+/// this needed no `PayPeriod` schema change.
+///
+/// `trigger` records how it ran: "manual" (the dashboard simulator) or
+/// "automatic" (a paycheck transaction arriving). Both take the same
+/// engine and the same guard; only this column differs, so an
+/// automatically-triggered paycheck is exactly as safe as a clicked one.
+model PaycheckRun {
+  id                    String   @id @default(cuid())
+  userId                String
+  /// YYYY-MM-DD of the pay period's start. See the note above.
+  periodKey             String
+  paycheckCents         Int
+  planId                String?
+  totalAllocatedCents   Int      @default(0)
+  unallocatedCents      Int      @default(0)
+  source                String   @default("manual")
+  trigger               String   @default("manual")
+  /// JSON array of the per-envelope transfers this run produced, kept for
+  /// the post-hoc summary. A String because this repo stores JSON metadata
+  /// as strings everywhere (AuditLog.payload, Transaction.metadata).
+  ledgerJson            String   @default("[]")
+  /// The Transaction row representing the paycheck itself; the per-
+  /// envelope transfers reference it via Transaction.fromPaycheckId.
+  paycheckTransactionId String?
+  ranAt                 DateTime @default(now())
+  createdAt             DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, periodKey, paycheckCents])
+  @@index([userId, ranAt])
 }
 
 /// Every L1+ action the system takes on the user's behalf. The

@@ -162,6 +162,34 @@ export type AllocationPlan = $Result.DefaultSelection<Prisma.$AllocationPlanPayl
  */
 export type AllocationRule = $Result.DefaultSelection<Prisma.$AllocationRulePayload>
 /**
+ * Model PaycheckRun
+ * One run of the allocation engine for one paycheck.
+ * 
+ * This is the app's idempotency guard for the core budgeting loop. It
+ * exists because `applyAllocation` used to mutate a process-local store
+ * that no page ever reads, so a paycheck moved money nobody could see —
+ * and running one twice moved it twice with nothing to stop it.
+ * 
+ * THE UNIQUE KEY IS THE WHOLE POINT
+ * `@@unique([userId, periodKey, paycheckCents])` means one paycheck of a
+ * given amount, per user, per pay period. A second run of that same
+ * paycheck hits the constraint and is reported as a no-op instead of
+ * double-allocating.
+ * 
+ * `periodKey` is the period's START date as YYYY-MM-DD, NOT
+ * `PayPeriod.id`. `rollForward()` advances the period row IN PLACE — the
+ * id never changes — so an id-keyed guard would keep refusing a
+ * legitimate paycheck in the next period forever. Keying on the start
+ * date rotates the guard naturally when the window rolls, which is why
+ * this needed no `PayPeriod` schema change.
+ * 
+ * `trigger` records how it ran: "manual" (the dashboard simulator) or
+ * "automatic" (a paycheck transaction arriving). Both take the same
+ * engine and the same guard; only this column differs, so an
+ * automatically-triggered paycheck is exactly as safe as a clicked one.
+ */
+export type PaycheckRun = $Result.DefaultSelection<Prisma.$PaycheckRunPayload>
+/**
  * Model AuditLog
  * Every L1+ action the system takes on the user's behalf. The
  * "auto-allocate" engine writes here. The user can browse their
@@ -698,6 +726,16 @@ export class PrismaClient<
     * ```
     */
   get allocationRule(): Prisma.AllocationRuleDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.paycheckRun`: Exposes CRUD operations for the **PaycheckRun** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more PaycheckRuns
+    * const paycheckRuns = await prisma.paycheckRun.findMany()
+    * ```
+    */
+  get paycheckRun(): Prisma.PaycheckRunDelegate<ExtArgs, ClientOptions>;
 
   /**
    * `prisma.auditLog`: Exposes CRUD operations for the **AuditLog** model.
@@ -1397,6 +1435,7 @@ export namespace Prisma {
     Goal: 'Goal',
     AllocationPlan: 'AllocationPlan',
     AllocationRule: 'AllocationRule',
+    PaycheckRun: 'PaycheckRun',
     AuditLog: 'AuditLog',
     AuditLogDailyRollup: 'AuditLogDailyRollup',
     SystemSettings: 'SystemSettings',
@@ -1436,7 +1475,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "session" | "account" | "envelope" | "envelopeSink" | "transaction" | "paySchedule" | "bill" | "debt" | "goal" | "allocationPlan" | "allocationRule" | "auditLog" | "auditLogDailyRollup" | "systemSettings" | "payPeriod" | "financialIdentity" | "identityIncome" | "identityExpense" | "identityDebt" | "identityAsset" | "identityGoal" | "identityEvent" | "identitySpendingHabit" | "identityHouseholdMember" | "onboardingMessage" | "vaultAccount" | "vaultEnvelope" | "scheduledBill" | "yieldEvent" | "paymentAttempt" | "providerEvent" | "vaultPreferences" | "vaultSchedule" | "setupState" | "clientError"
+      modelProps: "user" | "session" | "account" | "envelope" | "envelopeSink" | "transaction" | "paySchedule" | "bill" | "debt" | "goal" | "allocationPlan" | "allocationRule" | "paycheckRun" | "auditLog" | "auditLogDailyRollup" | "systemSettings" | "payPeriod" | "financialIdentity" | "identityIncome" | "identityExpense" | "identityDebt" | "identityAsset" | "identityGoal" | "identityEvent" | "identitySpendingHabit" | "identityHouseholdMember" | "onboardingMessage" | "vaultAccount" | "vaultEnvelope" | "scheduledBill" | "yieldEvent" | "paymentAttempt" | "providerEvent" | "vaultPreferences" | "vaultSchedule" | "setupState" | "clientError"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -2325,6 +2364,80 @@ export namespace Prisma {
           count: {
             args: Prisma.AllocationRuleCountArgs<ExtArgs>
             result: $Utils.Optional<AllocationRuleCountAggregateOutputType> | number
+          }
+        }
+      }
+      PaycheckRun: {
+        payload: Prisma.$PaycheckRunPayload<ExtArgs>
+        fields: Prisma.PaycheckRunFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.PaycheckRunFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaycheckRunPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.PaycheckRunFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaycheckRunPayload>
+          }
+          findFirst: {
+            args: Prisma.PaycheckRunFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaycheckRunPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.PaycheckRunFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaycheckRunPayload>
+          }
+          findMany: {
+            args: Prisma.PaycheckRunFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaycheckRunPayload>[]
+          }
+          create: {
+            args: Prisma.PaycheckRunCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaycheckRunPayload>
+          }
+          createMany: {
+            args: Prisma.PaycheckRunCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.PaycheckRunCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaycheckRunPayload>[]
+          }
+          delete: {
+            args: Prisma.PaycheckRunDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaycheckRunPayload>
+          }
+          update: {
+            args: Prisma.PaycheckRunUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaycheckRunPayload>
+          }
+          deleteMany: {
+            args: Prisma.PaycheckRunDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.PaycheckRunUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.PaycheckRunUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaycheckRunPayload>[]
+          }
+          upsert: {
+            args: Prisma.PaycheckRunUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PaycheckRunPayload>
+          }
+          aggregate: {
+            args: Prisma.PaycheckRunAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregatePaycheckRun>
+          }
+          groupBy: {
+            args: Prisma.PaycheckRunGroupByArgs<ExtArgs>
+            result: $Utils.Optional<PaycheckRunGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.PaycheckRunCountArgs<ExtArgs>
+            result: $Utils.Optional<PaycheckRunCountAggregateOutputType> | number
           }
         }
       }
@@ -4239,6 +4352,7 @@ export namespace Prisma {
     goal?: GoalOmit
     allocationPlan?: AllocationPlanOmit
     allocationRule?: AllocationRuleOmit
+    paycheckRun?: PaycheckRunOmit
     auditLog?: AuditLogOmit
     auditLogDailyRollup?: AuditLogDailyRollupOmit
     systemSettings?: SystemSettingsOmit
@@ -4350,6 +4464,7 @@ export namespace Prisma {
     paySchedules: number
     goals: number
     allocationPlans: number
+    paycheckRuns: number
     bills: number
     debts: number
     auditLog: number
@@ -4365,6 +4480,7 @@ export namespace Prisma {
     paySchedules?: boolean | UserCountOutputTypeCountPaySchedulesArgs
     goals?: boolean | UserCountOutputTypeCountGoalsArgs
     allocationPlans?: boolean | UserCountOutputTypeCountAllocationPlansArgs
+    paycheckRuns?: boolean | UserCountOutputTypeCountPaycheckRunsArgs
     bills?: boolean | UserCountOutputTypeCountBillsArgs
     debts?: boolean | UserCountOutputTypeCountDebtsArgs
     auditLog?: boolean | UserCountOutputTypeCountAuditLogArgs
@@ -4430,6 +4546,13 @@ export namespace Prisma {
    */
   export type UserCountOutputTypeCountAllocationPlansArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: AllocationPlanWhereInput
+  }
+
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountPaycheckRunsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: PaycheckRunWhereInput
   }
 
   /**
@@ -5095,6 +5218,7 @@ export namespace Prisma {
     paySchedules?: boolean | User$paySchedulesArgs<ExtArgs>
     goals?: boolean | User$goalsArgs<ExtArgs>
     allocationPlans?: boolean | User$allocationPlansArgs<ExtArgs>
+    paycheckRuns?: boolean | User$paycheckRunsArgs<ExtArgs>
     bills?: boolean | User$billsArgs<ExtArgs>
     debts?: boolean | User$debtsArgs<ExtArgs>
     auditLog?: boolean | User$auditLogArgs<ExtArgs>
@@ -5155,6 +5279,7 @@ export namespace Prisma {
     paySchedules?: boolean | User$paySchedulesArgs<ExtArgs>
     goals?: boolean | User$goalsArgs<ExtArgs>
     allocationPlans?: boolean | User$allocationPlansArgs<ExtArgs>
+    paycheckRuns?: boolean | User$paycheckRunsArgs<ExtArgs>
     bills?: boolean | User$billsArgs<ExtArgs>
     debts?: boolean | User$debtsArgs<ExtArgs>
     auditLog?: boolean | User$auditLogArgs<ExtArgs>
@@ -5179,6 +5304,7 @@ export namespace Prisma {
       paySchedules: Prisma.$PaySchedulePayload<ExtArgs>[]
       goals: Prisma.$GoalPayload<ExtArgs>[]
       allocationPlans: Prisma.$AllocationPlanPayload<ExtArgs>[]
+      paycheckRuns: Prisma.$PaycheckRunPayload<ExtArgs>[]
       bills: Prisma.$BillPayload<ExtArgs>[]
       debts: Prisma.$DebtPayload<ExtArgs>[]
       auditLog: Prisma.$AuditLogPayload<ExtArgs>[]
@@ -5629,6 +5755,7 @@ export namespace Prisma {
     paySchedules<T extends User$paySchedulesArgs<ExtArgs> = {}>(args?: Subset<T, User$paySchedulesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PaySchedulePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     goals<T extends User$goalsArgs<ExtArgs> = {}>(args?: Subset<T, User$goalsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$GoalPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     allocationPlans<T extends User$allocationPlansArgs<ExtArgs> = {}>(args?: Subset<T, User$allocationPlansArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AllocationPlanPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    paycheckRuns<T extends User$paycheckRunsArgs<ExtArgs> = {}>(args?: Subset<T, User$paycheckRunsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PaycheckRunPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     bills<T extends User$billsArgs<ExtArgs> = {}>(args?: Subset<T, User$billsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BillPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     debts<T extends User$debtsArgs<ExtArgs> = {}>(args?: Subset<T, User$debtsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$DebtPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     auditLog<T extends User$auditLogArgs<ExtArgs> = {}>(args?: Subset<T, User$auditLogArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AuditLogPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -6235,6 +6362,30 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: AllocationPlanScalarFieldEnum | AllocationPlanScalarFieldEnum[]
+  }
+
+  /**
+   * User.paycheckRuns
+   */
+  export type User$paycheckRunsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaycheckRun
+     */
+    select?: PaycheckRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaycheckRun
+     */
+    omit?: PaycheckRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaycheckRunInclude<ExtArgs> | null
+    where?: PaycheckRunWhereInput
+    orderBy?: PaycheckRunOrderByWithRelationInput | PaycheckRunOrderByWithRelationInput[]
+    cursor?: PaycheckRunWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: PaycheckRunScalarFieldEnum | PaycheckRunScalarFieldEnum[]
   }
 
   /**
@@ -20058,6 +20209,1227 @@ export namespace Prisma {
      * Choose, which related nodes to fetch as well
      */
     include?: AllocationRuleInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model PaycheckRun
+   */
+
+  export type AggregatePaycheckRun = {
+    _count: PaycheckRunCountAggregateOutputType | null
+    _avg: PaycheckRunAvgAggregateOutputType | null
+    _sum: PaycheckRunSumAggregateOutputType | null
+    _min: PaycheckRunMinAggregateOutputType | null
+    _max: PaycheckRunMaxAggregateOutputType | null
+  }
+
+  export type PaycheckRunAvgAggregateOutputType = {
+    paycheckCents: number | null
+    totalAllocatedCents: number | null
+    unallocatedCents: number | null
+  }
+
+  export type PaycheckRunSumAggregateOutputType = {
+    paycheckCents: number | null
+    totalAllocatedCents: number | null
+    unallocatedCents: number | null
+  }
+
+  export type PaycheckRunMinAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    periodKey: string | null
+    paycheckCents: number | null
+    planId: string | null
+    totalAllocatedCents: number | null
+    unallocatedCents: number | null
+    source: string | null
+    trigger: string | null
+    ledgerJson: string | null
+    paycheckTransactionId: string | null
+    ranAt: Date | null
+    createdAt: Date | null
+  }
+
+  export type PaycheckRunMaxAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    periodKey: string | null
+    paycheckCents: number | null
+    planId: string | null
+    totalAllocatedCents: number | null
+    unallocatedCents: number | null
+    source: string | null
+    trigger: string | null
+    ledgerJson: string | null
+    paycheckTransactionId: string | null
+    ranAt: Date | null
+    createdAt: Date | null
+  }
+
+  export type PaycheckRunCountAggregateOutputType = {
+    id: number
+    userId: number
+    periodKey: number
+    paycheckCents: number
+    planId: number
+    totalAllocatedCents: number
+    unallocatedCents: number
+    source: number
+    trigger: number
+    ledgerJson: number
+    paycheckTransactionId: number
+    ranAt: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type PaycheckRunAvgAggregateInputType = {
+    paycheckCents?: true
+    totalAllocatedCents?: true
+    unallocatedCents?: true
+  }
+
+  export type PaycheckRunSumAggregateInputType = {
+    paycheckCents?: true
+    totalAllocatedCents?: true
+    unallocatedCents?: true
+  }
+
+  export type PaycheckRunMinAggregateInputType = {
+    id?: true
+    userId?: true
+    periodKey?: true
+    paycheckCents?: true
+    planId?: true
+    totalAllocatedCents?: true
+    unallocatedCents?: true
+    source?: true
+    trigger?: true
+    ledgerJson?: true
+    paycheckTransactionId?: true
+    ranAt?: true
+    createdAt?: true
+  }
+
+  export type PaycheckRunMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    periodKey?: true
+    paycheckCents?: true
+    planId?: true
+    totalAllocatedCents?: true
+    unallocatedCents?: true
+    source?: true
+    trigger?: true
+    ledgerJson?: true
+    paycheckTransactionId?: true
+    ranAt?: true
+    createdAt?: true
+  }
+
+  export type PaycheckRunCountAggregateInputType = {
+    id?: true
+    userId?: true
+    periodKey?: true
+    paycheckCents?: true
+    planId?: true
+    totalAllocatedCents?: true
+    unallocatedCents?: true
+    source?: true
+    trigger?: true
+    ledgerJson?: true
+    paycheckTransactionId?: true
+    ranAt?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type PaycheckRunAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which PaycheckRun to aggregate.
+     */
+    where?: PaycheckRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PaycheckRuns to fetch.
+     */
+    orderBy?: PaycheckRunOrderByWithRelationInput | PaycheckRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: PaycheckRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PaycheckRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PaycheckRuns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned PaycheckRuns
+    **/
+    _count?: true | PaycheckRunCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: PaycheckRunAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: PaycheckRunSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: PaycheckRunMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: PaycheckRunMaxAggregateInputType
+  }
+
+  export type GetPaycheckRunAggregateType<T extends PaycheckRunAggregateArgs> = {
+        [P in keyof T & keyof AggregatePaycheckRun]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregatePaycheckRun[P]>
+      : GetScalarType<T[P], AggregatePaycheckRun[P]>
+  }
+
+
+
+
+  export type PaycheckRunGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: PaycheckRunWhereInput
+    orderBy?: PaycheckRunOrderByWithAggregationInput | PaycheckRunOrderByWithAggregationInput[]
+    by: PaycheckRunScalarFieldEnum[] | PaycheckRunScalarFieldEnum
+    having?: PaycheckRunScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: PaycheckRunCountAggregateInputType | true
+    _avg?: PaycheckRunAvgAggregateInputType
+    _sum?: PaycheckRunSumAggregateInputType
+    _min?: PaycheckRunMinAggregateInputType
+    _max?: PaycheckRunMaxAggregateInputType
+  }
+
+  export type PaycheckRunGroupByOutputType = {
+    id: string
+    userId: string
+    periodKey: string
+    paycheckCents: number
+    planId: string | null
+    totalAllocatedCents: number
+    unallocatedCents: number
+    source: string
+    trigger: string
+    ledgerJson: string
+    paycheckTransactionId: string | null
+    ranAt: Date
+    createdAt: Date
+    _count: PaycheckRunCountAggregateOutputType | null
+    _avg: PaycheckRunAvgAggregateOutputType | null
+    _sum: PaycheckRunSumAggregateOutputType | null
+    _min: PaycheckRunMinAggregateOutputType | null
+    _max: PaycheckRunMaxAggregateOutputType | null
+  }
+
+  type GetPaycheckRunGroupByPayload<T extends PaycheckRunGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<PaycheckRunGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof PaycheckRunGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], PaycheckRunGroupByOutputType[P]>
+            : GetScalarType<T[P], PaycheckRunGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type PaycheckRunSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    periodKey?: boolean
+    paycheckCents?: boolean
+    planId?: boolean
+    totalAllocatedCents?: boolean
+    unallocatedCents?: boolean
+    source?: boolean
+    trigger?: boolean
+    ledgerJson?: boolean
+    paycheckTransactionId?: boolean
+    ranAt?: boolean
+    createdAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["paycheckRun"]>
+
+  export type PaycheckRunSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    periodKey?: boolean
+    paycheckCents?: boolean
+    planId?: boolean
+    totalAllocatedCents?: boolean
+    unallocatedCents?: boolean
+    source?: boolean
+    trigger?: boolean
+    ledgerJson?: boolean
+    paycheckTransactionId?: boolean
+    ranAt?: boolean
+    createdAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["paycheckRun"]>
+
+  export type PaycheckRunSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    periodKey?: boolean
+    paycheckCents?: boolean
+    planId?: boolean
+    totalAllocatedCents?: boolean
+    unallocatedCents?: boolean
+    source?: boolean
+    trigger?: boolean
+    ledgerJson?: boolean
+    paycheckTransactionId?: boolean
+    ranAt?: boolean
+    createdAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["paycheckRun"]>
+
+  export type PaycheckRunSelectScalar = {
+    id?: boolean
+    userId?: boolean
+    periodKey?: boolean
+    paycheckCents?: boolean
+    planId?: boolean
+    totalAllocatedCents?: boolean
+    unallocatedCents?: boolean
+    source?: boolean
+    trigger?: boolean
+    ledgerJson?: boolean
+    paycheckTransactionId?: boolean
+    ranAt?: boolean
+    createdAt?: boolean
+  }
+
+  export type PaycheckRunOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "periodKey" | "paycheckCents" | "planId" | "totalAllocatedCents" | "unallocatedCents" | "source" | "trigger" | "ledgerJson" | "paycheckTransactionId" | "ranAt" | "createdAt", ExtArgs["result"]["paycheckRun"]>
+  export type PaycheckRunInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type PaycheckRunIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type PaycheckRunIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+
+  export type $PaycheckRunPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "PaycheckRun"
+    objects: {
+      user: Prisma.$UserPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      userId: string
+      /**
+       * YYYY-MM-DD of the pay period's start. See the note above.
+       */
+      periodKey: string
+      paycheckCents: number
+      planId: string | null
+      totalAllocatedCents: number
+      unallocatedCents: number
+      source: string
+      trigger: string
+      /**
+       * JSON array of the per-envelope transfers this run produced, kept for
+       * the post-hoc summary. A String because this repo stores JSON metadata
+       * as strings everywhere (AuditLog.payload, Transaction.metadata).
+       */
+      ledgerJson: string
+      /**
+       * The Transaction row representing the paycheck itself; the per-
+       * envelope transfers reference it via Transaction.fromPaycheckId.
+       */
+      paycheckTransactionId: string | null
+      ranAt: Date
+      createdAt: Date
+    }, ExtArgs["result"]["paycheckRun"]>
+    composites: {}
+  }
+
+  type PaycheckRunGetPayload<S extends boolean | null | undefined | PaycheckRunDefaultArgs> = $Result.GetResult<Prisma.$PaycheckRunPayload, S>
+
+  type PaycheckRunCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<PaycheckRunFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: PaycheckRunCountAggregateInputType | true
+    }
+
+  export interface PaycheckRunDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['PaycheckRun'], meta: { name: 'PaycheckRun' } }
+    /**
+     * Find zero or one PaycheckRun that matches the filter.
+     * @param {PaycheckRunFindUniqueArgs} args - Arguments to find a PaycheckRun
+     * @example
+     * // Get one PaycheckRun
+     * const paycheckRun = await prisma.paycheckRun.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends PaycheckRunFindUniqueArgs>(args: SelectSubset<T, PaycheckRunFindUniqueArgs<ExtArgs>>): Prisma__PaycheckRunClient<$Result.GetResult<Prisma.$PaycheckRunPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one PaycheckRun that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {PaycheckRunFindUniqueOrThrowArgs} args - Arguments to find a PaycheckRun
+     * @example
+     * // Get one PaycheckRun
+     * const paycheckRun = await prisma.paycheckRun.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends PaycheckRunFindUniqueOrThrowArgs>(args: SelectSubset<T, PaycheckRunFindUniqueOrThrowArgs<ExtArgs>>): Prisma__PaycheckRunClient<$Result.GetResult<Prisma.$PaycheckRunPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first PaycheckRun that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PaycheckRunFindFirstArgs} args - Arguments to find a PaycheckRun
+     * @example
+     * // Get one PaycheckRun
+     * const paycheckRun = await prisma.paycheckRun.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends PaycheckRunFindFirstArgs>(args?: SelectSubset<T, PaycheckRunFindFirstArgs<ExtArgs>>): Prisma__PaycheckRunClient<$Result.GetResult<Prisma.$PaycheckRunPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first PaycheckRun that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PaycheckRunFindFirstOrThrowArgs} args - Arguments to find a PaycheckRun
+     * @example
+     * // Get one PaycheckRun
+     * const paycheckRun = await prisma.paycheckRun.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends PaycheckRunFindFirstOrThrowArgs>(args?: SelectSubset<T, PaycheckRunFindFirstOrThrowArgs<ExtArgs>>): Prisma__PaycheckRunClient<$Result.GetResult<Prisma.$PaycheckRunPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more PaycheckRuns that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PaycheckRunFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all PaycheckRuns
+     * const paycheckRuns = await prisma.paycheckRun.findMany()
+     * 
+     * // Get first 10 PaycheckRuns
+     * const paycheckRuns = await prisma.paycheckRun.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const paycheckRunWithIdOnly = await prisma.paycheckRun.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends PaycheckRunFindManyArgs>(args?: SelectSubset<T, PaycheckRunFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PaycheckRunPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a PaycheckRun.
+     * @param {PaycheckRunCreateArgs} args - Arguments to create a PaycheckRun.
+     * @example
+     * // Create one PaycheckRun
+     * const PaycheckRun = await prisma.paycheckRun.create({
+     *   data: {
+     *     // ... data to create a PaycheckRun
+     *   }
+     * })
+     * 
+     */
+    create<T extends PaycheckRunCreateArgs>(args: SelectSubset<T, PaycheckRunCreateArgs<ExtArgs>>): Prisma__PaycheckRunClient<$Result.GetResult<Prisma.$PaycheckRunPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many PaycheckRuns.
+     * @param {PaycheckRunCreateManyArgs} args - Arguments to create many PaycheckRuns.
+     * @example
+     * // Create many PaycheckRuns
+     * const paycheckRun = await prisma.paycheckRun.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends PaycheckRunCreateManyArgs>(args?: SelectSubset<T, PaycheckRunCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many PaycheckRuns and returns the data saved in the database.
+     * @param {PaycheckRunCreateManyAndReturnArgs} args - Arguments to create many PaycheckRuns.
+     * @example
+     * // Create many PaycheckRuns
+     * const paycheckRun = await prisma.paycheckRun.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many PaycheckRuns and only return the `id`
+     * const paycheckRunWithIdOnly = await prisma.paycheckRun.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends PaycheckRunCreateManyAndReturnArgs>(args?: SelectSubset<T, PaycheckRunCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PaycheckRunPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a PaycheckRun.
+     * @param {PaycheckRunDeleteArgs} args - Arguments to delete one PaycheckRun.
+     * @example
+     * // Delete one PaycheckRun
+     * const PaycheckRun = await prisma.paycheckRun.delete({
+     *   where: {
+     *     // ... filter to delete one PaycheckRun
+     *   }
+     * })
+     * 
+     */
+    delete<T extends PaycheckRunDeleteArgs>(args: SelectSubset<T, PaycheckRunDeleteArgs<ExtArgs>>): Prisma__PaycheckRunClient<$Result.GetResult<Prisma.$PaycheckRunPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one PaycheckRun.
+     * @param {PaycheckRunUpdateArgs} args - Arguments to update one PaycheckRun.
+     * @example
+     * // Update one PaycheckRun
+     * const paycheckRun = await prisma.paycheckRun.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends PaycheckRunUpdateArgs>(args: SelectSubset<T, PaycheckRunUpdateArgs<ExtArgs>>): Prisma__PaycheckRunClient<$Result.GetResult<Prisma.$PaycheckRunPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more PaycheckRuns.
+     * @param {PaycheckRunDeleteManyArgs} args - Arguments to filter PaycheckRuns to delete.
+     * @example
+     * // Delete a few PaycheckRuns
+     * const { count } = await prisma.paycheckRun.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends PaycheckRunDeleteManyArgs>(args?: SelectSubset<T, PaycheckRunDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more PaycheckRuns.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PaycheckRunUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many PaycheckRuns
+     * const paycheckRun = await prisma.paycheckRun.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends PaycheckRunUpdateManyArgs>(args: SelectSubset<T, PaycheckRunUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more PaycheckRuns and returns the data updated in the database.
+     * @param {PaycheckRunUpdateManyAndReturnArgs} args - Arguments to update many PaycheckRuns.
+     * @example
+     * // Update many PaycheckRuns
+     * const paycheckRun = await prisma.paycheckRun.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more PaycheckRuns and only return the `id`
+     * const paycheckRunWithIdOnly = await prisma.paycheckRun.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends PaycheckRunUpdateManyAndReturnArgs>(args: SelectSubset<T, PaycheckRunUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PaycheckRunPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one PaycheckRun.
+     * @param {PaycheckRunUpsertArgs} args - Arguments to update or create a PaycheckRun.
+     * @example
+     * // Update or create a PaycheckRun
+     * const paycheckRun = await prisma.paycheckRun.upsert({
+     *   create: {
+     *     // ... data to create a PaycheckRun
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the PaycheckRun we want to update
+     *   }
+     * })
+     */
+    upsert<T extends PaycheckRunUpsertArgs>(args: SelectSubset<T, PaycheckRunUpsertArgs<ExtArgs>>): Prisma__PaycheckRunClient<$Result.GetResult<Prisma.$PaycheckRunPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of PaycheckRuns.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PaycheckRunCountArgs} args - Arguments to filter PaycheckRuns to count.
+     * @example
+     * // Count the number of PaycheckRuns
+     * const count = await prisma.paycheckRun.count({
+     *   where: {
+     *     // ... the filter for the PaycheckRuns we want to count
+     *   }
+     * })
+    **/
+    count<T extends PaycheckRunCountArgs>(
+      args?: Subset<T, PaycheckRunCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], PaycheckRunCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a PaycheckRun.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PaycheckRunAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends PaycheckRunAggregateArgs>(args: Subset<T, PaycheckRunAggregateArgs>): Prisma.PrismaPromise<GetPaycheckRunAggregateType<T>>
+
+    /**
+     * Group by PaycheckRun.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PaycheckRunGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends PaycheckRunGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: PaycheckRunGroupByArgs['orderBy'] }
+        : { orderBy?: PaycheckRunGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, PaycheckRunGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetPaycheckRunGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the PaycheckRun model
+   */
+  readonly fields: PaycheckRunFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for PaycheckRun.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__PaycheckRunClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the PaycheckRun model
+   */
+  interface PaycheckRunFieldRefs {
+    readonly id: FieldRef<"PaycheckRun", 'String'>
+    readonly userId: FieldRef<"PaycheckRun", 'String'>
+    readonly periodKey: FieldRef<"PaycheckRun", 'String'>
+    readonly paycheckCents: FieldRef<"PaycheckRun", 'Int'>
+    readonly planId: FieldRef<"PaycheckRun", 'String'>
+    readonly totalAllocatedCents: FieldRef<"PaycheckRun", 'Int'>
+    readonly unallocatedCents: FieldRef<"PaycheckRun", 'Int'>
+    readonly source: FieldRef<"PaycheckRun", 'String'>
+    readonly trigger: FieldRef<"PaycheckRun", 'String'>
+    readonly ledgerJson: FieldRef<"PaycheckRun", 'String'>
+    readonly paycheckTransactionId: FieldRef<"PaycheckRun", 'String'>
+    readonly ranAt: FieldRef<"PaycheckRun", 'DateTime'>
+    readonly createdAt: FieldRef<"PaycheckRun", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * PaycheckRun findUnique
+   */
+  export type PaycheckRunFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaycheckRun
+     */
+    select?: PaycheckRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaycheckRun
+     */
+    omit?: PaycheckRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaycheckRunInclude<ExtArgs> | null
+    /**
+     * Filter, which PaycheckRun to fetch.
+     */
+    where: PaycheckRunWhereUniqueInput
+  }
+
+  /**
+   * PaycheckRun findUniqueOrThrow
+   */
+  export type PaycheckRunFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaycheckRun
+     */
+    select?: PaycheckRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaycheckRun
+     */
+    omit?: PaycheckRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaycheckRunInclude<ExtArgs> | null
+    /**
+     * Filter, which PaycheckRun to fetch.
+     */
+    where: PaycheckRunWhereUniqueInput
+  }
+
+  /**
+   * PaycheckRun findFirst
+   */
+  export type PaycheckRunFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaycheckRun
+     */
+    select?: PaycheckRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaycheckRun
+     */
+    omit?: PaycheckRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaycheckRunInclude<ExtArgs> | null
+    /**
+     * Filter, which PaycheckRun to fetch.
+     */
+    where?: PaycheckRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PaycheckRuns to fetch.
+     */
+    orderBy?: PaycheckRunOrderByWithRelationInput | PaycheckRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for PaycheckRuns.
+     */
+    cursor?: PaycheckRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PaycheckRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PaycheckRuns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of PaycheckRuns.
+     */
+    distinct?: PaycheckRunScalarFieldEnum | PaycheckRunScalarFieldEnum[]
+  }
+
+  /**
+   * PaycheckRun findFirstOrThrow
+   */
+  export type PaycheckRunFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaycheckRun
+     */
+    select?: PaycheckRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaycheckRun
+     */
+    omit?: PaycheckRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaycheckRunInclude<ExtArgs> | null
+    /**
+     * Filter, which PaycheckRun to fetch.
+     */
+    where?: PaycheckRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PaycheckRuns to fetch.
+     */
+    orderBy?: PaycheckRunOrderByWithRelationInput | PaycheckRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for PaycheckRuns.
+     */
+    cursor?: PaycheckRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PaycheckRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PaycheckRuns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of PaycheckRuns.
+     */
+    distinct?: PaycheckRunScalarFieldEnum | PaycheckRunScalarFieldEnum[]
+  }
+
+  /**
+   * PaycheckRun findMany
+   */
+  export type PaycheckRunFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaycheckRun
+     */
+    select?: PaycheckRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaycheckRun
+     */
+    omit?: PaycheckRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaycheckRunInclude<ExtArgs> | null
+    /**
+     * Filter, which PaycheckRuns to fetch.
+     */
+    where?: PaycheckRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PaycheckRuns to fetch.
+     */
+    orderBy?: PaycheckRunOrderByWithRelationInput | PaycheckRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing PaycheckRuns.
+     */
+    cursor?: PaycheckRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PaycheckRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PaycheckRuns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of PaycheckRuns.
+     */
+    distinct?: PaycheckRunScalarFieldEnum | PaycheckRunScalarFieldEnum[]
+  }
+
+  /**
+   * PaycheckRun create
+   */
+  export type PaycheckRunCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaycheckRun
+     */
+    select?: PaycheckRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaycheckRun
+     */
+    omit?: PaycheckRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaycheckRunInclude<ExtArgs> | null
+    /**
+     * The data needed to create a PaycheckRun.
+     */
+    data: XOR<PaycheckRunCreateInput, PaycheckRunUncheckedCreateInput>
+  }
+
+  /**
+   * PaycheckRun createMany
+   */
+  export type PaycheckRunCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many PaycheckRuns.
+     */
+    data: PaycheckRunCreateManyInput | PaycheckRunCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * PaycheckRun createManyAndReturn
+   */
+  export type PaycheckRunCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaycheckRun
+     */
+    select?: PaycheckRunSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaycheckRun
+     */
+    omit?: PaycheckRunOmit<ExtArgs> | null
+    /**
+     * The data used to create many PaycheckRuns.
+     */
+    data: PaycheckRunCreateManyInput | PaycheckRunCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaycheckRunIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * PaycheckRun update
+   */
+  export type PaycheckRunUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaycheckRun
+     */
+    select?: PaycheckRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaycheckRun
+     */
+    omit?: PaycheckRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaycheckRunInclude<ExtArgs> | null
+    /**
+     * The data needed to update a PaycheckRun.
+     */
+    data: XOR<PaycheckRunUpdateInput, PaycheckRunUncheckedUpdateInput>
+    /**
+     * Choose, which PaycheckRun to update.
+     */
+    where: PaycheckRunWhereUniqueInput
+  }
+
+  /**
+   * PaycheckRun updateMany
+   */
+  export type PaycheckRunUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update PaycheckRuns.
+     */
+    data: XOR<PaycheckRunUpdateManyMutationInput, PaycheckRunUncheckedUpdateManyInput>
+    /**
+     * Filter which PaycheckRuns to update
+     */
+    where?: PaycheckRunWhereInput
+    /**
+     * Limit how many PaycheckRuns to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * PaycheckRun updateManyAndReturn
+   */
+  export type PaycheckRunUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaycheckRun
+     */
+    select?: PaycheckRunSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaycheckRun
+     */
+    omit?: PaycheckRunOmit<ExtArgs> | null
+    /**
+     * The data used to update PaycheckRuns.
+     */
+    data: XOR<PaycheckRunUpdateManyMutationInput, PaycheckRunUncheckedUpdateManyInput>
+    /**
+     * Filter which PaycheckRuns to update
+     */
+    where?: PaycheckRunWhereInput
+    /**
+     * Limit how many PaycheckRuns to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaycheckRunIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * PaycheckRun upsert
+   */
+  export type PaycheckRunUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaycheckRun
+     */
+    select?: PaycheckRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaycheckRun
+     */
+    omit?: PaycheckRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaycheckRunInclude<ExtArgs> | null
+    /**
+     * The filter to search for the PaycheckRun to update in case it exists.
+     */
+    where: PaycheckRunWhereUniqueInput
+    /**
+     * In case the PaycheckRun found by the `where` argument doesn't exist, create a new PaycheckRun with this data.
+     */
+    create: XOR<PaycheckRunCreateInput, PaycheckRunUncheckedCreateInput>
+    /**
+     * In case the PaycheckRun was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<PaycheckRunUpdateInput, PaycheckRunUncheckedUpdateInput>
+  }
+
+  /**
+   * PaycheckRun delete
+   */
+  export type PaycheckRunDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaycheckRun
+     */
+    select?: PaycheckRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaycheckRun
+     */
+    omit?: PaycheckRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaycheckRunInclude<ExtArgs> | null
+    /**
+     * Filter which PaycheckRun to delete.
+     */
+    where: PaycheckRunWhereUniqueInput
+  }
+
+  /**
+   * PaycheckRun deleteMany
+   */
+  export type PaycheckRunDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which PaycheckRuns to delete
+     */
+    where?: PaycheckRunWhereInput
+    /**
+     * Limit how many PaycheckRuns to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * PaycheckRun without action
+   */
+  export type PaycheckRunDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PaycheckRun
+     */
+    select?: PaycheckRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PaycheckRun
+     */
+    omit?: PaycheckRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PaycheckRunInclude<ExtArgs> | null
   }
 
 
@@ -48885,6 +50257,25 @@ export namespace Prisma {
   export type AllocationRuleScalarFieldEnum = (typeof AllocationRuleScalarFieldEnum)[keyof typeof AllocationRuleScalarFieldEnum]
 
 
+  export const PaycheckRunScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    periodKey: 'periodKey',
+    paycheckCents: 'paycheckCents',
+    planId: 'planId',
+    totalAllocatedCents: 'totalAllocatedCents',
+    unallocatedCents: 'unallocatedCents',
+    source: 'source',
+    trigger: 'trigger',
+    ledgerJson: 'ledgerJson',
+    paycheckTransactionId: 'paycheckTransactionId',
+    ranAt: 'ranAt',
+    createdAt: 'createdAt'
+  };
+
+  export type PaycheckRunScalarFieldEnum = (typeof PaycheckRunScalarFieldEnum)[keyof typeof PaycheckRunScalarFieldEnum]
+
+
   export const AuditLogScalarFieldEnum: {
     id: 'id',
     userId: 'userId',
@@ -49422,6 +50813,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleListRelationFilter
     goals?: GoalListRelationFilter
     allocationPlans?: AllocationPlanListRelationFilter
+    paycheckRuns?: PaycheckRunListRelationFilter
     bills?: BillListRelationFilter
     debts?: DebtListRelationFilter
     auditLog?: AuditLogListRelationFilter
@@ -49451,6 +50843,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleOrderByRelationAggregateInput
     goals?: GoalOrderByRelationAggregateInput
     allocationPlans?: AllocationPlanOrderByRelationAggregateInput
+    paycheckRuns?: PaycheckRunOrderByRelationAggregateInput
     bills?: BillOrderByRelationAggregateInput
     debts?: DebtOrderByRelationAggregateInput
     auditLog?: AuditLogOrderByRelationAggregateInput
@@ -49483,6 +50876,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleListRelationFilter
     goals?: GoalListRelationFilter
     allocationPlans?: AllocationPlanListRelationFilter
+    paycheckRuns?: PaycheckRunListRelationFilter
     bills?: BillListRelationFilter
     debts?: DebtListRelationFilter
     auditLog?: AuditLogListRelationFilter
@@ -50585,6 +51979,104 @@ export namespace Prisma {
     source?: StringWithAggregatesFilter<"AllocationRule"> | string
     sortOrder?: IntWithAggregatesFilter<"AllocationRule"> | number
     createdAt?: DateTimeWithAggregatesFilter<"AllocationRule"> | Date | string
+  }
+
+  export type PaycheckRunWhereInput = {
+    AND?: PaycheckRunWhereInput | PaycheckRunWhereInput[]
+    OR?: PaycheckRunWhereInput[]
+    NOT?: PaycheckRunWhereInput | PaycheckRunWhereInput[]
+    id?: StringFilter<"PaycheckRun"> | string
+    userId?: StringFilter<"PaycheckRun"> | string
+    periodKey?: StringFilter<"PaycheckRun"> | string
+    paycheckCents?: IntFilter<"PaycheckRun"> | number
+    planId?: StringNullableFilter<"PaycheckRun"> | string | null
+    totalAllocatedCents?: IntFilter<"PaycheckRun"> | number
+    unallocatedCents?: IntFilter<"PaycheckRun"> | number
+    source?: StringFilter<"PaycheckRun"> | string
+    trigger?: StringFilter<"PaycheckRun"> | string
+    ledgerJson?: StringFilter<"PaycheckRun"> | string
+    paycheckTransactionId?: StringNullableFilter<"PaycheckRun"> | string | null
+    ranAt?: DateTimeFilter<"PaycheckRun"> | Date | string
+    createdAt?: DateTimeFilter<"PaycheckRun"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }
+
+  export type PaycheckRunOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    periodKey?: SortOrder
+    paycheckCents?: SortOrder
+    planId?: SortOrderInput | SortOrder
+    totalAllocatedCents?: SortOrder
+    unallocatedCents?: SortOrder
+    source?: SortOrder
+    trigger?: SortOrder
+    ledgerJson?: SortOrder
+    paycheckTransactionId?: SortOrderInput | SortOrder
+    ranAt?: SortOrder
+    createdAt?: SortOrder
+    user?: UserOrderByWithRelationInput
+  }
+
+  export type PaycheckRunWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    userId_periodKey_paycheckCents?: PaycheckRunUserIdPeriodKeyPaycheckCentsCompoundUniqueInput
+    AND?: PaycheckRunWhereInput | PaycheckRunWhereInput[]
+    OR?: PaycheckRunWhereInput[]
+    NOT?: PaycheckRunWhereInput | PaycheckRunWhereInput[]
+    userId?: StringFilter<"PaycheckRun"> | string
+    periodKey?: StringFilter<"PaycheckRun"> | string
+    paycheckCents?: IntFilter<"PaycheckRun"> | number
+    planId?: StringNullableFilter<"PaycheckRun"> | string | null
+    totalAllocatedCents?: IntFilter<"PaycheckRun"> | number
+    unallocatedCents?: IntFilter<"PaycheckRun"> | number
+    source?: StringFilter<"PaycheckRun"> | string
+    trigger?: StringFilter<"PaycheckRun"> | string
+    ledgerJson?: StringFilter<"PaycheckRun"> | string
+    paycheckTransactionId?: StringNullableFilter<"PaycheckRun"> | string | null
+    ranAt?: DateTimeFilter<"PaycheckRun"> | Date | string
+    createdAt?: DateTimeFilter<"PaycheckRun"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }, "id" | "userId_periodKey_paycheckCents">
+
+  export type PaycheckRunOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    periodKey?: SortOrder
+    paycheckCents?: SortOrder
+    planId?: SortOrderInput | SortOrder
+    totalAllocatedCents?: SortOrder
+    unallocatedCents?: SortOrder
+    source?: SortOrder
+    trigger?: SortOrder
+    ledgerJson?: SortOrder
+    paycheckTransactionId?: SortOrderInput | SortOrder
+    ranAt?: SortOrder
+    createdAt?: SortOrder
+    _count?: PaycheckRunCountOrderByAggregateInput
+    _avg?: PaycheckRunAvgOrderByAggregateInput
+    _max?: PaycheckRunMaxOrderByAggregateInput
+    _min?: PaycheckRunMinOrderByAggregateInput
+    _sum?: PaycheckRunSumOrderByAggregateInput
+  }
+
+  export type PaycheckRunScalarWhereWithAggregatesInput = {
+    AND?: PaycheckRunScalarWhereWithAggregatesInput | PaycheckRunScalarWhereWithAggregatesInput[]
+    OR?: PaycheckRunScalarWhereWithAggregatesInput[]
+    NOT?: PaycheckRunScalarWhereWithAggregatesInput | PaycheckRunScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"PaycheckRun"> | string
+    userId?: StringWithAggregatesFilter<"PaycheckRun"> | string
+    periodKey?: StringWithAggregatesFilter<"PaycheckRun"> | string
+    paycheckCents?: IntWithAggregatesFilter<"PaycheckRun"> | number
+    planId?: StringNullableWithAggregatesFilter<"PaycheckRun"> | string | null
+    totalAllocatedCents?: IntWithAggregatesFilter<"PaycheckRun"> | number
+    unallocatedCents?: IntWithAggregatesFilter<"PaycheckRun"> | number
+    source?: StringWithAggregatesFilter<"PaycheckRun"> | string
+    trigger?: StringWithAggregatesFilter<"PaycheckRun"> | string
+    ledgerJson?: StringWithAggregatesFilter<"PaycheckRun"> | string
+    paycheckTransactionId?: StringNullableWithAggregatesFilter<"PaycheckRun"> | string | null
+    ranAt?: DateTimeWithAggregatesFilter<"PaycheckRun"> | Date | string
+    createdAt?: DateTimeWithAggregatesFilter<"PaycheckRun"> | Date | string
   }
 
   export type AuditLogWhereInput = {
@@ -52659,6 +54151,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
@@ -52688,6 +54181,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
@@ -52717,6 +54211,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
@@ -52746,6 +54241,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
@@ -53981,6 +55477,117 @@ export namespace Prisma {
     fixedCents?: NullableIntFieldUpdateOperationsInput | number | null
     source?: StringFieldUpdateOperationsInput | string
     sortOrder?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PaycheckRunCreateInput = {
+    id?: string
+    periodKey: string
+    paycheckCents: number
+    planId?: string | null
+    totalAllocatedCents?: number
+    unallocatedCents?: number
+    source?: string
+    trigger?: string
+    ledgerJson?: string
+    paycheckTransactionId?: string | null
+    ranAt?: Date | string
+    createdAt?: Date | string
+    user: UserCreateNestedOneWithoutPaycheckRunsInput
+  }
+
+  export type PaycheckRunUncheckedCreateInput = {
+    id?: string
+    userId: string
+    periodKey: string
+    paycheckCents: number
+    planId?: string | null
+    totalAllocatedCents?: number
+    unallocatedCents?: number
+    source?: string
+    trigger?: string
+    ledgerJson?: string
+    paycheckTransactionId?: string | null
+    ranAt?: Date | string
+    createdAt?: Date | string
+  }
+
+  export type PaycheckRunUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    periodKey?: StringFieldUpdateOperationsInput | string
+    paycheckCents?: IntFieldUpdateOperationsInput | number
+    planId?: NullableStringFieldUpdateOperationsInput | string | null
+    totalAllocatedCents?: IntFieldUpdateOperationsInput | number
+    unallocatedCents?: IntFieldUpdateOperationsInput | number
+    source?: StringFieldUpdateOperationsInput | string
+    trigger?: StringFieldUpdateOperationsInput | string
+    ledgerJson?: StringFieldUpdateOperationsInput | string
+    paycheckTransactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    ranAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutPaycheckRunsNestedInput
+  }
+
+  export type PaycheckRunUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    periodKey?: StringFieldUpdateOperationsInput | string
+    paycheckCents?: IntFieldUpdateOperationsInput | number
+    planId?: NullableStringFieldUpdateOperationsInput | string | null
+    totalAllocatedCents?: IntFieldUpdateOperationsInput | number
+    unallocatedCents?: IntFieldUpdateOperationsInput | number
+    source?: StringFieldUpdateOperationsInput | string
+    trigger?: StringFieldUpdateOperationsInput | string
+    ledgerJson?: StringFieldUpdateOperationsInput | string
+    paycheckTransactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    ranAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PaycheckRunCreateManyInput = {
+    id?: string
+    userId: string
+    periodKey: string
+    paycheckCents: number
+    planId?: string | null
+    totalAllocatedCents?: number
+    unallocatedCents?: number
+    source?: string
+    trigger?: string
+    ledgerJson?: string
+    paycheckTransactionId?: string | null
+    ranAt?: Date | string
+    createdAt?: Date | string
+  }
+
+  export type PaycheckRunUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    periodKey?: StringFieldUpdateOperationsInput | string
+    paycheckCents?: IntFieldUpdateOperationsInput | number
+    planId?: NullableStringFieldUpdateOperationsInput | string | null
+    totalAllocatedCents?: IntFieldUpdateOperationsInput | number
+    unallocatedCents?: IntFieldUpdateOperationsInput | number
+    source?: StringFieldUpdateOperationsInput | string
+    trigger?: StringFieldUpdateOperationsInput | string
+    ledgerJson?: StringFieldUpdateOperationsInput | string
+    paycheckTransactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    ranAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PaycheckRunUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    periodKey?: StringFieldUpdateOperationsInput | string
+    paycheckCents?: IntFieldUpdateOperationsInput | number
+    planId?: NullableStringFieldUpdateOperationsInput | string | null
+    totalAllocatedCents?: IntFieldUpdateOperationsInput | number
+    unallocatedCents?: IntFieldUpdateOperationsInput | number
+    source?: StringFieldUpdateOperationsInput | string
+    trigger?: StringFieldUpdateOperationsInput | string
+    ledgerJson?: StringFieldUpdateOperationsInput | string
+    paycheckTransactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    ranAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -56366,6 +57973,12 @@ export namespace Prisma {
     none?: AllocationPlanWhereInput
   }
 
+  export type PaycheckRunListRelationFilter = {
+    every?: PaycheckRunWhereInput
+    some?: PaycheckRunWhereInput
+    none?: PaycheckRunWhereInput
+  }
+
   export type BillListRelationFilter = {
     every?: BillWhereInput
     some?: BillWhereInput
@@ -56446,6 +58059,10 @@ export namespace Prisma {
   }
 
   export type AllocationPlanOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type PaycheckRunOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -57329,6 +58946,72 @@ export namespace Prisma {
     pct?: SortOrder
     fixedCents?: SortOrder
     sortOrder?: SortOrder
+  }
+
+  export type PaycheckRunUserIdPeriodKeyPaycheckCentsCompoundUniqueInput = {
+    userId: string
+    periodKey: string
+    paycheckCents: number
+  }
+
+  export type PaycheckRunCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    periodKey?: SortOrder
+    paycheckCents?: SortOrder
+    planId?: SortOrder
+    totalAllocatedCents?: SortOrder
+    unallocatedCents?: SortOrder
+    source?: SortOrder
+    trigger?: SortOrder
+    ledgerJson?: SortOrder
+    paycheckTransactionId?: SortOrder
+    ranAt?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type PaycheckRunAvgOrderByAggregateInput = {
+    paycheckCents?: SortOrder
+    totalAllocatedCents?: SortOrder
+    unallocatedCents?: SortOrder
+  }
+
+  export type PaycheckRunMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    periodKey?: SortOrder
+    paycheckCents?: SortOrder
+    planId?: SortOrder
+    totalAllocatedCents?: SortOrder
+    unallocatedCents?: SortOrder
+    source?: SortOrder
+    trigger?: SortOrder
+    ledgerJson?: SortOrder
+    paycheckTransactionId?: SortOrder
+    ranAt?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type PaycheckRunMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    periodKey?: SortOrder
+    paycheckCents?: SortOrder
+    planId?: SortOrder
+    totalAllocatedCents?: SortOrder
+    unallocatedCents?: SortOrder
+    source?: SortOrder
+    trigger?: SortOrder
+    ledgerJson?: SortOrder
+    paycheckTransactionId?: SortOrder
+    ranAt?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type PaycheckRunSumOrderByAggregateInput = {
+    paycheckCents?: SortOrder
+    totalAllocatedCents?: SortOrder
+    unallocatedCents?: SortOrder
   }
 
   export type AuditLogCountOrderByAggregateInput = {
@@ -58806,6 +60489,13 @@ export namespace Prisma {
     connect?: AllocationPlanWhereUniqueInput | AllocationPlanWhereUniqueInput[]
   }
 
+  export type PaycheckRunCreateNestedManyWithoutUserInput = {
+    create?: XOR<PaycheckRunCreateWithoutUserInput, PaycheckRunUncheckedCreateWithoutUserInput> | PaycheckRunCreateWithoutUserInput[] | PaycheckRunUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: PaycheckRunCreateOrConnectWithoutUserInput | PaycheckRunCreateOrConnectWithoutUserInput[]
+    createMany?: PaycheckRunCreateManyUserInputEnvelope
+    connect?: PaycheckRunWhereUniqueInput | PaycheckRunWhereUniqueInput[]
+  }
+
   export type BillCreateNestedManyWithoutUserInput = {
     create?: XOR<BillCreateWithoutUserInput, BillUncheckedCreateWithoutUserInput> | BillCreateWithoutUserInput[] | BillUncheckedCreateWithoutUserInput[]
     connectOrCreate?: BillCreateOrConnectWithoutUserInput | BillCreateOrConnectWithoutUserInput[]
@@ -58912,6 +60602,13 @@ export namespace Prisma {
     connectOrCreate?: AllocationPlanCreateOrConnectWithoutUserInput | AllocationPlanCreateOrConnectWithoutUserInput[]
     createMany?: AllocationPlanCreateManyUserInputEnvelope
     connect?: AllocationPlanWhereUniqueInput | AllocationPlanWhereUniqueInput[]
+  }
+
+  export type PaycheckRunUncheckedCreateNestedManyWithoutUserInput = {
+    create?: XOR<PaycheckRunCreateWithoutUserInput, PaycheckRunUncheckedCreateWithoutUserInput> | PaycheckRunCreateWithoutUserInput[] | PaycheckRunUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: PaycheckRunCreateOrConnectWithoutUserInput | PaycheckRunCreateOrConnectWithoutUserInput[]
+    createMany?: PaycheckRunCreateManyUserInputEnvelope
+    connect?: PaycheckRunWhereUniqueInput | PaycheckRunWhereUniqueInput[]
   }
 
   export type BillUncheckedCreateNestedManyWithoutUserInput = {
@@ -59089,6 +60786,20 @@ export namespace Prisma {
     update?: AllocationPlanUpdateWithWhereUniqueWithoutUserInput | AllocationPlanUpdateWithWhereUniqueWithoutUserInput[]
     updateMany?: AllocationPlanUpdateManyWithWhereWithoutUserInput | AllocationPlanUpdateManyWithWhereWithoutUserInput[]
     deleteMany?: AllocationPlanScalarWhereInput | AllocationPlanScalarWhereInput[]
+  }
+
+  export type PaycheckRunUpdateManyWithoutUserNestedInput = {
+    create?: XOR<PaycheckRunCreateWithoutUserInput, PaycheckRunUncheckedCreateWithoutUserInput> | PaycheckRunCreateWithoutUserInput[] | PaycheckRunUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: PaycheckRunCreateOrConnectWithoutUserInput | PaycheckRunCreateOrConnectWithoutUserInput[]
+    upsert?: PaycheckRunUpsertWithWhereUniqueWithoutUserInput | PaycheckRunUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: PaycheckRunCreateManyUserInputEnvelope
+    set?: PaycheckRunWhereUniqueInput | PaycheckRunWhereUniqueInput[]
+    disconnect?: PaycheckRunWhereUniqueInput | PaycheckRunWhereUniqueInput[]
+    delete?: PaycheckRunWhereUniqueInput | PaycheckRunWhereUniqueInput[]
+    connect?: PaycheckRunWhereUniqueInput | PaycheckRunWhereUniqueInput[]
+    update?: PaycheckRunUpdateWithWhereUniqueWithoutUserInput | PaycheckRunUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: PaycheckRunUpdateManyWithWhereWithoutUserInput | PaycheckRunUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: PaycheckRunScalarWhereInput | PaycheckRunScalarWhereInput[]
   }
 
   export type BillUpdateManyWithoutUserNestedInput = {
@@ -59297,6 +61008,20 @@ export namespace Prisma {
     update?: AllocationPlanUpdateWithWhereUniqueWithoutUserInput | AllocationPlanUpdateWithWhereUniqueWithoutUserInput[]
     updateMany?: AllocationPlanUpdateManyWithWhereWithoutUserInput | AllocationPlanUpdateManyWithWhereWithoutUserInput[]
     deleteMany?: AllocationPlanScalarWhereInput | AllocationPlanScalarWhereInput[]
+  }
+
+  export type PaycheckRunUncheckedUpdateManyWithoutUserNestedInput = {
+    create?: XOR<PaycheckRunCreateWithoutUserInput, PaycheckRunUncheckedCreateWithoutUserInput> | PaycheckRunCreateWithoutUserInput[] | PaycheckRunUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: PaycheckRunCreateOrConnectWithoutUserInput | PaycheckRunCreateOrConnectWithoutUserInput[]
+    upsert?: PaycheckRunUpsertWithWhereUniqueWithoutUserInput | PaycheckRunUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: PaycheckRunCreateManyUserInputEnvelope
+    set?: PaycheckRunWhereUniqueInput | PaycheckRunWhereUniqueInput[]
+    disconnect?: PaycheckRunWhereUniqueInput | PaycheckRunWhereUniqueInput[]
+    delete?: PaycheckRunWhereUniqueInput | PaycheckRunWhereUniqueInput[]
+    connect?: PaycheckRunWhereUniqueInput | PaycheckRunWhereUniqueInput[]
+    update?: PaycheckRunUpdateWithWhereUniqueWithoutUserInput | PaycheckRunUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: PaycheckRunUpdateManyWithWhereWithoutUserInput | PaycheckRunUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: PaycheckRunScalarWhereInput | PaycheckRunScalarWhereInput[]
   }
 
   export type BillUncheckedUpdateManyWithoutUserNestedInput = {
@@ -59941,6 +61666,20 @@ export namespace Prisma {
     upsert?: EnvelopeUpsertWithoutAllocationRulesInput
     connect?: EnvelopeWhereUniqueInput
     update?: XOR<XOR<EnvelopeUpdateToOneWithWhereWithoutAllocationRulesInput, EnvelopeUpdateWithoutAllocationRulesInput>, EnvelopeUncheckedUpdateWithoutAllocationRulesInput>
+  }
+
+  export type UserCreateNestedOneWithoutPaycheckRunsInput = {
+    create?: XOR<UserCreateWithoutPaycheckRunsInput, UserUncheckedCreateWithoutPaycheckRunsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutPaycheckRunsInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type UserUpdateOneRequiredWithoutPaycheckRunsNestedInput = {
+    create?: XOR<UserCreateWithoutPaycheckRunsInput, UserUncheckedCreateWithoutPaycheckRunsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutPaycheckRunsInput
+    upsert?: UserUpsertWithoutPaycheckRunsInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutPaycheckRunsInput, UserUpdateWithoutPaycheckRunsInput>, UserUncheckedUpdateWithoutPaycheckRunsInput>
   }
 
   export type UserCreateNestedOneWithoutAuditLogInput = {
@@ -61506,6 +63245,46 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type PaycheckRunCreateWithoutUserInput = {
+    id?: string
+    periodKey: string
+    paycheckCents: number
+    planId?: string | null
+    totalAllocatedCents?: number
+    unallocatedCents?: number
+    source?: string
+    trigger?: string
+    ledgerJson?: string
+    paycheckTransactionId?: string | null
+    ranAt?: Date | string
+    createdAt?: Date | string
+  }
+
+  export type PaycheckRunUncheckedCreateWithoutUserInput = {
+    id?: string
+    periodKey: string
+    paycheckCents: number
+    planId?: string | null
+    totalAllocatedCents?: number
+    unallocatedCents?: number
+    source?: string
+    trigger?: string
+    ledgerJson?: string
+    paycheckTransactionId?: string | null
+    ranAt?: Date | string
+    createdAt?: Date | string
+  }
+
+  export type PaycheckRunCreateOrConnectWithoutUserInput = {
+    where: PaycheckRunWhereUniqueInput
+    create: XOR<PaycheckRunCreateWithoutUserInput, PaycheckRunUncheckedCreateWithoutUserInput>
+  }
+
+  export type PaycheckRunCreateManyUserInputEnvelope = {
+    data: PaycheckRunCreateManyUserInput | PaycheckRunCreateManyUserInput[]
+    skipDuplicates?: boolean
+  }
+
   export type BillCreateWithoutUserInput = {
     id?: string
     name: string
@@ -62112,6 +63891,41 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"AllocationPlan"> | Date | string
   }
 
+  export type PaycheckRunUpsertWithWhereUniqueWithoutUserInput = {
+    where: PaycheckRunWhereUniqueInput
+    update: XOR<PaycheckRunUpdateWithoutUserInput, PaycheckRunUncheckedUpdateWithoutUserInput>
+    create: XOR<PaycheckRunCreateWithoutUserInput, PaycheckRunUncheckedCreateWithoutUserInput>
+  }
+
+  export type PaycheckRunUpdateWithWhereUniqueWithoutUserInput = {
+    where: PaycheckRunWhereUniqueInput
+    data: XOR<PaycheckRunUpdateWithoutUserInput, PaycheckRunUncheckedUpdateWithoutUserInput>
+  }
+
+  export type PaycheckRunUpdateManyWithWhereWithoutUserInput = {
+    where: PaycheckRunScalarWhereInput
+    data: XOR<PaycheckRunUpdateManyMutationInput, PaycheckRunUncheckedUpdateManyWithoutUserInput>
+  }
+
+  export type PaycheckRunScalarWhereInput = {
+    AND?: PaycheckRunScalarWhereInput | PaycheckRunScalarWhereInput[]
+    OR?: PaycheckRunScalarWhereInput[]
+    NOT?: PaycheckRunScalarWhereInput | PaycheckRunScalarWhereInput[]
+    id?: StringFilter<"PaycheckRun"> | string
+    userId?: StringFilter<"PaycheckRun"> | string
+    periodKey?: StringFilter<"PaycheckRun"> | string
+    paycheckCents?: IntFilter<"PaycheckRun"> | number
+    planId?: StringNullableFilter<"PaycheckRun"> | string | null
+    totalAllocatedCents?: IntFilter<"PaycheckRun"> | number
+    unallocatedCents?: IntFilter<"PaycheckRun"> | number
+    source?: StringFilter<"PaycheckRun"> | string
+    trigger?: StringFilter<"PaycheckRun"> | string
+    ledgerJson?: StringFilter<"PaycheckRun"> | string
+    paycheckTransactionId?: StringNullableFilter<"PaycheckRun"> | string | null
+    ranAt?: DateTimeFilter<"PaycheckRun"> | Date | string
+    createdAt?: DateTimeFilter<"PaycheckRun"> | Date | string
+  }
+
   export type BillUpsertWithWhereUniqueWithoutUserInput = {
     where: BillWhereUniqueInput
     update: XOR<BillUpdateWithoutUserInput, BillUncheckedUpdateWithoutUserInput>
@@ -62504,6 +64318,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
@@ -62532,6 +64347,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
@@ -62576,6 +64392,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
@@ -62604,6 +64421,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
@@ -62632,6 +64450,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
@@ -62660,6 +64479,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
@@ -62782,6 +64602,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
@@ -62810,6 +64631,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
@@ -62870,6 +64692,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
@@ -62898,6 +64721,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
@@ -63095,6 +64919,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
@@ -63123,6 +64948,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
@@ -63308,6 +65134,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
@@ -63336,6 +65163,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
@@ -63433,6 +65261,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
@@ -63461,6 +65290,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
@@ -63488,6 +65318,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
@@ -63516,6 +65347,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
@@ -63646,6 +65478,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
@@ -63674,6 +65507,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
@@ -63800,6 +65634,7 @@ export namespace Prisma {
     transactions?: TransactionCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
@@ -63828,6 +65663,7 @@ export namespace Prisma {
     transactions?: TransactionUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
@@ -63911,6 +65747,7 @@ export namespace Prisma {
     transactions?: TransactionUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
@@ -63939,6 +65776,7 @@ export namespace Prisma {
     transactions?: TransactionUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
@@ -64013,6 +65851,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunCreateNestedManyWithoutUserInput
     debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
@@ -64041,6 +65880,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunUncheckedCreateNestedManyWithoutUserInput
     debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
@@ -64085,6 +65925,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUpdateManyWithoutUserNestedInput
     debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
@@ -64113,6 +65954,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUncheckedUpdateManyWithoutUserNestedInput
     debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
@@ -64141,6 +65983,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
@@ -64169,6 +66012,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
@@ -64213,6 +66057,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
@@ -64241,6 +66086,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
@@ -64268,6 +66114,7 @@ export namespace Prisma {
     transactions?: TransactionCreateNestedManyWithoutUserInput
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
@@ -64296,6 +66143,7 @@ export namespace Prisma {
     transactions?: TransactionUncheckedCreateNestedManyWithoutUserInput
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
@@ -64340,6 +66188,7 @@ export namespace Prisma {
     transactions?: TransactionUpdateManyWithoutUserNestedInput
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
@@ -64368,6 +66217,7 @@ export namespace Prisma {
     transactions?: TransactionUncheckedUpdateManyWithoutUserNestedInput
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
@@ -64396,6 +66246,7 @@ export namespace Prisma {
     transactions?: TransactionCreateNestedManyWithoutUserInput
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
@@ -64424,6 +66275,7 @@ export namespace Prisma {
     transactions?: TransactionUncheckedCreateNestedManyWithoutUserInput
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
@@ -64498,6 +66350,7 @@ export namespace Prisma {
     transactions?: TransactionUpdateManyWithoutUserNestedInput
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
@@ -64526,6 +66379,7 @@ export namespace Prisma {
     transactions?: TransactionUncheckedUpdateManyWithoutUserNestedInput
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
@@ -64713,6 +66567,138 @@ export namespace Prisma {
     envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutEnvelopeNestedInput
   }
 
+  export type UserCreateWithoutPaycheckRunsInput = {
+    id?: string
+    name: string
+    email: string
+    passwordHash: string
+    aiTier?: number
+    routingLevel?: number
+    defaultViewId?: string | null
+    settings?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    sessions?: SessionCreateNestedManyWithoutUserInput
+    accounts?: AccountCreateNestedManyWithoutUserInput
+    envelopes?: EnvelopeCreateNestedManyWithoutUserInput
+    transactions?: TransactionCreateNestedManyWithoutUserInput
+    paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
+    goals?: GoalCreateNestedManyWithoutUserInput
+    allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    bills?: BillCreateNestedManyWithoutUserInput
+    debts?: DebtCreateNestedManyWithoutUserInput
+    auditLog?: AuditLogCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleCreateNestedOneWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutPaycheckRunsInput = {
+    id?: string
+    name: string
+    email: string
+    passwordHash: string
+    aiTier?: number
+    routingLevel?: number
+    defaultViewId?: string | null
+    settings?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
+    accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
+    envelopes?: EnvelopeUncheckedCreateNestedManyWithoutUserInput
+    transactions?: TransactionUncheckedCreateNestedManyWithoutUserInput
+    paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
+    goals?: GoalUncheckedCreateNestedManyWithoutUserInput
+    allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    bills?: BillUncheckedCreateNestedManyWithoutUserInput
+    debts?: DebtUncheckedCreateNestedManyWithoutUserInput
+    auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
+    envelopeSinks?: EnvelopeSinkUncheckedCreateNestedManyWithoutUserInput
+    identity?: FinancialIdentityUncheckedCreateNestedOneWithoutUserInput
+    vaultAccount?: VaultAccountUncheckedCreateNestedOneWithoutUserInput
+    vaultPreferences?: VaultPreferencesUncheckedCreateNestedOneWithoutUserInput
+    vaultSchedule?: VaultScheduleUncheckedCreateNestedOneWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutPaycheckRunsInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutPaycheckRunsInput, UserUncheckedCreateWithoutPaycheckRunsInput>
+  }
+
+  export type UserUpsertWithoutPaycheckRunsInput = {
+    update: XOR<UserUpdateWithoutPaycheckRunsInput, UserUncheckedUpdateWithoutPaycheckRunsInput>
+    create: XOR<UserCreateWithoutPaycheckRunsInput, UserUncheckedCreateWithoutPaycheckRunsInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutPaycheckRunsInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutPaycheckRunsInput, UserUncheckedUpdateWithoutPaycheckRunsInput>
+  }
+
+  export type UserUpdateWithoutPaycheckRunsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    aiTier?: IntFieldUpdateOperationsInput | number
+    routingLevel?: IntFieldUpdateOperationsInput | number
+    defaultViewId?: NullableStringFieldUpdateOperationsInput | string | null
+    settings?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    sessions?: SessionUpdateManyWithoutUserNestedInput
+    accounts?: AccountUpdateManyWithoutUserNestedInput
+    envelopes?: EnvelopeUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUpdateManyWithoutUserNestedInput
+    paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
+    goals?: GoalUpdateManyWithoutUserNestedInput
+    allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    bills?: BillUpdateManyWithoutUserNestedInput
+    debts?: DebtUpdateManyWithoutUserNestedInput
+    auditLog?: AuditLogUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUpdateOneWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutPaycheckRunsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    aiTier?: IntFieldUpdateOperationsInput | number
+    routingLevel?: IntFieldUpdateOperationsInput | number
+    defaultViewId?: NullableStringFieldUpdateOperationsInput | string | null
+    settings?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
+    accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
+    envelopes?: EnvelopeUncheckedUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUncheckedUpdateManyWithoutUserNestedInput
+    paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
+    goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
+    allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    bills?: BillUncheckedUpdateManyWithoutUserNestedInput
+    debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
+    auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
+    envelopeSinks?: EnvelopeSinkUncheckedUpdateManyWithoutUserNestedInput
+    identity?: FinancialIdentityUncheckedUpdateOneWithoutUserNestedInput
+    vaultAccount?: VaultAccountUncheckedUpdateOneWithoutUserNestedInput
+    vaultPreferences?: VaultPreferencesUncheckedUpdateOneWithoutUserNestedInput
+    vaultSchedule?: VaultScheduleUncheckedUpdateOneWithoutUserNestedInput
+  }
+
   export type UserCreateWithoutAuditLogInput = {
     id?: string
     name: string
@@ -64731,6 +66717,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     debts?: DebtCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupCreateNestedManyWithoutUserInput
@@ -64759,6 +66746,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLogRollup?: AuditLogDailyRollupUncheckedCreateNestedManyWithoutUserInput
@@ -64803,6 +66791,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     debts?: DebtUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUpdateManyWithoutUserNestedInput
@@ -64831,6 +66820,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLogRollup?: AuditLogDailyRollupUncheckedUpdateManyWithoutUserNestedInput
@@ -64859,6 +66849,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
@@ -64887,6 +66878,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
@@ -64931,6 +66923,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
@@ -64959,6 +66952,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
@@ -64987,6 +66981,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
@@ -65015,6 +67010,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
@@ -65341,6 +67337,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
@@ -65369,6 +67366,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
@@ -67041,6 +69039,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
@@ -67069,6 +69068,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
@@ -67249,6 +69249,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
@@ -67277,6 +69278,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
@@ -68465,6 +70467,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
@@ -68493,6 +70496,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
@@ -68537,6 +70541,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
@@ -68565,6 +70570,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
@@ -68593,6 +70599,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleCreateNestedManyWithoutUserInput
     goals?: GoalCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunCreateNestedManyWithoutUserInput
     bills?: BillCreateNestedManyWithoutUserInput
     debts?: DebtCreateNestedManyWithoutUserInput
     auditLog?: AuditLogCreateNestedManyWithoutUserInput
@@ -68621,6 +70628,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedCreateNestedManyWithoutUserInput
     goals?: GoalUncheckedCreateNestedManyWithoutUserInput
     allocationPlans?: AllocationPlanUncheckedCreateNestedManyWithoutUserInput
+    paycheckRuns?: PaycheckRunUncheckedCreateNestedManyWithoutUserInput
     bills?: BillUncheckedCreateNestedManyWithoutUserInput
     debts?: DebtUncheckedCreateNestedManyWithoutUserInput
     auditLog?: AuditLogUncheckedCreateNestedManyWithoutUserInput
@@ -68665,6 +70673,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUpdateManyWithoutUserNestedInput
     goals?: GoalUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUpdateManyWithoutUserNestedInput
     bills?: BillUpdateManyWithoutUserNestedInput
     debts?: DebtUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUpdateManyWithoutUserNestedInput
@@ -68693,6 +70702,7 @@ export namespace Prisma {
     paySchedules?: PayScheduleUncheckedUpdateManyWithoutUserNestedInput
     goals?: GoalUncheckedUpdateManyWithoutUserNestedInput
     allocationPlans?: AllocationPlanUncheckedUpdateManyWithoutUserNestedInput
+    paycheckRuns?: PaycheckRunUncheckedUpdateManyWithoutUserNestedInput
     bills?: BillUncheckedUpdateManyWithoutUserNestedInput
     debts?: DebtUncheckedUpdateManyWithoutUserNestedInput
     auditLog?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
@@ -68801,6 +70811,21 @@ export namespace Prisma {
     source?: string
     createdAt?: Date | string
     updatedAt?: Date | string
+  }
+
+  export type PaycheckRunCreateManyUserInput = {
+    id?: string
+    periodKey: string
+    paycheckCents: number
+    planId?: string | null
+    totalAllocatedCents?: number
+    unallocatedCents?: number
+    source?: string
+    trigger?: string
+    ledgerJson?: string
+    paycheckTransactionId?: string | null
+    ranAt?: Date | string
+    createdAt?: Date | string
   }
 
   export type BillCreateManyUserInput = {
@@ -69180,6 +71205,51 @@ export namespace Prisma {
     source?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PaycheckRunUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    periodKey?: StringFieldUpdateOperationsInput | string
+    paycheckCents?: IntFieldUpdateOperationsInput | number
+    planId?: NullableStringFieldUpdateOperationsInput | string | null
+    totalAllocatedCents?: IntFieldUpdateOperationsInput | number
+    unallocatedCents?: IntFieldUpdateOperationsInput | number
+    source?: StringFieldUpdateOperationsInput | string
+    trigger?: StringFieldUpdateOperationsInput | string
+    ledgerJson?: StringFieldUpdateOperationsInput | string
+    paycheckTransactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    ranAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PaycheckRunUncheckedUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    periodKey?: StringFieldUpdateOperationsInput | string
+    paycheckCents?: IntFieldUpdateOperationsInput | number
+    planId?: NullableStringFieldUpdateOperationsInput | string | null
+    totalAllocatedCents?: IntFieldUpdateOperationsInput | number
+    unallocatedCents?: IntFieldUpdateOperationsInput | number
+    source?: StringFieldUpdateOperationsInput | string
+    trigger?: StringFieldUpdateOperationsInput | string
+    ledgerJson?: StringFieldUpdateOperationsInput | string
+    paycheckTransactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    ranAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PaycheckRunUncheckedUpdateManyWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    periodKey?: StringFieldUpdateOperationsInput | string
+    paycheckCents?: IntFieldUpdateOperationsInput | number
+    planId?: NullableStringFieldUpdateOperationsInput | string | null
+    totalAllocatedCents?: IntFieldUpdateOperationsInput | number
+    unallocatedCents?: IntFieldUpdateOperationsInput | number
+    source?: StringFieldUpdateOperationsInput | string
+    trigger?: StringFieldUpdateOperationsInput | string
+    ledgerJson?: StringFieldUpdateOperationsInput | string
+    paycheckTransactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    ranAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type BillUpdateWithoutUserInput = {

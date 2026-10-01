@@ -16,18 +16,18 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { applyPaycheck } from "@/lib/apply-paycheck";
 import {
-  runAllocation,
-  applyAllocation,
   readEnvelopes,
   readGoals,
-  readPlan,
   type AllocationRunResult,
 } from "@/lib/store";
 import { requireUser } from "@/server/auth/user";
 
 export interface SimulatePaycheckResult {
   ok: boolean;
+  /** True when this exact paycheck was already applied in this period. */
+  skipped?: boolean;
   reason?: string;
   run?: AllocationRunResult;
   envelopesAfter?: ReturnType<typeof readEnvelopes>;
@@ -49,30 +49,36 @@ export async function simulatePaycheck(
   const source =
     String(sourceRaw ?? "").trim() || "ADP paycheck (simulated)";
 
-  if (amountCents <= 0) {
+  // This now writes through Prisma in one transaction, guarded by the
+  // PaycheckRun unique key. It used to mutate the process-local store,
+  // which no page read — so a paycheck moved money the user never saw and
+  // lost it on restart. See src/lib/apply-paycheck.ts.
+  const applied = await applyPaycheck({
+    userId: user.id,
+    paycheckCents: amountCents,
+    source,
+    trigger: "manual",
+  });
+
+  if (!applied.ok) {
     return {
       ok: false,
-      reason: "Enter a paycheck amount greater than $0.",
+      reason: applied.reason,
+      planArmed: applied.planArmed,
     };
   }
 
-  const plan = readPlan(user.id);
-  if (!plan.isArmed) {
+  // A repeat of the same paycheck this period: the database refused it
+  // and nothing changed. Say so plainly rather than showing the previous
+  // run's numbers as if they were new.
+  if (applied.skipped) {
     return {
-      ok: false,
-      reason: "Allocation plan is not armed. Open the Plan to arm it before running a paycheck.",
-      planArmed: false,
+      ok: true,
+      skipped: true,
+      reason: applied.reason,
+      planArmed: true,
     };
   }
-
-  // Run the engine against current store state, then apply the
-  // transfers. runAllocation is pure; applyAllocation mutates.
-  const result = runAllocation(user.id, amountCents, source);
-  applyAllocation(user.id, result);
-
-  // Re-read so the response carries the post-state for the banner
-  const envelopesAfter = readEnvelopes(user.id);
-  const goalsAfter = readGoals(user.id);
 
   // Refresh everything that shows balance state
   revalidatePath("/");
@@ -87,9 +93,7 @@ export async function simulatePaycheck(
 
   return {
     ok: true,
-    run: result,
-    envelopesAfter,
-    goalsAfter,
+    run: applied.run,
     planArmed: true,
   };
 }
