@@ -1,6 +1,6 @@
 import * as React from "react";
 import { PageHead } from "@/components/alchemy/PageHead";
-import { liveEnvelopesFromDb, liveGoalsFromDb, liveSnapshot, liveTransactions, TODAY } from "@/lib/mock";
+import { liveEnvelopesFromDb, liveGoalsFromDb, liveSnapshot, liveTransactionsFromDb, TODAY } from "@/lib/mock";
 import { formatMoney, formatMoneyCompact, formatMoneySigned } from "@/lib/money";
 import { NetTrajectoryCard } from "@/components/dashboard/cards/net-trajectory";
 import { CashFlowForecastCard } from "@/components/dashboard/cards/cash-flow-forecast";
@@ -46,7 +46,7 @@ export default async function InsightsPage() {
     liveGoalsFromDb(user.id),
   ]);
   const SNAPSHOT = liveSnapshot(user.id);
-  const TRANSACTIONS = liveTransactions(user.id);
+  const TRANSACTIONS = await liveTransactionsFromDb(user.id);
   const total = ENVELOPES.reduce((s, e) => s + e.target, 0);
 
   // --- NetTrajectoryCard data (mirrors the dashboard's data prep) ---

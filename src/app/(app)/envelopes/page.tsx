@@ -12,7 +12,7 @@ import { prisma } from "@/server/db";
 import {
   liveEnvelopes,
   liveEnvelopesFromDb,
-  liveTransactions,
+  liveTransactionsFromDb,
   TODAY,
   PERIOD_START,
   PERIOD_END,
@@ -112,7 +112,7 @@ async function EnvelopesContent() {
     list.push(s);
     sinksByEnvelope.set(s.envelopeId, list);
   }
-  const TRANSACTIONS = liveTransactions(user.id);
+  const TRANSACTIONS = await liveTransactionsFromDb(user.id);
   const overLimit = ENVELOPES.filter((e) => e.current > e.target && e.target > 0);
   const nearLimit = ENVELOPES.filter(
     (e) => e.current <= e.target && e.current >= e.target * 0.85 && e.target > 0,
@@ -597,7 +597,9 @@ function EnvelopeDetail({
   compact = false,
 }: {
   envelope: Awaited<ReturnType<typeof liveEnvelopesFromDb>>[number];
-  transactions: ReturnType<typeof liveTransactions>;
+  // `Awaited<>` because `liveTransactionsFromDb` is async — the value
+  // handed to this component is the resolved array, not the promise.
+  transactions: Awaited<ReturnType<typeof liveTransactionsFromDb>>;
   compact?: boolean;
 }) {
   const e = envelope;

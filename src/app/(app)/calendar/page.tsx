@@ -2,7 +2,7 @@ import * as React from "react";
 import { PageHead } from "@/components/alchemy/PageHead";
 import {
   liveGoals,
-  liveTransactions,
+  liveTransactionsFromDb,
   liveBills,
   liveBillsFromDb,
   liveSnapshot,
@@ -34,7 +34,7 @@ export const dynamic = "force-dynamic";
 export default async function CalendarPage() {
   const user = await requireUser();
   const GOALS = liveGoals(user.id);
-  const TRANSACTIONS = liveTransactions(user.id);
+  const TRANSACTIONS = await liveTransactionsFromDb(user.id);
   const BILLS = await liveBillsFromDb(user.id);
   const SNAPSHOT = liveSnapshot(user.id);
   const month = "September";

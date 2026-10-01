@@ -42,7 +42,7 @@ import type { LLMToolCall } from "../llm/types";
 import {
   liveEnvelopesFromDb,
   liveBillsFromDb,
-  liveTransactions,
+  liveTransactionsFromDb,
 } from "../mock";
 import { readDebts, runAllocation } from "../store";
 import type { AllocationRunResult } from "../store";
@@ -120,13 +120,13 @@ export async function runAdvisorTool(
 const TRANSACTION_RAW_LIMIT = 50;
 const TRANSACTION_GROUP_LIMIT = 30;
 
-function queryTransactionsHandler(
+async function queryTransactionsHandler(
   userId: string,
   a: Record<string, unknown>,
-): AdvisorToolResult {
+): Promise<AdvisorToolResult> {
   // The transaction table is in-memory for v1 (Transaction model not
   // migrated). It is read through the per-user store slice.
-  const all = liveTransactions(userId);
+  const all = await liveTransactionsFromDb(userId);
 
   const payeeLike = stringOrNull(a.payeeLike);
   const envelopeId = stringOrNull(a.envelopeId);
@@ -202,7 +202,7 @@ interface TransactionBucket {
 }
 
 function groupTransactions(
-  rows: ReturnType<typeof liveTransactions>,
+  rows: Awaited<ReturnType<typeof liveTransactionsFromDb>>,
   by: "month" | "envelope" | "payee",
 ): TransactionBucket[] {
   const m = new Map<string, TransactionBucket>();
@@ -521,7 +521,7 @@ async function summarizeSpendingHandler(
 ): Promise<AdvisorToolResult> {
   // Same as queryTransactions: the transaction log is in-memory
   // for v1, read through the caller's store slice.
-  const all = liveTransactions(userId);
+  const all = await liveTransactionsFromDb(userId);
   const by = a.by === "payee" ? "payee" : "envelope";
   const since = parseDateOrNull(a.since) ??
     new Date(Date.now() - SUMMARY_DEFAULT_WINDOW_DAYS * 24 * 60 * 60 * 1000);

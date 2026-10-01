@@ -34,7 +34,7 @@ import {
   liveBills,
   liveBillsFromDb,
   livePlan,
-  liveTransactions,
+  liveTransactionsFromDb,
   liveEnvelopesFromDb,
   liveGoalsFromDb,
   livePlanFromDb,
@@ -86,7 +86,7 @@ export default async function Dashboard() {
   // Live reads. Cluster 7.39 migrated envelopes/goals/plan from
   // in-memory mock to DB-backed reads (the Cluster 5.2.6 widget
   // switch missed the root dashboard). liveSnapshot() and
-  // liveTransactions() still read in-memory — see
+  // liveTransactionsFromDb() still read in-memory — see
   // 00-CLUSTER-7.39-IN-APP-UX-BUGS.md B1b for the deferred follow-on.
   const ENVELOPES = await liveEnvelopesFromDb(user.id);
   const GOALS = await liveGoalsFromDb(user.id);
@@ -97,7 +97,7 @@ export default async function Dashboard() {
   // paycheckBreakdown engine accepts it via structural typing.
   const BILLS = await liveBillsFromDb(user.id);
   const PLAN = await livePlanFromDb(user.id);
-  const TRANSACTIONS = liveTransactions(user.id);
+  const TRANSACTIONS = await liveTransactionsFromDb(user.id);
   const NEXT_PAYCHECK_CENTS = SNAPSHOT.nextPaycheckCents;
 
   const totalDays = periodLength(PERIOD_START, PERIOD_END);
@@ -128,7 +128,7 @@ export default async function Dashboard() {
   const safeCents = safeToSpend(breakdown);
   // Top 3 ways to grow the safe-to-spend number (Cluster 3.2.5).
   // Pure engine in src/lib/opportunities.ts; no I/O here.
-  const topGrowOpportunities = topOpportunities(user.id, { limit: 3 });
+  const topGrowOpportunities = await topOpportunities(user.id, { limit: 3 });
   // 7-day window: oldest first, today last.
   // Used by the Weekly Health sparkline (Daily Tracking card).
   const last7Days: Date[] = [];

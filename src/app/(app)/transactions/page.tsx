@@ -2,7 +2,7 @@ import * as React from "react";
 import Link from "next/link";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { VesselGlyph } from "@/components/alchemy/VesselGlyph";
-import { liveEnvelopes, liveTransactions, TODAY } from "@/lib/mock";
+import { liveEnvelopes, liveTransactionsFromDb, TODAY } from "@/lib/mock";
 import { requireUser } from "@/server/auth/user";
 import { formatMoneySigned } from "@/lib/money";
 import { formatShortDate, formatRelativeDate } from "@/lib/format";
@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function TransactionsPage() {
   const user = await requireUser();
-  const TRANSACTIONS = liveTransactions(user.id);
+  const TRANSACTIONS = await liveTransactionsFromDb(user.id);
   const ENVELOPES = liveEnvelopes(user.id);
   const grouped = new Map<string, typeof TRANSACTIONS>();
   for (const t of TRANSACTIONS) {

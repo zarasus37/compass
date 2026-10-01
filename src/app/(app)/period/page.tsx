@@ -10,7 +10,7 @@ import {
   PERIOD_END,
   NEXT_PAY_DATE,
   liveEnvelopesFromDb,
-  liveTransactions,
+  liveTransactionsFromDb,
 } from "@/lib/mock";
 import { formatMoney, formatMoneySigned } from "@/lib/money";
 import { seededId } from "@/lib/seed-ids";
@@ -47,7 +47,7 @@ export const dynamic = "force-dynamic";
 export default async function PeriodPage() {
   const user = await requireUser();
   const ENVELOPES = await liveEnvelopesFromDb(user.id);
-  const TRANSACTIONS = liveTransactions(user.id);
+  const TRANSACTIONS = await liveTransactionsFromDb(user.id);
 
   const totalDays = periodLength(PERIOD_START, PERIOD_END);
   const day = dayOfPeriod(TODAY, PERIOD_START, PERIOD_END);

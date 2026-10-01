@@ -59,10 +59,10 @@ export interface Opportunity {
 const DEFAULT_LIMIT = 3;
 const OVER_FUND_THRESHOLD = 1.3; // 130% of target → flagged as over-funded
 
-export function topOpportunities(
+export async function topOpportunities(
   userId: string,
   opts: { limit?: number } = {},
-): Opportunity[] {
+): Promise<Opportunity[]> {
   const limit = opts.limit ?? DEFAULT_LIMIT;
   const out: Opportunity[] = [];
 
@@ -86,7 +86,7 @@ export function topOpportunities(
 
   // 2) Cancel unused subscriptions. "review" status = 60+ days since
   //    last use, per detectSubscriptions' status logic.
-  const subs: DetectedSubscription[] = detectSubscriptions(userId);
+  const subs: DetectedSubscription[] = await detectSubscriptions(userId);
   for (const sub of subs) {
     if (sub.status === "review" && sub.amount > 0) {
       out.push({

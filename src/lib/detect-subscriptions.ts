@@ -20,7 +20,7 @@
  * (in v2) will replace the BILLS fallback automatically.
  */
 
-import { readBills, readTransactions } from "./store";
+import { liveTransactionsFromDb, liveBillsFromDb } from "./mock";
 import { TODAY } from "./mock-seed";
 
 export interface DetectedSubscription {
@@ -47,9 +47,22 @@ function payeeName(payee: string): string {
   return first;
 }
 
-export function detectSubscriptions(userId: string): DetectedSubscription[] {
-  const tx = readTransactions(userId);
-  const bills = readBills(userId);
+/**
+ * Now async, and reads both inputs from Postgres.
+ *
+ * It used to be synchronous over the process-local store, so recurring
+ * charges were detected from history that vanished on restart — a
+ * subscription you had logged for months could quietly stop being
+ * detected. Transactions come from `liveTransactionsFromDb` and bills from
+ * `liveBillsFromDb`. Reading bills from the store while transactions came
+ * from the database would have been half-migrated, which is the same
+ * split-brain defect this function was fixed for.
+ */
+export async function detectSubscriptions(
+  userId: string,
+): Promise<DetectedSubscription[]> {
+  const tx = await liveTransactionsFromDb(userId);
+  const bills = await liveBillsFromDb(userId);
   const today = TODAY.getTime();
 
   // 1) From live transactions: group by payee key.

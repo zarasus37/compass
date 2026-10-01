@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function SubscriptionsPage() {
   const user = await requireUser();
-  const SUBS: DetectedSubscription[] = detectSubscriptions(user.id);
+  const SUBS: DetectedSubscription[] = await detectSubscriptions(user.id);
   const active = SUBS.filter((s) => s.status === "active");
   const review = SUBS.filter((s) => s.status === "review");
   const totalActive = active.reduce((s, x) => s + x.amount, 0);

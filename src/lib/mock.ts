@@ -397,6 +397,55 @@ export async function liveGoalsFromDb(userId: string) {
 export function liveTransactions(userId: string) {
   return readTransactions(userId).map(toDisplayTransaction);
 }
+
+/**
+ * Durable transaction read. This is what every page uses now.
+ *
+ * `liveTransactions` read the process-local store, so a logged
+ * transaction rendered fine and vanished on restart — measured: 0 rows in
+ * Postgres, 6 in the store, all six visible on /transactions. The advisor
+ * and `detectSubscriptions` read the same ephemeral slice, so the AI's
+ * view of spending was ephemeral too.
+ *
+ * The returned shape is deliberately identical to `toDisplayTransaction`,
+ * so no consumer had to change beyond awaiting this instead of the sync
+ * version.
+ */
+export async function liveTransactionsFromDb(userId: string) {
+  const rows = await prisma.transaction.findMany({
+    where: { userId },
+    orderBy: { date: "desc" },
+  });
+
+  return rows.map((t) => {
+    // The DB encodes income by sign; the store carried an explicit flag.
+    const isIncome = t.amount > 0;
+    // The store's `source` vocabulary ("user" | "allocation" | "system")
+    // is narrower than the column's ("manual" | "csv" | "recurring" |
+    // "ai_suggested" | "routing"). Collapse it back so consumers that
+    // branch on it keep working.
+    const source =
+      t.source === "manual"
+        ? "user"
+        : t.source === "routing" || t.source === "recurring"
+          ? "allocation"
+          : "system";
+    return {
+      id: t.id,
+      date: t.date,
+      payee: t.payee,
+      amountCents: t.amount,
+      envelope: t.envelopeId,
+      envelopeId: t.envelopeId,
+      // "auto" meant an engine moved the money. Routing (allocation) and
+      // recurring rows are both engine-written.
+      isAuto: t.source === "routing" || t.source === "recurring",
+      isIncome,
+      isPrimaMateria: t.isPrimaMateria,
+      source,
+    };
+  });
+}
 export function liveSnapshot(userId: string) {
   return readSnapshot(userId);
 }

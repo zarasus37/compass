@@ -13,7 +13,7 @@ import { requireUser } from "@/server/auth/user";
 import { prisma } from "@/server/db";
 import {
   liveEnvelopesFromDb,
-  liveTransactions,
+  liveTransactionsFromDb,
   TODAY,
   PERIOD_START,
   PERIOD_END,
@@ -74,7 +74,7 @@ export default async function EnvelopeDetailPage({
   // list + dashboard widgets were already on this read path). This
   // page was missed.
   const ENVELOPES = await liveEnvelopesFromDb(user.id);
-  const TRANSACTIONS = liveTransactions(user.id);
+  const TRANSACTIONS = await liveTransactionsFromDb(user.id);
   const envelope = ENVELOPES.find((e) => e.id === id);
 
   if (!envelope) {
@@ -177,7 +177,7 @@ export default async function EnvelopeDetailPage({
   const onTrack = e.current <= expectedAtPace;
   const diff = e.current - expectedAtPace;
 
-  // Per-envelope transaction list. liveTransactions() is the
+  // Per-envelope transaction list. liveTransactionsFromDb() is the
   // in-memory mock (deferred to a DB reader in 7.41+). Even if a
   // row has a malformed date / payee, the per-row rendering is
   // wrapped in try/catch below.

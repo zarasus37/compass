@@ -648,8 +648,11 @@ function BillsTimeline({ bills }: { bills: BillView[] }) {
 // Subscriptions tab — direct port of the old /subscriptions content.
 // ──────────────────────────────────────────────────────────────────────
 
-function SubsTab({ userId }: { userId: string }) {
-  const SUBS: DetectedSubscription[] = detectSubscriptions(userId);
+// Async because `detectSubscriptions` now reads transactions from
+// Postgres rather than the process-local store. `BillsTab` above is
+// already async, so this matches the established shape.
+async function SubsTab({ userId }: { userId: string }) {
+  const SUBS: DetectedSubscription[] = await detectSubscriptions(userId);
   const active = SUBS.filter((s) => s.status === "active");
   const review = SUBS.filter((s) => s.status === "review");
   const totalActive = active.reduce((s, x) => s + x.amount, 0);
