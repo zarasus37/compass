@@ -5,6 +5,299 @@ the budgeting side has moved from "never worked" to "persisted, guarded,
 and triggered automatically."
 
 ═══════════════════════════════════════════════════════════════════════
+# 📎 SESSION 2 — 2026-10-02 — READ THIS FIRST
+═══════════════════════════════════════════════════════════════════════
+
+**The workspace moved. `cd C:\dev\compass` first.**
+
+The old OneDrive path still exists on disk and is being KEPT on
+purpose ("just in case"). It is stale. Do not work in it, do not read
+state from it, and do not let a stale path in a doc send you there.
+`C:\dev\compass` is a fresh clone and is the only working copy.
+
+═══════════════════════════════════════════════════════════════════════
+## (a) COMPLETED — 5 commits, all pushed, all CI-green
+═══════════════════════════════════════════════════════════════════════
+
+| Commit | What |
+|---|---|
+| `e056df2` | Repaired PowerShell double-encoding in 5 live files; added `scripts/scan-encoding.mjs` |
+| `96fab73` | Moved the repo out of the OneDrive-synced folder; corrected every path reference |
+| `dfbbb6c` | `pnpm build` EPERM measured as resolved — it was the cloud filesystem |
+| `1afdc12` | `scripts/verify-prod-404.mjs`; the (app) 404 gap closed **as a live bug** |
+| `facf66e` | CI: warm `/login` + `/welcome` before the smoke chain (cold-compile race) |
+
+Latest CI: **`37000089746`, success, 13m21s**. Tree clean, 0 ahead.
+
+### 1. A live user-facing rendering bug, found and fixed
+
+Six files were double-encoded by `Set-Content` without `-Encoding UTF8`
+— the same trap that broke `payeeKey`, and never fixed. It was **not**
+comment-only:
+
+- `goals/page.tsx` rendered `ðŸ›Ÿ Emergency` / `ðŸ“ˆ Invest`
+  instead of `🛟` / `📈`
+- every em-dash on **Goals** and **Envelopes** rendered as three
+  garbage characters (`â€”`), every `·` separator as `Â·`
+
+No smoke asserts on a dash or a middot — they assert on `$4,820.00`
+and `24.99% APR` — which is how a green suite sat on top of it.
+
+**The prescribed guard could not see this class.** A double-encoded
+file is *valid UTF-8*; the bytes were re-encoded, not corrupted. So
+`TextDecoder(fatal:true)` passes on all six while they are broken.
+`scripts/scan-encoding.mjs` keys on the structural signature instead
+(accented Latin-1 letter immediately followed by a cp1252 punctuation
+codepoint) and exits 1. **Not wired into CI — that is a pipeline
+decision and still open.**
+
+Repair verified two ways: characters by codepoint, and with non-ASCII
+stripped, 5/5 files byte-identical to HEAD — so it provably touched
+nothing but characters. `tsc` 0, lint 0 errors.
+
+### 2. Item 2 of the range: measured, not argued
+
+`scripts/prove-transaction-restart.mjs`, **13 pass / 0 miss / 0
+skipped**, across a real teardown (3 node processes killed, 0
+remaining, cold start). Rows identical on id/amount/envelopeId/date;
+`liveTransactionsFromDb` returns them; vessel balance survives
+(61200 → 54288); the cold server renders them on `/transactions`.
+
+The assertion that makes it mean something:
+`globalThis.__COMPASS_STORE__` had **no entry at all** for that user,
+so the data provably came from Postgres, not a re-seeded memory store.
+
+The page render is conditional on a reachable server and reports SKIP
+rather than a pass when there isn't one. The first run scored
+10/0/**1-skip** for that reason; the cycle was re-run rather than leave
+the skip standing.
+
+### 3. The repo moved out of OneDrive
+
+`C:\Users\crisc\OneDrive - Southern Careers Institute\My Drive\Budget
+planner app` → **`C:\dev\compass`**. Cloned fresh at `e056df2`,
+`.env`/`.env.local` copied by hand with contents never printed.
+
+Measured on the same machine:
+
+| | OneDrive | `C:\dev\compass` |
+|---|---|---|
+| `pnpm tsc` | >300s, killed twice | **76.2s** |
+| `next dev` ready | 93s, then wedged at 0% CPU | **17.2s** |
+| `/api/health` | hung >120s, then 500 | **200 in 16.6s** |
+| `pnpm build` | EPERM on `.next` | **exit 0 in 177.6s** |
+
+OneDrive Files On-Demand never hydrates `node_modules/.pnpm`, and
+Turbopack reads through the `\\?\` prefix which does not trigger
+recall — so reads fail with `os error 389`, or `errno: -4094 /
+syscall: read / code: 'UNKNOWN'`. **"Always keep on this device" is
+not a sufficient fix** — verified, not assumed: it cleared the 500s
+but left 20,889 files `Offline`, 20,858 inside `.pnpm`. Diagnose by
+counting `Offline`, not `RecallOnDataAccess` — the latter reads 0
+while 20k files are still offline.
+
+### 4. The production verification path now works
+
+`pnpm build` completing reopened it. `NODE_ENV=production
+COMPASS_SANDBOX=1 pnpm start` boots clean (`Ready in 9.8s`) — the
+sandbox flag is the project's own documented operator opt-in, not a
+faked guard, and production never sets it.
+
+### 5. A pre-existing CI flake, fixed at the source
+
+Run `36998303068` died at 1m47s: the chain is `&&`-chained from
+`smoke-auth.mjs`, and its first `/login` hit got a 500 from a cold
+compile. CI declared the server ready on `/api/health` (tiny) while
+`/login` and `/welcome` (heavy) compile on demand. **A fast red is a
+cold-compile race, not a decisive failure.** `facf66e` warms both
+before the chain. The test was left alone deliberately — teaching it
+to tolerate a 500 would hide real failures elsewhere.
+
+═══════════════════════════════════════════════════════════════════════
+## (b) NEXT — THE RANGE
+═══════════════════════════════════════════════════════════════════════
+
+**1. Fix the blank (app) 404.** Live, user-facing, measured, and NOT
+fixed. A stale link inside the app renders a blank page in PRODUCTION.
+Full measurement and ruled-out causes are in
+"🔴 OPEN, LIVE, AND NOT DEV-CONFINED" further down — read it before
+touching anything. It is cheap to verify: ~30 seconds with the probe.
+The leading hypothesis (an inherited Suspense boundary swallowing
+`notFound()` under `/envelopes/[id]`) is **untested**. The obvious fix
+(`global-error.tsx`) was tried, measured, and **does not work**.
+
+**2. Canonical state (roadmap item 4).** The real feature.
+`Debts`, `Transactions`, `Bills`, `Goals`, `Envelopes` each have their
+own reader and each page assembles its own picture. One
+`src/lib/financial-state.ts` deriving obligations, buffer, shortfall
+and safe-to-spend once is the precondition for items 5, 6, 7 and 9.
+Give this an uninterrupted block.
+
+**3. Wire `scripts/scan-encoding.mjs` into CI.** One line, prevents
+the fourth recurrence of a bug class the current guard cannot see.
+
+**4. State-aware rules (item 5).** `AllocationRule` is `pct` +
+`fixedCents` only. Adding `mode`/`value`/`priority` was considered and
+rejected — `livePlanFromDb`'s reverse mapping already round-trips all
+three modes including `remainder`. Re-verify before changing schema.
+
+**5. Idempotency for the OTHER writers (item 8).** `PaycheckRun`
+guards the paycheck. `rebalanceEnvelopes` and bill execution are
+guarded only by `prisma.$transaction` atomicity, not a uniqueness
+constraint. The VAULT is the precedent: `@@unique([providerName,
+idempotencyKey])`.
+
+**6. `PayPeriod` has no `userId`.** One global active row; two users
+would collide. Not a scaling concern — a data-corruption one at two
+users. First thing to fix before a second person signs in.
+
+═══════════════════════════════════════════════════════════════════════
+## (c) PICKUP BRIEFING
+═══════════════════════════════════════════════════════════════════════
+
+### Pre-flight — note the path
+
+```bash
+cd "C:\dev\compass"          # NOT the OneDrive path
+git log --oneline -3
+gh run list --limit 2        # ← CI is the arbiter. Check it FIRST.
+pnpm tsc                      # expect ~76s, exit 0
+pnpm lint                     # 0 errors is the bar
+pnpm dev                      # REQUIRED before any HTTP smoke
+```
+
+Health (the chain contract's probe, 10s):
+
+```powershell
+Invoke-WebRequest http://127.0.0.1:3000/api/health -UseBasicParsing
+```
+
+**The Prisma CLI needs `DATABASE_URL` explicitly** — `prisma.config.ts`
+reads it, but the CLI does not auto-load `.env.local`:
+
+```powershell
+$l = (Get-Content .env.local | Where-Object { $_ -match '^DATABASE_URL=' } | Select-Object -First 1)
+$env:DATABASE_URL = ($l -replace '^DATABASE_URL=','').Trim('"').Trim("'")
+pnpm exec prisma db push
+pnpm exec prisma generate
+```
+
+### The harness contract
+
+- Tests importing `tests/fixture.mjs` OR `../src/` must run under
+  `tsx --conditions=react-server`. Do **not** hand-edit the chain —
+  run `node scripts/fix-smoke-runners.mjs`, then verify idempotent.
+- Server probe is `GET /api/health` at **10s**. `GET /login` at 2s is
+  a false negative on a cold dev server.
+- `tests/fixture.mjs` sweeps every `smoke-*` user on each
+  `createFixture`. **Never create a fixture in a probe whose subject
+  you are about to measure** — it deletes the evidence.
+  `loginExisting(email, password)` is the no-sweep login, added this
+  session for exactly that reason. **`s.login.status` is part of the
+  contract** — ~30 smokes log it and `smoke-change-password` asserts
+  it is 303.
+- `"use server"` modules cannot be imported from a test. Write logic
+  lives in plain modules: `apply-paycheck.ts`, `log-transaction.ts`,
+  `paycheck-scheduler.ts`.
+- `tests/fixture.mjs`'s `post(path, fields, { actionId })` has **never**
+  been proven against a real bound server action — it hardcodes action
+  index 1 and `["$undefined"]`. Do not trust it.
+
+### Two commands this session added
+
+```bash
+# restart-survival, two phases around a teardown
+node scripts/prove-transaction-restart.mjs write
+#   kill every node process; cold-start the server
+node scripts/prove-transaction-restart.mjs read
+
+# production (app) 404 — needs a prod server:
+pnpm build
+NODE_ENV=production COMPASS_SANDBOX=1 pnpm start   # separate shell
+pnpm exec tsx --conditions=react-server scripts/verify-prod-404.mjs
+```
+
+`verify-prod-404.mjs` is **production-only by design**: it gates on
+`/api/health` reporting `env: "production"` and exits `SKIP-ENV`
+otherwise. **Do not move its assertions into the smoke chain** — they
+cannot pass against dev, which is exactly why this gap survived
+`daabae5`.
+
+### The encoding trap — and the corrected guard
+
+**Never rewrite a source file with PowerShell `Set-Content` without
+`-Encoding UTF8`.** PS 5.1 writes the ANSI codepage. That has broken
+this repo **four times**, twice in live JSX.
+
+The old check was:
+
+    node -e "new TextDecoder('utf-8',{fatal:true}).decode(fs.readFileSync('PATH'))"
+
+**It cannot catch this class** — a double-encoded file is valid UTF-8.
+Use the structural check:
+
+```bash
+node scripts/scan-encoding.mjs .    # exits 1 on a hit
+```
+
+Expect **four** hits on a clean tree, in three distinct categories.
+**Do not "fix" any of them** — one of them will break a test if you do:
+
+| File | Why it hits | If you "fix" it |
+|---|---|---|
+| `scripts/verify-prod-404.mjs` | **Detection-required.** The assertion *searches for* `â€”` to prove it is absent. Removing the literal deletes the test. | **The mojibake regression guard stops working.** |
+| `HANDOVER-TEST-INTEGRITY.md` | Quoting the corruption it documents. | Docs get unreadable. |
+| `COORDINATION.md` | Same, in the status summary. | Same. |
+| `HANDOVER.md` (132 runs) | **Genuinely corrupt** — superseded by this file, left alone deliberately. | Harmless to fix, but it is not the working handover. |
+
+If a hit appears in a file **not** on that list, that one is real.
+Recovery for a real one is `git checkout -- <file>` and re-apply —
+never patch mangled bytes.
+
+### Stop conditions
+
+- **Check `gh run list` before believing any status.** This repo has a
+  history of long green stretches while CI was actually failing.
+- **Read WHICH entry died, not the runtime.** A run that dies in
+  ~1m50s died on an early assertion; a 13m run died deep. `facf66e`
+  exists because that distinction was read wrongly for a while.
+- **A red check is not a bug report.** Measure the rendered value
+  first. Three product bugs, six stale assertions, one bad
+  `global-error.tsx` fix and one false token-leak report were all
+  separated this way in a single session.
+- **A negative assertion cannot distinguish "worked" from "never
+  ran".** Guard it with positive proof the page rendered.
+- **A source-regex assertion pins a spelling, not a contract.** Two
+  were stale for the third time in one session.
+- **Strip `<script>` before matching an RSC page.** The same sentence
+  exists twice — once rendered, once escaped in the flight payload. A
+  match on the payload is not a rendered value.
+- **Do not fake a safety guard.** Use `COMPASS_SANDBOX=1` — the
+  project's own documented operator opt-in — or verify read-only
+  against the live deployment.
+- **A document's `__next_error__` marker is not a defect.** It
+  identifies the error path. The defect is an EMPTY body.
+
+### Known open, deliberately not fixed
+
+- **The (app) 404 is a blank page in production.** Measured, written
+  up, hypothesis untested. See the 🔴 section below.
+- **`/transactions` and friends still use `--surface` / `--line`.**
+  These are **defined** (`globals.css:110-112`) and render correctly —
+  it is an un-migrated-token consistency gap, not a break. The chain's
+  `smoke-visual-finish` audits the **dashboard**, not every page.
+- `PayPeriod` has no `userId` — see range item 6.
+- `TODAY` is module-scope, so a long-lived dev server goes stale
+  across midnight. Accurate on Vercel (cold start per deploy).
+- `detect-subscriptions` was async-ified in one pass and is only
+  smoke-covered indirectly.
+- `scripts/clear-demo-data.mjs` has **never been run against
+  production** — needs an operator with the production
+  `DATABASE_URL`. Dry run first, then `--confirm`.
+
+═══════════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════════
 # 📎 SESSION 2026-10-01 (late) — item 2 MEASURED, plus a live rendering bug
 ═══════════════════════════════════════════════════════════════════════
 
