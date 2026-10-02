@@ -404,12 +404,93 @@ Recovery is `git checkout -- <file>` then re-apply — never patch mangled bytes
 
 ### Known open, deliberately not fixed
 
-- **The (app) 404 renders an empty body on `pnpm dev`.** Next serves its
-  global-error fallback (`<html id="__next_error__">`); there is no
-  `global-error.tsx`. Confined to dev — the live deployment returns the
-  card with no `__next_error__` document. The (app) case in production is
-  still unverified (needs an authenticated request). **Do not add a test
-  asserting a 404 body is visibly non-empty** — it fails against dev.
+## 🔴 OPEN, LIVE, AND NOT DEV-CONFINED: the (app) 404 is a blank page in production
+
+This supersedes the old note that said the blank 404 was "confined to
+dev." **That note was wrong.** Measured 2026-10-02 against a real
+production build, authenticated:
+
+    NODE_ENV=production COMPASS_SANDBOX=1 pnpm start
+    node scripts/verify-prod-404.mjs
+
+    GET /envelopes/does-not-exist
+      status                404                        <- correct
+      total bytes           26,781
+      document root         <html id="__next_error__">
+      VISIBLE text          26 characters
+      visible text          "Compass — Component Oracle"
+      "[404] not found"     NOT VISIBLE
+      "Back to dashboard"   NOT VISIBLE
+
+**A user following a stale link inside the app sees a blank page.** The
+26KB is almost entirely the RSC flight payload inside `<script>`.
+
+### What the body actually contains
+
+    <body>
+      <div hidden=""><!--$--><!--/$--></div>   <- empty, CLOSED Suspense boundary
+      <script src="…chunks/….js" id="_R_" async></script>
+      <script>self.__next_f.push([1, "…entire tree as flight data…"])</script>
+    </body>
+
+Rendered elements inside the body: **1 `<div>`, 0 `<span>`, 0 `<h1>`.**
+For contrast, `/transactions` renders 37 `<div>` and 1 `<h1>` in
+64,264 bytes. The card is present twice in the flight payload and
+referenced as a lazy component (`20:["$","$L22",null,{}]`) — it is
+serialized, and then never server-rendered.
+
+So this is a **streaming/Suspense** failure, not a missing-document one.
+`notFound()` is processed correctly (the status is right); the content
+never reaches the DOM.
+
+### Ruled out by measurement, do not re-try
+
+- **`global-error.tsx` does not fix it.** Added one, rebuilt, re-measured:
+  still 26 visible characters. The document root stayed
+  `<html id="__next_error__">`, not the `<html lang="en">` the new
+  component renders — so `global-error` is not consulted for the
+  `notFound()` path at all. The file compiled fine (its text is in 3
+  chunks) and simply was not used. **It was reverted rather than shipped
+  unverified**, because it changes error handling app-wide and the real
+  thrown-error path was never exercised.
+- **The `1677415` token guard is CLEAN in production.** On the dashboard:
+  `--vessel-dark` 31, `--vessel-surface` 78, `--vessel-border` 208,
+  `--vessel-accent` 138 occurrences; and `--cosmos`, `--surface`,
+  `--line`, `--line-soft`, `--terminal-cyan`, `--warn`, `--neg` all
+  **0**. That fix holds.
+- **`--surface` / `--line` are NOT broken tokens.** They are defined at
+  `src/app/globals.css:110-112` and used by un-migrated components on
+  pages like `/transactions`. An earlier version of the probe reported
+  them as a leak and was wrong on both scope and premise: the chain's
+  `smoke-visual-finish` audits the **dashboard**, not every page.
+
+### Where to look next
+
+The empty `<div hidden="">` with `<!--$--><!--/$-->` is a completed,
+empty Suspense boundary. Recall `daabae5`: the (app) group's
+`loading.tsx` was moved OFF the group root and onto 14 primary nav
+segments, with `envelopes/` and `goals/` deliberately NOT taking a
+route-level `loading.tsx` because a loading file also covers children.
+`/envelopes/[id]` is a child of `envelopes/`. **Test whether
+`notFound()` called inside that subtree is being swallowed by an
+inherited Suspense boundary** — that is the leading hypothesis and it has
+not yet been tested. The alternatives are an `error.tsx` at the
+`(app)/envelopes/[id]` level, or a root `app/not-found.tsx` if the
+segment-level boundary is not being picked up at all.
+
+### How to re-check
+
+    pnpm build
+    NODE_ENV=production COMPASS_SANDBOX=1 pnpm start
+    pnpm exec tsx --conditions=react-server scripts/verify-prod-404.mjs
+
+The probe is **production-only by design** and gates on
+`/api/health` reporting `env: "production"`. Against dev it exits
+`SKIP-ENV`, because the dev behaviour is a known artifact. **Do not move
+its assertions into the smoke chain** — they cannot pass against dev by
+construction, which is why this gap survived `daabae5`.
+
+
 - **`PayPeriod` has no `userId`** — one global active row, and the
   roll-forward writes during a GET render. Two users would collide. The
   paycheck guard avoids depending on it by keying on the period's start
