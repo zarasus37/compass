@@ -1186,7 +1186,7 @@ The "Next session" pointer has been retired. The next session should:
 
 **Open issues (not yet promoted to clusters):**
 
-- ~~**pnpm build EPERM**~~ — Turbopack build failed on the OneDrive-synced `.next` folder. **Likely resolved by the 2026-10-02 move to `C:\dev\compass`**; unverified since. If a real build artifact is needed, just try `pnpm build` and record what actually happens rather than assuming the old EPERM.
+- **~~`pnpm build` EPERM — RESOLVED, verified 2026-10-02.~~** Turbopack's build used to fail on the OneDrive-synced `.next` folder. With the workspace at `C:\dev\compass`, `pnpm build` completes clean: **exit 0 in 177.6s**, full route table emitted, 1,826 files / 597 MB in `.next`. The blocker was the cloud filesystem, not Turbopack. A real production build artifact is now possible locally, which reopens the `smoke:server` / `next start` path.
 - **Catalog em strings** — see Cluster 2.1.
 - **Narrow-viewport wrap** — see Cluster 2.7.
 
