@@ -98,6 +98,33 @@ jobs:
             sleep 1
           done
 
+          # Warm the routes the chain touches FIRST, before declaring the
+          # server usable. /api/health is a tiny route that compiles in
+          # seconds; /login and /welcome are heavy (auth, argon2, prisma,
+          # session, server actions) and compile on demand. A first hit on
+          # a cold route can return 500 while its compile is in flight.
+          #
+          # The smoke chain is &&-chained from smoke-auth.mjs, so that one
+          # 500 aborts everything and the run dies in ~1m50s instead of
+          # ~13m — which reads like a fast, decisive failure and is not
+          # one. Observed on run 36998303068, where the very next commit
+          # (same code plus a markdown edit) passed.
+          for route in /login /welcome; do
+            for i in $(seq 1 45); do
+              code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3000${route}" || true)
+              case "$code" in
+                200|307)
+                  echo "warm ${route} -> ${code}"
+                  break
+                  ;;
+                *)
+                  echo "warming ${route} (got ${code:-conn-refused})"
+                  sleep 2
+                  ;;
+              esac
+            done
+          done
+
       - name: Run smoke suite
         run: |
           # data-layer smokes first (cheaper, fail-fast on schema drift)
