@@ -1,7 +1,7 @@
 ﻿/**
  * Per-test user fixture for the Compass smoke suite.
  *
- * â”€â”€ Why this exists â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+ * ── Why this exists ────────────────────────────────────────────────────────
  * The suite used to share ONE hardcoded user (`mom@compass.local`) across
  * ~30 files. That made it order-dependent, because several tests
  * destructively mutate that shared row:
@@ -20,14 +20,14 @@
  * poison another. Teardown deletes the user, so repeated runs and CI
  * do not accumulate rows.
  *
- * â”€â”€ Running this â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+ * ── Running this ───────────────────────────────────────────────────────────
  * The seed modules live in `src/lib/*.ts` and import Next's `server-only`
  * marker, so anything using this fixture must run under tsx with the
  * react-server condition:
  *
  *     tsx --conditions=react-server tests/smoke-foo.mjs
  *
- * â”€â”€ Usage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+ * ── Usage ──────────────────────────────────────────────────────────────────
  *
  *     import { withFixture } from "./fixture.mjs";
  *
@@ -82,7 +82,7 @@ const FIXTURE_EMAIL_PREFIX = "smoke-";
  *
  * This is required, not just tidy. The canonical seeders
  * (ensureUserAccountsSeeded and friends) insert rows under FIXED primary
- * keys â€” ACCOUNT_SEED.id and so on â€” because they represent one canonical
+ * keys — ACCOUNT_SEED.id and so on — because they represent one canonical
  * account/goal/bill set. So two fixture users cannot both hold the seeded
  * baseline at the same time: the second one dies on
  * `Account_pkey` / duplicate key.
@@ -113,9 +113,9 @@ async function sweepStaleFixtures() {
  * @param {string} slug  short test identifier, e.g. "debts-tier"
  * @param {object} [opts]
  * @param {"full"|"minimal"} [opts.scenario="full"]
- *        "full"    â€” gate + seeded baseline + paycheck + a month of
+ *        "full"    — gate + seeded baseline + paycheck + a month of
  *                    transactions (the default; what most smokes want)
- *        "minimal" â€” gate + seeded baseline only
+ *        "minimal" — gate + seeded baseline only
  * @returns {Promise<Fixture>}
  */
 export async function createFixture(slug, opts = {}) {
@@ -157,7 +157,7 @@ export async function createFixture(slug, opts = {}) {
     }
   };
 
-  // â”€â”€ Open the onboarding gate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Open the onboarding gate ──────────────────────────────────────────────
   // The gate (src/lib/onboarding/gate.ts) is an OR:
   //   FinancialIdentity.completedAt != null || SetupState.activatedAt != null
   // We set BOTH so the fixture is realistic and does not depend on which
@@ -205,13 +205,13 @@ export async function createFixture(slug, opts = {}) {
     ids: null,
   };
 
-  // â”€â”€ Seeded baseline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Seeded baseline ───────────────────────────────────────────────────────
   // Built from the product's own seed CONSTANTS, but with per-user ids.
   //
   // We deliberately do NOT call ensureUserAccountsSeeded and friends.
   // Those insert under FIXED global primary keys ("acct-chase",
-  // "env-rent", "bill-rent", â€¦) because they represent one canonical
-  // dataset. Two users therefore cannot both hold the seeded baseline â€”
+  // "env-rent", "bill-rent", …) because they represent one canonical
+  // dataset. Two users therefore cannot both hold the seeded baseline —
   // the second insert dies on `Account_pkey`. Since every test now gets
   // its own user, we recreate the same VALUES under generated ids and
   // remap every cross-reference.
@@ -437,14 +437,14 @@ async function provisionBaseline(fx) {
 /**
  * Vault state: a MOCK-mode Safe plus yield-eligible envelope positions.
  *
- * The /vault page derives its yield panel from VaultEnvelope rows â€”
+ * The /vault page derives its yield panel from VaultEnvelope rows —
  * `mock-data.ts` treats `principalAllocated` as the eligible principal,
  * accrues SIMULATED_APY (3.52%) per day for DAYS_DEPLOYED (14) days, and
  * splits the total pro-rata. With no VaultEnvelope rows the whole panel
  * reads $0.00 and the "reconciliation" assertion has nothing to compare.
  *
  * The Smart account address is the MOCK literal, which is what puts the
- * page in MOCK state â€” the state every vault smoke asserts against
+ * page in MOCK state — the state every vault smoke asserts against
  * ([DEPLOY] visible, [FUND]/[DEPOSIT]/[WITHDRAW] hidden).
  */
 async function provisionVault(fx, ids) {
@@ -454,7 +454,7 @@ async function provisionVault(fx, ids) {
     data: {
       id: `vault-${fx.slug}-${fx.userId.slice(-6)}`,
       userId: fx.userId,
-      chainId: 84532, // Base Sepolia â€” the safe default for local dev
+      chainId: 84532, // Base Sepolia — the safe default for local dev
       smartAccountAddress: MOCK_SAFE_ADDRESS,
       baseAsset: "USDC",
       status: "ACTIVE",
@@ -468,7 +468,7 @@ async function provisionVault(fx, ids) {
     // yield assertion read $0.00, which looks like a page bug instead
     // of a fixture bug. Fail loudly and immediately.
     console.error(
-      `[fixture] FATAL: could not provision vault for ${fx.email} â€” ${e.message}`,
+      `[fixture] FATAL: could not provision vault for ${fx.email} — ${e.message}`,
     );
     throw e;
   });
@@ -506,7 +506,7 @@ async function provisionVault(fx, ids) {
 
 /**
  * A plausible month of life on top of the seeded baseline: an active
- * biweekly paycheck (D17 â€” biweekly is the canonical cadence) and
+ * biweekly paycheck (D17 — biweekly is the canonical cadence) and
  * spending spread across the seeded envelopes.
  *
  * Values are the canonical envelopes by NAME lookup, so spending lands
@@ -601,8 +601,13 @@ async function provisionMonth(fx, ids) {
  * @param {string} slug
  * @param {object} [opts] forwarded to createFixture
  */
-export async function loginAsFixture(slug, opts = {}) {
-  const fx = await createFixture(slug, opts);
+/**
+ * A cookie-jar client against the running dev server. No user, no DB.
+ *
+ * Extracted so the login half can be reused by `loginExisting` without
+ * creating a fixture first — see that function for why that matters.
+ */
+function openClient() {
   const base = process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3000";
   const jar = {};
 
@@ -646,35 +651,82 @@ export async function loginAsFixture(slug, opts = {}) {
       body: JSON.stringify(body ?? {}),
     });
 
-  // Log in through the real server action, so session handling is
-  // exercised rather than bypassed.
-  const lr = await get("/login");
+  return { base, jar, absorb, get, post, postJson };
+}
+
+/**
+ * Log in through the real server action, so session handling is
+ * exercised rather than bypassed.
+ *
+ * Returns the action id AND the login response status: ~30 smokes log
+ * `s.login.status`, and `smoke-change-password` asserts it is 303, so
+ * both fields are part of the harness contract, not incidental detail.
+ *
+ * Throws on failure WITHOUT touching the database: the caller decides
+ * whether a half-created fixture needs cleaning up.
+ */
+async function authenticate(client, email, password) {
+  const lr = await client.get("/login");
   const html = await lr.text();
   const aid =
     html.match(/"id":"([a-f0-9]{20,})"/)?.[1] ??
     html.match(/&quot;id&quot;:&quot;([a-f0-9]{20,})&quot;/)?.[1] ??
     null;
   if (!aid) {
-    await fx.cleanup();
-    throw new Error("[fixture] no login action id on /login â€” is the dev server up?");
+    throw new Error("[fixture] no login action id on /login — is the dev server up?");
   }
-  const lp = await post("/login", { email: fx.email, password: fx.password }, { actionId: aid });
-  absorb(lp);
-  if (!jar.compass_session) {
+  const lp = await client.post(
+    "/login",
+    { email, password },
+    { actionId: aid }
+  );
+  client.absorb(lp);
+  if (!client.jar.compass_session) {
+    throw new Error(`[fixture] login failed for ${email} (status ${lp.status})`);
+  }
+  return { actionId: aid, status: lp.status };
+}
+
+export async function loginAsFixture(slug, opts = {}) {
+  const fx = await createFixture(slug, opts);
+  const client = openClient();
+
+  let login;
+  try {
+    login = await authenticate(client, fx.email, fx.password);
+  } catch (e) {
     await fx.cleanup();
-    throw new Error(`[fixture] login failed for ${fx.email} (status ${lp.status})`);
+    throw e;
   }
 
   return {
     ...fx,
-    base,
-    jar,
-    get,
-    post,
-    postJson,
-    login: { status: lp.status, actionId: aid },
+    ...client,
+    login,
     close: () => fx.cleanup(),
   };
+}
+
+/**
+ * A cookie-jar client against the running dev server, with NO user
+ * created and NO stale-fixture sweep.
+ *
+ * This exists for the restart-survival probe, and it exists because of
+ * a specific hazard: `createFixture` calls `sweepStaleFixtures`, which
+ * deletes every `smoke-*` user. A probe that measures whether a row
+ * survived a restart and then calls `createFixture` to log in has just
+ * deleted the evidence it was about to measure — and will happily
+ * report a clean pass on an empty account.
+ *
+ *     const s = await loginExisting(email, password);
+ *     const html = await (await s.get("/transactions")).text();
+ *
+ * The caller owns teardown; there is nothing to clean up client-side.
+ */
+export async function loginExisting(email, password) {
+  const client = openClient();
+  const login = await authenticate(client, email, password);
+  return { email, ...client, login };
 }
 
 /**

@@ -16,10 +16,10 @@
  * required because the fixture imports `src/lib/*.ts` (which pull in
  * Next's `server-only` marker).
  *
- * KNOWN HAZARD (deliberately not fixed here Ã¢â‚¬â€ see the report):
+ * KNOWN HAZARD (deliberately not fixed here — see the report):
  * /api/reset-seed calls resetUserEnvelopesToSeed (src/lib/store.ts),
  * which deleteMany's ALL of the caller's envelopes and re-inserts the
- * 7 seed envelopes under GLOBAL fixed primary keys ("env-rent", Ã¢â‚¬Â¦).
+ * 7 seed envelopes under GLOBAL fixed primary keys ("env-rent", …).
  * The same route's ensureUser*Seeded calls insert "acct-chase",
  * "bill-rent", "goal-emergency", "plan-default" under global pkeys, so
  * if any other user already holds those keys the route's transaction
@@ -44,7 +44,7 @@ async function main() {
   });
   log("no-auth POST", `status=${noAuth.status}`);
 
-  // 2. Per-test fixture user, logged in through the real action Ã¢â€â‚¬Ã¢â€â‚¬
+  // 2. Per-test fixture user, logged in through the real action ──
   const s = await loginAsFixture("reset-seed");
   log("fixture", `user=${s.email}`);
 
@@ -61,7 +61,7 @@ async function main() {
   const hasGroceries = /Groceries/.test(env1Text);
   log("/envelopes after reset", `status=${env1.status} hasGroceries=${hasGroceries}`);
 
-  // 5. Trigger a rebalance via the existing action Ã¢â‚¬â€ this is a full
+  // 5. Trigger a rebalance via the existing action — this is a full
   //    end-to-end check that the engine still works post-reset. We
   //    grab the rebalance form's action id and post a $10 transfer.
   const env2 = await s.get("/envelopes");
@@ -99,7 +99,7 @@ async function main() {
   }, { actionId: rebalAid });
   log("rebalance POST", `status=${rebalance.status}`);
 
-  // 6. Read /envelopes again Ã¢â‚¬â€ verify balances shifted by $10.
+  // 6. Read /envelopes again — verify balances shifted by $10.
   const env3 = await s.get("/envelopes");
   const env3Text = await env3.text();
   // Match the full option label (which contains React 19 hydration
@@ -117,14 +117,14 @@ async function main() {
       balances3[m[1]] = cents;
     }
   }
-  // The seed has Rent current=80_000Ã‚Â¢, Groceries current=61_200Ã‚Â¢
+  // The seed has Rent current=80_000¢, Groceries current=61_200¢
   // (Groceries is intentionally seeded over its 40_000 target so the
   // OVER state shows up immediately on the vessel feed). After the
-  // reset and a $10 rebalance rentÃ¢â€ â€™groceries we expect:
-  //   rent:     80_000 - 1_000 = 79_000Ã‚Â¢
-  //   groceries: 61_200 + 1_000 = 62_200Ã‚Â¢
-  log("rent after rebalance", `${balances3[RENT]}Ã‚Â¢ (expected 79000Ã‚Â¢)`);
-  log("groceries after rebalance", `${balances3[GROCERIES]}Ã‚Â¢ (expected 62200Ã‚Â¢)`);
+  // reset and a $10 rebalance rentâ†’groceries we expect:
+  //   rent:     80_000 - 1_000 = 79_000¢
+  //   groceries: 61_200 + 1_000 = 62_200¢
+  log("rent after rebalance", `${balances3[RENT]}¢ (expected 79000¢)`);
+  log("groceries after rebalance", `${balances3[GROCERIES]}¢ (expected 62200¢)`);
 
   const checks = [
     ["no-auth POST returns redirect (302/307)", noAuth.status === 302 || noAuth.status === 307],

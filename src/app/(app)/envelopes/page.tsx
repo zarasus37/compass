@@ -25,7 +25,7 @@ import { AppLoadingShell } from "@/components/shell/AppLoadingShell";
 export const dynamic = "force-dynamic";
 
 /**
- * Envelopes â€” articulated deep page.
+ * Envelopes — articulated deep page.
  *
  * Component Oracle Terminal treatment: Sora section titles, JetBrains
  * Mono for amounts and labels, mono caps section headers with // prefix.
@@ -36,27 +36,27 @@ export const dynamic = "force-dynamic";
  * Prisma `Envelope` table (via `liveEnvelopesFromDb`). The first
  * call lazily seeds the 7 canonical vessels
  * (ensureUserEnvelopesSeeded). TRANSACTIONS still come from the
- * in-memory store â€” that's a separate widget switch.
+ * in-memory store — that's a separate widget switch.
  */
 async function EnvelopesContent() {
   const user = await requireUser();
   // Live reads: the bar chart and over-limit count reflect the current
   // store state, including any allocations from the paycheck simulator.
   //
-  // Cluster 7.44 â€” defensive read. The previous shape threw the entire
+  // Cluster 7.44 — defensive read. The previous shape threw the entire
   // page to (app)/error.tsx if `liveEnvelopesFromDb` failed (mig
   // result of any transient Prisma hiccup). Now: if the read throws,
   // log + render with an empty envelope list so the rest of the page
   // (page head, summary strip, "no envelopes yet" empty state) still
   // shows instead of the calm-error card. Mom's `compass-olive-mu`
-  // hit this on 2026-09-27 with digest 3789288087 â€” the same digest
+  // hit this on 2026-09-27 with digest 3789288087 — the same digest
   // she saw on /envelopes/[id] before Cluster 7.43 wrapped that page's
   // reads. This page was missed in 7.43.
   let ENVELOPES: Awaited<ReturnType<typeof liveEnvelopesFromDb>> = [];
   try {
     ENVELOPES = await liveEnvelopesFromDb(user.id);
   } catch (err) {
-    // Cluster 7.52 â€” capture the throw so the operator sees it
+    // Cluster 7.52 — capture the throw so the operator sees it
     // in `scripts/show-client-errors.mjs` without needing Vercel
     // logs. Empty ENVELOPES is non-fatal (the empty-state still
     // renders) but the throw itself is the kind of bug we want
@@ -73,11 +73,11 @@ async function EnvelopesContent() {
     ENVELOPES = [];
   }
 
-  // Cluster 7.28 â€” Lazy-seed sinking funds (1-2 per envelope on
+  // Cluster 7.28 — Lazy-seed sinking funds (1-2 per envelope on
   // first visit). Idempotent: re-running is a no-op once any
   // sink exists for the user.
   //
-  // Cluster 7.44 â€” wrap the seed + read in try/catch so a transient
+  // Cluster 7.44 — wrap the seed + read in try/catch so a transient
   // Prisma hiccup doesn't take the whole list page down. Mirrors the
   // 7.43 defensive pattern on /envelopes/[id]. If the seed or read
   // throws, SINKS degrades to [] and the sinks inline (Cluster 7.28)
@@ -91,7 +91,7 @@ async function EnvelopesContent() {
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     });
   } catch (err) {
-    // Cluster 7.52 â€” capture to ClientError table before the
+    // Cluster 7.52 — capture to ClientError table before the
     // empty-SINKS fallback. Same shape as 7.44's defensive
     // catch but the throw itself now lands in the operator's
     // view.
@@ -126,7 +126,7 @@ async function EnvelopesContent() {
   return (
     <div>
       <PageHead
-        eyebrow="// money Â· envelopes"
+        eyebrow="// money · envelopes"
         title="Envelopes"
         em="each with a purpose."
         accent="cyan"
@@ -156,7 +156,7 @@ async function EnvelopesContent() {
         }
         explanation={
           <>
-            An envelope is a small budget for one part of your life. Seven come with Compass â€” one for each of the basic areas (rent, groceries, utilities, joy, buffer, savings, debt). You can add more any time. Set a target for each. When the paycheck arrives, money moves in automatically. When you spend, the balance drops. When it hits 85%, the bar turns amber. When it goes over 100%, the bar shows it in iron red â€” your signal to slow down or adjust the target.
+            An envelope is a small budget for one part of your life. Seven come with Compass — one for each of the basic areas (rent, groceries, utilities, joy, buffer, savings, debt). You can add more any time. Set a target for each. When the paycheck arrives, money moves in automatically. When you spend, the balance drops. When it hits 85%, the bar turns amber. When it goes over 100%, the bar shows it in iron red — your signal to slow down or adjust the target.
           </>
         }
       />
@@ -172,7 +172,7 @@ async function EnvelopesContent() {
           marginBottom: 56,
         }}
       >
-        <SummaryCell label="envelopes" value={ENVELOPES.length.toString()} sub="7 planetary Â· 0 custom" />
+        <SummaryCell label="envelopes" value={ENVELOPES.length.toString()} sub="7 planetary · 0 custom" />
         <SummaryCell
           label="total balance"
           value={formatMoney(totalBalance)}
@@ -181,7 +181,7 @@ async function EnvelopesContent() {
         <SummaryCell
           label="needs attention"
           value={overLimit.length.toString()}
-          sub={overLimit.length === 0 ? "all within target" : "over limit â€” review"}
+          sub={overLimit.length === 0 ? "all within target" : "over limit — review"}
           accent={overLimit.length > 0 ? "neg" : "ok"}
         />
         <SummaryCell
@@ -195,7 +195,7 @@ async function EnvelopesContent() {
         <SectionHeader
           title="Move between vessels"
           em="rebalance without waiting for a paycheck."
-          meta="Atomic â€” both balances update or neither does. Audited."
+          meta="Atomic — both balances update or neither does. Audited."
         />
         <RebalanceForm
           envelopes={ENVELOPES.filter((e) => e.planet !== null).map((e) => ({
@@ -232,7 +232,7 @@ async function EnvelopesContent() {
         })} />
       </section>
 
-      {/* Needs attention â€” over limit envelopes in full detail */}
+      {/* Needs attention — over limit envelopes in full detail */}
       {overLimit.length > 0 && (
         <section style={{ marginBottom: 64 }}>
           <SectionHeader
@@ -253,7 +253,7 @@ async function EnvelopesContent() {
         </section>
       )}
 
-      {/* All envelopes â€” compact summary row
+      {/* All envelopes — compact summary row
           (replaces the old 7-card detail grid, which duplicated the bar
           chart above and added vertical mass without much new signal).
           The bar chart shows fill; this row shows the headline numbers
@@ -262,7 +262,7 @@ async function EnvelopesContent() {
         <SectionHeader
           title="Every envelope"
           em="at a glance."
-          meta="Each row carries its own bar â€” the visual sits right next to the data."
+          meta="Each row carries its own bar — the visual sits right next to the data."
         />
         <div
           style={{
@@ -330,7 +330,7 @@ async function EnvelopesContent() {
                 >
                   of {formatMoney(e.target)}
                 </span>
-                {/* The per-envelope mini bar â€” directly next to the
+                {/* The per-envelope mini bar — directly next to the
                     current/target numbers it visualizes. */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <EnvelopeMiniBar
@@ -354,7 +354,7 @@ async function EnvelopesContent() {
                   {Math.round(pct)}%
                 </span>
               </div>
-                {/* Cluster 7.28 â€” sinking funds inline under each envelope row */}
+                {/* Cluster 7.28 — sinking funds inline under each envelope row */}
                 {envelopeSinks.length > 0 && (
                   <div
                     data-testid={`envelope-sinks-${e.id}`}
@@ -396,9 +396,9 @@ async function EnvelopesContent() {
                             color: "var(--ink-2)",
                           }}
                         >
-                          Â· {s.name}{" "}
+                          · {s.name}{" "}
                           <span style={{ color: "var(--ink-4)" }}>
-                            ({formatMoney(s.targetCents)} / {s.cadence} Â·{" "}
+                            ({formatMoney(s.targetCents)} / {s.cadence} ·{" "}
                             {formatMoney(monthlyFillCents(s.targetCents, s.cadence))}/mo)
                           </span>
                         </span>
@@ -416,7 +416,7 @@ async function EnvelopesContent() {
         </div>
       </section>
 
-      {/* Insight at the bottom â€” dynamic. */}
+      {/* Insight at the bottom — dynamic. */}
       <EnvelopesInsight
         overLimit={overLimit}
         onTrack={onTrack.length}
@@ -697,7 +697,7 @@ function EnvelopeDetail({
               marginTop: 2,
             }}
           >
-            of {formatMoney(e.target)} Â· {Math.round(pct)}%
+            of {formatMoney(e.target)} · {Math.round(pct)}%
           </div>
         </div>
       </div>
@@ -793,7 +793,7 @@ function EnvelopeDetail({
                   fontSize: 13,
                 }}
               >
-                <span style={{ color: "var(--ink-2)" }}>{t.payee ?? "â€”"}</span>
+                <span style={{ color: "var(--ink-2)" }}>{t.payee ?? "—"}</span>
                 <span
                   style={{
                     fontFamily: "var(--font-jetbrains), monospace",

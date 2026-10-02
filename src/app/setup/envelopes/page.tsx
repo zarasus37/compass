@@ -1,12 +1,12 @@
 ﻿/**
- * /setup/envelopes â€” Step 3 of the setup wizard.
+ * /setup/envelopes — Step 3 of the setup wizard.
  *
- * Cluster 7.36 â€” confirms the canonical 7 vessels are set up correctly.
+ * Cluster 7.36 — confirms the canonical 7 vessels are set up correctly.
  * User can rename any, adjust target balances, and set current balances
  * to match what they actually have right now.
  *
  * Cluster 7.28 already added Sinking Funds (EnvelopeSink). For v1 of
- * the wizard, sinks are NOT in scope â€” user can add them later from
+ * the wizard, sinks are NOT in scope — user can add them later from
  * the envelope detail page (existing UI).
  */
 import { redirect } from "next/navigation";
@@ -42,7 +42,7 @@ export default async function EnvelopesPage() {
         <span style={eyebrowStyle}>// step 3 of 5</span>
         <h1 style={h1Style}>Envelopes</h1>
         <p style={pStyle}>
-          Seven canonical vessels â€” the buckets your money lives in. Adjust names, target balances, or
+          Seven canonical vessels — the buckets your money lives in. Adjust names, target balances, or
           current balances to match your real situation.
         </p>
       </header>

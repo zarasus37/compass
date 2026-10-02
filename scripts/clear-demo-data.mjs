@@ -1,13 +1,13 @@
 ﻿#!/usr/bin/env node
 /**
- * clear-demo-data â€” strip the seeded demo persona from one account,
+ * clear-demo-data — strip the seeded demo persona from one account,
  * leaving the login itself intact.
  *
  * ## Why
  *
  * The canonical seed in `src/lib/mock-seed.ts` gives every new user a
  * fictional household: 7 vessels, ~6 transactions, bills, goals, debts,
- * a vault. That is right for a demo and wrong for a real account â€” the
+ * a vault. That is right for a demo and wrong for a real account — the
  * dashboard shows another person's fictional rent and groceries beside
  * live dates. This removes that data so the account starts honest and
  * real figures can be entered instead.
@@ -208,10 +208,10 @@ async function main() {
 
   console.log(`\nDatabase : ${target}`);
   console.log(`Account  : ${user.email}  (${user.name})`);
-  console.log(`Mode     : ${confirmed ? "DELETE" : "DRY RUN â€” nothing is written"}`);
+  console.log(`Mode     : ${confirmed ? "DELETE" : "DRY RUN — nothing is written"}`);
 
   if (plan.length === 0) {
-    console.log("\nNothing to clear â€” this account already has no seeded rows.");
+    console.log("\nNothing to clear — this account already has no seeded rows.");
     return;
   }
 
@@ -228,7 +228,7 @@ async function main() {
     return;
   }
 
-  console.log("\nDeletingâ€¦");
+  console.log("\nDeleting…");
   // Atomic on purpose, and children-before-parents. A partial clear is
   // worse than no clear: the account is left in a state neither the app
   // nor the operator expects. If any table refuses (an FK the order did

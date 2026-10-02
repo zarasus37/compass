@@ -5,6 +5,210 @@ the budgeting side has moved from "never worked" to "persisted, guarded,
 and triggered automatically."
 
 ═══════════════════════════════════════════════════════════════════════
+# 📎 SESSION 2026-10-01 (late) — item 2 MEASURED, plus a live rendering bug
+═══════════════════════════════════════════════════════════════════════
+
+Everything below §"NEXT — THE RANGE" is still true except where noted.
+This section records what changed and, more importantly, the one
+environment fact that will cost a future session an hour if it is not
+known.
+
+## What was completed
+
+**1. Item 1 of the range is landed and CI-confirmed.** `777307b`
+("apply the armed plan automatically when a paycheck arrives") — run
+`36851618281`, success, 13m41s. Item 1 is closed.
+
+**2. Item 2 is now MEASURED rather than argued.** This is the gap the
+previous session flagged as "structurally sound but unmeasured".
+
+`scripts/prove-transaction-restart.mjs` (new, committed-ready) is a
+two-phase probe. Phase 1 runs in one process, writes three distinctive
+transactions through the REAL write path (`logTransactionToDb`), and
+exits. Phase 2 runs in a **different process** and re-reads.
+
+Result: **13 pass / 0 miss / 0 skipped.** No skips — the first run of
+this probe reported 10/0/**1 skip** because the dev server was
+unavailable at the time; the page-render half was then closed by
+re-running the whole cycle against a working server. A skip reported
+honestly is a task left open, not a task passed.
+
+The full cycle, as run:
+
+    # phase 1 — pid 46072
+    node scripts/prove-transaction-restart.mjs write
+    # teardown: 3 node processes killed, 0 remaining, port 3000 free
+    # cold start, then:
+    # phase 2 — pid 41292
+    node scripts/prove-transaction-restart.mjs read
+
+- 3 rows survived the process boundary, identical on id, amount,
+  envelopeId and date.
+- `liveTransactionsFromDb` — the reader every page uses — returned all 3
+  in the fresh process.
+- **`globalThis.__COMPASS_STORE__` had no entry at all for that user**,
+  so the data demonstrably came from Postgres rather than from a
+  re-seeded memory store. This is the assertion that makes the result
+  mean something.
+- The vessel balance survived too: 61200 -> 54288, i.e. the ledger and
+  the vessel agree after the restart, not just the ledger.
+- The cold-started server rendered all three on `/transactions`
+  (92,092 bytes), with a positive control on document size so the
+  three matches could not be satisfied by an empty or error page.
+
+Running it is two commands around a teardown:
+
+    node scripts/prove-transaction-restart.mjs write
+    # kill every node process; cold-start the server
+    node scripts/prove-transaction-restart.mjs read
+
+**The page render is conditional on a reachable server, by design.** If
+the server is down the probe still measures durability and reports the
+render as `SKIP` — never as a pass. `SMOKE_PROBE_TIMEOUT_MS` raises the
+health-probe budget, which matters here because a cold `/api/health`
+compile measured 64.7s on this box while the chain contract assumes
+10s.
+
+**3. A LIVE USER-VISIBLE BUG, found while doing the above.** Six files
+had been double-encoded by a PowerShell `Set-Content` without
+`-Encoding UTF8` — the same corruption that broke `payeeKey`, except
+this time it was never fixed. It was not comment-only:
+
+| File | Was rendering as | Should be |
+|---|---|---|
+| `src/app/(app)/goals/page.tsx` | `ðŸ›Ÿ Emergency` | `🛟 Emergency` |
+| `src/app/(app)/goals/page.tsx` | `ðŸ“ˆ Invest` | `📈 Invest` |
+| `src/app/(app)/goals/page.tsx` | `—` (3 garbage chars) | `—` |
+| `src/app/(app)/envelopes/page.tsx` | `—`, `Â·` | `—`, `·` |
+| `src/app/setup/envelopes/page.tsx` | `—` | `—` |
+
+Every em-dash on the Goals and Envelopes pages rendered as three
+visible garbage characters, and the goal-kind badge rendered as mojibake
+instead of an emoji. Repaired in all six files
+(`goals/page.tsx`, `envelopes/page.tsx`, `setup/envelopes/page.tsx`,
+`tests/fixture.mjs`, `tests/smoke-reset-seed.mjs`,
+`scripts/clear-demo-data.mjs`); characters verified by codepoint, not by
+eyeball. Diff is symmetric (83/83) — encoding only, no logic touched.
+
+**The suite cannot see this class of bug**, which is the point. No smoke
+asserts on a dash or a middot; they assert on `$4,820.00` and
+`24.99% APR`. A 1,500-check green suite and a page full of `â€”` are
+fully compatible.
+
+### ⚠ THE PRESCRIBED ENCODING CHECK IS NOT SUFFICIENT — READ THIS
+
+The previous session's verification was:
+
+    node -e "...new TextDecoder('utf-8',{fatal:true}).decode(...)"
+
+**That check passes on double-encoded files.** A double-encoded file is
+perfectly valid UTF-8; the bytes were re-encoded, not corrupted. All six
+files above pass the fatal-decode check and were still broken.
+
+The check that actually catches it is structural: a mis-decode always
+leaves an accented Latin-1 letter (U+00C2–U+00F4) immediately followed by
+a cp1252 punctuation codepoint (U+0080–U+00BF, U+20AC, U+201A–U+201E,
+…). A correctly authored em-dash is ONE codepoint and does not match.
+`scripts/scan-encoding.mjs` (new, committed) implements exactly that and
+exits 1 on a hit, so it can gate CI. **Wiring it into the workflow is
+the one recommendation here that needs your call** — it is a pipeline
+change, not a code fix.
+
+**Expect three hits and do not "fix" them.** `HANDOVER.md` (132 runs) is
+genuinely corrupt and is the one real outstanding item. The hits in this
+file and in `scan-encoding.mjs` itself are the guards *quoting* the
+corruption they describe; that is correct behaviour, and the fix is to
+stop embedding examples, not to silence the check.
+
+## 🚨 THE ENVIRONMENT FACT THAT WILL COST YOU AN HOUR
+
+**`pnpm dev` cannot serve this project on this machine.** Two distinct
+causes, both found this session:
+
+**(a) A stale `.next/dev` cache makes the server appear to hang.** It
+printed `Ready in 93s` and then accepted connections while using 0% CPU
+— a deadlock, not slow compilation. Deleting `.next/dev` fixed it
+(`Ready in 10.5s`). The project's own `scripts/smoke-server.mjs` warns
+about mixing caches; it understates the symptom. **If `next dev` is
+"ready" but never answers, delete `.next/dev` and restart.**
+
+**(b) OneDrive Files On-Demand breaks Node's extended-path reads.** The
+hard one. This is a OneDrive-backed repo, and unhydrated files fail:
+
+    Error: Reading source code for parsing failed
+    Caused by: The cloud operation was unsuccessful. (os error 389)
+
+`os error 389` is the cloud-files filter failing to hydrate a
+placeholder. `node_modules/.pnpm/next@16.3.6_.../next/headers.js`
+carried `RecallOnDataAccess` (0x400000), and Turbopack reads through the
+`\\?\C:\...` extended-length prefix, which does NOT trigger the recall —
+so the read simply fails, and every route that touches it 500s. It
+surfaced as a health check that hung for 120s, then as a 500 on
+`/api/health` and `/login`.
+
+**Fix: make the tree local so no recall is needed.** Right-click the
+project folder → *Always keep on this device*, or hydrate
+`node_modules` and `.next` from the OneDrive tray icon. Touching the
+files through a NORMAL path (Explorer, `Get-Content`) hydrates them;
+that is why the failing reads started succeeding partway through this
+session. Until it is done, **no HTTP smoke can run locally** — the DB
+phase of the restart probe can, which is why it was written to need no
+server.
+
+Also note: `.next/dev` is 197 MB / 329 files here, so deleting it costs a
+slow re-compile. Do it only when the server is actually wedged.
+
+## Harness change
+
+`tests/fixture.mjs` gained **`loginExisting(email, password)`** — a login
+that creates no user and, critically, **runs no sweep**.
+`createFixture` calls `sweepStaleFixtures`, which deletes every `smoke-*`
+user, so a probe that logs in via `createFixture` to inspect evidence
+deletes the evidence and then reports a clean pass on an empty account.
+This is the trap the previous session wrote into the stop conditions; the
+function is how you get past it safely.
+
+The cookie-jar client and the login sequence were extracted into
+`openClient()` / `authenticate()` so both entry points share them.
+
+**Caught before it shipped:** the extraction initially dropped
+`login.status`, which ~30 smokes log and which
+`smoke-change-password.mjs` **asserts** (`=== 303`). Restored —
+`authenticate` returns `{ actionId, status }`. If you refactor this file
+again, grep `login.status` first.
+
+## What is NOT verified
+
+- **`tsc` / `lint` on the repaired files** were still running when this
+  was written (this box is very slow under OneDrive). Run both before
+  trusting the repair. NOTE: do not run them while killing stray node
+  processes — a blanket `Stop-Process` on node takes tsc with it, which
+  cost two attempts this session.
+- **No full smoke chain was run against the repaired tree.** The
+  fixture refactor was verified two ways — statement-by-statement
+  equivalence against HEAD, and a live `POST /login 303` through
+  `loginExisting` during the probe — but not by running a
+  `loginAsFixture` smoke end to end. Run at least
+  `smoke-transactions-persist` and `smoke-change-password` (the latter
+  asserts on `login.status`) before trusting the harness change.
+- Items 3, 4 and 5 of the range are **not started**. Canonical state
+  (`FinancialState`) still does not exist.
+
+## Working tree state
+
+Modified (uncommitted): the six repaired files + `fixture.mjs`.
+Untracked and intended: `scripts/prove-transaction-restart.mjs`.
+Untracked scratch, **do not stage**: `.tmp.driveupload/`, `.codex-screen/`,
+`_dev-start.cmd`, `dev7.err`, `preview-login.png`, `videos/`,
+`design/vision.docx`, `compass logo.jpg`.
+
+**Nothing has been committed or pushed this session.** The mojibake fix
+is a real user-facing bug fix and is worth landing on its own, with the
+restart probe alongside it.
+
+═══════════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════════
 ## (a) COMPLETED WORK
 ═══════════════════════════════════════════════════════════════════════
 
