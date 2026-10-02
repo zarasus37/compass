@@ -297,6 +297,14 @@ Against xKryptic's own 10-item roadmap:
    (rows in Postgres, page reads Postgres) but that is an argument, not a
    measurement. Do the same two-phase test used for debts.
 
+**2b. FIX THE BLANK (app) 404 — live, user-facing, and now measured.**
+Items 1 and 2 of the original range are DONE. This is new and it is a
+real defect: a stale link inside the app renders a blank page in
+PRODUCTION, not just dev. Full measurement, ruled-out causes, the
+failed `global-error.tsx` attempt, and the leading hypothesis are in
+"🔴 OPEN, LIVE, AND NOT DEV-CONFINED" below. Read that section before
+touching it — the obvious fix does not work and has already been tried.
+
 **3. Canonical state (item 4).** This is the real next feature. `Debts`,
 `Transactions`, `Bills`, `Goals`, `Envelopes` all have their own readers
 and each page assembles its own picture. A single
