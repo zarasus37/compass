@@ -1,4 +1,4 @@
-﻿docs(handover): the budgeting loop is persisted and automatic; hand off
+docs(handover): the budgeting loop is persisted and automatic; hand off
 
 Supersedes the previous briefing in this file. The test tail is done AND
 the budgeting side has moved from "never worked" to "persisted, guarded,
@@ -132,8 +132,11 @@ printed `Ready in 93s` and then accepted connections while using 0% CPU
 about mixing caches; it understates the symptom. **If `next dev` is
 "ready" but never answers, delete `.next/dev` and restart.**
 
-**(b) OneDrive Files On-Demand breaks Node's extended-path reads.** The
-hard one. This is a OneDrive-backed repo, and unhydrated files fail:
+**(b) OneDrive Files On-Demand breaks Node's extended-path reads.**
+**RESOLVED 2026-10-02 by moving the repo to `C:\dev\compass`.** Kept
+here because the symptom recurs if anyone moves it back, and because it
+reads like a code bug when it isn't. The repo was OneDrive-backed, and
+unhydrated files failed:
 
     Error: Reading source code for parsing failed
     Caused by: The cloud operation was unsuccessful. (os error 389)
@@ -146,14 +149,21 @@ so the read simply fails, and every route that touches it 500s. It
 surfaced as a health check that hung for 120s, then as a 500 on
 `/api/health` and `/login`.
 
-**Fix: make the tree local so no recall is needed.** Right-click the
-project folder → *Always keep on this device*, or hydrate
-`node_modules` and `.next` from the OneDrive tray icon. Touching the
-files through a NORMAL path (Explorer, `Get-Content`) hydrates them;
-that is why the failing reads started succeeding partway through this
-session. Until it is done, **no HTTP smoke can run locally** — the DB
-phase of the restart probe can, which is why it was written to need no
-server.
+**"Always keep on this device" is NOT a sufficient fix — verified, not
+assumed.** Applying it took the server from `Ready in 93s` to 20s and
+cleared the 500s, but **20,889 files were still `Offline` afterwards,
+20,858 of them inside `node_modules/.pnpm`.** OneDrive does not hydrate
+a pnpm content-addressed store (which is hardlinked), so reads there
+kept failing under a different error code: `errno: -4094,
+syscall: 'read', code: 'UNKNOWN'`. Do not read that code as a different
+problem.
+
+**Diagnose it by counting `Offline` files, not by reading
+`RecallOnDataAccess`** — that attribute reads 0 while 20k files are
+still offline, which is exactly the false "all clear" that sent this
+search down the wrong path. The fix is structural: keep the working
+tree out of any cloud-synced folder, and let OneDrive hold only the
+docs and deliverables.
 
 Also note: `.next/dev` is 197 MB / 329 files here, so deleting it costs a
 slow re-compile. Do it only when the server is actually wedged.
@@ -311,7 +321,7 @@ VAULT is the working precedent: `@@unique([providerName, idempotencyKey])`.
 ### Pre-flight
 
 ```bash
-cd "C:\Users\crisc\OneDrive - Southern Careers Institute\My Drive\Budget planner app"
+cd "C:\dev\compass"
 git log --oneline -3
 gh run list --limit 2          # ← CI is the arbiter. Check it FIRST.
 pnpm tsc                        # exit 0

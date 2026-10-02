@@ -1,7 +1,8 @@
 # Compass — Coordination / Handoff
 
 > Handoff package for fresh-session pickup of **Compass**, a personal-finance / treasury app.
-> Workspace: `C:\Users\crisc\OneDrive - Southern Careers Institute\My Drive\Budget planner app`
+> Workspace: `C:\dev\compass`
+> Previously at `C:\Users\crisc\OneDrive - Southern Careers Institute\My Drive\Budget planner app`. Moved out of the OneDrive-synced folder on 2026-10-02 — see "Workspace moved off OneDrive" below. A cloud-synced parent breaks Node's `\\?\` reads (`os error 389` / `errno -4094`) and never hydrates the pnpm store, so `node_modules/.pnpm` sat permanently offline.
 > This file is the **contract** between sessions. Update it when the state changes; treat it as the source of truth for "where we are right now."
 
 ---
@@ -1147,7 +1148,7 @@ envelopes 29, goals 28, allocation 53, insights 23, accounts
 
 ## Notes for the next session
 
-- **Workspace is in OneDrive** (`C:\Users\crisc\OneDrive - Southern Careers Institute\My Drive\Budget planner app`). Path separators, file watchers, and dev tooling should account for that. **Cold dev-server start takes ~15s on OneDrive** (Turbopack's first scan is slow on network filesystems). Subsequent HMR is fine.
+- **Workspace is LOCAL, not in OneDrive** (`C:\dev\compass`, since 2026-10-02). Do not move it back into a cloud-synced folder. Two failure modes, both measured: stale `.next/dev` makes `next dev` print `Ready` and then sit at 0% CPU forever, and OneDrive Files On-Demand never hydrates `node_modules/.pnpm`, so Turbopack reads fail with `os error 389` / `errno -4094`. Cold start is ~20s locally.
 - **Host is Windows.** All build artifacts must be Windows-native. If using Codex (Linux sandbox) for any code, recreate artifacts on Windows after — Codex's Linux paths and binary names won't run natively on the Windows host.
 - **Mavis internal endpoint for AI** — same pattern as Ice Depot. The adapter is already wired at `src/plugins/ai/providers/mavis-internal.ts`. Do not hardcode HTTP calls in features — go through `getAiProvider()`.
 - **Single-user assumption** for now. Auth, data isolation, and account scoping can assume one user. Schema should support multi-user later without rewrite (the `user_id` foreign keys are already in the data model).
@@ -1185,7 +1186,7 @@ The "Next session" pointer has been retired. The next session should:
 
 **Open issues (not yet promoted to clusters):**
 
-- **pnpm build EPERM** — Turbopack build fails on the OneDrive-synced `.next` folder. Not blocking because dev server works for visual verification. Workarounds: (a) build only when dev server isn't running; (b) move `.next` outside the OneDrive sync; (c) accept dev-only verification. Decide when the next ship needs a real build artifact.
+- ~~**pnpm build EPERM**~~ — Turbopack build failed on the OneDrive-synced `.next` folder. **Likely resolved by the 2026-10-02 move to `C:\dev\compass`**; unverified since. If a real build artifact is needed, just try `pnpm build` and record what actually happens rather than assuming the old EPERM.
 - **Catalog em strings** — see Cluster 2.1.
 - **Narrow-viewport wrap** — see Cluster 2.7.
 

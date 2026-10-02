@@ -136,7 +136,7 @@ rather than inventing:
 ## 8. Pre-flight
 
 ```bash
-cd "C:\Users\crisc\OneDrive - Southern Careers Institute\My Drive\Budget planner app"
+cd "C:\dev\compass"
 git log --oneline -3
 pnpm tsc                                # exit 0
 pnpm lint                               # exit 0

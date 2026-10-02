@@ -1,13 +1,18 @@
 /* Tailwind v4 source detection is explicitly scoped.
  *
  * Without `source(none)`, Tailwind walks the project root to discover
- * which files contain utility classes. On this machine that walk hangs
- * the CSS pipeline: the repo lives in a OneDrive-synced folder and the
- * tree contains ~990 node_modules packages plus .next output. The result
- * is the long-documented "Windows + Turbopack PostCSS subprocess timeout"
- * — `next dev` reached "Compiling /login" and never finished, for both
+ * which files contain utility classes. That walk is slow anywhere: the
+ * tree contains ~990 node_modules packages plus .next output. Under the
+ * repo's former OneDrive-synced home it hung outright — the long-
+ * documented "Windows + Turbopack PostCSS subprocess timeout" where
+ * `next dev` reached "Compiling /login" and never finished, for both
  * Turbopack and webpack. That is why HTTP smokes had to fall back to
  * [SKIP-NO-SERVER] and why CI could never verify a page render.
+ *
+ * The workspace moved off OneDrive on 2026-10-02, so the hang itself is
+ * gone — but this scoping is now load-bearing for a second reason: it
+ * keeps the CSS pipeline's cost independent of how large `node_modules`
+ * and `.next` get. Do not remove it.
  *
  * `source(none)` disables the walk; the explicit @source below then
  * scopes scanning to `src/`, which is the only directory that renders
