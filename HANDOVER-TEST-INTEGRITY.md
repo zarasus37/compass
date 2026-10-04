@@ -117,14 +117,15 @@ to tolerate a 500 would hide real failures elsewhere.
 ## (b) NEXT — THE RANGE
 ═══════════════════════════════════════════════════════════════════════
 
-**1. Fix the blank (app) 404.** Live, user-facing, measured, and NOT
-fixed. A stale link inside the app renders a blank page in PRODUCTION.
-Full measurement and ruled-out causes are in
-"🔴 OPEN, LIVE, AND NOT DEV-CONFINED" further down — read it before
-touching anything. It is cheap to verify: ~30 seconds with the probe.
-The leading hypothesis (an inherited Suspense boundary swallowing
-`notFound()` under `/envelopes/[id]`) is **untested**. The obvious fix
-(`global-error.tsx`) was tried, measured, and **does not work**.
+**1. ~~Fix the blank (app) 404~~ — NOT A BUG; closed 2026-10-03.** This was
+item 1 of the range on 2026-10-02 and it was wrong. The "blank page" was an
+artifact of measuring pre-hydration HTML on a client-bootstrap shell; in a
+real browser the 404 card renders correctly (verified, with a screenshot and
+a negative control). No product code was changed. The actual defect was in
+`scripts/verify-prod-404.mjs`, which asserted something no correct build
+could satisfy; it is now rewritten to assert in a browser, and proven able to
+go red. See "✅ RESOLVED 2026-10-03" further down. **Do not spend another
+session on this.**
 
 **2. Canonical state (roadmap item 4).** The real feature.
 `Debts`, `Transactions`, `Bills`, `Goals`, `Envelopes` each have their
@@ -240,15 +241,23 @@ Use the structural check:
 node scripts/scan-encoding.mjs .    # exits 1 on a hit
 ```
 
-Expect **four** hits on a clean tree, in three distinct categories.
-**Do not "fix" any of them** — one of them will break a test if you do:
+Expect **three** hits on a clean tree, in two categories. **Do not "fix"
+any of them:**
 
 | File | Why it hits | If you "fix" it |
 |---|---|---|
-| `scripts/verify-prod-404.mjs` | **Detection-required.** The assertion *searches for* `â€”` to prove it is absent. Removing the literal deletes the test. | **The mojibake regression guard stops working.** |
-| `HANDOVER-TEST-INTEGRITY.md` | Quoting the corruption it documents. | Docs get unreadable. |
-| `COORDINATION.md` | Same, in the status summary. | Same. |
+| `HANDOVER-TEST-INTEGRITY.md` (10 runs) | Quoting the corruption it documents. | Docs get unreadable. |
+| `COORDINATION.md` (2 runs) | Same, in the status summary. | Same. |
 | `HANDOVER.md` (132 runs) | **Genuinely corrupt** — superseded by this file, left alone deliberately. | Harmless to fix, but it is not the working handover. |
+
+**Changed 2026-10-03: this used to be four.** The fourth was
+`scripts/verify-prod-404.mjs`, which hit because it *searched for* `â€”`
+to assert the mojibake was absent — a detection-required hit where
+removing the literal would have deleted the guard. That file was rewritten
+(its assertions now run in a browser) and no longer contains the literal,
+so the detection-required category is now empty. **If a fourth
+detection-required hit ever reappears, the same rule applies: check
+whether removing the literal guts the check before "cleaning" it.**
 
 If a hit appears in a file **not** on that list, that one is real.
 Recovery for a real one is `git checkout -- <file>` and re-apply —
@@ -280,8 +289,11 @@ never patch mangled bytes.
 
 ### Known open, deliberately not fixed
 
-- **The (app) 404 is a blank page in production.** Measured, written
-  up, hypothesis untested. See the 🔴 section below.
+- **The (app) 404 is NOT blank — the 2026-10-02 claim was wrong.** Measured
+  in a real browser 2026-10-03: the card renders, with a working CTA. The
+  blank reading came from stripping `<script>` out of a client-bootstrap
+  shell. The probe that asserted it was rewritten; the app was never
+  touched. See "✅ RESOLVED 2026-10-03" below.
 - **`/transactions` and friends still use `--surface` / `--line`.**
   These are **defined** (`globals.css:110-112`) and render correctly —
   it is an un-migrated-token consistency gap, not a break. The chain's
@@ -409,9 +421,11 @@ change, not a code fix.
 
 **Expect three hits and do not "fix" them.** `HANDOVER.md` (132 runs) is
 genuinely corrupt and is the one real outstanding item. The hits in this
-file and in `scan-encoding.mjs` itself are the guards *quoting* the
-corruption they describe; that is correct behaviour, and the fix is to
-stop embedding examples, not to silence the check.
+file and in `COORDINATION.md` are docs *quoting* the corruption they
+describe; that is correct behaviour, and the fix is to stop embedding
+examples, not to silence the check. (A fourth, detection-required hit used
+to live in `scripts/verify-prod-404.mjs` and is gone as of 2026-10-03 —
+see the table above.)
 
 ## 🚨 THE ENVIRONMENT FACT THAT WILL COST YOU AN HOUR
 
@@ -590,13 +604,13 @@ Against xKryptic's own 10-item roadmap:
    (rows in Postgres, page reads Postgres) but that is an argument, not a
    measurement. Do the same two-phase test used for debts.
 
-**2b. FIX THE BLANK (app) 404 — live, user-facing, and now measured.**
-Items 1 and 2 of the original range are DONE. This is new and it is a
-real defect: a stale link inside the app renders a blank page in
-PRODUCTION, not just dev. Full measurement, ruled-out causes, the
-failed `global-error.tsx` attempt, and the leading hypothesis are in
-"🔴 OPEN, LIVE, AND NOT DEV-CONFINED" below. Read that section before
-touching it — the obvious fix does not work and has already been tried.
+**2b. ~~FIX THE BLANK (app) 404~~ — RESOLVED 2026-10-03; it was not a bug.**
+This was believed to be a live, user-facing defect. It is not. The (app) 404
+renders correctly in a real browser; the blank reading was an artifact of
+measuring pre-hydration HTML, and `global-error.tsx` "not working" was a
+consequence of chasing that artifact. The only real defect was in the probe
+itself, now fixed and proven able to fail. See "✅ RESOLVED 2026-10-03"
+below.
 
 **3. Canonical state (item 4).** This is the real next feature. `Debts`,
 `Transactions`, `Bills`, `Goals`, `Envelopes` all have their own readers
@@ -705,55 +719,72 @@ Recovery is `git checkout -- <file>` then re-apply — never patch mangled bytes
 
 ### Known open, deliberately not fixed
 
-## 🔴 OPEN, LIVE, AND NOT DEV-CONFINED: the (app) 404 is a blank page in production
+## ✅ RESOLVED 2026-10-03: the (app) 404 is NOT blank. The guard was wrong.
 
-This supersedes the old note that said the blank 404 was "confined to
-dev." **That note was wrong.** Measured 2026-10-02 against a real
-production build, authenticated:
+**The bug described below did not exist.** The 2026-10-02 section claimed
+"a user following a stale link inside the app sees a blank page," derived
+by stripping `<script>` out of the server HTML and finding 26 visible
+characters. Measured in a real browser on 2026-10-03, same production
+build, authenticated:
 
-    NODE_ENV=production COMPASS_SANDBOX=1 pnpm start
-    node scripts/verify-prod-404.mjs
+    status                  404                             <- correct
+    eyebrow                 "[404] NOT FOUND"  (visible)
+    <h1>                    "That page doesn't exist."
+    back-to-dashboard CTA   present, href="/"
+    a REAL envelope id      200, real content, no card     <- negative control
 
-    GET /envelopes/does-not-exist
-      status                404                        <- correct
-      total bytes           26,781
-      document root         <html id="__next_error__">
-      VISIBLE text          26 characters
-      visible text          "Compass — Component Oracle"
-      "[404] not found"     NOT VISIBLE
-      "Back to dashboard"   NOT VISIBLE
+Screenshot confirmed the full Compass chrome, the `[404] NOT FOUND`
+eyebrow, the heading, the explanation, and a working `BACK TO DASHBOARD`
+button. **No product code was changed. There was nothing to fix.**
 
-**A user following a stale link inside the app sees a blank page.** The
-26KB is almost entirely the RSC flight payload inside `<script>`.
+### Why the HTML-only measurement was structurally doomed
 
-### What the body actually contains
+`notFound()` makes Next emit an **error-path document**: root
+`<html id="__next_error__">`, and a body holding one empty placeholder
+plus the RSC flight payload inside `<script>`:
 
-    <body>
-      <div hidden=""><!--$--><!--/$--></div>   <- empty, CLOSED Suspense boundary
-      <script src="…chunks/….js" id="_R_" async></script>
-      <script>self.__next_f.push([1, "…entire tree as flight data…"])</script>
-    </body>
+    <div hidden=""><!--$--><!--/$--></div>
 
-Rendered elements inside the body: **1 `<div>`, 0 `<span>`, 0 `<h1>`.**
-For contrast, `/transactions` renders 37 `<div>` and 1 `<h1>` in
-64,264 bytes. The card is present twice in the flight payload and
-referenced as a lazy component (`20:["$","$L22",null,{}]`) — it is
-serialized, and then never server-rendered.
+That is a **client-bootstrap shell**. The not-found element is serialized
+correctly — it sits in the flight payload under the layout router's
+`notFound` slot, beside `E{"digest":"NEXT_HTTP_ERROR_FALLBACK;404"}` —
+and is rendered on the client after hydration. Strip the scripts and you
+have measured a shell, not a page. **Any assertion of the form "the card
+must be in the pre-hydration HTML" fails against a WORKING build by
+construction.**
 
-So this is a **streaming/Suspense** failure, not a missing-document one.
-`notFound()` is processed correctly (the status is right); the content
-never reaches the DOM.
+So "26 visible characters" was a true measurement of the wrong thing.
+
+### What was actually wrong: the guard, not the app
+
+`scripts/verify-prod-404.mjs` ended with two assertions that could never
+pass ("the 404 card is VISIBLE...", "the 404 page has real visible
+text..."). Both measured pre-hydration HTML. They sat **red against a
+healthy build**, which is what made the phantom bug look real, and why
+the `global-error.tsx` experiment below appeared to "fail".
+
+Rewritten 2026-10-03 to measure visibility where the question has a
+truthful answer (a real browser, after hydration), covering both 404
+paths (bad id inside the shell, and a URL matching no route at all) plus
+a negative control so a probe that painted the card on every route could
+not pass. **12 pass / 0 miss.**
+
+**The guard is proven able to fail**: with the card deliberately stubbed
+to `return null`, 5 checks went red (eyebrow, heading, CTA, and both
+wiring checks). A guard that cannot fail is not a guard.
 
 ### Ruled out by measurement, do not re-try
 
-- **`global-error.tsx` does not fix it.** Added one, rebuilt, re-measured:
-  still 26 visible characters. The document root stayed
-  `<html id="__next_error__">`, not the `<html lang="en">` the new
-  component renders — so `global-error` is not consulted for the
-  `notFound()` path at all. The file compiled fine (its text is in 3
-  chunks) and simply was not used. **It was reverted rather than shipped
-  unverified**, because it changes error handling app-wide and the real
-  thrown-error path was never exercised.
+- **Do not retry `global-error.tsx`.** It "did not work" because there was
+  nothing to work on. The underlying observation was real —
+  `global-error` is genuinely not consulted for the `notFound()` path,
+  since the document root stays `<html id="__next_error__">` — but the
+  conclusion drawn from it was not.
+- **The inherited-Suspense hypothesis is DISPROVED, not untested.**
+  `daabae5` moved `loading.tsx` off the (app) group root onto 14 primary
+  nav segments, leaving `envelopes/` and `goals/` without one, and the
+  hypothesis was that a boundary inherited under `/envelopes/[id]`
+  swallows `notFound()`. It does not. The card renders.
 - **The `1677415` token guard is CLEAN in production.** On the dashboard:
   `--vessel-dark` 31, `--vessel-surface` 78, `--vessel-border` 208,
   `--vessel-accent` 138 occurrences; and `--cosmos`, `--surface`,
@@ -765,31 +796,41 @@ never reaches the DOM.
   them as a leak and was wrong on both scope and premise: the chain's
   `smoke-visual-finish` audits the **dashboard**, not every page.
 
-### Where to look next
-
-The empty `<div hidden="">` with `<!--$--><!--/$-->` is a completed,
-empty Suspense boundary. Recall `daabae5`: the (app) group's
-`loading.tsx` was moved OFF the group root and onto 14 primary nav
-segments, with `envelopes/` and `goals/` deliberately NOT taking a
-route-level `loading.tsx` because a loading file also covers children.
-`/envelopes/[id]` is a child of `envelopes/`. **Test whether
-`notFound()` called inside that subtree is being swallowed by an
-inherited Suspense boundary** — that is the leading hypothesis and it has
-not yet been tested. The alternatives are an `error.tsx` at the
-`(app)/envelopes/[id]` level, or a root `app/not-found.tsx` if the
-segment-level boundary is not being picked up at all.
-
 ### How to re-check
 
     pnpm build
     NODE_ENV=production COMPASS_SANDBOX=1 pnpm start
     pnpm exec tsx --conditions=react-server scripts/verify-prod-404.mjs
 
-The probe is **production-only by design** and gates on
-`/api/health` reporting `env: "production"`. Against dev it exits
-`SKIP-ENV`, because the dev behaviour is a known artifact. **Do not move
-its assertions into the smoke chain** — they cannot pass against dev by
-construction, which is why this gap survived `daabae5`.
+Expect **12 pass / 0 miss**. The probe is **production-only by design**
+and gates on `/api/health` reporting `env: "production"`. Against dev it
+exits `SKIP-ENV`. **Do not move it into the smoke chain** — it needs both
+a production build and a browser, so it cannot pass in that context.
+
+Two traps this probe already fell into once, kept here so they are not
+re-learned the hard way:
+
+- **Match card text case-insensitively.** The eyebrow is uppercased by
+  CSS (`text-transform: uppercase`), so `innerText` returns
+  `[404] NOT FOUND`. A case-sensitive check for `[404] not found` reports
+  a working page as broken. This briefly produced a false "still broken"
+  reading mid-investigation.
+- **Exclude `<script>` when searching the DOM.** The RSC flight payload
+  inside a `<script>` contains the eyebrow as escaped source text, and a
+  `<script>` has zero element children and a 0x0 box, so an unfiltered
+  `querySelectorAll("*")` match lands on the script instead of the card.
+
+### The transferable lesson
+
+Two guards in this repo's history have now failed the same way: they
+encoded a contract the product never had, so no correct build could ever
+satisfy them. The mojibake guard could not see double-encoding; this one
+could not see a client-rendered document. A permanently-red guard does
+not point at a bug — it may be the bug.
+
+**Before trusting a red guard: confirm a correct implementation can turn
+it green, then confirm a broken one turns it red.** The second half is
+the half that gets skipped.
 
 
 - **`PayPeriod` has no `userId`** — one global active row, and the
