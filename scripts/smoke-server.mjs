@@ -8,7 +8,7 @@
  *   (~10 restarts during the 7.15 full-suite run, mostly because
  *   `.next/dev/` cache ENOENTs when the slow filesystem writes
  *   compete with route first-compiles). The user's own note in
- *   HANDOVER.md: "next start (prod build) is stable."
+ *   docs/archive/handovers/HANDOVER-2026-09-26.md: "next start (prod build) is stable."
  *
  *   This script wires that observation into a one-command workflow.
  *   The previous way of running smokes against `pnpm dev` still

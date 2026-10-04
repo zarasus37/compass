@@ -390,7 +390,7 @@ export async function saveConversation(
   // between the two writes leaves the user in a state where the gate still
   // passes (either check is sufficient per `isOnboardingComplete` in
   // src/lib/onboarding/gate.ts), and the next saveConversation call reconciles.
-  // Documented in 00-CLUSTER-7.38-ONBOARDING-COMPLETION.md as a known-acceptable race.
+  // Documented in docs/archive/clusters/00-CLUSTER-7.38-ONBOARDING-COMPLETION.md as a known-acceptable race.
   if (state.completedAt) await activateSetup(state.userId);
 }
 

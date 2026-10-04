@@ -767,7 +767,15 @@ console.log("\n--- §15 cluster 7.16 mom-ready ---\n");
   // Cluster spec on disk.
   check(
     "00-CLUSTER-7.16-MOM-READY-V1-LAUNCH.md exists",
-    existsSync(join(ROOT, "00-CLUSTER-7.16-MOM-READY-V1-LAUNCH.md")),
+    existsSync(
+      join(
+        ROOT,
+        "docs",
+        "archive",
+        "clusters",
+        "00-CLUSTER-7.16-MOM-READY-V1-LAUNCH.md",
+      ),
+    ),
   );
 
   // Live manifest + service worker checks (if dev server is up).

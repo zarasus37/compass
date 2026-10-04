@@ -554,8 +554,8 @@ The budgeting system becomes the user's **intent and policy layer**. The vault b
 ## 9. References
 
 - Source document: `/workspace/attachments/de8639c4b248b548/vision.docx`
-- Cluster specs: `/workspace/compass/00-CLUSTER-*.md`
-- HANDOVER: `/workspace/compass/HANDOVER.md`
+- Cluster specs: `/workspace/compass/docs/archive/clusters/00-CLUSTER-*.md`
+- HANDOVER: `/workspace/compass/docs/archive/handovers/HANDOVER-2026-09-26.md`
 - Runbook (mom-launch): `/workspace/compass/00-MOM-LAUNCH-RUNBOOK.md`
 
 **Whenever this document and a cluster spec disagree, this document wins.** Cluster specs are scoped within the vision. If a scope change is needed, update both.

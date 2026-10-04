@@ -92,4 +92,12 @@ _dev_*
 # during the runbook env-setup flow). Contains CRON_SECRET, ADMIN_*,
 # MAVIS_API_KEY — must never be committed.
 .vercel-*.env
+# Any other .env variant is private — but the committed templates are not.
 .env*
+!.env.example
+!.env.local.example
+!.env.production.example
+
+# Generated Prisma client. Regenerate with `pnpm db:generate`; the schema is
+# the source of truth and the output is ~13 MB of build artifact.
+/src/generated/

@@ -241,14 +241,25 @@ Use the structural check:
 node scripts/scan-encoding.mjs .    # exits 1 on a hit
 ```
 
-Expect **three** hits on a clean tree, in two categories. **Do not "fix"
+Expect **two** hits on a clean tree, in one category. **Do not "fix"
 any of them:**
 
 | File | Why it hits | If you "fix" it |
 |---|---|---|
 | `HANDOVER-TEST-INTEGRITY.md` (10 runs) | Quoting the corruption it documents. | Docs get unreadable. |
 | `COORDINATION.md` (2 runs) | Same, in the status summary. | Same. |
-| `HANDOVER.md` (132 runs) | **Genuinely corrupt** — superseded by this file, left alone deliberately. | Harmless to fix, but it is not the working handover. |
+
+**Changed 2026-10-04: this used to be three files / 144 runs.** The third
+was `HANDOVER.md` (132 runs) — genuinely corrupt, and the one real
+outstanding item on this page. It has now been repaired and archived to
+`docs/archive/handovers/HANDOVER-2026-09-26.md`. The repair was
+**per-run and keyed to the scanner's own lead/follower tell**, not a
+whole-file re-decode: a blanket cp1252→UTF-8 reversal silently destroys
+correctly-encoded text (Node's `latin1` truncates codepoints above
+U+00FF instead of throwing, so a real `—` becomes `0x14`). That is what
+wrecked this file and `COORDINATION.md` when an automatic repair was
+tried on them earlier. **These two are quotations — repairing them would
+delete the documentation, so they stay.**
 
 **Changed 2026-10-03: this used to be four.** The fourth was
 `scripts/verify-prod-404.mjs`, which hit because it *searched for* `â€”`
@@ -419,13 +430,13 @@ exits 1 on a hit, so it can gate CI. **Wiring it into the workflow is
 the one recommendation here that needs your call** — it is a pipeline
 change, not a code fix.
 
-**Expect three hits and do not "fix" them.** `HANDOVER.md` (132 runs) is
-genuinely corrupt and is the one real outstanding item. The hits in this
-file and in `COORDINATION.md` are docs *quoting* the corruption they
-describe; that is correct behaviour, and the fix is to stop embedding
-examples, not to silence the check. (A fourth, detection-required hit used
-to live in `scripts/verify-prod-404.mjs` and is gone as of 2026-10-03 —
-see the table above.)
+**Expect two hits and do not "fix" them.** Both are docs *quoting* the
+corruption they describe; that is correct behaviour, and the fix is to stop
+embedding examples, not to silence the check. There is no longer an
+outstanding corruption item: `HANDOVER.md` (132 runs) was repaired and moved
+to `docs/archive/handovers/HANDOVER-2026-09-26.md` on 2026-10-04. (A fourth,
+detection-required hit used to live in `scripts/verify-prod-404.mjs` and is
+gone as of 2026-10-03 — see the table above.)
 
 ## 🚨 THE ENVIRONMENT FACT THAT WILL COST YOU AN HOUR
 

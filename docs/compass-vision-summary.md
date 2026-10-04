@@ -297,8 +297,8 @@ Budgeting = **intent/policy layer**. Vault = **execution/custody/financial infra
 ## §9 REFERENCES
 
 - Source: `/workspace/attachments/de8639c4b248b548/vision.docx`
-- Cluster specs: `/workspace/compass/00-CLUSTER-*.md`
-- HANDOVER: `/workspace/compass/HANDOVER.md`
+- Cluster specs: `/workspace/compass/docs/archive/clusters/00-CLUSTER-*.md`
+- HANDOVER: `/workspace/compass/docs/archive/handovers/HANDOVER-2026-09-26.md`
 - Runbook: `/workspace/compass/00-MOM-LAUNCH-RUNBOOK.md`
 
 **When this document and a cluster spec disagree, this document wins.** Cluster specs are scoped within the vision. Update both if scope changes.

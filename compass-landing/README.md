@@ -61,4 +61,4 @@ The "v4.0" badge in the nav (`<span class="brand__ver">v4.0</span>`) tracks `00-
 
 ## Ownership
 
-Lives in this repo. No separate marketing-site repo, no separate Vercel project *yet* — both are operator decisions. See `HANDOVER.md` for the open question of whether to split this into a `compass-marketing/` repo.
+Lives in this repo. No separate marketing-site repo, no separate Vercel project *yet* — both are operator decisions. See `docs/archive/handovers/HANDOVER-2026-09-26.md` for the open question of whether to split this into a `compass-marketing/` repo.

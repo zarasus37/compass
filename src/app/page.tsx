@@ -87,7 +87,7 @@ export default async function Dashboard() {
   // in-memory mock to DB-backed reads (the Cluster 5.2.6 widget
   // switch missed the root dashboard). liveSnapshot() and
   // liveTransactionsFromDb() still read in-memory — see
-  // 00-CLUSTER-7.39-IN-APP-UX-BUGS.md B1b for the deferred follow-on.
+  // docs/archive/clusters/00-CLUSTER-7.39-IN-APP-UX-BUGS.md B1b for the deferred follow-on.
   const ENVELOPES = await liveEnvelopesFromDb(user.id);
   const GOALS = await liveGoalsFromDb(user.id);
   const SNAPSHOT = liveSnapshot(user.id);

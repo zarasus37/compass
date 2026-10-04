@@ -110,7 +110,7 @@ export function validateProdEnv(): { ok: true } | { ok: false; issues: ProdEnvIs
 
   // Cluster 7.15.1 — sandbox escape hatch. The local-agent smoke
   // runs `next start` (prod build) to dodge the dev-server instability
-  // documented in HANDOVER.md. The dev environment doesn't have the
+  // documented in docs/archive/handovers/HANDOVER-2026-09-26.md. The dev environment doesn't have the
   // real prod keys (MAVIS_API_KEY, VAULT_SIGNER_KEY, etc.) so we let
   // the operator opt in to a sandbox-only bypass with an explicit
   // env var. Production deploys (Vercel, CI) never set this flag —

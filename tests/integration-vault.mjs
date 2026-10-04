@@ -4157,7 +4157,13 @@ async function main() {
     check(
       "M14: spec file 00-CLUSTER-7.16.1-CHANGE-PASSWORD.md exists",
       existsSync14(
-        join14(PROJECT_ROOT, "00-CLUSTER-7.16.1-CHANGE-PASSWORD.md"),
+        join14(
+          PROJECT_ROOT,
+          "docs",
+          "archive",
+          "clusters",
+          "00-CLUSTER-7.16.1-CHANGE-PASSWORD.md",
+        ),
       ),
     );
     const pkg14 = JSON.parse(
@@ -4322,7 +4328,13 @@ async function runM14SourceOnly() {
   check(
     "M14: spec file 00-CLUSTER-7.16.1-CHANGE-PASSWORD.md exists",
     existsSync14(
-      join14(PROJECT_ROOT, "00-CLUSTER-7.16.1-CHANGE-PASSWORD.md"),
+      join14(
+        PROJECT_ROOT,
+        "docs",
+        "archive",
+        "clusters",
+        "00-CLUSTER-7.16.1-CHANGE-PASSWORD.md",
+      ),
     ),
   );
   const pkg14 = JSON.parse(
