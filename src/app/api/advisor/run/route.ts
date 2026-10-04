@@ -25,6 +25,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/server/auth/user";
 import { runAdvisor } from "@/lib/advisor/agent";
 import { loadConversation } from "@/lib/onboarding/state";
+import { isSandbox } from "@/lib/env/sandbox";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
   // Cluster 7.15.1 — sandbox bypass. See src/lib/onboarding/gate.ts
   // for the rationale; production deploys (Vercel, CI) never set
   // the flag, so the gate stays active in real prod.
-  if (!state.completedAt && process.env.COMPASS_SANDBOX !== "1") {
+  if (!state.completedAt && !isSandbox()) {
     return NextResponse.json(
       {
         error: "onboarding_incomplete",

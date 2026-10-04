@@ -26,6 +26,11 @@ import {
   createFirstUser,
   findUserByEmail,
 } from "@/server/auth/user";
+import {
+  checkLoginAllowed,
+  clearLoginFailures,
+  recordLoginFailure,
+} from "@/server/auth/rate-limit";
 import { prisma } from "@/server/db";
 import { isWeakPassword } from "@/lib/auth/password-policy";
 
@@ -64,8 +69,13 @@ export type ActionResult = {
 /** Pull the client IP + UA from request headers. Best-effort, never throws. */
 async function requestMeta() {
   const h = await headers();
-  const forwardedFor = h.get("x-forwarded-for");
-  const ip = forwardedFor?.split(",")[0]?.trim() ?? null;
+  // Prefer headers the platform sets itself; the first x-forwarded-for hop is
+  // client-controlled when no trusted proxy overwrites it.
+  const ip =
+    h.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
+    h.get("x-real-ip")?.trim() ||
+    h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    null;
   const userAgent = h.get("user-agent") ?? null;
   return { ip, userAgent };
 }
@@ -246,6 +256,19 @@ export async function loginAction(
   }
 
   const { email, password } = parsed.data;
+  const meta = await requestMeta();
+
+  // Throttle BEFORE any password work. Keyed on the submitted email (whether
+  // or not it exists) so the response never reveals which accounts are real.
+  const gate = await checkLoginAllowed(email, meta.ip);
+  if (!gate.allowed) {
+    const mins = Math.max(1, Math.ceil(gate.retryAfterSec / 60));
+    return {
+      ok: false,
+      error: `Too many sign-in attempts. Please wait about ${mins} minute${mins === 1 ? "" : "s"} and try again.`,
+    };
+  }
+
   const user = await findUserByEmail(email);
   if (!user) {
     // Run a dummy verify to equalize timing. Tiny detail, but it makes
@@ -254,15 +277,17 @@ export async function loginAction(
       "$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
       password,
     ).catch(() => false);
+    await recordLoginFailure(email, meta.ip);
     return { ok: false, error: "Email or password is incorrect." };
   }
 
   const ok = await verifyPassword(user.passwordHash, password);
   if (!ok) {
+    await recordLoginFailure(email, meta.ip);
     return { ok: false, error: "Email or password is incorrect." };
   }
 
-  const meta = await requestMeta();
+  await clearLoginFailures(email);
   const session = await createSession({
     userId: user.id,
     userAgent: meta.userAgent,

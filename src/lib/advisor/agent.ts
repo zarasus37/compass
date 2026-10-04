@@ -69,6 +69,7 @@ import { buildAdvisorSystemPrompt, type AdvisorIdentitySummary } from "./system-
 import { ADVISOR_TOOLS } from "./tools";
 import { runAdvisorTool, type AdvisorToolResult } from "./handlers";
 import { loadConversation, saveConversation, type OnboardingState } from "../onboarding/state";
+import { isSandbox } from "@/lib/env/sandbox";
 
 // ──────────────────────────────────────────────────────────────────────
 // Public types
@@ -113,7 +114,7 @@ const MAX_ROUNDS = 3;
 export async function runAdvisor(input: RunAdvisorInput): Promise<RunAdvisorResult> {
   const state = await loadConversation(input.userId);
 
-  if (!state.completedAt && process.env.COMPASS_SANDBOX !== "1") {
+  if (!state.completedAt && !isSandbox()) {
     // The advisor surface has no concept of "build the identity" —
     // that's the onboarding flow. The route layer is expected to
     // gate on this; throw here as a defense in depth so a future

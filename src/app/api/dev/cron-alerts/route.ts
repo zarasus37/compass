@@ -25,15 +25,13 @@ import {
   recordCronAlert,
   getRecentCronAlerts,
 } from "@/lib/vault/audit-log-alerts";
+import { devRoutesEnabled } from "@/lib/env/sandbox";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  if (
-    process.env.NODE_ENV !== "development" &&
-    process.env.COMPASS_SANDBOX !== "1"
-  ) {
+  if (!devRoutesEnabled()) {
     return NextResponse.json(
       { ok: false, error: "dev only" },
       { status: 403 },
@@ -59,10 +57,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  if (
-    process.env.NODE_ENV !== "development" &&
-    process.env.COMPASS_SANDBOX !== "1"
-  ) {
+  if (!devRoutesEnabled()) {
     return NextResponse.json(
       { ok: false, error: "dev only" },
       { status: 403 },

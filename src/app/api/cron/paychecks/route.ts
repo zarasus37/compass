@@ -11,20 +11,13 @@
  * double-allocate. See `src/lib/paycheck-scheduler.ts`.
  */
 import { NextResponse } from "next/server";
+import { rejectUnlessCronAuthorized } from "@/lib/cron-auth";
 
 import { runAutoPaychecks } from "@/lib/paycheck-scheduler";
 
 export async function POST(req: Request) {
-  const expected = process.env.CRON_SECRET;
-
-  // Auth check, skipped only when the env var is unset (the dev case).
-  // In prod, CRON_SECRET must be set.
-  if (expected) {
-    const auth = req.headers.get("authorization") ?? "";
-    if (auth !== `Bearer ${expected}`) {
-      return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-    }
-  }
+  const denied = rejectUnlessCronAuthorized(req);
+  if (denied) return denied;
 
   const now = new Date();
   const results = await runAutoPaychecks(now);

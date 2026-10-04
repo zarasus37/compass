@@ -36,6 +36,7 @@ import { callLLM, resetLLMConfig } from "@/lib/llm";
 import { resetMockState } from "@/lib/llm/providers/mock";
 import { ONBOARDING_SYSTEM_PROMPT } from "@/lib/onboarding/system-prompt";
 import { ONBOARDING_TOOLS } from "@/lib/onboarding/tools";
+import { devRoutesEnabled } from "@/lib/env/sandbox";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -60,10 +61,7 @@ const ENV_KEYS = [
 export async function POST(req: NextRequest) {
   // Dev-only guard — see src/app/api/dev-agent/run-agent/route.ts for
   // the COMPASS_SANDBOX bypass rationale (Cluster 7.15.1).
-  if (
-    process.env.NODE_ENV === "production" &&
-    process.env.COMPASS_SANDBOX !== "1"
-  ) {
+  if (!devRoutesEnabled()) {
     return NextResponse.json(
       { error: "_dev routes are disabled in production" },
       { status: 404 },

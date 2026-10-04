@@ -638,6 +638,12 @@ exports.Prisma.ClientErrorScalarFieldEnum = {
   lastSeenAt: 'lastSeenAt'
 };
 
+exports.Prisma.LoginAttemptScalarFieldEnum = {
+  id: 'id',
+  key: 'key',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -699,7 +705,8 @@ exports.Prisma.ModelName = {
   VaultPreferences: 'VaultPreferences',
   VaultSchedule: 'VaultSchedule',
   SetupState: 'SetupState',
-  ClientError: 'ClientError'
+  ClientError: 'ClientError',
+  LoginAttempt: 'LoginAttempt'
 };
 
 /**

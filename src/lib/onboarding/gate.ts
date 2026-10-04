@@ -16,6 +16,7 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { prisma } from "@/server/db";
+import { isSandbox } from "@/lib/env/sandbox";
 
 /**
  * Returns true if the user has either:
@@ -57,7 +58,7 @@ export async function isOnboardingComplete(userId: string): Promise<boolean> {
  * (Vercel, CI) never set the flag, so this branch is inert there.
  */
 export async function requireCompletedOnboarding(userId: string): Promise<void> {
-  if (process.env.COMPASS_SANDBOX === "1") {
+  if (isSandbox()) {
     return;
   }
   const ok = await isOnboardingComplete(userId);

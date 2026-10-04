@@ -6,9 +6,10 @@
  * is re-checked in the page (via `requireUser()`) and in the auth
  * layout (via `getCurrentUser()`).
  *
- * Public routes: /login, /welcome, /api/health, /api/dev-agent,
- * /api/dev (dev-only test endpoints, themselves gated by
- * NODE_ENV=development at the route handler), /api/cron (gated
+ * Public routes: /login, /welcome, /api/health, /api/dev-agent and
+ * /api/dev (dev-only test endpoints — these are public ONLY when
+ * devRoutesEnabled() is true, see DEV_PREFIXES below; the route
+ * handlers gate again), /api/cron (gated
  * by the route's own CRON_SECRET bearer auth — pre-existing for
  * /api/cron/vault, extended in Cluster 7.8.1 for
  * /api/cron/audit-log-prune), /api/vault/chain-config
@@ -31,8 +32,9 @@ const PUBLIC_PREFIXES = [
   "/login",
   "/welcome",
   "/api/health",
-  "/api/dev-agent",
-  "/api/dev",
+  // NOTE: /api/dev-agent and /api/dev used to live here unconditionally,
+  // which made them public on every deploy. They are now gated by
+  // DEV_ROUTES_ENABLED below.
   // Cluster 6.0 — vault auto bill-pay cron. Gated by the
   // route's own CRON_SECRET bearer (skipped in dev). The dev
   // scheduler process (scripts/cron-dev.mjs) hits this on a
@@ -52,7 +54,21 @@ const PUBLIC_PREFIXES = [
   "/favicon",
 ];
 
+// Dev/test endpoints are public ONLY on a developer machine or CI sandbox
+// (never on Vercel). Mirrors src/lib/env/sandbox.ts — duplicated here because
+// the middleware runs on the Edge runtime and keeps its imports minimal.
+const DEV_PREFIXES = ["/api/dev-agent", "/api/dev"];
+const DEV_ROUTES_ENABLED =
+  process.env.NODE_ENV === "development" ||
+  (process.env.COMPASS_SANDBOX === "1" && !process.env.VERCEL);
+
 function isPublic(pathname: string): boolean {
+  if (
+    DEV_ROUTES_ENABLED &&
+    DEV_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+  ) {
+    return true;
+  }
   return PUBLIC_PREFIXES.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`),
   );

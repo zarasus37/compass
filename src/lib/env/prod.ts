@@ -107,6 +107,22 @@ export function validateProdEnv(): { ok: true } | { ok: false; issues: ProdEnvIs
   // the operator opt in to a sandbox-only bypass with an explicit
   // env var. Production deploys (Vercel, CI) never set this flag —
   // Vercel's prod-env is real, so the validator still does its job.
+  if (process.env.COMPASS_SANDBOX === "1" && process.env.VERCEL) {
+    // Hard stop: the sandbox flag disables safety checks and exposes dev
+    // routes. It must never be set on a Vercel deployment.
+    return {
+      ok: false,
+      issues: [
+        {
+          key: "COMPASS_SANDBOX",
+          message:
+            "COMPASS_SANDBOX=1 is forbidden on Vercel deployments. Remove it " +
+            "from the project's environment variables.",
+        },
+      ],
+    };
+  }
+
   if (process.env.COMPASS_SANDBOX === "1") {
     if (process.env.NODE_ENV !== "production") {
       // Guard: the flag only means anything in NODE_ENV=production.

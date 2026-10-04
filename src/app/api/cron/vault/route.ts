@@ -12,28 +12,23 @@
  *
  * Dev usage (scripts/cron-dev.mjs):
  *   - The dev process hits this same endpoint on a 30s poll.
- *   - When `CRON_SECRET` is unset (dev), the auth check is
+ *   - With COMPASS_SANDBOX=1 and no CRON_SECRET the auth check is
  *     skipped — the endpoint is local-only by virtue of the
- *     process being on the dev machine.
+ *     process being on the dev machine. On Vercel this route now
+ *     fails CLOSED (503) instead of running unprotected.
  *
  * 401 when CRON_SECRET is set and the bearer is wrong.
+ * 503 when CRON_SECRET is unset in production.
  */
 import { NextResponse } from "next/server";
+import { rejectUnlessCronAuthorized } from "@/lib/cron-auth";
 
 import { prisma } from "@/server/db";
 import { runSchedulerForUser } from "@/lib/vault/scheduler";
 
 export async function POST(req: Request) {
-  const expected = process.env.CRON_SECRET;
-
-  // Auth check (skip only when the env is unset, which is the dev
-  // case). In prod, CRON_SECRET must be set.
-  if (expected) {
-    const auth = req.headers.get("authorization") ?? "";
-    if (auth !== `Bearer ${expected}`) {
-      return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-    }
-  }
+  const denied = rejectUnlessCronAuthorized(req);
+  if (denied) return denied;
 
   const now = new Date();
   const due = await prisma.vaultSchedule.findMany({

@@ -27,6 +27,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runAgent } from "@/lib/onboarding/agent";
 import { runToolCall } from "@/lib/onboarding/agent-helpers";
 import { loadConversation } from "@/lib/onboarding/state";
+import { devRoutesEnabled } from "@/lib/env/sandbox";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,10 +36,7 @@ export async function POST(req: NextRequest) {
   // Dev-only guard — see src/app/api/dev-agent/run-agent/route.ts for
   // the COMPASS_SANDBOX bypass rationale (Cluster 7.15.1). The
   // smoke-onboarding-agent exercises tools via this endpoint.
-  if (
-    process.env.NODE_ENV !== "development" &&
-    process.env.COMPASS_SANDBOX !== "1"
-  ) {
+  if (!devRoutesEnabled()) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
 

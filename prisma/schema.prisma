@@ -1458,3 +1458,16 @@ model ClientError {
   @@index([digest])
   @@index([pathname])
 }
+
+/// One row per FAILED login attempt. Used by src/server/auth/rate-limit.ts
+/// to throttle brute-force attempts per account (`email:<lowercased>`) and
+/// per client IP (`ip:<addr>`). Serverless-safe: state lives in Postgres, not
+/// process memory. Rows older than the window are pruned opportunistically.
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
+  @@index([createdAt])
+}

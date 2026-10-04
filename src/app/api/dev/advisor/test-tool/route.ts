@@ -26,15 +26,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/server/auth/user";
 import { runAdvisorTool } from "@/lib/advisor/handlers";
+import { devRoutesEnabled } from "@/lib/env/sandbox";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  if (
-    process.env.NODE_ENV !== "development" &&
-    process.env.COMPASS_SANDBOX !== "1"
-  ) {
+  if (!devRoutesEnabled()) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
   let user;

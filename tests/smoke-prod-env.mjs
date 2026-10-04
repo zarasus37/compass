@@ -105,6 +105,10 @@ function makeEnv(extra) {
     "MAVIS_API_KEY",
     "SESSION_SECRET",
     "LLM_PROVIDER",
+    // VERCEL must be stripped too: validateProdEnv() now hard-fails when
+    // COMPASS_SANDBOX=1 is combined with VERCEL, so a stray VERCEL in the
+    // ambient shell env would make Phase 9 fail for the wrong reason.
+    "VERCEL",
   ]) {
     delete baseEnv[k];
   }
@@ -281,6 +285,35 @@ const REQUIRED = {
     "COMPASS_SANDBOX=1 bypasses validator",
     r.ok === true,
     `got ok=${r.ok}`,
+  );
+}
+
+// ============================================================
+// Phase 9b: COMPASS_SANDBOX=1 is FORBIDDEN on Vercel
+//
+// The negative half of Phase 9. Phase 9 proves the flag still works
+// for the local smoke runner; this proves the flag can no longer open
+// the bypass on a real deploy. Vercel always sets VERCEL, so this is
+// the exact shape of the mistake this guards against.
+// ============================================================
+{
+  const env = makeEnv({
+    LLM_PROVIDER: "mock",
+    NODE_ENV: "production",
+    COMPASS_SANDBOX: "1",
+    VERCEL: "1",
+  });
+  delete env.VAULT_CHAIN_ID;
+  delete env.VAULT_SIGNER_KEY;
+  delete env.MAVIS_API_KEY;
+  delete env.SESSION_SECRET;
+  const r = runValidator(env);
+  check(
+    "COMPASS_SANDBOX=1 is rejected on Vercel",
+    r.ok === false &&
+      Array.isArray(r.issues) &&
+      r.issues.some((i) => i.key === "COMPASS_SANDBOX"),
+    `got ok=${r.ok} issues=${JSON.stringify(r.issues ?? [])}`,
   );
 }
 
