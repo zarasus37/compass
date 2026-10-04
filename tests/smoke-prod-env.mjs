@@ -250,6 +250,52 @@ const REQUIRED = {
 }
 
 // ============================================================
+// Phase 7b: VAULT_SAFE_SIGNER_PRIVATE_KEY=0xMOCK… (the var the
+// signer actually reads)
+//
+// Phase 7 covers the legacy VAULT_SIGNER_KEY name. The signing
+// code in safe-deploy.ts reads VAULT_SAFE_SIGNER_PRIVATE_KEY, so
+// that is the name whose MOCK value must be refused — otherwise
+// the guard protects a variable nothing reads.
+// ============================================================
+{
+  const env = makeEnv({
+    ...REQUIRED,
+    VAULT_CHAIN_ID: "8453",
+    VAULT_SAFE_SIGNER_PRIVATE_KEY: "0xMOCKabcdef0123456789",
+    NODE_ENV: "production",
+  });
+  const r = runValidator(env);
+  check(
+    "VAULT_SAFE_SIGNER_PRIVATE_KEY=0xMOCK… in prod — fails",
+    r.ok === false &&
+      r.issues.some(
+        (i) => i.key === "VAULT_SAFE_SIGNER_PRIVATE_KEY" && /mock/i.test(i.message),
+      ),
+    `got issues=${r.issues?.map((i) => i.key).join(",")}`,
+  );
+}
+
+// ============================================================
+// Phase 7c: a real VAULT_SAFE_SIGNER_PRIVATE_KEY must NOT be flagged
+// ============================================================
+{
+  const env = makeEnv({
+    ...REQUIRED,
+    VAULT_CHAIN_ID: "8453",
+    VAULT_SAFE_SIGNER_PRIVATE_KEY:
+      "0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    NODE_ENV: "production",
+  });
+  const r = runValidator(env);
+  check(
+    "real VAULT_SAFE_SIGNER_PRIVATE_KEY — not flagged",
+    r.ok === true,
+    `got ok=${r.ok} issues=${r.issues?.map((i) => i.key).join(",") ?? ""}`,
+  );
+}
+
+// ============================================================
 // Phase 8: Full prod stack (mainnet vault) — must pass
 // ============================================================
 {

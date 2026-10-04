@@ -81,6 +81,7 @@ import type {
   YieldRoutingStrategy,
   OffRampProvider,
 } from "./types";
+import { getDepositMaxCents, getFundMaxCents } from "@/lib/vault/limits";
 
 /**
  * Load the vault snapshot for the current user. Returns the DB
@@ -1233,15 +1234,6 @@ export async function deploySafeAction(): Promise<
 // audit-log entries on success or failure.
 // ──────────────────────────────────────────────────────────────────────
 
-/** Read the funding cap from env. Default = $10,000 (1_000_000 cents). */
-function getFundMaxCents(): number {
-  const raw = process.env.VAULT_FUND_MAX_CENTS;
-  if (!raw) return 1_000_000_00; // $10,000
-  const n = parseInt(raw, 10);
-  if (!Number.isFinite(n) || n <= 0) return 1_000_000_00;
-  return n;
-}
-
 /** Read the funding minimum. Default = $1 (100 cents).
  *  Below 1 cent risks being a typo or rounding loss. */
 function getFundMinCents(): number {
@@ -1511,15 +1503,6 @@ export async function refreshSafeBalanceAction(): Promise<
 // post-tx reads in the deposit/withdraw flows already update
 // the cache, so this is for the manual [REFRESH] button).
 // ──────────────────────────────────────────────────────────────────────
-
-/** Read the deposit cap from env. Default = $10,000 (1_000_000 cents). */
-function getDepositMaxCents(): number {
-  const raw = process.env.VAULT_DEPOSIT_MAX_CENTS;
-  if (!raw) return 1_000_000_00; // $10,000
-  const n = parseInt(raw, 10);
-  if (!Number.isFinite(n) || n <= 0) return 1_000_000_00;
-  return n;
-}
 
 /** Read the deposit minimum. Default = $1 (100 cents). */
 function getDepositMinCents(): number {

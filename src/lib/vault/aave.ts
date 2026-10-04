@@ -78,6 +78,7 @@ import {
 } from "viem";
 import { privateKeyToAccount, type Account } from "viem/accounts";
 import { base, baseSepolia } from "viem/chains";
+import { assertAllowedSafeCall } from "./safe-guard";
 import Safe, { SafeProvider } from "@safe-global/protocol-kit";
 import { prisma } from "@/server/db";
 import {
@@ -485,6 +486,19 @@ async function executeSafeTransaction(args: {
   data: Hex;
   value?: bigint;
 }): Promise<SafeTxResult> {
+  // Defense in depth: this EOA is the sole owner of every Safe, so only the
+  // three known calls (approve/supply/withdraw, recipients pinned to the Safe)
+  // may ever be signed. See safe-guard.ts.
+  const guardAave = getAaveChainConfig();
+  assertAllowedSafeCall({
+    safeAddress: args.safeAddress,
+    poolAddress: guardAave.poolAddress,
+    usdcAddress: guardAave.usdcAddress,
+    to: args.to,
+    data: args.data,
+    value: args.value,
+  });
+
   // Initialize the Protocol Kit against the already-deployed
   // Safe. The protocol kit accepts the raw signer private key
   // string (0x-prefixed) — not a viem Account object — so the

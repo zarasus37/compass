@@ -55,8 +55,10 @@ export async function GET() {
   // (and not the MOCK placeholder). In dev the signer is optional —
   // the page is fully usable in the simulated state without one.
   const isProd = process.env.NODE_ENV === "production";
-  const hasRealSigner =
-    !!process.env.VAULT_SIGNER_KEY && process.env.VAULT_SIGNER_KEY !== "0xMOCK";
+  // The signing code reads VAULT_SAFE_SIGNER_PRIVATE_KEY (safe-deploy.ts).
+  // VAULT_SIGNER_KEY is the legacy/example name and is NOT read by the signer.
+  const signerRaw = process.env.VAULT_SAFE_SIGNER_PRIVATE_KEY;
+  const hasRealSigner = !!signerRaw && !/^(0x)?MOCK/i.test(signerRaw);
   const vaultCheck = {
     ok: !!process.env.VAULT_CHAIN_ID,
     chainId: process.env.VAULT_CHAIN_ID

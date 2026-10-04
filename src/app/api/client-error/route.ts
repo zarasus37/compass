@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/server/auth/user";
+import { prisma } from "@/server/db";
 import {
   recordClientError,
   pathnameFromUrl,
@@ -64,11 +65,53 @@ const bodySchema = z.object({
   payload: z.record(z.string(), z.unknown()).optional(),
 });
 
+// Abuse limits for ANONYMOUS reports (signed-in users are not throttled).
+// The dedup key includes the attacker-controlled `url`, so without a cap
+// anyone could create unlimited rows. Rate is enforced against the table
+// itself (serverless-safe, no extra state).
+const MAX_BODY_BYTES = 32 * 1024;
+const ANON_NEW_ROWS_PER_HOUR = 200;
+
 export async function POST(request: Request) {
+  // Cheap rejects first. Browsers always send Origin on cross-site POSTs, so a
+  // mismatched Origin is never our own client capture code.
+  const origin = request.headers.get("origin");
+  const host = request.headers.get("host");
+  if (origin && host) {
+    try {
+      if (new URL(origin).host !== host) {
+        return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+      }
+    } catch {
+      return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+    }
+  }
+  const declaredLen = Number(request.headers.get("content-length") ?? "0");
+  if (declaredLen > MAX_BODY_BYTES) {
+    return NextResponse.json({ ok: false, error: "too_large" }, { status: 413 });
+  }
+
   // Resolve auth (best-effort). Don't 401 — auth failures
   // during a throw are themselves the kind of bug we want
   // to capture.
   const user = await getCurrentUser();
+
+  if (!user) {
+    try {
+      const recentAnon = await prisma.clientError.count({
+        where: {
+          userId: null,
+          firstSeenAt: { gte: new Date(Date.now() - 60 * 60 * 1000) },
+        },
+      });
+      if (recentAnon >= ANON_NEW_ROWS_PER_HOUR) {
+        // Drop silently-ish: the capture path must never break the page.
+        return NextResponse.json({ ok: false, dropped: true }, { status: 429 });
+      }
+    } catch {
+      /* fail open: error capture is best-effort */
+    }
+  }
 
   // Parse JSON body. If parsing fails we still want to log a
   // stub event so the operator knows the client capture path

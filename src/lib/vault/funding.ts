@@ -52,7 +52,6 @@
 
 import "server-only";
 import { getAddress, encodeFunctionData, type Address, type Hex } from "viem";
-import { baseSepolia } from "viem/chains";
 import {
   getChainConfig,
   getSafeSigner,
@@ -294,7 +293,7 @@ export async function fundSafeWithUsdc(args: {
     to: config.usdcAddress,
     value: 0n,
     data,
-    chain: baseSepolia,
+    chain: config.chain,
   });
 
   // Wait for the receipt. 120s matches M1's deploy timeout.

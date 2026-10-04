@@ -86,6 +86,14 @@ const FORBIDDEN_IN_PROD: Array<{ key: string; test: (v: string) => boolean; reas
       "but every bill / deposit is valueless.",
   },
   {
+    // The variable safe-deploy.ts actually reads.
+    key: "VAULT_SAFE_SIGNER_PRIVATE_KEY",
+    test: (v) => /^(0x)?MOCK/i.test(v),
+    reason:
+      "VAULT_SAFE_SIGNER_PRIVATE_KEY looks like the dev mock-signer placeholder. " +
+      "Use a real EOA private key, OR leave it unset to keep the vault disabled.",
+  },
+  {
     key: "VAULT_SIGNER_KEY",
     test: (v) => /^0xMOCK/i.test(v),
     reason:
