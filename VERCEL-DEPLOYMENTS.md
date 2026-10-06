@@ -136,7 +136,7 @@ Subset of production: Mavis + Ollama + Neon proxy + DATABASE_URL. **No vault/cry
 | **Build Command** | `pnpm prisma migrate deploy && pnpm seed:admin && pnpm build` (custom — runs migrations + seeds admin on every prod deploy) |
 | Region | iad1 |
 | Failover Regions | none |
-| Cron secrets | none in production env vars (CRON_SECRET is NOT set here) |
+| Cron secrets | `CRON_SECRET` **is** set in production (added 2026-10-04), but currently carries leading/trailing whitespace → **all deploys fail**. See "compass-mom is broken" below. |
 
 **Workspace link**: This project is NOT linked via `.vercel/project.json`. It was set up by manually connecting the same GitHub repo to a second Vercel project. Both auto-deploy from `main`.
 
@@ -157,7 +157,12 @@ MAVIS_API_KEY                      (sensitive)
 MAVIS_MODEL                        (sensitive)
 MAVIS_TOOL_FORMAT                  (sensitive)
 SESSION_SECRET                     (sensitive)
+CRON_SECRET                        (sensitive — MALFORMED: whitespace, breaks every build)
 ```
+
+**15 keys as of 2026-10-06** (was 14). The 2026-09-26 snapshot recorded
+`compass-mom` as having **no** `CRON_SECRET`; one was added 2026-10-04
+and is malformed. See "compass-mom is broken" below.
 
 The DATABASE_URL is a different Neon project than `compass`'s DATABASE_URL (mom has her own database). The admin credentials are different (mom's admin user, not the operator's).
 
@@ -193,11 +198,13 @@ and `VAULT_SIGNER_KEY` was renamed to `VAULT_SAFE_SIGNER_PRIVATE_KEY`):
 
 ### `compass-mom`-only env vars (NOT in `compass`)
 
-**None.** `compass-mom` is a strict subset of `compass`'s production env, with its own values for the shared keys.
+**None.** `compass-mom` is a subset of `compass`'s production env, with
+its own values for the shared keys. (It gained `CRON_SECRET` on
+2026-10-04, so it is no longer a *strict* subset.)
 
-### Shared keys (14) with DIFFERENT values
+### Shared keys with DIFFERENT values
 
-All 14 shared keys have different values between the two projects (different DATABASE_URL = different Neon DBs, different MAVIS_API_KEY = operator's key vs mom's key, different ADMIN_* = different admin users, etc.). This is what makes the two environments separate.
+All shared keys have different values between the two projects (different DATABASE_URL = different Neon DBs, different MAVIS_API_KEY = operator's key vs mom's key, different ADMIN_* = different admin users, different CRON_SECRET, etc.). This is what makes the two environments separate.
 
 ---
 
@@ -264,6 +271,66 @@ CI runs the smokes against `pnpm dev` with `NODE_ENV=development`, so
 **none of this is covered automatically** — `isProd` is always false in
 CI. Tracked as a ticket in `HANDOVER-TEST-INTEGRITY.md` ("Known open,
 deliberately not fixed").
+
+---
+
+## 🔴 `compass-mom` is broken in two ways beyond the vault gate (found 2026-10-06)
+
+Fixing the vault gate does **not** make `compass-mom` return 200. Two
+independent problems remain, both confirmed against live infrastructure.
+
+### 1. Deploys to `compass-mom` are FAILING — `CRON_SECRET` whitespace
+
+The push of `46536c2` deployed **Ready** on `compass` but **Error** on
+`compass-mom` (build duration 10s):
+
+```
+Error: The `CRON_SECRET` environment variable contains leading or trailing
+whitespace, which is not allowed in HTTP header values.
+```
+
+Vercel rejects the value at `vercel build`, before any app code runs.
+`CRON_SECRET` on `compass-mom` was created **2 days ago** (23 days earlier
+on `compass`, where it is well-formed). **Every `compass-mom` deploy since
+then has failed**, so the live deployment is ~4 days old and predates the
+vault-gate fix entirely.
+
+**Fix:** re-set `CRON_SECRET` on `compass-mom` (Production) with **no
+leading/trailing whitespace** — e.g. a fresh `openssl rand -hex 32`.
+Do **not** just delete it: `src/lib/cron-auth.ts` fails **closed** in
+production, so with it unset all three `/api/cron/*` routes return
+`503 {"error":"cron not configured"}` and the `vercel.json` cron jobs
+silently do nothing.
+
+### 2. `compass-mom`'s Mavis key is rejected (401)
+
+Even with a successful build, `allOk` in production also requires
+`ai.ok`. `compass-mom` currently reports:
+
+```
+ai.ok = false
+Mavis internal /v1/chat/completions -> HTTP 401:
+  {"type":"authorized_error","message":"token is unusable (1004)","http_code":"401"}
+```
+
+"token is unusable (1004)" means the key itself is rejected — not a
+network or provider outage. `compass` is unaffected (`ai.ok = true`,
+"Reachable"); the two projects hold **different** `MAVIS_API_KEY` /
+`COMPASS_AI_MAVIS_API_KEY` values, and only `compass`'s was rotated.
+
+**Fix:** set a current Mavis key in **both** `MAVIS_API_KEY` and
+`COMPASS_AI_MAVIS_API_KEY` on `compass-mom` (Production).
+
+### 3. Also note: the production alias is behind Vercel Authentication
+
+`https://compass-mom-sovereign-monad-ecosystem.vercel.app` returns
+**HTTP 200 with a Vercel login page** (`<title>Login – Vercel</title>`,
+`content-type: text/html`) to unauthenticated requests. The plain alias
+`https://compass-mom.vercel.app` serves the app unauthenticated.
+
+Practical consequence: an unauthenticated probe of the production alias
+looks "200 OK" while telling you nothing about the app. Monitor
+`compass-mom.vercel.app`, or expect to authenticate.
 
 ---
 
