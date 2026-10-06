@@ -49,6 +49,79 @@ const fullMode = args.includes("--full");
 const PORT = process.env.PORT || "3000";
 const BASE = `http://127.0.0.1:${PORT}`;
 
+const IS_WIN = process.platform === "win32";
+
+/**
+ * Windows: `pnpm` is a `.cmd` shim (C:\...\npm\pnpm.cmd), and Node refuses
+ * to spawn a .cmd without a shell (CVE-2024-27980). Spawning it bare
+ * returns `status: null` with `error: ENOENT` — which this script used to
+ * report as "build failed (exit=null)", hiding the real cause entirely.
+ * So every pnpm invocation goes through here with the shell set on Windows.
+ *
+ * Node prints DEP0190 for `shell: true` + args because they are not escaped.
+ * That is safe here: every argv in this file is a static literal defined in
+ * the source, never user or environment input. We keep the args array (not
+ * a concatenated command string) because that is the safer of the two.
+ */
+const PNPM = IS_WIN ? "pnpm.cmd" : "pnpm";
+
+/** spawnSync pnpm with the platform-appropriate shell. */
+function runPnpmSync(pnpmArgs, opts = {}) {
+  return spawnSync(PNPM, pnpmArgs, { shell: IS_WIN, ...opts });
+}
+
+/** Spawn a long-running pnpm process (the server). */
+function spawnPnpm(pnpmArgs, opts = {}) {
+  return spawn(PNPM, pnpmArgs, {
+    shell: IS_WIN,
+    ...opts,
+    // POSIX: become a process-group leader so teardown can kill the whole
+    // group. Windows ignores this and is handled by killTree() instead.
+    detached: !IS_WIN,
+  });
+}
+
+/**
+ * Kill a child AND everything it spawned.
+ *
+ * With shell:true on Windows the child is cmd.exe, so a bare
+ * `child.kill()` kills the wrapper and leaves `node` running `next start`
+ * holding port 3000 — the next run then dies with EADDRINUSE. Windows gets
+ * taskkill /T (tree); POSIX gets a process-group signal.
+ */
+function killTree(child, signal = "SIGTERM") {
+  if (!child || child.pid == null) return;
+  if (IS_WIN) {
+    spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
+      stdio: "ignore",
+    });
+    return;
+  }
+  try {
+    process.kill(-child.pid, signal);
+  } catch {
+    try {
+      child.kill(signal);
+    } catch {
+      /* already gone */
+    }
+  }
+}
+
+/** Print the spawn error that is otherwise invisible when status===null. */
+function reportSpawnFailure(label, result) {
+  if (!result?.error) return;
+  const { code, message } = result.error;
+  if (code === "ENOENT" || code === "EINVAL") {
+    console.error(
+      `[${label}] could not spawn "${PNPM}" (${code}). On Windows pnpm is a ` +
+        `shim and must be spawned with shell:true — see PNPM in this file.`,
+    );
+  } else {
+    console.error(`[${label}] spawn error: ${code} ${message}`);
+  }
+}
+
 /** Sensible smoke-invocation env. The smokes themselves load .env.local
  *  via dotenv (default override=false) which respects whatever we set
  *  here. Force DATABASE_URL to the local dev Postgres so the smokes
@@ -74,17 +147,20 @@ function smokeEnv() {
 }
 
 /** Pipe child stdout/stderr through if TTY, otherwise capture for logs. */
-function run(label, cmd, args, opts = {}) {
+function run(label, pnpmArgs, opts = {}) {
   const t0 = Date.now();
-  const child = spawnSync(cmd, args, {
+  const child = runPnpmSync(pnpmArgs, {
     cwd: ROOT,
     stdio: "inherit",
     env: smokeEnv(),
     ...opts,
   });
   const dt = ((Date.now() - t0) / 1000).toFixed(1);
-  if (child.status !== 0) {
+  if (child.status !== 0 || child.error) {
     console.error(`[${label}] FAILED in ${dt}s (exit=${child.status})`);
+    // status===null means the process never ran at all; without this the
+    // operator sees "(exit=null)" and no reason.
+    reportSpawnFailure(label, child);
     process.exit(child.status ?? 1);
   }
   console.log(`[${label}] OK in ${dt}s`);
@@ -112,11 +188,10 @@ async function startServer() {
 
   if (forceDev) {
     console.log("[smoke-server] using pnpm dev (legacy mode)");
-    const child = spawn("pnpm", ["dev"], {
+    const child = spawnPnpm(["dev"], {
       cwd: ROOT,
       env,
       stdio: ["ignore", "pipe", "pipe"],
-      detached: false,
     });
     child.stdout.on("data", (b) => process.stdout.write(b));
     child.stderr.on("data", (b) => process.stderr.write(b));
@@ -169,22 +244,22 @@ async function startServer() {
   void needBuild;
 
   console.log("[smoke-server] building prod artifact...");
-  const build = spawnSync("pnpm", ["build"], {
+  const build = runPnpmSync(["build"], {
     cwd: ROOT,
     env,
     stdio: "inherit",
   });
-  if (build.status !== 0) {
+  if (build.status !== 0 || build.error) {
     console.error(`[smoke-server] build failed (exit=${build.status})`);
+    reportSpawnFailure("build", build);
     process.exit(build.status ?? 1);
   }
 
   console.log(`[smoke-server] starting next start on :${PORT}`);
-  const child = spawn("pnpm", ["start"], {
+  const child = spawnPnpm(["start"], {
     cwd: ROOT,
     env,
     stdio: ["ignore", "pipe", "pipe"],
-    detached: false,
   });
   child.stdout.on("data", (b) => process.stdout.write(b));
   child.stderr.on("data", (b) => process.stderr.write(b));
@@ -196,8 +271,11 @@ async function waitForReady(child) {
   const TIMEOUT_MS = 90_000;
   const t0 = Date.now();
   while (Date.now() - t0 < TIMEOUT_MS) {
-    if (child.exitCode !== null && child.exitCode !== 0) {
+    // Any exit before health is a failure, including a clean 0 — a server
+    // that exited at all cannot answer /api/health.
+    if (child.exitCode !== null) {
       console.error(`[smoke-server] server exited code=${child.exitCode} before health`);
+      killTree(child);
       process.exit(1);
     }
     try {
@@ -212,7 +290,6 @@ async function waitForReady(child) {
           `[smoke-server] ready in ${dt}s (status=${r.status})`,
         );
         return;
-        return;
       }
     } catch {
       // not ready yet — fall through
@@ -220,7 +297,7 @@ async function waitForReady(child) {
     await new Promise((r) => setTimeout(r, 500));
   }
   console.error(`[smoke-server] timeout: server never returned 200 on /api/health`);
-  child.kill("SIGTERM");
+  killTree(child);
   process.exit(1);
 }
 
@@ -232,10 +309,12 @@ async function main() {
   const teardown = () => {
     if (child.exitCode === null) {
       console.log("\n[smoke-server] stopping server");
+      // killTree, not child.kill(): with shell:true on Windows the child is
+      // cmd.exe and a plain kill leaves `next start` holding the port.
       try {
-        child.kill("SIGTERM");
+        killTree(child, "SIGTERM");
         setTimeout(() => {
-          if (child.exitCode === null) child.kill("SIGKILL");
+          if (child.exitCode === null) killTree(child, "SIGKILL");
         }, 3000);
       } catch {}
     }
@@ -255,13 +334,13 @@ async function main() {
   try {
     if (fullMode) {
       console.log("[smoke-server] running full suite (smoke + smoke:ui + smoke:integration + smoke:deploy)");
-      run("smoke:data", "pnpm", ["smoke"]);
-      run("smoke:ui", "pnpm", ["smoke:ui"]);
-      run("smoke:integration", "pnpm", ["smoke:integration"]);
-      run("smoke:deploy", "pnpm", ["smoke:deploy"]);
+      run("smoke:data", ["smoke"]);
+      run("smoke:ui", ["smoke:ui"]);
+      run("smoke:integration", ["smoke:integration"]);
+      run("smoke:deploy", ["smoke:deploy"]);
     } else {
       console.log("[smoke-server] running data-layer smokes (pnpm smoke)");
-      run("smoke:data", "pnpm", ["smoke"]);
+      run("smoke:data", ["smoke"]);
     }
   } finally {
     if (!keepServer) teardown();
