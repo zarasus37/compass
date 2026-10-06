@@ -300,6 +300,25 @@ never patch mangled bytes.
 
 ### Known open, deliberately not fixed
 
+- **TICKET — the production health gate has no automated coverage.** CI
+  (`.github/workflows/ci.yml:48,91`) runs the smokes against `pnpm dev`
+  with `NODE_ENV: "development"`, so `isProd` in
+  `src/app/api/health/route.ts` is **always false** in CI. That single
+  flag decides three things the suite therefore never exercises:
+  1. `validateProdEnv()` — the env subsystem is stubbed to `{ok:true}`
+     outside production, so a bad prod env cannot fail a build here.
+  2. `allOk` requires `ai.ok` — in dev only `dbPing` is required, so a
+     broken AI provider still reports healthy.
+  3. The vault `prodReady` gate — enforced only when `VAULT_ENABLED=1`
+     (added 2026-10-06). No CI run can prove `compass` stays fail-loud
+     while `compass-mom` returns 200.
+  **Consequence:** every prod-only health behaviour is verified by hand
+  against a live deployment or not at all. This is exactly how
+  `compass-mom` sat at **503 for days** while CI stayed green.
+  **Suggested fix:** a unit-level test that imports the route's gate
+  logic and drives it across the truth table — `{NODE_ENV,
+  VAULT_ENABLED, VAULT_CHAIN_ID, VAULT_SAFE_SIGNER_PRIVATE_KEY}` —
+  asserting the status code. No server, no Vercel, seconds to run.
 - **The (app) 404 is NOT blank — the 2026-10-02 claim was wrong.** Measured
   in a real browser 2026-10-03: the card renders, with a working CTA. The
   blank reading came from stripping `<script>` out of a client-bootstrap

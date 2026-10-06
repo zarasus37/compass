@@ -213,6 +213,27 @@ check(
   "api/health reports vault subsystem",
   !!health && /vault:.*vaultCheck/.test(health),
 );
+// The vault check is a deploy gate ONLY on deployments that opt in
+// with VAULT_ENABLED=1. `compass` sets it and stays fail-loud;
+// `compass-mom` (no vault) must not 503 on a missing signer.
+check(
+  "api/health gates the vault check on VAULT_ENABLED=1",
+  !!health && /VAULT_ENABLED\s*===\s*"1"/.test(health),
+);
+check(
+  "api/health marks the vault check enabled/disabled",
+  !!health && /enabled:\s*vaultEnabled/.test(health),
+);
+// The payload must identify the real deployment target, not always
+// claim "compass" — compass-mom would otherwise report the wrong name.
+check(
+  "api/health derives service from VERCEL_PROJECT_NAME",
+  !!health &&
+    /service:\s*process\.env\.VERCEL_PROJECT_NAME\s*\?\?\s*"compass"/.test(
+      health,
+    ),
+  "service is hardcoded",
+);
 
 // ── 7. next.config.ts headers ────────────────────────────────────
 const nextConfig = read("next.config.ts");

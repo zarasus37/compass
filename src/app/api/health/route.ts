@@ -54,20 +54,29 @@ export async function GET() {
   // Vault subsystem. In production the signer MUST be configured
   // (and not the MOCK placeholder). In dev the signer is optional —
   // the page is fully usable in the simulated state without one.
+  //
+  // `VAULT_ENABLED=1` is the explicit opt-in that turns the vault check
+  // into a deploy gate. Without it the vault reports its real config
+  // but never fails the health check — that is what lets a non-vault
+  // deployment (`compass-mom`) return 200 instead of 503. Set it on
+  // `compass` (Production) so that one stays fail-loud.
   const isProd = process.env.NODE_ENV === "production";
+  const vaultEnabled = process.env.VAULT_ENABLED === "1";
   // The signing code reads VAULT_SAFE_SIGNER_PRIVATE_KEY (safe-deploy.ts).
   // VAULT_SIGNER_KEY is the legacy/example name and is NOT read by the signer.
   const signerRaw = process.env.VAULT_SAFE_SIGNER_PRIVATE_KEY;
   const hasRealSigner = !!signerRaw && !/^(0x)?MOCK/i.test(signerRaw);
   const vaultCheck = {
-    ok: !!process.env.VAULT_CHAIN_ID,
+    enabled: vaultEnabled,
+    ok: vaultEnabled ? !!process.env.VAULT_CHAIN_ID : true,
     chainId: process.env.VAULT_CHAIN_ID
       ? parseInt(process.env.VAULT_CHAIN_ID, 10)
       : null,
     rpcUrl: process.env.VAULT_CHAIN_RPC_URL ?? null,
     signerConfigured: hasRealSigner,
     // In dev we don't require a real signer; in prod we do.
-    prodReady: isProd ? hasRealSigner : true,
+    // Only enforced on deployments that opted in with VAULT_ENABLED=1.
+    prodReady: vaultEnabled && isProd ? hasRealSigner : true,
   };
 
   const checks = {
@@ -97,7 +106,10 @@ export async function GET() {
   return NextResponse.json(
     {
       status: allOk ? "ok" : "degraded",
-      service: "compass",
+      // Vercel sets VERCEL_PROJECT_NAME per project (`compass`,
+      // `compass-mom`), so the health payload identifies the actual
+      // deployment target instead of always claiming "compass".
+      service: process.env.VERCEL_PROJECT_NAME ?? "compass",
       env: process.env.NODE_ENV ?? "development",
       chain: process.env.VAULT_CHAIN_ID ?? null,
       checks,

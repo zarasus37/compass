@@ -18,6 +18,14 @@
 .DS_Store
 *.pem
 
+# Local signer keys. The canonical signer lives in Vercel as the Sensitive
+# VAULT_SAFE_SIGNER_PRIVATE_KEY and must never be committed. `private/` is
+# where a locally regenerated signer (e.g. vault_signer_new.key) is written;
+# `*.key` catches the same file if it is ever generated elsewhere. Without
+# these, `git add -A` would auto-stage a real key and push it to origin.
+private/
+*.key
+
 # debug
 npm-debug.log*
 yarn-debug.log*
