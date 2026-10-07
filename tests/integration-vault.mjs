@@ -2551,14 +2551,22 @@ async function main() {
       chipTypes.includes("vault.bill_state_changed"),
       `chipTypes=${chipTypes.join(",")}`,
     );
-    // The vault.bill_history_viewed meta event is written on
-    // every visit (fire-and-forget AFTER the read). The smoke
-    // verifies the writer is wired + the payload shape is correct.
+    // The vault.bill_history_viewed meta event is written on every visit,
+// AFTER the reads, so it cannot appear in this visit's own table. The
+// page now AWAITS that write, so by the time `get()` resolves the row is
+// committed — which is what makes counting rows around it valid.
+    //
+    // There is deliberately no sleep between the fetch and the count. The
+    // old `void recordBillHistoryViewed(...)` in the page's render body
+    // had nondeterministic completion, so this check needed a 200ms sleep
+    // to paper over it and still failed under full-suite load
+    // (`before=0 after=2`) while passing 8/8 in isolation. With the write
+    // awaited, no sleep is required — and leaving one in would let the bug
+    // return unnoticed.
     const beforeM5 = await prisma.auditLog.count({
       where: { userId, actionType: "vault.bill_history_viewed" },
     });
     await get(`/vault/bills/${encodeURIComponent(targetBill.id)}/history`);
-    await new Promise((r) => setTimeout(r, 200));
     const afterM5 = await prisma.auditLog.count({
       where: { userId, actionType: "vault.bill_history_viewed" },
     });

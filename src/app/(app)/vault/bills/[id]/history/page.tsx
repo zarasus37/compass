@@ -158,9 +158,16 @@ export default async function BillHistoryPage({
   const hasMore = tableRows.length === (filter.take ?? 50);
 
   // Meta event: record the view AFTER reads so the just-written
-  // row doesn't show in this visit's table. Fire-and-forget is
-  // fine — the audit log is best-effort.
-  void recordBillHistoryViewed({
+  // row doesn't show in this visit's table.
+  //
+  // Awaited deliberately. This used to be `void recordBillHistoryViewed(...)`
+  // on the reasoning that "the audit log is best-effort" — but an
+  // un-awaited write has nondeterministic completion, so it can land
+  // after the response is sent and after a caller has already counted
+  // rows. That made `smoke:integration` M5 report `before=0 after=2`
+  // under full-suite load while passing 8/8 in isolation. Awaiting makes
+  // "this visit has been recorded" true by the time the request returns.
+  await recordBillHistoryViewed({
     userId: user.id,
     billId,
     billerName: bill.billerName,

@@ -111,9 +111,12 @@ export default async function VaultAuditPage({
 
   // Meta event: record the view AFTER reads so the just-written
   // row doesn't show in this visit's table. The next visit will.
-  // Done in a Promise that doesn't block the render (fire and
-  // forget is fine — the audit log is best-effort).
-  void recordAuditLogViewed({ userId: user.id, filter });
+  //
+  // Awaited deliberately — see the note on the bill-history page. An
+  // un-awaited write races the response, so "this visit was recorded"
+  // would not be true by the time the request returns, and a duplicate
+  // row is possible on a re-render.
+  await recordAuditLogViewed({ userId: user.id, filter });
 
   // Quick sanity: is there data at all?
   const hasData = summary.totalEvents > 0;

@@ -157,13 +157,16 @@ async function main() {
   check("audit: ≥1 event after seed", totalEvents >= 1, `total=${totalEvents}`);
 
   // After visiting /vault/audit, the count should be 1 more
-  // (the vault.audit_log_viewed meta event). Re-fetch and verify.
+  // (the vault.audit_log_viewed meta event).
+  //
+  // No sleep between the fetch and the count: the page AWAITS this write,
+  // so it is committed by the time the response resolves. The old
+  // fire-and-forget write made this a race, and the 200ms sleep that
+  // papered over it would now hide a regression.
   const beforeVisit = await prisma.auditLog.count({
     where: { userId, actionType: "vault.audit_log_viewed" },
   });
   await s.get("/vault/audit");
-  // Give the server a moment to commit the write (fire-and-forget).
-  await new Promise((r) => setTimeout(r, 200));
   const afterVisit = await prisma.auditLog.count({
     where: { userId, actionType: "vault.audit_log_viewed" },
   });
@@ -175,8 +178,8 @@ async function main() {
 
   // ── 7. Filter contract: use the smoke sentinel type (stable,
   // 3 rows, written at the start of the smoke). The page writes
-  // a `vault.audit_log_viewed` row on every render (fire-and-
-  // forget AFTER the read), so we use a stable sentinel to
+  // a `vault.audit_log_viewed` row on every render (AFTER the
+  // read, and now awaited), so we use a stable sentinel to
   // avoid the off-by-one from the meta event.
   const SENTINEL_TYPE = "smoke.test_audit_event";
   const sentinelCount = await prisma.auditLog.count({
