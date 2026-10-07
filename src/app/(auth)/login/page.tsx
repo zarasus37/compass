@@ -1,8 +1,14 @@
 /**
- * /login — the only sign-in entry point once an account exists.
- * If no user exists yet, /login redirects to /welcome so the first
- * user can be created.
+ * /login — the sign-in entry point.
+ *
+ * If no user exists yet, /login redirects to /welcome: there is nothing
+ * to sign in to, and signup is the only useful next step.
+ *
+ * Cluster 7.32b — signup is public, so /login also links to /welcome.
+ * That link is the only discoverable route to registration now that
+ * neither page force-redirects the other once a user exists.
  */
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { countUsers } from "@/server/auth/user";
 import { loginAction } from "../actions";
@@ -38,6 +44,17 @@ export default async function LoginPage() {
           required: true,
         },
       ]}
+      footer={
+        <>
+          Don&apos;t have an account?{" "}
+          <Link
+            href="/welcome"
+            className="underline underline-offset-4 hover:text-foreground"
+          >
+            Create one
+          </Link>
+        </>
+      }
     />
   );
 }

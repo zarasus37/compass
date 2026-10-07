@@ -86,28 +86,67 @@ export async function findUserByEmail(email: string) {
   return prisma.user.findUnique({ where: { email: email.toLowerCase() } });
 }
 
-/** Create the first user. Throws if any user already exists. */
-export async function createFirstUser(params: {
+/** Outcome of a registration attempt. */
+export type CreateUserResult =
+  | { ok: true; user: SafeUser }
+  | { ok: false; reason: "email_taken" };
+
+/**
+ * Register a user. Any number of accounts may exist.
+ *
+ * Cluster 7.32b — this replaces `createFirstUser`, which refused to
+ * create a user once *any* user existed. Signup is now public, so the
+ * duplicate-email check is the only gate.
+ *
+ * Race safety: the pre-check is advisory only. Two concurrent requests
+ * for the same address can both pass it, so the unique index on
+ * `User.email` is the real gate — we catch P2002 and map it to
+ * `email_taken` rather than letting a raw Prisma error surface. This is
+ * the same reason the old `countUsers()` guard existed, but scoped to
+ * the identity that actually collides instead of the whole table.
+ */
+export async function createUser(params: {
   name: string;
   email: string;
   passwordHash: string;
-}): Promise<SafeUser> {
-  // Transactional: count + create. Prevents a race where two signups
-  // both see "no users" and both succeed.
-  return prisma.$transaction(async (tx) => {
-    const existing = await tx.user.count();
-    if (existing > 0) {
-      throw new Error("A user already exists. Signup is closed.");
-    }
-    const user = await tx.user.create({
-      data: {
-        name: params.name,
-        email: params.email.toLowerCase(),
-        passwordHash: params.passwordHash,
-      },
+}): Promise<CreateUserResult> {
+  const email = params.email.toLowerCase();
+  try {
+    return await prisma.$transaction(async (tx) => {
+      // Fast path: reject the common duplicate case without relying on
+      // the error path, so the user gets a clean field error.
+      const existing = await tx.user.findUnique({
+        where: { email },
+        select: { id: true },
+      });
+      if (existing) return { ok: false, reason: "email_taken" };
+
+      const user = await tx.user.create({
+        data: {
+          name: params.name,
+          email,
+          passwordHash: params.passwordHash,
+        },
+      });
+      return { ok: true, user: toSafeUser(user) };
     });
-    return toSafeUser(user);
-  });
+  } catch (err) {
+    // Unique-constraint violation on User.email — the two requests
+    // raced past the pre-check above. Treat it exactly like the
+    // slow path so the caller cannot distinguish the two.
+    if (isUniqueViolation(err)) return { ok: false, reason: "email_taken" };
+    throw err;
+  }
+}
+
+/** Prisma error code for a unique-constraint violation. */
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code?: unknown }).code === "P2002"
+  );
 }
 
 export type { CreatedSession };

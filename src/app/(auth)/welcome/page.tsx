@@ -1,22 +1,22 @@
 /**
- * /welcome — shown only when there are zero users in the DB.
- * The first user is created here. After that, this route always
- * redirects to /login (gated in the page itself).
+ * /welcome — public registration.
+ *
+ * Cluster 7.32b — this page used to redirect to /login whenever any
+ * user existed, which made signup a one-shot bootstrap reachable only
+ * on a freshly-minted database. That redirect is gone: signup is
+ * public, so the form is always served.
+ *
+ * /login still sends a visitor here when the database has no users at
+ * all, since there is nothing to sign in to yet.
  */
-import { redirect } from "next/navigation";
-import { countUsers } from "@/server/auth/user";
 import { signupAction } from "../actions";
 import { AuthForm } from "@/components/auth/auth-shell";
 
 export default async function WelcomePage() {
-  if ((await countUsers()) > 0) {
-    redirect("/login");
-  }
-
   return (
     <AuthForm
       title="Create your account"
-      subtitle="This will be the only account on this Compass install. You're setting it up once."
+      subtitle="Set up your own Compass. Your data stays yours."
       focusField="name"
       submitLabel="Create account"
       pendingLabel="Creating account…"

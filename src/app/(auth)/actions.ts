@@ -21,11 +21,7 @@ import {
   clearSessionCookie,
   readSessionCookie,
 } from "@/server/auth/session";
-import {
-  countUsers,
-  createFirstUser,
-  findUserByEmail,
-} from "@/server/auth/user";
+import { createUser, findUserByEmail } from "@/server/auth/user";
 import {
   checkLoginAllowed,
   clearLoginFailures,
@@ -81,8 +77,29 @@ async function requestMeta() {
 }
 
 /**
- * Create the first (and only) user. Refuses if a user already exists.
- * On success, sets a session cookie and redirects to /.
+ * Register a new account.
+ *
+ * Cluster 7.32b — signup is PUBLIC. This previously refused to create a
+ * user once *any* user existed (the D7 single-user assumption) and threw
+ * "An account already exists." Any number of accounts may now register;
+ * the only gate is a duplicate email.
+ *
+ * What was deliberately NOT weakened while making it public:
+ *   - Password hashing is still argon2id (`hashPassword`, ~19 MiB / t=2).
+ *     bcrypt at 12 rounds is materially weaker and the dependency is not
+ *     even installed; swapping to it would be a silent downgrade on the
+ *     one thing protecting the account.
+ *   - The shared `isWeakPassword` policy still runs, so the minimum is
+ *     12 characters plus a dictionary check — not the 8 chars the
+ *     original spec asked for.
+ *   - Signup is now throttled through the same DB-backed gate login
+ *     uses. An unthrottled public registration endpoint on a publicly
+ *     reachable deployment (compass / compass-mom are both on Vercel) is
+ *     a free account-farming and email-bombing primitive. This was not
+ *     needed while signup could only ever fire once.
+ *
+ * On success the new user gets a real session, so they land in the app
+ * authenticated rather than on a login page they have never satisfied.
  */
 export async function signupAction(
   _prev: ActionResult | undefined,
@@ -125,16 +142,32 @@ export async function signupAction(
     };
   }
 
-  if ((await countUsers()) > 0) {
+  const meta = await requestMeta();
+
+  // Throttle BEFORE hashing. Argon2id costs ~19 MiB and ~50-100ms per
+  // call; letting an unauthenticated caller drive that at will is a
+  // cheap CPU/memory DoS against the serverless function.
+  const gate = await checkLoginAllowed(email, meta.ip);
+  if (!gate.allowed) {
+    const mins = Math.max(1, Math.ceil(gate.retryAfterSec / 60));
     return {
       ok: false,
-      error: "An account already exists. Please sign in instead.",
+      error: `Too many attempts. Please wait about ${mins} minute${mins === 1 ? "" : "s"} and try again.`,
     };
   }
 
   const passwordHash = await hashPassword(password);
-  const meta = await requestMeta();
-  const user = await createFirstUser({ name, email, passwordHash });
+  const created = await createUser({ name, email, passwordHash });
+
+  if (!created.ok) {
+    await recordLoginFailure(email, meta.ip);
+    return {
+      ok: false,
+      fieldErrors: { email: "That email address is already registered." },
+    };
+  }
+
+  const user = created.user;
   const session = await createSession({
     userId: user.id,
     userAgent: meta.userAgent,

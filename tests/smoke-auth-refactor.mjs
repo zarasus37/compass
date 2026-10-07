@@ -2,8 +2,9 @@
  * Smoke for Cluster 7.32a — auth refactor cleanup.
  *
  * Verifies the structural changes from the multi-user plan without
- * changing observable behavior (7.32b will drop the countUsers guard
- * to actually open signup; this turn just makes the refactor safe):
+ * changing observable behavior. 7.32a made the refactor safe; 7.32b
+ * then dropped the countUsers guard to actually open signup (see the
+ * [10] checks at the bottom, which now assert the OPEN behaviour):
  *  1. src/lib/auth/password-policy.ts exists and exports isWeakPassword
  *  2. isWeakPassword rejects "password..." (dictionary-weak pattern)
  *  3. isWeakPassword accepts a 32-char random base64url password
@@ -11,11 +12,11 @@
  *  5. Length minimum — dev (8) vs production (12)
  *  6. signupAction uses the shared policy (grep for isWeakPassword in actions.ts)
  *  7. seed-admin.mjs imports the shared policy (no duplicated WEAK_PATTERNS list)
- *  8. countUsers() still exists in src/server/auth/user.ts (used by 7.32b)
+ *  8. countUsers() still exists in src/server/auth/user.ts (used by the /login page)
  *  9. findFirst({}) without `where:` is absent from the runtime source
- * 10. signupAction accepts a strong password (rejects when prior user exists: that's the 7.32a status quo)
+ * 10. signupAction accepts a strong password, /welcome stays open
  */
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, statSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { isWeakPassword } from "../src/lib/auth/password-policy.ts";
 
@@ -93,10 +94,14 @@ const allSrc = ["src/lib", "src/server", "src/app"].flatMap(d => {
   const res = [];
   const walk = (path) => {
     try {
-      const fs = require("node:fs");
-      const stat = fs.statSync(path);
+      // `statSync`/`readdirSync` come from the top-level `node:fs`
+      // import. This previously called `require("node:fs")` here,
+      // which throws ReferenceError in an ESM module — the throw was
+      // swallowed by the catch below, so `allSrc` came back EMPTY and
+      // check [9] reported success having inspected zero files.
+      const stat = statSync(path);
       if (stat.isDirectory()) {
-        fs.readdirSync(path).forEach(name => walk(`${path}/${name}`));
+        readdirSync(path).forEach(name => walk(`${path}/${name}`));
       } else if (path.endsWith(".ts") || path.endsWith(".tsx")) {
         res.push(path);
       }
@@ -105,6 +110,9 @@ const allSrc = ["src/lib", "src/server", "src/app"].flatMap(d => {
   walk(`${ROOT}/${d}`);
   return res;
 });
+// Guard the guard: a file-walking check that scans 0 files must FAIL,
+// not pass. This is what let the `require` bug hide for so long.
+check("[9a] the source walk actually found files", allSrc.length > 0, `found ${allSrc.length}`);
 const fileCount = allSrc.length;
 const findFirstNoWhere = allSrc.filter(p => {
   const src = readFileSync(p, "utf8");
@@ -124,7 +132,15 @@ const BASE = "http://127.0.0.1:3000";
 const rL = await httpGet("/login");
 const rW = await httpGet("/welcome");
 check("[10] /login still 200 in status quo", rL.status === 200);
-check("[10] /welcome redirects to /login when users > 0 (gate intact)", rW.status === 307 || rW.status === 302);
+// Cluster 7.32b — signup is public now. /welcome no longer redirects to
+// /login once a user exists; it always serves the registration form.
+// Asserting the old 307 here would pin the single-user bootstrap shut.
+check("[10] /welcome serves the signup form even when users > 0", rW.status === 200);
+check(
+  "[10] /login offers a route to registration",
+  rL.body.includes("/welcome"),
+  "login must link to /welcome or public signup is undiscoverable",
+);
 
 // Final
 console.log("\n--- checks ---");

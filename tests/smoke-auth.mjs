@@ -259,11 +259,98 @@ async function main() {
       throw new Error("missing 'Welcome back' heading");
   });
 
-  await step("/welcome redirects to /login when user exists", async () => {
+  // Cluster 7.32b — signup is public. This used to assert a 307 to
+  // /login. Asserting that now would pin the single-user bootstrap
+  // shut, so the checks below prove the OPEN behaviour instead: a
+  // second user can register, and a duplicate email still cannot.
+  await step("/welcome stays open when a user already exists", async () => {
     const r = await get("/welcome", jar);
-    if (r.status !== 307) throw new Error(`expected 307, got ${r.status}`);
-    if (r.headers.get("location") !== "/login")
-      throw new Error(`expected /login, got ${r.headers.get("location")}`);
+    if (r.status !== 200) throw new Error(`expected 200, got ${r.status}`);
+    const html = await r.text();
+    if (!html.includes("Create your account"))
+      throw new Error("missing 'Create your account' heading");
+  });
+
+  await step("/login links to registration", async () => {
+    const r = await get("/login", jar);
+    if (r.status !== 200) throw new Error(`expected 200, got ${r.status}`);
+    const html = await r.text();
+    if (!html.includes("/welcome"))
+      throw new Error("no route to registration from /login");
+  });
+
+  let secondActionId;
+  await step("/welcome exposes the signup action for a second user", async () => {
+    const html = await (await get("/welcome", {})).text();
+    secondActionId = extractActionId(html);
+    if (!secondActionId) throw new Error("no server action id on /welcome");
+  });
+
+  await step("a SECOND user can register (public signup)", async () => {
+    const jar2 = {};
+    // Password must NOT contain the email local-part: isWeakPassword
+    // refuses `password.includes(local)` (src/lib/auth/password-policy.ts).
+    // Using "second-user-..." here would be rejected by the policy and
+    // the step would fail for a reason unrelated to what it tests.
+    const pw = "Zephyr-Quartz-Meadow-77x";
+    const r = await postForm(
+      "/welcome",
+      jar2,
+      {
+        name: "Second",
+        email: "second-user@compass.local",
+        password: pw,
+        confirm: pw,
+      },
+      { actionId: secondActionId },
+    );
+    if (r.status !== 303 && r.status !== 302) {
+      const text = await r.text();
+      throw new Error(`expected redirect, got ${r.status}: ${text.slice(0, 300)}`);
+    }
+    if (!jar2["compass_session"]) {
+      throw new Error("no session cookie set for the second user");
+    }
+  });
+
+  await step("both users now exist in the DB", async () => {
+    const users = await prisma.user.findMany({
+      where: { email: { in: ["mom@compass.local", "second-user@compass.local"] } },
+      select: { email: true, name: true },
+    });
+    if (users.length !== 2) throw new Error(`expected 2 users, got ${users.length}`);
+    const second = users.find((u) => u.email === "second-user@compass.local");
+    if (!second || second.name !== "Second") {
+      throw new Error(`second user wrong: ${JSON.stringify(second)}`);
+    }
+  });
+
+  await step("duplicate email is still rejected", async () => {
+    const jar3 = {};
+    // This password is deliberately policy-CLEAN (the local-part "mom"
+    // is 3 chars, under the echo check's 4-char floor, and it matches no
+    // weak pattern) so the only thing that can reject this attempt is the
+    // duplicate email. Otherwise the step would still "pass" while
+    // testing the password policy instead of the thing it names.
+    const pw = "Cobalt-Meadow-Ribbon-91z";
+    const r = await postForm(
+      "/welcome",
+      jar3,
+      {
+        name: "Impostor",
+        email: "mom@compass.local",
+        password: pw,
+        confirm: pw,
+      },
+      { actionId: secondActionId },
+    );
+    if (r.status === 303 || r.status === 302) {
+      throw new Error("duplicate email was allowed to register");
+    }
+    const count = await prisma.user.count({
+      where: { email: "mom@compass.local" },
+    });
+    if (count !== 1) throw new Error(`duplicate created ${count} rows`);
   });
 
   let loginActionId;
