@@ -46,6 +46,7 @@ import {
   NEXT_PAY_DATE,
 } from "./mock-seed";
 import { prisma } from "@/server/db";
+import { addCalendarDaysKeepingTime } from "@/lib/dates";
 
 // ---------------------------------------------------------------------------
 // Re-export date constants
@@ -165,11 +166,11 @@ async function rollForward(
     // `now`, which is the common case for a period that lapsed by less
     // than one cadence length. That left the row expired forever.
     let start = row.endDate;
-    let end = new Date(start.getTime() + days * 24 * 60 * 60 * 1000);
+    let end = addCalendarDaysKeepingTime(start, days);
     let steps = 1;
     while (end.getTime() <= now.getTime() && steps < 400) {
       start = end;
-      end = new Date(start.getTime() + days * 24 * 60 * 60 * 1000);
+      end = addCalendarDaysKeepingTime(start, days);
       steps += 1;
     }
 

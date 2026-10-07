@@ -16,6 +16,7 @@ import { revalidatePath } from "next/cache";
 import { getAddress, type Address } from "viem";
 import { prisma } from "@/server/db";
 import { requireUser } from "@/server/auth/user";
+import { addCalendarDaysKeepingTime } from "@/lib/dates";
 import {
   loadVaultSnapshot,
   getOrCreateVault,
@@ -921,7 +922,10 @@ function computeBillSchedule(
   );
   if (candidate.getTime() <= today.getTime()) {
     if (frequency === "WEEKLY") {
-      candidate = new Date(candidate.getTime() + 7 * 24 * 60 * 60 * 1000);
+      // Calendar days: a 7×24h instant offset lands on 08:00 or 10:00
+      // instead of 09:00 when the span crosses a DST transition, so weekly
+      // due dates would visibly jump time-of-day depending on the week.
+      candidate = addCalendarDaysKeepingTime(candidate, 7);
     } else if (frequency === "QUARTERLY") {
       candidate = new Date(today.getFullYear(), today.getMonth() + 3, dueDay);
     } else if (frequency === "ANNUALLY") {

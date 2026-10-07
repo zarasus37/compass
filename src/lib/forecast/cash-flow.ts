@@ -26,6 +26,7 @@
  */
 
 import { prisma } from "@/server/db";
+import { addCalendarDays } from "@/lib/dates";
 
 export type CashFlowStatus =
   | "ok"
@@ -97,28 +98,6 @@ async function getSpendableAccount(userId: string) {
   if (rows.length === 0) return null;
   const typed = rows.find((a) => a.type === "checking" || a.type === "savings");
   return typed ?? rows[0];
-}
-
-/**
- * Add `days` CALENDAR days to a local-midnight anchor, staying at local
- * midnight.
- *
- * Do not use `new Date(t.getTime() + days * 24 * 60 * 60 * 1000)` for this.
- * That is a fixed *instant* offset, but "the next 60 days" is a *calendar*
- * range. When the window straddles a DST transition the two disagree: in
- * US/Central, anchoring on Oct 6 gives Dec 4 23:00 instead of Dec 5 00:00,
- * so any bill due on the 60th day fell outside the horizon and vanished
- * from the forecast. That hit 2 of 12 possible anchor months per year and
- * was invisible in CI, which runs UTC and has no DST at all.
- *
- * `Date.prototype.setDate` operates on calendar fields, so it stays exact
- * in local time year-round.
- */
-function addCalendarDays(from: Date, days: number): Date {
-  const d = new Date(from.getTime());
-  d.setDate(d.getDate() + days);
-  d.setHours(0, 0, 0, 0);
-  return d;
 }
 
 /**
