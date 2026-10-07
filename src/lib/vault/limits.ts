@@ -8,6 +8,18 @@
 export const DEFAULT_FUND_MAX_CENTS = 10_000_00; // $10,000
 export const DEFAULT_DEPOSIT_MAX_CENTS = 10_000_00; // $10,000
 
+/**
+ * Ceiling for a single scheduled bill.
+ *
+ * This is the THIRD place `1_000_000_00` was written, and it was missed by
+ * the sweep that fixed the other two. `validateBillForm` in
+ * src/lib/vault/server.ts kept the raw inline literal after FUND and
+ * DEPOSIT had been corrected here, so a bill could be created at 100x the
+ * intended ceiling — and no smoke exercised the bill path, which is why it
+ * survived. `smoke-vault-hardening.mjs` now asserts all three.
+ */
+export const DEFAULT_BILL_MAX_CENTS = 10_000_00; // $10,000
+
 function readCents(raw: string | undefined, fallback: number): number {
   if (!raw) return fallback;
   const n = Number(raw);
@@ -23,4 +35,9 @@ export function getFundMaxCents(): number {
 /** Cap for [DEPOSIT] (Safe -> Aave). Override with VAULT_DEPOSIT_MAX_CENTS. */
 export function getDepositMaxCents(): number {
   return readCents(process.env.VAULT_DEPOSIT_MAX_CENTS, DEFAULT_DEPOSIT_MAX_CENTS);
+}
+
+/** Ceiling for a single bill in validateBillForm. Override with VAULT_BILL_MAX_CENTS. */
+export function getBillMaxCents(): number {
+  return readCents(process.env.VAULT_BILL_MAX_CENTS, DEFAULT_BILL_MAX_CENTS);
 }

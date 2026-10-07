@@ -1,12 +1,18 @@
 // Behavior tests for the vault hardening patch (no server / DB needed).
 // Run: tsx tests/smoke-vault-hardening.mjs
 import { encodeFunctionData, parseAbi } from "viem";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { assertAllowedSafeCall } from "../src/lib/vault/safe-guard.ts";
 import {
   getFundMaxCents,
   getDepositMaxCents,
+  getBillMaxCents,
   DEFAULT_FUND_MAX_CENTS,
+  DEFAULT_BILL_MAX_CENTS,
 } from "../src/lib/vault/limits.ts";
+
+const ROOT = process.cwd();
 
 let pass = 0,
   fail = 0;
@@ -53,6 +59,7 @@ const call = (to, abi, functionName, args, value) => ({
 // 100x the documented $10,000. $10,000 = 1,000,000 cents.
 delete process.env.VAULT_FUND_MAX_CENTS;
 delete process.env.VAULT_DEPOSIT_MAX_CENTS;
+delete process.env.VAULT_BILL_MAX_CENTS;
 ok(
   "default fund cap is $10,000 (1_000_000 cents, was 100_000_000)",
   getFundMaxCents() === 1_000_000 && DEFAULT_FUND_MAX_CENTS === 1_000_000,
@@ -63,6 +70,35 @@ ok("env override honored", getFundMaxCents() === 50_000);
 process.env.VAULT_FUND_MAX_CENTS = "abc";
 ok("garbage override falls back to default", getFundMaxCents() === 1_000_000);
 delete process.env.VAULT_FUND_MAX_CENTS;
+
+// ── bill ceiling — the THIRD 1_000_000_00, missed by the first sweep ─────────
+// The original fix diagnosed `1_000_000_00` as a 100x-too-large literal and
+// corrected FUND and DEPOSIT, but `validateBillForm` in server.ts kept its
+// own inline copy. Nothing exercised the bill path, so a bill could be
+// created at $1,000,000 — 100x the intended ceiling. Asserted here so the
+// third instance cannot survive a fourth sweep unnoticed.
+ok(
+  "default bill ceiling is $10,000 (1_000_000 cents, was 100_000_000)",
+  getBillMaxCents() === 1_000_000 && DEFAULT_BILL_MAX_CENTS === 1_000_000,
+);
+process.env.VAULT_BILL_MAX_CENTS = "250000";
+ok("bill env override honored", getBillMaxCents() === 250_000);
+process.env.VAULT_BILL_MAX_CENTS = "0";
+ok("bill garbage/zero override falls back to default", getBillMaxCents() === 1_000_000);
+delete process.env.VAULT_BILL_MAX_CENTS;
+
+// Source guard: the bill validator must read the shared cap, not carry its
+// own literal again. This is the assertion that would have caught the miss.
+const serverSrc = readFileSync(join(ROOT, "src/lib/vault/server.ts"), "utf8");
+ok(
+  "server.ts validateBillForm reads getBillMaxCents()",
+  /getBillMaxCents\(\)/.test(serverSrc),
+);
+ok(
+  "server.ts contains no inline 1_000_000_00 bill ceiling",
+  !/amountCents\s*>\s*1_000_000_00/.test(serverSrc),
+  "the third 100x literal is back in validateBillForm",
+);
 
 // ── guard: the three legitimate calls are allowed ──────────────────────────
 ok(

@@ -82,7 +82,7 @@ import type {
   YieldRoutingStrategy,
   OffRampProvider,
 } from "./types";
-import { getDepositMaxCents, getFundMaxCents } from "@/lib/vault/limits";
+import { getBillMaxCents, getDepositMaxCents, getFundMaxCents } from "@/lib/vault/limits";
 
 /**
  * Load the vault snapshot for the current user. Returns the DB
@@ -884,7 +884,11 @@ function validateBillForm(input: unknown): BillFormFields | string {
   if (!Number.isFinite(amountCents) || amountCents <= 0) {
     return "amount must be a positive number (cents)";
   }
-  if (amountCents > 1_000_000_00) return "amount is unreasonably large";
+  // Ceiling comes from lib/vault/limits so it stays in lockstep with the
+  // FUND/DEPOSIT caps. This line was the third and last place the old
+  // `1_000_000_00` literal survived — 100x the documented $10,000 — after
+  // the security sweep that fixed the other two. See limits.ts.
+  if (amountCents > getBillMaxCents()) return "amount is unreasonably large";
   const frequency = typeof o.frequency === "string" ? o.frequency : "";
   if (!BILL_FREQUENCIES.has(frequency)) {
     return `unknown frequency: ${frequency}`;
