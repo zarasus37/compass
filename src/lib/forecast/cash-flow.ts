@@ -100,6 +100,28 @@ async function getSpendableAccount(userId: string) {
 }
 
 /**
+ * Add `days` CALENDAR days to a local-midnight anchor, staying at local
+ * midnight.
+ *
+ * Do not use `new Date(t.getTime() + days * 24 * 60 * 60 * 1000)` for this.
+ * That is a fixed *instant* offset, but "the next 60 days" is a *calendar*
+ * range. When the window straddles a DST transition the two disagree: in
+ * US/Central, anchoring on Oct 6 gives Dec 4 23:00 instead of Dec 5 00:00,
+ * so any bill due on the 60th day fell outside the horizon and vanished
+ * from the forecast. That hit 2 of 12 possible anchor months per year and
+ * was invisible in CI, which runs UTC and has no DST at all.
+ *
+ * `Date.prototype.setDate` operates on calendar fields, so it stays exact
+ * in local time year-round.
+ */
+function addCalendarDays(from: Date, days: number): Date {
+  const d = new Date(from.getTime());
+  d.setDate(d.getDate() + days);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/**
  * Expand a bill's dueDay (1..31) into actual Date objects that
  * fall within [today, today + horizonDays]. Bills with cadence
  * "monthly" (the only cadence currently exposed in /recurring/new)
@@ -187,7 +209,7 @@ function upcomingBillsTotal(
   bills: Array<{ amountCents: number; dueDay: number }>,
   today: Date,
 ): number {
-  const windowEnd = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const windowEnd = addCalendarDays(today, 30);
   let sum = 0;
   for (const b of bills) {
     for (const d of expandBillDates(b, today, windowEnd)) {
@@ -214,7 +236,7 @@ export async function loadCashFlowForecast(
   const today = input.today ?? new Date();
   today.setHours(0, 0, 0, 0);
   const horizonDays = input.horizonDays ?? 60;
-  const horizonEnd = new Date(today.getTime() + horizonDays * 24 * 60 * 60 * 1000);
+  const horizonEnd = addCalendarDays(today, horizonDays);
 
   // ----- Required reads -----
   const [account, paySchedules, bills, envelopes, plan] = await Promise.all([

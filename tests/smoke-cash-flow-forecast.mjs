@@ -176,15 +176,44 @@ async function main() {
   // Bill rows for the user (any cadence) — count occurrences within 60 days.
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const horizonEnd = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000);
+  // The horizon is a CALENDAR range: "the next 60 days" ends at local
+  // midnight on the 60th calendar day. Build it with setDate rather than a
+  // fixed ms offset — `today.getTime() + 60*24h` lands an hour early
+  // whenever the window straddles a DST transition (2 months of start dates
+  // per year in US/Central), which silently dropped bills due on the
+  // boundary day. See addCalendarDays() in src/lib/forecast/cash-flow.ts.
+  const horizonEnd = new Date(today.getTime());
+  horizonEnd.setDate(horizonEnd.getDate() + 60);
+  horizonEnd.setHours(0, 0, 0, 0);
   const bills = await prisma.bill.findMany({
     where: { userId: s.userId, isArchived: false },
   });
+
+  // Count each bill's real occurrences instead of assuming a fixed number.
+  // `dueDay` is a day-of-month (null for non-monthly cadences — see the
+  // schema), so a bill fires on that day of every month inside the window.
+  // A hardcoded "2 per bill" was right on most dates but wrong whenever a
+  // due day landed on the window edge, which meant this assertion could
+  // not have detected the DST bug it was sitting next to.
+  const billOccurrences = new Map();
   let expectedBillCount = 0;
   for (const b of bills) {
     if (b.dueDay === null) continue;
-    // Monthly cadence → expect 2 occurrences in a 60-day window starting now.
-    expectedBillCount += 2;
+    let y = today.getFullYear();
+    let m = today.getMonth();
+    let n = 0;
+    for (let i = 0; i < 4; i += 1) {
+      const lastDayOfMonth = new Date(y, m + 1, 0).getDate();
+      const d = new Date(y, m, Math.min(b.dueDay, lastDayOfMonth), 0, 0, 0, 0);
+      if (d.getTime() >= today.getTime() && d.getTime() <= horizonEnd.getTime()) n += 1;
+      m += 1;
+      if (m > 11) {
+        m = 0;
+        y += 1;
+      }
+    }
+    billOccurrences.set(b.id, n);
+    expectedBillCount += n;
   }
 
   // Paychecks expected inside the horizon: biweekly cadence → ~4 occurrences.
@@ -332,11 +361,12 @@ async function main() {
   // This passes as long as the projection is in the same order of
   // magnitude and isn't wildly off.
   // ============================================================
-  const billTotal = bills
-    .filter((b) => b.dueDay !== null)
-    .reduce((s, b) => s + b.amountCents, 0);
-  // In 60 days with monthly cadence, each bill hits ~2 times.
-  const totalBillsInHorizon = billTotal * 2;
+  // Weight each bill by the number of times it actually fires in the window,
+  // rather than assuming every bill fires exactly twice.
+  const totalBillsInHorizon = bills.reduce(
+    (s, b) => s + b.amountCents * (billOccurrences.get(b.id) ?? 0),
+    0,
+  );
   const expectedUpperBound = startBalance + pcActual * ps.amount;
   const expectedLowerBound = startBalance - totalBillsInHorizon;
   check(
