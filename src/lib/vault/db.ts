@@ -1106,8 +1106,23 @@ export async function transitionBillDb(
   | { ok: true; bill: ScheduledBill }
   | { ok: false; error: string; from: BillStatus; event: BillEvent["type"] }
 > {
-  const row = await prisma.scheduledBill.findUnique({ where: { id: billId } });
+  // TENANT SCOPE. The row must belong to the calling user's vault.
+  //
+  // This used to be `findUnique({ where: { id: billId } })` followed by an
+  // unscoped `update({ where: { id: billId } })` — `userId` was accepted and
+  // only used for the audit row. Any authenticated user who learned another
+  // user's billId could therefore drive that bill through the 13-state
+  // machine (SETTLED / CANCELLED / ...), i.e. mutate another tenant's vault.
+  // Invisible with one user; live the moment a second account exists.
+  //
+  // Scope through the relation so the check is part of the query rather than
+  // a separate lookup that could be raced.
+  const row = await prisma.scheduledBill.findFirst({
+    where: { id: billId, vault: { userId } },
+  });
   if (!row) {
+    // Same message for "does not exist" and "belongs to someone else" — a
+    // distinct error here would let a caller enumerate other users' billIds.
     return {
       ok: false,
       error: `bill not found: ${billId}`,
@@ -1122,8 +1137,13 @@ export async function transitionBillDb(
   // Persist the new state. The pure function's output carries any
   // updated fields (settlementReference, lastAttemptAt, updatedAt)
   // — we apply them all in one write.
-  const updated = await prisma.scheduledBill.update({
-    where: { id: billId },
+  //
+  // updateMany (not update) because Prisma's `update` requires a unique
+  // `where`, and the only unique key here is `id`. Re-applying the tenant
+  // predicate on the write closes the read-then-write gap; a count of 0 means
+  // the row stopped belonging to this user between the two statements.
+  const written = await prisma.scheduledBill.updateMany({
+    where: { id: billId, vault: { userId } },
     data: {
       status: result.bill.status,
       settlementReference: result.bill.settlementReference ?? null,
@@ -1133,6 +1153,22 @@ export async function transitionBillDb(
       updatedAt: new Date(),
     },
   });
+  if (written.count === 0) {
+    return {
+      ok: false,
+      error: `bill not found: ${billId}`,
+      from: "DRAFT",
+      event: event.type,
+    };
+  }
+  const updated = { ...row, ...{
+    status: result.bill.status,
+    settlementReference: result.bill.settlementReference ?? null,
+    lastAttemptAt: result.bill.lastAttemptAt
+      ? new Date(result.bill.lastAttemptAt)
+      : null,
+    updatedAt: new Date(),
+  } };
 
   // Audit log. One entry per transition; the from/to/event
   // captured for replay.

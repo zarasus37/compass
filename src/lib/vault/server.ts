@@ -780,10 +780,22 @@ export async function transitionBillServerAction(
     return { ok: false, error: `unknown event: ${eventType}` };
   }
   try {
+    // Tenant scope before reading: this row feeds `buildEvent` (amount,
+    // providerPreference) and `from` is returned to the caller, so an
+    // unscoped read would let a caller read another tenant's bill. Matches
+    // the fetch-then-verify pattern used by updateBill/deleteBill below.
     const bill = await prisma.scheduledBill.findUnique({
       where: { id: billId },
     });
     if (!bill) {
+      return { ok: false, error: `bill not found: ${billId}` };
+    }
+    const billVault = await prisma.vaultAccount.findUnique({
+      where: { id: bill.vaultId },
+    });
+    if (!billVault || billVault.userId !== user.id) {
+      // Same message as "not found" — a distinct one would let a caller
+      // enumerate other tenants' billIds.
       return { ok: false, error: `bill not found: ${billId}` };
     }
     const event = buildEvent(eventType as UserFacingBillEvent, {
@@ -824,10 +836,19 @@ export async function simulateNextStateAction(
     return { ok: false, error: "not signed in" };
   }
   try {
+    // Tenant scope before reading: `bill.status` is interpolated into the
+    // "terminal state: <status>" error below, which would otherwise disclose
+    // another tenant's bill state to any caller who supplies a billId.
     const bill = await prisma.scheduledBill.findUnique({
       where: { id: billId },
     });
     if (!bill) {
+      return { ok: false, error: `bill not found: ${billId}` };
+    }
+    const billVault = await prisma.vaultAccount.findUnique({
+      where: { id: bill.vaultId },
+    });
+    if (!billVault || billVault.userId !== user.id) {
       return { ok: false, error: `bill not found: ${billId}` };
     }
     const legal = legalNextStates(bill.status as import("./types").BillStatus);
