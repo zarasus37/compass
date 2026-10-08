@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { EditGoalForm } from "./EditGoalForm";
-import { liveGoals, liveEnvelopes } from "@/lib/mock";
+import { liveGoalsFromDb, liveEnvelopesFromDb } from "@/lib/mock";
 import { requireUser } from "@/server/auth/user";
 
 export const dynamic = "force-dynamic";
@@ -20,8 +20,11 @@ export default async function EditGoalPage({
 }) {
   const { id } = await params;
   const user = await requireUser();
-  const GOALS = liveGoals(user.id);
-  const ENVELOPES = liveEnvelopes(user.id);
+  // DB-backed — the form writes through `updateGoalToDb` (Prisma), so
+  // prefilling from process memory meant a durably-created goal 404'd on
+  // its own edit page.
+  const GOALS = await liveGoalsFromDb(user.id);
+  const ENVELOPES = await liveEnvelopesFromDb(user.id);
   const goal = GOALS.find((g) => g.id === id);
   if (!goal) notFound();
 

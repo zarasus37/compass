@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { EditEnvelopeForm } from "./EditEnvelopeForm";
-import { liveEnvelopes } from "@/lib/mock";
+import { liveEnvelopesFromDb } from "@/lib/mock";
 import { requireUser } from "@/server/auth/user";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,12 @@ export default async function EditEnvelopePage({
 }) {
   const { id } = await params;
   const user = await requireUser();
-  const ENVELOPES = liveEnvelopes(user.id);
+  // DB-backed, not `liveEnvelopes`. The form now WRITES through
+  // `updateEnvelopeToDb` (Prisma), so reading the page's prefill from
+  // process memory meant a vessel created through the (durable) new
+  // form 404'd on its own edit page — the list page found it, the edit
+  // page did not.
+  const ENVELOPES = await liveEnvelopesFromDb(user.id);
   const env = ENVELOPES.find((e) => e.id === id);
   if (!env) notFound();
 

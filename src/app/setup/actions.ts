@@ -15,6 +15,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/server/auth/user";
 import { prisma } from "@/server/db";
 import { markStepCompleted, activateSetup, type WizardStep } from "@/lib/setup/state";
+import { updateGoalToDb } from "@/lib/goal-db";
 
 // ── helpers ─────────────────────────────────────────────────────────
 
@@ -188,7 +189,22 @@ export async function saveEnvelopesAction(formData: FormData) {
       data.currentBalance = Math.round(currentDollars * 100);
     }
     if (Object.keys(data).length > 0) {
-      await prisma.envelope.update({ where: { id: env.id }, data });
+      // env.id came from a userId-scoped query above, so this is already
+      // owned — but `updateMany` keeps the ownership predicate in the
+      // statement itself rather than trusting the caller's id list.
+      const res = await prisma.envelope.updateMany({
+        where: { id: env.id, userId: user.id },
+        data,
+      });
+      if (res.count === 0) {
+        // Same reasoning as the goals step: the form action is
+        // `Promise<void>`, so a refused write must not fall through to
+        // `markStepCompleted` + `redirect`.
+        throw new Error(
+          `[setup/envelopes] vessel ${env.id} is not owned by this user. ` +
+            `The step was not marked complete.`,
+        );
+      }
     }
   }
 
@@ -230,15 +246,43 @@ export async function saveGoalsAction(formData: FormData) {
   const user = await requireUser();
 
   const goalIds = formData.getAll("goalId").map(String).filter(Boolean);
+
+  // Every goalId here comes straight from the submitted form, so it is
+  // client-controlled. This used to be
+  //
+  //     await prisma.goal.update({ where: { id: goalId }, data }).catch(() => null);
+  //
+  // which had two defects: no ownership check (any user could rename any
+  // other user's goal by putting their id in the form) and a swallowed
+  // failure, so the step reported success even when nothing was written.
+  //
+  // Route every edit through the durable service: it verifies ownership
+  // inside the transaction and never claims success it did not get.
+  const rejected: string[] = [];
   for (const goalId of goalIds) {
     const name = String(formData.get(`name_${goalId}`) ?? "").trim();
     const target = parseDollars(formData.get(`target_${goalId}`));
-    const data: { name?: string; targetAmount?: number } = {};
+
+    const data: { name?: string; targetCents?: number } = {};
     if (name.length > 0) data.name = name;
-    if (target != null && target >= 0) data.targetAmount = Math.round(target * 100);
-    if (Object.keys(data).length > 0) {
-      await prisma.goal.update({ where: { id: goalId }, data }).catch(() => null);
-    }
+    if (target != null && target >= 0) data.targetCents = Math.round(target * 100);
+    if (Object.keys(data).length === 0) continue;
+
+    const res = await updateGoalToDb({ userId: user.id, goalId, ...data });
+    if (!res.ok) rejected.push(goalId);
+  }
+
+  if (rejected.length > 0) {
+    // The wizard mounts this as a plain `<form action={...}>`, whose
+    // signature must stay `Promise<void>` — so there is no typed result
+    // to return. Throwing is what keeps the promise honest: the step is
+    // NOT marked complete and the redirect does NOT happen, so the user
+    // cannot walk past goals that were never saved. The previous code
+    // swallowed the failure and advanced anyway.
+    throw new Error(
+      `[setup/goals] ${rejected.length} goal(s) could not be saved: ` +
+        `${rejected.join(", ")}. The step was not marked complete.`,
+    );
   }
 
   await markStepCompleted(user.id, 5 as WizardStep);

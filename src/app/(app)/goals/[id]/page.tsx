@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { VesselGlyph } from "@/components/alchemy/VesselGlyph";
 import { GoalTrajectory, type GoalTrajectoryInput } from "@/components/viz/GoalTrajectory";
-import { liveGoals, TODAY } from "@/lib/mock";
+import { liveGoalsFromDb, TODAY } from "@/lib/mock";
 import { requireUser } from "@/server/auth/user";
 import { formatMoney } from "@/lib/money";
 import { formatShortDate } from "@/lib/format";
@@ -25,7 +25,10 @@ export default async function GoalDetailPage({
 }) {
   const { id } = await params;
   const user = await requireUser();
-  const GOALS = liveGoals(user.id);
+  // DB-backed — goals are now written through `createGoalToDb` /
+  // `updateGoalToDb` (Prisma), so the detail page must read from Prisma
+  // too. Reading memory here made a durably-created goal 404.
+  const GOALS = await liveGoalsFromDb(user.id);
   const goal = GOALS.find((g) => g.id === id);
 
   if (!goal) {
@@ -51,18 +54,23 @@ export default async function GoalDetailPage({
     return { mult, perPaycheckCents: per, months: mo };
   });
 
-  const trajectory: GoalTrajectoryInput[] = [
-    {
-      id: goal.id,
-      name: goal.name,
-      planet: goal.planet,
-      currentCents: goal.currentCents,
-      targetCents: goal.targetCents,
-      perPaycheckCents: goal.perPaycheckCents,
-      targetDate: goal.targetDate.toISOString(),
-      anchorDate: TODAY,
-    },
-  ];
+  // A goal with no target date has no trajectory to plot. Emitting one
+  // would mean inventing a date, so the array is simply empty — the page
+  // renders without the chart rather than lying about the deadline.
+  const trajectory: GoalTrajectoryInput[] = goal.targetDate
+    ? [
+        {
+          id: goal.id,
+          name: goal.name,
+          planet: goal.planet ?? "jupiter",
+          currentCents: goal.currentCents,
+          targetCents: goal.targetCents,
+          perPaycheckCents: goal.perPaycheckCents,
+          targetDate: goal.targetDate.toISOString(),
+          anchorDate: TODAY,
+        },
+      ]
+    : [];
 
   return (
     <div>
@@ -120,7 +128,7 @@ export default async function GoalDetailPage({
         <Stat
           label="target"
           value={formatMoney(goal.targetCents)}
-          sub={`by ${formatShortDate(goal.targetDate)}`}
+          sub={goal.targetDate ? `by ${formatShortDate(goal.targetDate)}` : "no target date"}
         />
         <Stat
           label="per paycheck"

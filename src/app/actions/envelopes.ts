@@ -7,18 +7,28 @@
  *   (name + target)
  * - updateEnvelopeTarget() — focused Edit Target form at
  *   /envelopes/[id]/edit-target (target only, quick edit)
+ * - logEnvelope() — New Envelope form at /envelopes/new
  *
- * Both send dollars and the server converts to cents. The full
+ * Both edits send dollars and the server converts to cents. The full
  * edit also takes envelopeId as a hidden field.
+ *
+ * Cluster 7.32d — these now delegate to `createEnvelopeToDb` /
+ * `updateEnvelopeToDb`. They used to call `addEnvelope`/`updateEnvelope`
+ * in `@/lib/store`, which mutate process memory while every page reads
+ * Prisma, so a save reported success and vanished on refresh. The action
+ * is now a thin wrapper over the durable service, exactly as
+ * `log-transaction.ts` is a thin wrapper over its own writer.
  */
 
 import { revalidatePath } from "next/cache";
-import { addEnvelope, updateEnvelope } from "@/lib/store";
+import { createEnvelopeToDb, updateEnvelopeToDb } from "@/lib/envelope-db";
 import { requireUser } from "@/server/auth/user";
 
 export interface UpdateEnvelopeResult {
   ok: boolean;
   reason?: string;
+  /** The real persisted id — callers deep-link with it. */
+  envelopeId?: string;
 }
 
 export async function updateEnvelopeFull(
@@ -39,7 +49,9 @@ export async function updateEnvelopeFull(
     return { ok: false, reason: "Target must be $0 or more." };
   }
 
-  const result = updateEnvelope(user.id, envelopeId, {
+  const result = await updateEnvelopeToDb({
+    userId: user.id,
+    envelopeId,
     name,
     targetCents: Math.round(targetDollars * 100),
   });
@@ -52,7 +64,7 @@ export async function updateEnvelopeFull(
   revalidatePath("/envelopes");
   revalidatePath(`/envelopes/${envelopeId}`);
 
-  return { ok: true };
+  return { ok: true, envelopeId: result.envelopeId };
 }
 
 export async function updateEnvelopeTarget(
@@ -69,18 +81,12 @@ export async function updateEnvelopeTarget(
     return { ok: false, reason: "Target must be $0 or more." };
   }
 
-  // Reuse updateEnvelope — we need the existing name; fetch via
-  // the action's revalidation + a second read is awkward, so
-  // do the read here and pass the name through.
-  // (Simpler: just pass an empty placeholder if name unchanged.
-  // But the mutator validates name length > 0. Easiest fix: read
-  // the live store inside the action and pass the name.)
-  const { readEnvelopes } = await import("@/lib/store");
-  const current = readEnvelopes(user.id).find((e) => e.id === envelopeId);
-  if (!current) return { ok: false, reason: "Envelope not found." };
-
-  const result = updateEnvelope(user.id, envelopeId, {
-    name: current.name,
+  // Target only. The durable service writes just `targetBalance`, so
+  // there is no need to read the current name back to pass it through —
+  // which is what forced the old memory read here.
+  const result = await updateEnvelopeToDb({
+    userId: user.id,
+    envelopeId,
     targetCents: Math.round(targetDollars * 100),
   });
 
@@ -92,7 +98,7 @@ export async function updateEnvelopeTarget(
   revalidatePath("/envelopes");
   revalidatePath(`/envelopes/${envelopeId}`);
 
-  return { ok: true };
+  return { ok: true, envelopeId: result.envelopeId };
 }
 
 /**
@@ -106,8 +112,7 @@ export async function logEnvelope(
   const user = await requireUser();
 
   const name = String(formData.get("name") ?? "").trim();
-  const planet = String(formData.get("planet") ?? "jupiter") as
-    | "sol" | "luna" | "mars" | "mercury" | "jupiter" | "venus" | "saturn";
+  const planet = String(formData.get("planet") ?? "jupiter");
   const targetDollars = Number.parseFloat(String(formData.get("target") ?? ""));
 
   if (name.length === 0) {
@@ -117,20 +122,21 @@ export async function logEnvelope(
     return { ok: false, reason: "Target must be $0 or more." };
   }
 
-  const result = addEnvelope(user.id, {
+  const result = await createEnvelopeToDb({
+    userId: user.id,
     name,
     planet,
     targetCents: Math.round(targetDollars * 100),
   });
 
-  if (!result.ok) {
+  if (!result.ok || !result.envelopeId) {
     return { ok: false, reason: result.reason ?? "Could not save the vessel." };
   }
 
   revalidatePath("/envelopes");
   revalidatePath("/");
   revalidatePath("/insights");
-  if (result.envelope) revalidatePath(`/envelopes/${result.envelope.id}`);
+  revalidatePath(`/envelopes/${result.envelopeId}`);
 
-  return { ok: true };
+  return { ok: true, envelopeId: result.envelopeId };
 }

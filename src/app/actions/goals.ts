@@ -3,14 +3,22 @@
 /**
  * Goal server actions (Cluster 1.10).
  *
+ * - logGoal() — "+ New goal" form on /goals
+ * - saveGoalEdit() — Edit Goal form at /goals/[id]/edit
+ *
  * The primary action: add a new goal from the "+ New goal" form
  * on /goals. The form sends dollars (human-readable) and the
  * server converts to cents. If the new goal is set as the top
- * priority, any current primary goal is demoted first.
+ * priority, the previous primary is demoted in the same transaction.
+ *
+ * Cluster 7.32d — these now delegate to `createGoalToDb` /
+ * `updateGoalToDb`. They used to call `addGoal`/`updateGoal` in
+ * `@/lib/store`, which mutate process memory while `/goals` reads
+ * Prisma, so a save reported success and vanished on refresh.
  */
 
 import { revalidatePath } from "next/cache";
-import { addGoal, updateGoal } from "@/lib/store";
+import { createGoalToDb, updateGoalToDb } from "@/lib/goal-db";
 import { requireUser } from "@/server/auth/user";
 
 export interface AddGoalResult {
@@ -27,8 +35,7 @@ export async function logGoal(
 
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
-  const planet = String(formData.get("planet") ?? "jupiter") as
-    | "sol" | "luna" | "mars" | "mercury" | "jupiter" | "venus" | "saturn";
+  const planet = String(formData.get("planet") ?? "jupiter");
   const targetDollars = Number.parseFloat(String(formData.get("target") ?? ""));
   const perPaycheckDollars = Number.parseFloat(
     String(formData.get("perPaycheck") ?? ""),
@@ -50,27 +57,27 @@ export async function logGoal(
     return { ok: false, reason: "Set a target date." };
   }
 
-  const result = addGoal(user.id, {
+  const result = await createGoalToDb({
+    userId: user.id,
     name,
     description: description || `Saving toward ${name}.`,
     planet,
     targetCents: Math.round(targetDollars * 100),
-    currentCents: 0,
     targetDate: new Date(targetDateRaw),
     envelopeId,
     perPaycheckCents: Math.round(perPaycheckDollars * 100),
     isPrimary,
   });
 
-  if (!result.ok) {
+  if (!result.ok || !result.goalId) {
     return { ok: false, reason: result.reason ?? "Could not save the goal." };
   }
 
   revalidatePath("/");
   revalidatePath("/goals");
-  if (result.goal) revalidatePath(`/goals/${result.goal.id}`);
+  revalidatePath(`/goals/${result.goalId}`);
 
-  return { ok: true };
+  return { ok: true, goalId: result.goalId };
 }
 
 /**
@@ -89,8 +96,7 @@ export async function saveGoalEdit(
 
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
-  const planet = String(formData.get("planet") ?? "jupiter") as
-    | "sol" | "luna" | "mars" | "mercury" | "jupiter" | "venus" | "saturn";
+  const planet = String(formData.get("planet") ?? "jupiter");
   const targetDollars = Number.parseFloat(String(formData.get("target") ?? ""));
   const perPaycheckDollars = Number.parseFloat(
     String(formData.get("perPaycheck") ?? ""),
@@ -112,7 +118,9 @@ export async function saveGoalEdit(
     return { ok: false, reason: "Set a target date." };
   }
 
-  const result = updateGoal(user.id, goalId, {
+  const result = await updateGoalToDb({
+    userId: user.id,
+    goalId,
     name,
     description,
     planet,
@@ -131,5 +139,5 @@ export async function saveGoalEdit(
   revalidatePath("/goals");
   revalidatePath(`/goals/${goalId}`);
 
-  return { ok: true, goalId };
+  return { ok: true, goalId: result.goalId };
 }

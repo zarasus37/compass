@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { PageHead } from "@/components/alchemy/PageHead";
 import { EditTargetForm } from "./EditTargetForm";
-import { liveEnvelopes } from "@/lib/mock";
+import { liveEnvelopesFromDb } from "@/lib/mock";
 import { requireUser } from "@/server/auth/user";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,10 @@ export default async function EditTargetPage({
 }) {
   const { id } = await params;
   const user = await requireUser();
-  const ENVELOPES = liveEnvelopes(user.id);
+  // DB-backed — see the note in ../edit/page.tsx. This page prefills from
+  // memory while `updateEnvelopeTarget` writes through Prisma, so a
+  // durably-created vessel was invisible here.
+  const ENVELOPES = await liveEnvelopesFromDb(user.id);
   const env = ENVELOPES.find((e) => e.id === id);
   if (!env) notFound();
 

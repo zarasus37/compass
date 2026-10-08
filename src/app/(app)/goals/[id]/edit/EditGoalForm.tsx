@@ -34,10 +34,14 @@ interface GoalInput {
   id: string;
   name: string;
   description: string;
-  planet: PlanetId;
+  // Nullable in the database. `liveEnvelopes`/`liveGoals` used to hand
+  // this component a non-null shape out of process memory, so the page
+  // never had to cope. Now the page reads `liveGoalsFromDb`, which
+  // reports what is actually stored.
+  planet: PlanetId | null;
   targetCents: number;
   currentCents: number;
-  targetDate: Date;
+  targetDate: Date | null;
   envelopeId: string | null;
   perPaycheckCents: number;
   isPrimary: boolean;
@@ -121,7 +125,7 @@ export function EditGoalForm({
             <input
               type="date"
               name="targetDate"
-              defaultValue={goal.targetDate.toISOString().slice(0, 10)}
+              defaultValue={goal.targetDate ? goal.targetDate.toISOString().slice(0, 10) : ""}
               required
               style={inputStyle(14, "var(--font-jetbrains), monospace", "100%")}
             />
