@@ -24,8 +24,10 @@ import {
 import { createUser, findUserByEmail } from "@/server/auth/user";
 import {
   checkLoginAllowed,
+  checkSignupAllowed,
   clearLoginFailures,
   recordLoginFailure,
+  recordSignupAttempt,
 } from "@/server/auth/rate-limit";
 import { prisma } from "@/server/db";
 import { isWeakPassword } from "@/lib/auth/password-policy";
@@ -144,9 +146,19 @@ export async function signupAction(
 
   const meta = await requestMeta();
 
-  // Throttle BEFORE hashing. Argon2id costs ~19 MiB and ~50-100ms per
-  // call; letting an unauthenticated caller drive that at will is a
-  // cheap CPU/memory DoS against the serverless function.
+  // Throttle BEFORE hashing. Two independent gates:
+  //
+  //  - checkLoginAllowed   — the existing failure-only login counter,
+  //    kept so a fumbled login still brakes signup.
+  //  - checkSignupAllowed  — signup's OWN counter. The login counter is
+  //    failure-only and is cleared on successful login, so it never
+  //    sees the thing account farming actually is: many SUCCESSFUL
+  //    registrations with fresh addresses. Every attempt, successful or
+  //    not, is recorded against the `signup:` keys below.
+  //
+  // Argon2id costs ~19 MiB and ~50-100ms per call, so an unthrottled
+  // public registration endpoint is a CPU/memory DoS as well as an
+  // abuse primitive.
   const gate = await checkLoginAllowed(email, meta.ip);
   if (!gate.allowed) {
     const mins = Math.max(1, Math.ceil(gate.retryAfterSec / 60));
@@ -156,11 +168,23 @@ export async function signupAction(
     };
   }
 
+  const signupGate = await checkSignupAllowed(email, meta.ip);
+  if (!signupGate.allowed) {
+    const mins = Math.max(1, Math.ceil(signupGate.retryAfterSec / 60));
+    return {
+      ok: false,
+      error: `Registration is limited right now. Please wait about ${mins} minute${signupGate.retryAfterSec === 1 ? "" : "s"} and try again.`,
+    };
+  }
+
+  // Count this attempt BEFORE doing the work, so it is recorded even
+  // if hashing or the insert throws.
+  await recordSignupAttempt(email, meta.ip);
+
   const passwordHash = await hashPassword(password);
   const created = await createUser({ name, email, passwordHash });
 
   if (!created.ok) {
-    await recordLoginFailure(email, meta.ip);
     return {
       ok: false,
       fieldErrors: { email: "That email address is already registered." },

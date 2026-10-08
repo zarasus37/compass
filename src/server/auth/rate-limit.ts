@@ -85,3 +85,82 @@ export async function clearLoginFailures(email: string) {
     /* non-fatal */
   }
 }
+
+// ── Signup throttling (Cluster 7.32b) ─────────────────────────────
+//
+// WHY THIS IS SEPARATE FROM THE LOGIN COUNTER
+// ------------------------------------------
+// `checkLoginAllowed` is failure-only by design: a successful login
+// clears the account counter. That is correct for sign-in and wrong
+// for registration. An account-farming attack is almost entirely
+// SUCCESSFUL registrations with fresh addresses — counting only
+// failures means it registers without ever tripping the limit.
+//
+// The earlier signup code reused the login gate and its comment
+// claimed it bounded account farming. It did not. These keys are in
+// their own namespace (`signup:`) so a successful login's
+// `clearLoginFailures` cannot wipe a signup counter, and every attempt
+// is recorded — success or failure.
+
+const MAX_SIGNUP_PER_IP = 10;
+const MAX_SIGNUP_PER_EMAIL = 1;
+
+const signupEmailKey = (email: string) => `signup:email:${email.trim().toLowerCase()}`;
+const signupIpKey = (ip: string) => `signup:ip:${ip}`;
+
+/**
+ * Check BEFORE hashing. Never throws: fails open on DB error.
+ *
+ * Fails open deliberately — a counter outage must not lock every
+ * legitimate person out of registering. The cost of failing open is
+ * bounded by the argon2id work an attacker can already force through
+ * the login endpoint.
+ */
+export async function checkSignupAllowed(
+  email: string,
+  ip: string | null,
+): Promise<LoginGate> {
+  try {
+    const since = new Date(Date.now() - WINDOW_MS);
+    const [byEmail, byIp] = await Promise.all([
+      countSince(signupEmailKey(email), since),
+      ip ? countSince(signupIpKey(ip), since) : Promise.resolve(0),
+    ]);
+    if (byEmail >= MAX_SIGNUP_PER_EMAIL || byIp >= MAX_SIGNUP_PER_IP) {
+      const key =
+        byEmail >= MAX_SIGNUP_PER_EMAIL ? signupEmailKey(email) : signupIpKey(ip!);
+      const oldest = await prisma.loginAttempt.findFirst({
+        where: { key, createdAt: { gte: since } },
+        orderBy: { createdAt: "asc" },
+        select: { createdAt: true },
+      });
+      const freeAt = (oldest?.createdAt.getTime() ?? Date.now()) + WINDOW_MS;
+      return {
+        allowed: false,
+        retryAfterSec: Math.max(1, Math.ceil((freeAt - Date.now()) / 1000)),
+      };
+    }
+  } catch (err) {
+    console.error("[auth] signup rate-limit check failed (failing open):", err);
+  }
+  return { allowed: true, retryAfterSec: 0 };
+}
+
+/**
+ * Record a signup attempt. Call on EVERY attempt — including the
+ * successful one. Counting only failures is precisely the bug this
+ * namespace exists to fix.
+ */
+export async function recordSignupAttempt(email: string, ip: string | null) {
+  try {
+    const data = [{ key: signupEmailKey(email) }, ...(ip ? [{ key: signupIpKey(ip) }] : [])];
+    await prisma.loginAttempt.createMany({ data });
+    if (Math.random() < 0.02) {
+      await prisma.loginAttempt.deleteMany({
+        where: { createdAt: { lt: new Date(Date.now() - WINDOW_MS) } },
+      });
+    }
+  } catch (err) {
+    console.error("[auth] could not record signup attempt:", err);
+  }
+}

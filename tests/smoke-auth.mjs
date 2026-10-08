@@ -132,6 +132,14 @@ async function main() {
   await step("reset DB", async () => {
     await prisma.session.deleteMany();
     await prisma.user.deleteMany();
+    // Throttle counters MUST be cleared too, or "known state" is a lie.
+    // The signup gate (Cluster 7.32b) caps one registration per address
+    // per 15 min under `signup:email:<addr>`. A previous run — or an
+    // earlier manual invocation of this same file — leaves those rows
+    // behind, and the NEXT run's very first signup is then refused by
+    // the throttle. That is exactly what happened: the suite passed
+    // standalone and failed inside the full run minutes later.
+    await prisma.loginAttempt.deleteMany();
     const count = await prisma.user.count();
     if (count !== 0) throw new Error(`expected 0 users, got ${count}`);
   });
@@ -327,6 +335,15 @@ async function main() {
 
   await step("duplicate email is still rejected", async () => {
     const jar3 = {};
+    // Clear this address's SIGNUP throttle first. Since 7.32b the signup
+    // gate counts every attempt under `signup:email:<addr>` with a
+    // per-email cap of 1 per window — so without this the request would
+    // be refused by the throttle and the step would pass while testing
+    // the WRONG thing (rate limiting, not the duplicate-email path).
+    // Clearing isolates the unique-index gate we actually mean to test.
+    await prisma.loginAttempt.deleteMany({
+      where: { key: "signup:email:mom@compass.local" },
+    });
     // This password is deliberately policy-CLEAN (the local-part "mom"
     // is 3 chars, under the echo check's 4-char floor, and it matches no
     // weak pattern) so the only thing that can reject this attempt is the
@@ -351,6 +368,17 @@ async function main() {
       where: { email: "mom@compass.local" },
     });
     if (count !== 1) throw new Error(`duplicate created ${count} rows`);
+  });
+
+  // Positive control. Without this, a suite where signup were blocked
+  // outright would pass every "duplicate rejected" assertion above
+  // while never proving registration works at all.
+  await step("signup throttle records attempts, it does not block outright", async () => {
+    const rows = await prisma.loginAttempt.count({
+      where: { key: { startsWith: "signup:" } },
+    });
+    if (rows === 0) throw new Error("no signup attempts recorded — throttle is not counting");
+    console.log(`  (signup throttle rows: ${rows})`);
   });
 
   let loginActionId;
