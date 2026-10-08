@@ -92,6 +92,20 @@ jobs:
       - name: Verify migration history (fresh + existing DB)
         run: node scripts/verify-migrations.mjs
 
+      # The baseline migration uses IF NOT EXISTS, which SKIPS an object
+      # that already exists rather than verifying it. scripts/preflight-
+      # schema.mjs answers "is THIS database's shape compatible with the
+      # repair?" by comparing it against a migrations-built reference.
+      #
+      # Run here against the CI database purely to keep the guard itself
+      # honest — a deployment gate that silently rots is worse than none.
+      # Production still needs its own run before deploying.
+      #
+      # It opens a server-enforced read-only session and PROVES it by
+      # attempting a write and requiring the server to refuse.
+      - name: Preflight guard self-check (read-only)
+        run: node scripts/preflight-schema.mjs --label ci
+
       - name: Type check
         run: pnpm tsc
 

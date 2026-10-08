@@ -29,7 +29,8 @@
     "cron:dev": "node scripts/cron-dev.mjs",
     "cron:dev:audit": "node scripts/cron-audit-prune-dev.mjs",
     "spawn:test-account": "node scripts/spawn-test-account.mjs",
-    "db:verify": "node scripts/verify-migrations.mjs"
+    "db:verify": "node scripts/verify-migrations.mjs",
+    "db:preflight": "node scripts/preflight-schema.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
