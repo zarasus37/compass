@@ -103,7 +103,7 @@ export async function runPaycheckForUser(
     return { userId, status: "error", error: "PaySchedule has a non-positive amount." };
   }
 
-  const period = await getCurrentPayPeriod();
+  const period = await getCurrentPayPeriod(userId);
   const periodKey = period.startDate.toISOString().slice(0, 10);
   const payDate = payDateInPeriod(schedule.startDate, schedule.cadence, period.startDate);
 

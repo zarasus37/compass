@@ -83,8 +83,8 @@ export default async function AppLayout({
   // as the audit page; the client component filters the meta
   // events from the initial set on mount.
   const [engineLevel, payPeriod, searchIndex, tickerRows] = await Promise.all([
-    getActiveEngineLevel(),
-    getCurrentPayPeriod(),
+    getActiveEngineLevel(user.id),
+    getCurrentPayPeriod(user.id),
     getSearchIndex(user.id),
     getAuditLog(user.id, { take: 3 }),
   ]);

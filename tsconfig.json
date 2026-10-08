@@ -35,5 +35,8 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "tests/**", "_trash_*", "_*.ts"]
+  // `_*.ts` alone did not match `.mts` scratch files, so a throwaway
+  // `_probe.mts` was type-checked and broke `pnpm tsc` with
+  // TS5097. Extend the pattern rather than relying on remembering.
+  "exclude": ["node_modules", "tests/**", "_trash_*", "_*.ts", "_*.mts", "_*.mjs"]
 }

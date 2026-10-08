@@ -96,11 +96,28 @@ export interface PayPeriodSnapshot {
   fromDb: boolean;
 }
 
-export async function getCurrentPayPeriod(): Promise<PayPeriodSnapshot> {
+/**
+ * The current pay period for ONE user.
+ *
+ * Cluster 7.32c — this used to take no arguments and do
+ * `findFirst({ where: { isActive: true } })`. With public registration
+ * that returned whichever user happened to have the newest active
+ * period, so two people on different pay cycles shared one window and
+ * one person's rollover moved the other's budget dates.
+ *
+ * `userId` is required and has no default. A caller that forgets to
+ * scope it is a compile error, which is the point — the old signature
+ * made the unscoped version the easiest one to write.
+ */
+export async function getCurrentPayPeriod(
+  userId: string,
+): Promise<PayPeriodSnapshot> {
   const now = new Date();
   try {
     const row = await prisma.payPeriod.findFirst({
-      where: { isActive: true },
+      // userId filter is the whole point. Legacy NULL-owner rows are
+      // deliberately invisible here; the user gets a fresh period below.
+      where: { isActive: true, userId },
       orderBy: { startDate: "desc" },
     });
     if (row) {
@@ -111,7 +128,7 @@ export async function getCurrentPayPeriod(): Promise<PayPeriodSnapshot> {
       // actually contains "now", then persist it so every reader sees
       // the same window.
       if (row.endDate.getTime() <= now.getTime()) {
-        const rolled = await rollForward(row, now);
+        const rolled = await rollForward(row, now, userId);
         if (rolled) return rolled;
       }
       return {
@@ -120,6 +137,10 @@ export async function getCurrentPayPeriod(): Promise<PayPeriodSnapshot> {
         fromDb: true,
       };
     }
+    // No period for this user yet. Materialise one from their own
+    // cadence rather than borrowing another user's window.
+    const created = await ensureUserPayPeriod(userId, now);
+    if (created) return created;
   } catch (err) {
     // If the table doesn't exist yet or the DB is unreachable, fall
     // back to the constants. The layout will still render something
@@ -131,6 +152,46 @@ export async function getCurrentPayPeriod(): Promise<PayPeriodSnapshot> {
     endDate: PERIOD_END,
     fromDb: false,
   };
+}
+
+/**
+ * Create this user's active period if they have none.
+ *
+ * Concurrency: two requests can arrive for a brand-new user at the same
+ * moment and both try to create. The partial unique index
+ * `PayPeriod_one_active_per_user_key` lets exactly one through, so the
+ * loser catches the violation and re-reads the winner's row. Without
+ * that index two active periods would exist and `findFirst` would pick
+ * arbitrarily between them.
+ */
+async function ensureUserPayPeriod(
+  userId: string,
+  now: Date,
+): Promise<PayPeriodSnapshot | null> {
+  try {
+    const schedule = await prisma.paySchedule.findFirst({
+      where: { isActive: true, userId },
+      orderBy: { createdAt: "desc" },
+    });
+    const days = periodDaysFor(schedule?.cadence);
+    const start = now;
+    const end = addCalendarDaysKeepingTime(start, days);
+
+    await prisma.payPeriod.create({ data: { userId, startDate: start, endDate: end, isActive: true } });
+    return { startDate: start, endDate: end, fromDb: true };
+  } catch (err) {
+    // Lost the race (P2002 on the partial unique index) — the winner's
+    // row is authoritative, so read it back rather than inventing a
+    // second one.
+    const existing = await prisma.payPeriod
+      .findFirst({ where: { isActive: true, userId }, orderBy: { startDate: "desc" } })
+      .catch(() => null);
+    if (existing) {
+      return { startDate: existing.startDate, endDate: existing.endDate, fromDb: true };
+    }
+    console.warn("ensureUserPayPeriod: could not create a period:", err);
+    return null;
+  }
 }
 
 /**
@@ -150,10 +211,14 @@ export async function getCurrentPayPeriod(): Promise<PayPeriodSnapshot> {
 async function rollForward(
   row: { id: string; startDate: Date; endDate: Date },
   now: Date,
+  userId: string,
 ): Promise<PayPeriodSnapshot | null> {
   try {
+    // Scoped to the caller. This used to take the newest active
+    // schedule from any user, so user A's rollover could reshape user
+    // B's pay window.
     const schedule = await prisma.paySchedule.findFirst({
-      where: { isActive: true },
+      where: { isActive: true, userId },
       orderBy: { createdAt: "desc" },
     });
     const days = periodDaysFor(schedule?.cadence);

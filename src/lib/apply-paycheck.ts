@@ -109,7 +109,7 @@ export async function applyPaycheck(
   // The pay period's START date, not its id. `rollForward()` advances the
   // period row in place, so the id is stable across periods and would
   // make the idempotency guard refuse a legitimate next paycheck forever.
-  const period = await getCurrentPayPeriod();
+  const period = await getCurrentPayPeriod(userId);
   const periodKey = period.startDate.toISOString().slice(0, 10);
 
   const run = computeAllocation(plan, engineEnvelopes, paycheckCents, source, now);

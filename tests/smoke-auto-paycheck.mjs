@@ -69,7 +69,9 @@ if (!serverUp) {
       sched ? `${sched.cadence} $${sched.amount / 100}` : "no active schedule",
     );
 
-    const period = await getCurrentPayPeriod();
+    // Cluster 7.32c: getCurrentPayPeriod is now user-scoped and REQUIRES a
+    // userId. Passing nothing would read an arbitrary tenant's window.
+    const period = await getCurrentPayPeriod(s.userId);
     const payDate = sched
       ? payDateInPeriod(sched.startDate, sched.cadence, period.startDate)
       : null;

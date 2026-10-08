@@ -63,6 +63,17 @@ model User {
   routingLevel    Int       @default(1)
   /// Default saved dashboard view for this user.
   defaultViewId   String?
+  /// CLUSTER 7.32c — this user's engine preference: "L1" (deterministic
+  /// rules engine) or "L2" (AI-driven).
+  ///
+  /// This lived on the single global `SystemSettings` row
+  /// ("GLOBAL_CONFIG"), which meant one user's toggle changed every
+  /// other user's. It is a per-user column now, backfilled from the
+  /// global value so nobody's existing choice is lost. The global row is
+  /// left intact (unused for the engine level) rather than dropped —
+  /// deleting a row on someone's production database is not worth the
+  /// tidiness.
+  activeEngineLvl String    @default("L1")
   /// Free-form settings (theme, currency, locale, etc.) — JSON-encoded string.
   /// String instead of Json because Prisma 7's Json type uses JSONB, which SQLite
   /// doesn't support. We serialize/parse in app code (lib/json.ts) — the contract
@@ -95,6 +106,9 @@ model User {
   /// Cluster 6.0 — auto bill-pay scheduler config. One row per
   /// user. Cascaded on user delete.
   vaultSchedule    VaultSchedule?
+  /// Cluster 7.32c — the user's active pay-period window. One active
+  /// row per user; legacy global rows carry a NULL userId.
+  payPeriods       PayPeriod[]
 
   @@index([email])
 }
@@ -693,28 +707,51 @@ model SystemSettings {
 
 /// A specific pay-period window. The TopAppBar's "CYCLE" chip reads the
 /// currently-active row (the one with isActive=true) and renders the
-/// `startDate ↔ endDate` range. Multi-user ready; v1 has one active row.
+/// `startDate ↔ endDate` range.
 ///
 /// This is intentionally separate from `PaySchedule` (which describes the
 /// recurrence cadence — weekly/biweekly/etc.). A PaySchedule can produce
 /// many PayPeriod rows over time. For v1 we seed a single active period
 /// that mirrors the PERIOD_START / PERIOD_END constants in lib/mock.ts.
+///
+/// CLUSTER 7.32c — TENANT SCOPING
+///
+/// `userId` was added when public multi-user registration landed.
+/// Without it `getCurrentPayPeriod()` did `findFirst({ isActive: true })`
+/// with no user filter and `rollForward()` picked the newest active
+/// PaySchedule from ANY user, so two people on different pay cycles
+/// fought over one shared window.
+///
+/// NULLABLE ON PURPOSE. The pre-existing rows were global and have no
+/// owner to infer from a column; the migration backfills them to the
+/// owner of the earliest active PaySchedule and leaves anything
+/// ambiguous as NULL rather than guessing. A NULL row is never returned
+/// to a caller — `getCurrentPayPeriod(userId)` filters on userId, so
+/// legacy rows simply stop being visible to the scoped reader and each
+/// user materialises their own. That is a safe transition: no row is
+/// deleted, and the worst case is one extra period per user.
 model PayPeriod {
   id          String   @id @default(cuid())
+  /// Owner. NULL only on legacy global rows predating tenant scoping.
+  userId      String?
   /// Inclusive start of the period (date only, midnight local).
   startDate   DateTime
   /// Exclusive end of the period — i.e. the day AFTER the last day
   /// of the period. Stored as DateTime so partial-day math works in
   /// the future (early pay / late pay edge cases).
   endDate     DateTime
-  /// True while this is the current period. Exactly one row should have
-  /// isActive=true at a time; the layout helper picks the most recent.
+  /// True while this is the current period. At most one ACTIVE row per
+  /// user — enforced by a partial unique index in the migration, since
+  /// Prisma cannot express `WHERE isActive`.
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([isActive])
   @@index([startDate, endDate])
+  @@index([userId, isActive])
 }
 
 // ───────────────────────────────────────────────────────────────────

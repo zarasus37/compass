@@ -764,9 +764,9 @@ export default async function Dashboard() {
   // read so the dashboard and (app)/ pages get the same ticker
   // initial rows.
   const [engineLevel, payPeriod, searchIndex, tickerRows] = await Promise.all([
-    getActiveEngineLevel(),
+    getActiveEngineLevel(user.id),
     (async () => {
-      const pp = await getCurrentPayPeriod();
+      const pp = await getCurrentPayPeriod(user.id);
       return { startDate: pp.startDate, endDate: pp.endDate };
     })(),
     getSearchIndex(user.id),
