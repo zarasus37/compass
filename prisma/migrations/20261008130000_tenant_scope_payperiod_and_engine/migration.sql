@@ -65,18 +65,43 @@ END
 $$;
 
 -- 3. Backfill PayPeriod owners -------------------------------------------
--- Each unowned (NULL) period goes to the owner of the earliest active
--- PaySchedule. Deterministic: ties break on the schedule's createdAt,
--- then its id, so repeated runs never disagree.
+-- The previous version of this statement was wrong and its comment did
+-- not describe what it did. It built a candidate list with
+--
+--     SELECT DISTINCT ON (ps."userId") ps."userId" ... ORDER BY "userId", "createdAt"
+--
+-- which returns ONE ROW PER USER, not "the earliest owner overall". The
+-- UPDATE ... FROM that consumed it was uncorrelated, so which user's row
+-- a legacy period picked up was arbitrary. It could also assign several
+-- ACTIVE legacy rows to the same user, which makes the partial unique
+-- index below fail to build.
+--
+-- Correct rule: an owner is only asserted when it is UNAMBIGUOUS — a
+-- database with exactly one user. That is the production case, and it
+-- is decidable rather than guessed. With two or more users every legacy
+-- row stays NULL, which is safe: the scoped reader filters on userId, so
+-- an unowned row is simply invisible and each user materialises their
+-- own period. Nothing is deleted.
+--
+-- Within the single-user case, only the single most-recent ACTIVE row
+-- is claimed. Extra active rows stay NULL so the partial unique index
+-- cannot collide. Inactive rows may all be claimed — the index only
+-- covers isActive = true.
 UPDATE "PayPeriod" pp
-   SET "userId" = owner."userId"
-  FROM (
-        SELECT DISTINCT ON (ps."userId") ps."userId"
-          FROM "PaySchedule" ps
-         WHERE ps."isActive" = true
-         ORDER BY ps."userId", ps."createdAt" ASC, ps.id ASC
-       ) owner
- WHERE pp."userId" IS NULL;
+   SET "userId" = owner."id"
+  FROM (SELECT id FROM "User" ORDER BY id ASC LIMIT 1) owner
+ WHERE pp."userId" IS NULL
+   AND (SELECT count(*) FROM "User") = 1
+   AND (
+         pp."isActive" = false
+      OR pp.id = (
+           SELECT p2.id
+             FROM "PayPeriod" p2
+            WHERE p2."userId" IS NULL AND p2."isActive" = true
+            ORDER BY p2."startDate" DESC, p2.id ASC
+            LIMIT 1
+         )
+       );
 
 -- 4. Backfill engine preference ------------------------------------------
 -- Preserve whatever the global row currently says (mom may already be on

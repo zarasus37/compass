@@ -61,7 +61,14 @@ export function payDateInPeriod(
   periodStart: Date,
 ): Date | null {
   const days = daysFor(cadence);
+  // Cluster 7.32c — the anchor is truncated to local midnight. A seeded
+  // anchor carries a creation time-of-day (14:23 is realistic), and the
+  // caller gates on `payDate > now`: at 09:00 on payday a 14:23 pay
+  // date reads as "not yet due" and that payday is skipped. PayPeriod
+  // already documents its start as "date only, midnight local"; the
+  // pay date has to agree with it.
   let d = new Date(scheduleStart.getTime());
+  d.setHours(0, 0, 0, 0);
   for (let i = 0; i < 400; i++) {
     if (d.getTime() >= periodStart.getTime()) return d;
     // Calendar days, not a fixed 24h offset: this loop accumulates, so an

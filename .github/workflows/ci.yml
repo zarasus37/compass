@@ -69,8 +69,23 @@ jobs:
       - name: Generate Prisma client
         run: pnpm db:generate
 
-      - name: Push schema
-        run: pnpm db:push
+      # Provision with MIGRATIONS, not `prisma db push`.
+      #
+      # Two reasons, both learned the hard way:
+      #  1. `db push` builds tables straight from the datamodel and writes
+      #     nothing to `_prisma_migrations`. The preflight guard below
+      #     reads that table, so on a db-pushed CI database it has no
+      #     history to report and correctly refuses (run 37785723822).
+      #  2. `db push` CANNOT create the partial unique index
+      #     `PayPeriod_one_active_per_user_key`. Prisma has no syntax for
+      #     `WHERE isActive`, so that index only exists if the migration
+      #     runs. Without it the tenant-isolation concurrency check would
+      #     be testing a database shape that never occurs in production.
+      #
+      # Deploy docs already specify `migrate deploy`; CI should build the
+      # same shape it deploys.
+      - name: Apply migrations
+        run: pnpm db:migrate:deploy
 
       # Cluster 7.32b repair (2026-10-08). The step above CANNOT catch
       # migration-history problems, because `db push` builds tables
@@ -89,6 +104,9 @@ jobs:
       #
       # Proven non-vacuous: deleting the baseline migration turns this
       # into 15 missed checks and exit 1.
+      - name: Verify tenant migration backfill
+        run: pnpm db:verify:tenant
+
       - name: Verify migration history (fresh + existing DB)
         run: node scripts/verify-migrations.mjs
 

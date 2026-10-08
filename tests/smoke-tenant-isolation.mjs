@@ -23,7 +23,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { prisma } from "./db-client.mjs";
-import { getCurrentPayPeriod } from "../src/lib/mock.ts";
+import {
+  getCurrentPayPeriod,
+  containingPayPeriod,
+  startOfDay,
+} from "../src/lib/mock.ts";
+import { payDateInPeriod } from "../src/lib/paycheck-scheduler.ts";
 
 // NOTE: `engine-actions.ts` is deliberately NOT imported here. It pulls
 // in `next/navigation` (via @/server/auth/user) and therefore the whole
@@ -72,11 +77,27 @@ const stamp = `${process.pid}${Date.now().toString(36)}`;
 const emailA = `iso-a-${stamp}@compass.local`;
 const emailB = `iso-b-${stamp}@compass.local`;
 
+// ONLY the rows this run created are tracked and deleted.
+//
+// The first version of this cleanup was
+// `prisma.payPeriod.deleteMany({ where: { userId: null } })` — which
+// deletes EVERY unowned period in the database, not just the fixture's.
+// On a local database that is real data belonging to nobody; on CI it is
+// whatever the previous smoke left behind. Both are destroyed by a test
+// that was only trying to tidy up after itself.
+const createdPeriodIds = new Set();
+
 async function cleanup() {
-  for (const email of [emailA, emailB, `iso-c-${stamp}@compass.local`]) {
-    await prisma.user.deleteMany({ where: { email } });
+  // Rows created by this run, tracked by id. Anything not in this set is
+  // left alone even if it is unowned.
+  if (createdPeriodIds.size > 0) {
+    await prisma.payPeriod
+      .deleteMany({ where: { id: { in: [...createdPeriodIds] } } })
+      .catch(() => {});
   }
-  await prisma.payPeriod.deleteMany({ where: { userId: null } });
+  for (const email of [emailA, emailB, `iso-c-${stamp}@compass.local`]) {
+    await prisma.user.deleteMany({ where: { email } }).catch(() => {});
+  }
 }
 
 async function main() {
@@ -165,6 +186,7 @@ async function main() {
       isActive: true,
     },
   });
+  createdPeriodIds.add(legacy.id);
   const paAfter = await getCurrentPayPeriod(a.id);
   const pbAfter = await getCurrentPayPeriod(b.id);
   check(
@@ -354,6 +376,108 @@ async function main() {
     "an unscoped reader call remains",
   );
 
+  // -- 9. The period is ANCHORED to the payday, not to `now` --------
+  // Reproduced regression: ensureUserPayPeriod used startDate = now, so
+  // a first read at 09:00 on payday produced a period starting 09:00.
+  // payDateInPeriod returns the first payday >= periodStart, so the
+  // payday at 00:00 was "before" the period start, it stepped to the
+  // NEXT payday, and the scheduler (which gates on payDate > now)
+  // skipped that very Friday.
+  const fridayAnchor = new Date(2026, 9, 9, 14, 23, 0, 0); // Fri 9 Oct 2026, seeded at 14:23
+  const fridayMorning = new Date(2026, 9, 9, 9, 0, 0, 0);
+
+  const onPayday = containingPayPeriod(
+    { startDate: fridayAnchor, cadence: "weekly" },
+    fridayMorning,
+  );
+  check(
+    "first access ON payday starts the period at that payday's midnight",
+    startOfDay(onPayday.startDate).getTime() === startOfDay(fridayAnchor).getTime(),
+    `got ${onPayday.startDate.toISOString()}`,
+  );
+  check(
+    "on-payday period ends one cadence after it starts (7 days)",
+    Math.round((onPayday.endDate - onPayday.startDate) / 86400000) === 7,
+    `got ${Math.round((onPayday.endDate - onPayday.startDate) / 86400000)}`,
+  );
+
+  // The scheduler's actual gate, reproduced end to end.
+  const payDateOnPayday = payDateInPeriod(
+    fridayAnchor,
+    "weekly",
+    onPayday.startDate,
+  );
+  check(
+    "scheduler selects TODAY's payday when first accessed on payday",
+    payDateOnPayday !== null &&
+      startOfDay(payDateOnPayday).getTime() === startOfDay(fridayAnchor).getTime(),
+    `got ${payDateOnPayday ? payDateOnPayday.toISOString() : "null"}`,
+  );
+  check(
+    "that payday is NOT in the future, so the run is due (not not_due)",
+    payDateOnPayday !== null && payDateOnPayday.getTime() <= fridayMorning.getTime(),
+    "the missed-payday regression is back",
+  );
+
+  // Mid-period access: same containing window, payday already past.
+  const saturday = new Date(2026, 9, 10, 11, 0, 0, 0);
+  const midPeriod = containingPayPeriod(
+    { startDate: fridayAnchor, cadence: "weekly" },
+    saturday,
+  );
+  check(
+    "mid-period access lands in the SAME window",
+    midPeriod.startDate.getTime() === onPayday.startDate.getTime(),
+    `got ${midPeriod.startDate.toISOString()} vs ${onPayday.startDate.toISOString()}`,
+  );
+  const payDateMid = payDateInPeriod(fridayAnchor, "weekly", midPeriod.startDate);
+  check(
+    "mid-period still selects the period's payday (already past, not the next one)",
+    payDateMid !== null &&
+      startOfDay(payDateMid).getTime() === startOfDay(fridayAnchor).getTime(),
+    `got ${payDateMid ? payDateMid.toISOString() : "null"}`,
+  );
+  check(
+    "mid-period payday has already passed",
+    payDateMid !== null && payDateMid.getTime() <= saturday.getTime(),
+    "would double-pay the same period",
+  );
+
+  // The exact day AFTER payday rolls to a new window.
+  const nextFriday = new Date(2026, 9, 16, 9, 0, 0, 0);
+  const rolled = containingPayPeriod(
+    { startDate: fridayAnchor, cadence: "weekly" },
+    nextFriday,
+  );
+  check(
+    "the next payday rolls the window forward",
+    startOfDay(rolled.startDate).getTime() === startOfDay(nextFriday).getTime(),
+    `got ${rolled.startDate.toISOString()}`,
+  );
+
+  // A long dormancy must land on the correct window, not one period on.
+  const monthsLater = new Date(2026, 10, 20, 15, 0, 0, 0);
+  const afterGap = containingPayPeriod(
+    { startDate: fridayAnchor, cadence: "weekly" },
+    monthsLater,
+  );
+  check(
+    "a long gap lands on the payday containing `now`, not one step on",
+    afterGap.startDate.getTime() <= monthsLater.getTime() &&
+      afterGap.endDate.getTime() > monthsLater.getTime(),
+    `${afterGap.startDate.toISOString()} .. ${afterGap.endDate.toISOString()}`,
+  );
+
+  // The anchor's time-of-day must not leak into the pay date.
+  const seededAtAfternoon = payDateInPeriod(fridayAnchor, "weekly", fridayMorning);
+  check(
+    "a 14:23 seed time does not push the pay date into the future",
+    seededAtAfternoon !== null &&
+      seededAtAfternoon.getHours() === 0 &&
+      seededAtAfternoon.getMinutes() === 0,
+    `got ${seededAtAfternoon ? seededAtAfternoon.toISOString() : "null"}`,
+  );
+
   await cleanup();
 }
 
@@ -363,6 +487,10 @@ try {
   console.error("tenant isolation smoke crashed:", err);
   miss++;
   failures.push(`crash: ${err.message}`);
+} finally {
+  // Runs even if an assertion threw, so a failed run does not leave its
+  // fixtures behind to poison the next one.
+  await cleanup().catch(() => {});
 }
 
 console.log(`\n${miss === 0 ? "ALL GREEN" : "FAILED"} -- ${pass} passed, ${miss} missed`);

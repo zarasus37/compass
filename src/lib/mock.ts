@@ -89,6 +89,65 @@ function periodDaysFor(cadence: string | null | undefined): number {
   return CADENCE_DAYS[cadence] ?? DEFAULT_PERIOD_DAYS;
 }
 
+/**
+ * Local midnight on the given date.
+ *
+ * The PayPeriod schema documents `startDate` as "date only, midnight
+ * local". That is load-bearing for the scheduler, so this is the one
+ * place the truncation happens.
+ */
+export function startOfDay(d: Date): Date {
+  const out = new Date(d.getTime());
+  out.setHours(0, 0, 0, 0);
+  return out;
+}
+
+/**
+ * The pay period that CONTAINS `now`, derived from the schedule's
+ * anchor rather than from the current instant.
+ *
+ * Cluster 7.32c fix — this is a reproduced scheduling regression.
+ * `ensureUserPayPeriod` used to set `startDate = now`. Reproduced:
+ * a weekly Friday anchor; first read at 09:00 on Friday 9 Oct created a
+ * period starting 9 Oct 09:00. `payDateInPeriod` walks from the anchor
+ * and returns the first payday AT OR AFTER the period start, so
+ * 9 Oct 00:00 >= 9 Oct 09:00 is false, it stepped to 16 Oct, and the
+ * scheduler — which gates on `payDate > now` — reported `not_due` and
+ * skipped that very Friday's payday.
+ *
+ * The fix is to anchor the period to a PAYDAY at MIDNIGHT: the window
+ * is [last payday <= now, next payday). Then the payday inside the
+ * window is that same payday, and it is never "in the future".
+ *
+ * With no schedule there is no payday to anchor to, so the window
+ * falls back to midnight-today plus the default length. The scheduler
+ * returns `no_schedule` before it uses the window anyway.
+ *
+ * Bounded at 400 steps (~10 years of weekly paychecks), matching
+ * payDateInPeriod, so an ancient anchor cannot spin.
+ */
+export function containingPayPeriod(
+  schedule: { startDate: Date; cadence: string } | null,
+  now: Date,
+): { startDate: Date; endDate: Date } {
+  if (!schedule) {
+    const start = startOfDay(now);
+    return { startDate: start, endDate: addCalendarDaysKeepingTime(start, DEFAULT_PERIOD_DAYS) };
+  }
+  const days = periodDaysFor(schedule.cadence);
+  // Anchor normalised to midnight for the same reason the period is:
+  // a seeded anchor often carries a creation time-of-day, and keeping it
+  // would put the payday at 14:23, which is "in the future" at 09:00 on
+  // payday and reproduces the missed-payday bug.
+  let cursor = startOfDay(schedule.startDate);
+  for (let i = 0; i < 400; i++) {
+    const next = addCalendarDaysKeepingTime(cursor, days);
+    if (next.getTime() > now.getTime()) break;
+    cursor = next;
+  }
+  return { startDate: cursor, endDate: addCalendarDaysKeepingTime(cursor, days) };
+}
+
 export interface PayPeriodSnapshot {
   startDate: Date;
   endDate: Date;
@@ -173,12 +232,17 @@ async function ensureUserPayPeriod(
       where: { isActive: true, userId },
       orderBy: { createdAt: "desc" },
     });
-    const days = periodDaysFor(schedule?.cadence);
-    const start = now;
-    const end = addCalendarDaysKeepingTime(start, days);
+    // Anchored to the user's own payday, NOT to `now`. See
+    // containingPayPeriod for the reproduced missed-payday bug.
+    const { startDate, endDate } = containingPayPeriod(
+      schedule ? { startDate: schedule.startDate, cadence: schedule.cadence } : null,
+      now,
+    );
 
-    await prisma.payPeriod.create({ data: { userId, startDate: start, endDate: end, isActive: true } });
-    return { startDate: start, endDate: end, fromDb: true };
+    await prisma.payPeriod.create({
+      data: { userId, startDate, endDate, isActive: true },
+    });
+    return { startDate, endDate, fromDb: true };
   } catch (err) {
     // Lost the race (P2002 on the partial unique index) — the winner's
     // row is authoritative, so read it back rather than inventing a
@@ -221,23 +285,16 @@ async function rollForward(
       where: { isActive: true, userId },
       orderBy: { createdAt: "desc" },
     });
-    const days = periodDaysFor(schedule?.cadence);
 
-    // The caller only calls this when `row.endDate <= now`, so the very
-    // first advance ALWAYS happens — that advance is what brings the
-    // window back over the present. Counting it as step 1 matters: an
-    // earlier version started steps at 0 and bailed out with
-    // "nothing to do" whenever that first advance already overshot
-    // `now`, which is the common case for a period that lapsed by less
-    // than one cadence length. That left the row expired forever.
-    let start = row.endDate;
-    let end = addCalendarDaysKeepingTime(start, days);
-    let steps = 1;
-    while (end.getTime() <= now.getTime() && steps < 400) {
-      start = end;
-      end = addCalendarDaysKeepingTime(start, days);
-      steps += 1;
-    }
+    // Recompute the containing period from the anchor rather than
+    // stepping off the stale row's endDate. Stepping is what this used
+    // to do, and it silently de-anchors the window when the cadence
+    // changes (a weekly window advanced by 30 days is no longer on a
+    // payday). The anchor walk lands on the correct payday either way.
+    const { startDate: start, endDate: end } = containingPayPeriod(
+      schedule ? { startDate: schedule.startDate, cadence: schedule.cadence } : null,
+      now,
+    );
 
     const updated = await prisma.$transaction(async (tx) => {
       await tx.payPeriod.update({
