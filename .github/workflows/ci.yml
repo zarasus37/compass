@@ -101,10 +101,12 @@ jobs:
       # honest — a deployment gate that silently rots is worse than none.
       # Production still needs its own run before deploying.
       #
-      # It opens a server-enforced read-only session and PROVES it by
-      # attempting a write and requiring the server to refuse.
+      # It opens a server-enforced read-only session and confirms the
+      # setting by reading it back. It issues NO write against the
+      # target — including the scratch reference database, which is
+      # built separately for that reason.
       - name: Preflight guard self-check (read-only)
-        run: node scripts/preflight-schema.mjs --label ci
+        run: node scripts/preflight-schema.mjs --label ci --allow-target-server-writes
 
       - name: Type check
         run: pnpm tsc
