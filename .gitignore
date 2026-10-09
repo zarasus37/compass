@@ -109,3 +109,22 @@ _dev_*
 # Generated Prisma client. Regenerate with `pnpm db:generate`; the schema is
 # the source of truth and the output is ~13 MB of build artifact.
 /src/generated/
+
+# Shared coordination claims are local, atomic locks, never synced by Git.
+/.compass-coordination.lock/
+
+# Local user assets / scratch are retained on disk, outside the source diff.
+/.codex-screen/
+/.tmp.driveupload/
+/videos/
+/design/*
+!/design/README.md
+/patch/
+/preview-login.png
+/compass logo.jpg
+/dev7.err
+/_dev-start.cmd
+/_archive/
+/_trash-*/
+*.key
+*.key.*

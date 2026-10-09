@@ -8,82 +8,38 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
----
+# Compass — instructions for Codex, MiniMax Desktop and Polar Desktop
 
-# AGENTS.md — Compass (project-local guidance for coding agents)
+**Canonical checkout: `C:\dev\compass` (`/mnt/c/dev/compass` under WSL). The OneDrive copy is retired; never develop there.**
 
-> Read this before touching any code. Then read `00-DESIGN.md` and `COORDINATION.md` at the repo root. They are the contract.
+Read [COORDINATION.md](COORDINATION.md), [team protocol](docs/team/PROTOCOL.md), [00-VISION.md](00-VISION.md) and [00-DESIGN.md](00-DESIGN.md) before changing the project.
 
-## What this app is
+## Shared execution contract
 
-**Compass** — a personal-finance / treasury app built *for* xKryptic's mom but *to* a world-class standard. Airtable-meets-treasury vibe. AI tiered (0/1/2/3), per-user. Layout is a modular widget system (structural from day one). Routing is L1 in v1 (planned rules, not actual ACH). See `00-DESIGN.md` for the full spec.
+The user requested cleanup/alignment before the functional backlog. Codex coordinates; MiniMax implements by default; Polar independently reviews by default. Roles are assigned per task in `docs/project-state.json`. MiniMax directly accesses this repository; Polar currently reviews remotely. Codex is authorized to message both desktop conversations. Follow the remote proxy review workflow in the team protocol; never describe a proxy command as local execution by Polar.
 
-## The 16-step build order (Stage 2)
+Run `node scripts/project-sync.mjs status` and `node scripts/project-sync.mjs check`. Only the assigned task owner or its assigned reviewer may claim the active task. Claim before edits, including documentation. One active task, one writer, shared main checkout. Do not create/switch branches or worktrees, choose new features, or override another app's claim. Read-only research may overlap.
 
-`COORDINATION.md` lists these in order. **Do them in order.** Each step is a milestone; ship each before moving on.
+Current status lives only in `docs/project-state.json`; `COORDINATION.md` is generated. Use the handoff/review workflow in the team protocol. Historical docs in `docs/archive/` do not authorize tasks or establish current deployment health. Do not copy status into other files. Changes to requirements need a decision revision in state and the relevant spec update in the same review.
 
-1. Scaffold — **done**
-2. Auth (email + password, argon2id, single-user, session-based)
-3. Core data model (Account, Envelope, Transaction, Rule, View, AuditLog, ImportBatch)
-4. Plugin registry — **done at scaffold**; concrete CSV/Widget impls land with their steps
-5. Manual transaction entry + accounts/envelopes CRUD
-6. Dashboard with 3 starter widgets (no drag-drop yet)
-7. Layout system — widget registry, slot system, drag-drop, saveable views
-8. CSV import + recurring detection
-9. Allocation rules engine (L1 routing)
-10–12. AI Tier 1 / 2 / 3
-13. Reports & charts
-14. Mobile PWA polish
-15. Plaid (future)
-16. Hardening + tests
+## Architecture and quality
 
-## Architecture rules — these are non-negotiable
+- Public multi-user signup and tenant-scoped periods/preferences/mutations are implemented; preserve ownership checks and database-backed throttles.
+- Compass: understandable personal financial planning and automation; every feature feeds financial state → policy → decision → execution. Pay period is the organizing unit.
+- PostgreSQL everywhere, Prisma 7 with `@prisma/adapter-pg`; schema and db adapter are authoritative. SQLite references are historical. pnpm is the package manager; package.json/lockfile own exact versions.
+- Next.js App Router + React + strict TypeScript, Tailwind v4, Base UI, TanStack Query, Zustand, dnd-kit, Recharts, Zod. Read installed Next guides before application code changes.
+- Money in integer cents; no floating-point financial calculations. Validate API/action inputs with Zod; no untracked any.
+- AI, imports and widgets follow the plugin architecture. Registry/provider consolidation is incomplete and queued; do not pretend empty registries are shipped implementations.
+- Server components by default. Server actions for internal mutations; API routes for external integrations. Never put server/database imports in client dependency graphs.
+- Prisma imports use `@/generated/prisma/client`, not `@prisma/client`; generated files are not manually edited.
+- Audit allocations, rule executions and autonomous actions. L1 planning is distinct from real payments. Simulated provider success never proves settlement.
+- Persist user layouts; browser-local layout is current implementation, database views remain queued. Accessibility and plain English are required.
+- Inspect and preserve existing changes and assets. Do not reset shared work, delete data, print secrets or stage unrelated paths.
 
-- **Plugin-first.** AI, import formats, widgets go through `src/plugins/*`. No inline vendor calls in features. The registry is the only thing that knows which provider is active.
-- **Money math in integer cents.** Never floats. `Int` in Prisma, integer math in app code, format at the edge (`Intl.NumberFormat`).
-- **Type safety end-to-end.** `strict: true` plus `noUncheckedIndexedAccess`, `noImplicitOverride`, `noFallthroughCasesInSwitch`. Zod at every API boundary. No untracked `any`.
-- **Audit log for L1+ actions.** Any time a rule, allocation, or Tier 3 action runs, write an `AuditLog` row.
-- **Layout system is sacred.** When you add a widget, the widget goes through the registry. When the user changes the layout, it persists. Don't fork the UI.
-- **No drift from spec.** If you find an ambiguity, update `00-DESIGN.md` and `COORDINATION.md` (with a "Decision revision" entry) — don't pick silently.
-- **Pragmatic about mom.** If a feature can't be explained in one sentence a non-technical person understands, redesign it.
+## Required verification and handoff
 
-## Tech stack (locked)
+`pnpm project:sync` regenerates COORDINATION.md while holding a claim. `pnpm project:check` checks consistency/encoding. `pnpm project:test` checks coordination behavior. Install the local pre-commit guard with `pnpm project:install-hooks`; it rejects partially staged maintained snapshots and never stages files automatically. For application changes also run `pnpm tsc`, `pnpm lint`, appropriate runtime checks and `pnpm build` when relevant. Skips must be reported as incomplete.
 
-- Next.js 16 (App Router) + React 19 + TypeScript 5.9
-- Tailwind v4 + shadcn (Base UI preset) + Radix-equivalent accessibility via Base UI
-- Prisma 7 + better-sqlite3 + SQLite (Postgres-ready schema; one-line adapter swap)
-- TanStack Query (client cache), Zustand (client state), dnd-kit (drag-drop), Recharts (charts), Zod (validation)
-- pnpm as package manager
-- Plugin layer: `src/plugins/{ai,import,widget}/`
+Record evidence, changed paths, risks, exact base commit and next owner in docs/team using the template. Handoff releases the writer claim to the independent reviewer. No task is done without recorded approval. A new edit invalidates prior approval. Propose a fresh-session handoff at natural breakpoints; all apps resume from shared state.
 
-## Conventions
-
-- File structure: `src/app/` (routes), `src/components/ui/` (shadcn primitives), `src/lib/` (cross-cutting utilities), `src/server/` (server-only — db, auth, services), `src/plugins/` (the plugin layer), `src/generated/` (generated Prisma client — don't edit).
-- Path alias: `@/*` → `src/*`, `@/generated/*` → `src/generated/*`.
-- Server components by default; mark `"use client"` only when you need browser APIs, hooks, or event handlers.
-- Server actions over API routes for internal mutations; API routes for external integrations (Plaid webhooks, CSV import, etc.).
-- Never import Prisma client from `@prisma/client` — use `@/generated/prisma/client`. The Prisma 7 default output path doesn't work with pnpm + TS path mapping.
-
-## Commands
-
-```bash
-pnpm dev          # Turbopack dev server on http://localhost:3000
-pnpm build        # Production build
-pnpm start        # Run the production build
-pnpm lint         # ESLint
-pnpm exec tsc --noEmit  # TypeScript check
-
-# Prisma
-npx prisma generate            # Regenerate client after schema change
-npx prisma migrate dev --name <name>   # Create + apply a migration
-npx prisma migrate status      # Check migration state
-npx prisma studio              # Local DB GUI
-```
-
-## Quality bar
-
-World-class. Mom-grade. No "good enough for MVP." Every screen, every state, every error path is something a serious personal-finance user would judge. Accessibility from day one. Keyboard nav, focus states, color contrast, ARIA where it matters.
-
-## Session discipline
-
-xKryptic's preference: at natural breakpoints, propose a fresh-session handoff. The handoff is `COORDINATION.md` — keep it current, keep it specific, keep it versioned.
+Do not ask permission for routine authorized work. Clarify missing essentials and obtain authorization for sensitive unapproved actions. Do not begin the functional backlog until ALIGN-01 is accepted.

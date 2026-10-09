@@ -54,7 +54,7 @@ let fxB;
  * A second tenant, created directly.
  *
  * Deliberately NOT `createFixture`: that sweeps all `smoke-*` users and
- * would delete tenant A. This user holds no seeds â€” it only needs to own
+ * would delete tenant A. This user holds no seeds — it only needs to own
  * one envelope and one goal so the cross-user probes have something real
  * to try to touch.
  */
@@ -153,7 +153,7 @@ function readInFreshProcess(kind, id) {
 async function main() {
   // ONE fixture only. `createFixture` calls `sweepStaleFixtures`, which
   // deletes EVERY `smoke-*` user, and the seed rows use fixed primary
-  // keys (ACCOUNT_SEED.id), so two fixture users cannot coexist â€” the
+  // keys (ACCOUNT_SEED.id), so two fixture users cannot coexist — the
   // second would delete the first and then collide on Account_pkey.
   // That is documented in tests/fixture.mjs.
   //
@@ -177,7 +177,7 @@ async function main() {
     (await prisma.envelope.count({ where: { userId: fxA.userId } })) > 0,
   );
 
-  // â”€â”€ PART A: the real forms â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── PART A: the real forms ────────────────────────────────────
   const ctx = await browser.newContext();
   const p = await ctx.newPage();
   // The goals page mounts a fair amount of chart code; the default
@@ -237,7 +237,7 @@ async function main() {
     );
   }
 
-  // â”€â”€ Edit the envelope; the balance must survive â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Edit the envelope; the balance must survive ────────────────
   let editedId = null;
   if (created) {
     // Give it a balance first, as the ledger would.
@@ -281,7 +281,7 @@ async function main() {
     editedId = created.id;
   }
 
-  // â”€â”€ Goals: create as primary, then demote on promotion â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Goals: create as primary, then demote on promotion ─────────
   const goalName = `Goal-${stamp}`;
   const goal = await prisma.goal.create({
     data: {
@@ -309,7 +309,7 @@ async function main() {
   //
   // So the goal assertion runs at the service boundary with the form's
   // own field values. That proves the DURABILITY, the primary-goal rule
-  // and the validation â€” the parts that were broken. It does NOT prove
+  // and the validation — the parts that were broken. It does NOT prove
   // the React wiring for the goal form; that remains uncovered and is
   // reported as a limitation. The envelope journey above DOES drive a
   // real form in a real browser end to end.
@@ -370,7 +370,7 @@ async function main() {
 
   await ctx.close();
 
-  // â”€â”€ PART B: the failure matrix â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── PART B: the failure matrix ────────────────────────────────
   console.log("\n--- failure modes ---");
 
   // Unauthenticated: no session at all.
@@ -474,7 +474,7 @@ async function main() {
   const noGoalId = await updateGoalToDb({ userId: fxA.userId, goalId: "", name: "x" });
   check("[invalid] a missing goal id is refused", noGoalId.ok === false);
 
-  // â”€â”€ PART C: database failure â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── PART C: database failure ──────────────────────────────────
   console.log("\n--- database failure ---");
   // Point a real call at a dead connection by driving the service with
   // a user id that cannot exist is NOT a DB failure, so instead we

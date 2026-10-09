@@ -71,8 +71,10 @@ function walk(dir) {
     return;
   }
   for (const e of entries) {
-    if (SKIP.has(e.name)) continue;
+    if (SKIP.has(e.name) || e.name.startsWith("_trash-")) continue;
     const p = join(dir, e.name);
+    // Historical originals deliberately preserve their original bytes.
+    if (["docs/archive", "_archive", "design", "patch"].includes(relative(ROOT, p).split("\\").join("/"))) continue;
     if (e.isDirectory()) {
       walk(p);
       continue;

@@ -1,8 +1,10 @@
 # Compass — Design Spec
 
-> Status: **v4.0 — Stage 2 (Creation) in progress. Visual design language locked (Alchemical / Celestial). Product reframe: pay-period as unit of truth.**
+> Maintained requirements, reconciled 2026-10-08. Current implementation/task status: COORDINATION.md. Product direction: 00-VISION.md.
+>
+> **Revision precedence:** the older visual sections below preserve approved design history. Later Component Oracle Terminal and vessel-shell revisions supersede the original warm-gold/alchemical treatment. Preserve the currently implemented tokens, fonts and components in src/app/globals.css and src/components; this cleanup does not authorize a redesign. All written UI remains plain English. PostgreSQL / PrismaPg supersedes SQLite. Public multi-user signup and tenant-specific periods/preferences supersede single-user restrictions; household collaboration is still a separate requirement. Exact dependency versions come from package.json/lockfile. Saved views, full AI tiers, CSV and real routing are requirements, not completed status.
 > Audience for this doc: xKryptic (you) and anyone helping build it.
-> v1.0 of this doc (Stage 1, 2026-08-21) is the foundation; v4 addenda (this version) lock the product reframe, the alchemical/celestial visual language, the new sidebar structure, the planetary vessel mapping, and the auto-allocate-without-confirm rule. Build begins from this combined spec.
+> v1.0 of this doc (Stage 1, 2026-08-21) is the foundation; v4 addenda (this version) lock the product reframe, the alchemical/celestial visual language, the new sidebar structure, the planetary vessel mapping, and the auto-allocate-without-confirm rule. Requirements below preserve the original product intent; current work is assigned only through the coordination queue.
 
 ---
 
@@ -52,7 +54,7 @@
 
 ---
 
-## 0a. Visual Design Language (v4 — Alchemical / Celestial)
+## 0a. Historical visual design reference (v4 — superseded)
 
 **Locked 2026-08-22 by user approval of mockup `compass-mockup-v4.html`.** This is the visual + conceptual language of the product. Every UI surface, every data display, every copy line should be answerable to this section.
 
@@ -597,23 +599,23 @@ A **Next.js monolith** as the core, with a **plugin architecture** for swappable
 
 ### Core app
 
-- **Next.js 16** (App Router) + **React 19** + **TypeScript 5.7+** (strict, `noUncheckedIndexedAccess`)
+- **Next.js 16** (App Router) + **React 19** + **TypeScript** (strict, `noUncheckedIndexedAccess`)
 - **Tailwind v4** + **shadcn/ui** (Base UI preset — see Section 0a for the alchemical design system)
-- **Prisma 7** ORM + **SQLite** via `@prisma/adapter-better-sqlite3` (file-based, perfect for single-user + future Postgres migration)
+- **Prisma 7** ORM + **PostgreSQL** via `@prisma/adapter-pg` (local and hosted environments)
 - **TanStack Query 5** for client cache
 - **Zustand 5** for client state (active view, draft transactions, widget config overrides)
 - **dnd-kit** for drag-and-drop layout
-- **Recharts 3** (or **Tremor**) for charts
+- **Recharts 3** for charts
 - **Zod 4** for schema validation
 - **Single deploy** (Vercel or self-host), fastest iteration
 
-### Design system (locked — see Section 0a for full spec)
+### Current design system (supersedes the historical Section 0a)
 
-- **CSS variables** in `globals.css` for the cosmic canvas + gold leaf + planetary palette
-- **Font loading** via `next/font/google`: Cinzel, Italiana, Cormorant Garamond, Marcellus, JetBrains Mono
+- **CSS variables** in `src/app/globals.css` define the current terminal/vessel shell and planetary semantic palette. Preserve the implemented design until an explicit decision revision.
+- **Font loading** via `next/font/google`: current Sora / JetBrains Mono implementation; legacy serif variable names may be compatibility aliases.
 - **Alchemical components** in `src/components/alchemy/`: Mandala, VesselGlyph, PlanetaryDayHeader, Ouroboros, Trajectory, ChronicleRow
 - **shadcn Base UI preset** for primitives (Button, Input, Select, Dialog, etc.) — composed via `className={cn(buttonVariants({variant, size}))}` on native elements (no `asChild` prop on Base UI's Button)
-- **Money in integer cents** throughout. Prisma `Int` columns. Display via `formatMoney(cents)` helper. JSON payloads (allocations, custom config) use `String` + `lib/json.ts` parse/stringify (Prisma 7 + SQLite reject `JSONB`)
+- **Money in integer cents** throughout. Prisma `Int` columns. Display via `formatMoney(cents)` helper. JSON payloads (allocations, custom config) use `String` + `lib/json.ts` parse/stringify (preserve existing serialized payload contracts; PostgreSQL is the current database)
 
 ### Plugin layer (see Section 5a)
 
@@ -638,138 +640,16 @@ A **Next.js monolith** as the core, with a **plugin architecture** for swappable
 
 ### Auth
 
-- **Email + password** (single-user, simple). Hashed with argon2id or bcrypt.
+- **Email + password**, public multi-user registration with database-backed throttling and tenant ownership enforcement. Hashed with argon2id (`@node-rs/argon2`).
 - Future: magic link, biometric (when mobile lands), OAuth for household multi-user.
 - No third-party auth dependency in v1 — keeps the app self-contained.
 
 ---
 
-## 9. Implementation Order (Stage 2 — "Pay Period 1.0" cluster)
+## 9. Current execution and decision revisions
 
-The v1.0 ordering is replaced by the v4 cluster order, which delivers the alchemical/celestial dashboard end-to-end before any drag-drop, AI tier work, or layout customization. Quality > speed (xKryptic preference, 2026-08-20). The "Pay Period 1.0" cluster is the first big milestone; later clusters add debt strategy UI, subscriptions tracker, drag-drop, AI tiers, Plaid.
+The old cluster ordering, Stage 1 acceptance and scaffold pickup instructions are preserved in [the original design archive](docs/archive/2026-10-08/00-DESIGN.md). They do not assign current work. Current status and execution order are in COORDINATION.md, generated from docs/project-state.json. The long-term roadmap is 00-VISION.md.
 
-### Cluster 0 (complete): Scaffold + Auth
-- ✅ Scaffold (Next.js 16, React 19, TS strict, Tailwind v4, shadcn Base UI, Prisma 7 + SQLite, TanStack Query, Zustand, dnd-kit, Recharts, Zod 4, plugin registry)
-- ✅ Lock Base UI decision
-- ✅ Auth (argon2id, server-side sessions, `/welcome`+`/login` flow, route protection)
-- ✅ Three mockups reviewed (v1, v2, v3 editorial, v4 alchemical — v4 LOCKED)
+### DR-ALIGN-01 / DR-ALIGN-02 — 2026-10-08
 
-### Cluster 1: "Pay Period 1.0" (next)
-
-This is the visible-UI milestone. Deliver the alchemical dashboard end-to-end with mock data, then layer in the structural pieces.
-
-1. **Alchemical design system** — `globals.css` with cosmic canvas + gold leaf + planetary palette, Cinzel/Italiana/Cormorant/JetBrains Mono via `next/font/google`, `lib/money.ts` cents helper, `lib/format.ts` for date/period math, alchemical components in `src/components/alchemy/` (Mandala, VesselGlyph, PlanetaryDayHeader, Ouroboros, Trajectory, ChronicleRow).
-2. **Data model** — `User`, `Account`, `Envelope` (with `planet` field), `Transaction`, `PaySchedule`, `AllocationPlan`, `AllocationRule` (with `strategyId` linking to a strategy preset), `AuditLog`. Add fields for `is_armed` on plans, `plan_version` for safe migrations, `prima_materia` flag on income transactions.
-3. **Onboarding flow** — pay schedule (weekly/biweekly/semi-monthly/monthly + next date) → seed 7 default vessels with planetary affiliations → arm first Allocation Plan (Envelope strategy default) → land on dashboard.
-4. **Sidebar nav** — 3-chapter typographic spine (Cosmos / The Great Work / Substance) with all 16 v4 routes wired.
-5. **Dashboard** — Mandala (live, day-of-period + planetary needle), Sol net worth, The Great Work card (Prima Materia + distillation summary), vessels list, Trajectory strip, Chronicle preview.
-6. **Period page** — full period detail, allocation breakdown, closing balance walk.
-7. **Almanac** — month grid with planetary day-of-week headers, payday / goal target / today cells, moon phase panel.
-8. **Divination** — Ouroboros (allocation donut in planetary colors), Trajectory (projection with starfield).
-9. **Vessels (envelopes)** — list of all vessels with planetary glyphs, aspect lines, balance/target/spent/days-left, 100% hard warning (D16).
-10. **Chronicle** — transactions grouped by planetary day, filters by vessel, search, day-group lunar phase.
-11. **Allocation plan** — 4-strategy picker (Envelope / Zero-based / 50-30-20 / Pay-yourself-first), Ouroboros preview, per-vessel sliders, `✦ Arm auto-distillation` CTA.
-12. **Auto-allocate engine** — on every paycheck transaction, run the active plan, create ledger transfers, write audit log. **No confirm modal** (D12).
-13. **Build-a-plan sub-pages** — Goals, Recurring bills, Emergency fund, Investment goal.
-14. **Accounts (mock)** — "Connect account" flow with mock institutions, no real Plaid.
-15. **Subscriptions / Debts / Investments** — list pages with planetary affiliation, basic CRUD.
-
-### Cluster 2 (after Cluster 1)
-- Real Plaid sandbox (L2 routing) — deferred until Cluster 1 is fully working with mock data
-- AI Tier 1 — chat, smart categorize, natural-language search
-- AI Tier 2 — insights, anomaly, forecast, what-if, monthly narrative
-- AI Tier 3 — autonomous actions + audit log deepening
-
-### Cluster 3 (after Cluster 2)
-- Layout customization system — widget registry, slot system, drag-drop, save views (the structural piece from v1.0 ordering)
-- CSV import + recurring detection
-- Mobile PWA polish
-
-### Cluster 4 (future)
-- L2 actual bank routing (Plaid + ACH)
-12. **AI Tier 3** — autonomous actions + audit log.
-13. **Reports & charts** (deeper than the dashboard widgets).
-14. **Mobile PWA polish** — install prompt, offline-first basics.
-15. **Plaid integration (L2 routing)** — future.
-16. **Hardening, error handling, tests** — Stage 3 prep.
-
----
-
-## 10. Decisions (resolved)
-
-All 7 design questions answered — see **Decisions Log** at top of doc (D1–D10).
-
-| Original Q | Status | See |
-|---|---|---|
-| Routing level for v1 | ✅ L1 (full intent) | D4 + Section 5 |
-| AI provider | ✅ Mavis internal + Ollama fallback, swappable | D5 + Section 5a |
-| App name | ⏳ TBD (asked below) | D6 |
-| Auth model | ✅ Email + password (hashed) | D7 + Section 8 |
-| Design vibe | ✅ Airtable-meets-treasury (spreadsheet-y, full creative control) | D8 |
-| Mobile | ✅ PWA-ready, native deferred | D9 |
-| Stack | ✅ Hybrid: Next.js monolith + plugins + API routes | D10 + Sections 5a, 8 |
-
----
-
-## 11. What I'm NOT doing yet (Stage 1 is design only)
-
-- ❌ No code yet. No `package.json`, no `prisma init`, no `npx shadcn add`.
-- ❌ No deployment target picked.
-- ❌ No LLM calls made.
-- ❌ No vendor signups (Plaid, Stripe, etc.) — that's L2 territory and future.
-
----
-
-## 12. Acceptance criteria for moving to Stage 2 (creation)
-
-All gates green as of v1.0:
-
-- [x] Vision restatement agreed. (Section 0)
-- [x] Core concepts agreed. (Section 2)
-- [x] Feature surface by tier agreed. (Section 3)
-- [x] Layout customization model agreed. (Section 4)
-- [x] Routing model agreed; v1 routing = **L1**. (Section 5)
-- [x] Data model agreed. (Section 6)
-- [x] Page/route structure agreed. (Section 7)
-- [x] Stack picked: **Hybrid monolith**. (Section 8 + 5a)
-- [x] All open questions answered. (Section 10)
-- [x] Implementation order approved. (Section 9)
-- [x] **Name picked: Compass.** (D6)
-
-**Status: Stage 1 (Design) is COMPLETE. Stage 2 (Creation) is unblocked.**
-
----
-
-## 13. Stage 2 — Starting Point
-
-When Stage 2 begins, the build order (per Section 9) starts with:
-
-1. **Scaffold** — Next.js 16, Tailwind v4, shadcn, Prisma + SQLite, TanStack Query, dnd-kit, Recharts, plugin registry skeleton.
-2. **Auth** — email + password (argon2id), single-user, session-based.
-3. **Core data model + migrations** — User, Account, Envelope, Transaction, Rule, View, AuditLog, ImportBatch.
-4. **Plugin registry** — AI provider, import format, widget plugin interfaces. Mavis internal + Ollama adapters via config.
-5. **Manual transaction entry** + accounts + envelopes CRUD.
-6. **Dashboard with 3 starter widgets** (no drag-drop yet).
-7. **Layout customization system** — widget registry, slot system, drag-drop, save views. *Structural milestone.*
-8. **CSV import** + recurring detection.
-9. **Allocation rules engine** (L1 routing).
-10. **AI Tier 1** — chat, smart categorize, natural-language search.
-11. **AI Tier 2** — insights, anomaly, forecast, what-if, monthly narrative.
-12. **AI Tier 3** — autonomous actions + audit log.
-13. **Reports & charts**.
-14. **Mobile PWA polish**.
-15. **Plaid (L2 routing)** — future.
-16. **Hardening + tests** — Stage 3 prep.
-
-### Recommended handoff
-
-For a build of this scope, a **fresh session** should pick up Stage 2 with this design doc as the contract. The fresh session loads with the locked spec and starts at the scaffold step — no re-litigation of decisions. See the `app-builder` skill's coordination workflow for stage handoff conventions.
-
-### Naming the project files
-
-In code, the project should be referenced as **`compass`**:
-- `package.json` name: `compass`
-- Database file: `compass.db`
-- Default route paths: `/`, `/transactions`, `/accounts`, `/envelopes`, `/rules`, `/insights`, `/reports`, `/settings`, `/chat`
-- Logo/wordmark: **Compass** with the compass-rose mark (TBD; can be designed in Stage 2 once brand direction is set)
-
+The user requested repository alignment before feature work. Codex coordinates MiniMax Desktop and Polar Desktop using the shared task/claim/review protocol. PostgreSQL is the current backend. Prior specs describe intended capabilities; implementation gaps are tracked separately and must never be presented as complete solely because a spec exists.

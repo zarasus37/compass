@@ -1,3 +1,5 @@
+> Business strategy/reference only. Product intent is ../00-VISION.md; implementation status and tasks are ../COORDINATION.md. Market estimates and proposals are not verified deployment facts.
+
 # Compass — The Business Case
 
 > What Compass is, why it could become a business, and what is still unbuilt.

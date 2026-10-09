@@ -1,0 +1,4 @@
+#!/bin/sh
+# Validate a complete staged task snapshot; never stage files automatically.
+node scripts/project-sync.mjs check-index || exit $?
+node scripts/scan-encoding.mjs || exit $?
