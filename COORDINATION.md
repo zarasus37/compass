@@ -23,6 +23,7 @@ Active task: **none**. Functional backlog stays queued until alignment review is
 | ID | Task | Status | Owner | Reviewer |
 | --- | --- | --- | --- | --- |
 | ALIGN-01 | Repository cleanup and three-app coordination | done | codex | polar |
+| ALIGN-02 | Pin implementation handoff evidence and reconcile CI wording | done | codex | polar |
 | FIN-01 | Canonical financial state | backlog | unassigned | unassigned |
 | FIN-02 | Account/envelope ledger reconciliation | backlog | unassigned | unassigned |
 | FIN-03 | Overspending and shortfall representation | backlog | unassigned | unassigned |
@@ -72,6 +73,8 @@ Postgres-everywhere: prisma/schema.prisma and src/server/db.ts use PostgreSQL / 
 - **Targeted script ESLint** — PASS: zero errors. Evidence: eslint scripts/project-sync.mjs scripts/scan-encoding.mjs. Existing lint config excludes test files; tests were checked by node --test and node --check.
 - **Archive fidelity** — 8/8 original working-byte hashes match. Evidence: docs/team/ALIGN-01-archive-proof.json. Separate HEAD comparison disclosed; archive README is new metadata. No original bytes rewritten.
 - **Clean staged index export** — PASS locally on Windows. Evidence: docs/team/ALIGN-01-clean-check.txt. Fresh Git index reconstructed only from staged exported files passes consistency; ignored scratch absent. No remote CI claim.
+- **ALIGN-01 PR integration** — See PR 11 and associated GitHub checks. Evidence: https://github.com/zarasus37/compass/pull/11. Coordination checks, full CI and preview deployments are distinct evidence. Production health is not inferred.
+- **ALIGN-02 coordination follow-up** — 16 local tests passed; no failures/skips. Evidence: docs/team/ALIGN-02-implementation.md. New handoffs hash-pinned; original historical handoffs remain compatible. Independent remote review pending.
 
 ## Deployment status
 
@@ -85,10 +88,13 @@ not verified live in this cleanup. Prior snapshot describes two deliberately sep
 - **DR-ALIGN-04 (2026-10-08)**: Canonical upstream history already archived cluster/Polar documents; reuse docs/archive/clusters and docs/archive/handovers rather than duplicate them. Preserve upstream security/migration verification and existing deployment separation. A new 140-run encoding issue in the latest persistence smoke was found by the guard and repaired without changing its intended logic.
 - **DR-ALIGN-05 (2026-10-08)**: Both local database URLs were confirmed loopback PostgreSQL. CLI .env now targets the existing app .env.local database; app configuration and all other variables were preserved. Private original is in the Git-excluded recovery snapshot. No database writes, migrations or runtime fixture tests were executed.
 - **DR-ALIGN-06 (2026-10-09)**: Polar reviews remotely; Codex records confirmed report bytes through explicit remote-proxy claim/ack/review with report hash and attribution. MiniMax has local access and waits unassigned. Actor strings are cooperative, not authentication. User authorized ongoing desktop coordination messages. Initial changes_requested report was recorded by Codex through the legacy CLI, not executed by Polar.
+- **DR-ALIGN-07 (2026-10-09)**: User authorized PR-first integration, an isolated coordination follow-up and subsequent FIN-01 assignment. Remote integration branch is an explicit exception; canonical local checkout stays main with one writer. Main-only CI is intentional. ALIGN-02 addresses handoff evidence hashes and stale CI wording separately from approved ALIGN-01.
 
 ## Handoffs and reviews
 
 - ALIGN-01 handoff: [docs/team/ALIGN-01-implementation.md](docs/team/ALIGN-01-implementation.md); based on `36cf4ec5420549132d0349f2f8ce3771aba7bb14`.
 - ALIGN-01 review: **approved** by polar (remote; recorded by codex); [report](docs/team/ALIGN-01-review.md); based on `36cf4ec5420549132d0349f2f8ce3771aba7bb14`; report SHA-256 `cbacbf766df18bf003473371a954a28d79f3ef53104fdc030a561be794e7de68`.
+- ALIGN-02 handoff: [docs/team/ALIGN-02-implementation.md](docs/team/ALIGN-02-implementation.md); based on `08703d8216a9ba29b7d0e04d3c956a53768c8793`.
+- ALIGN-02 review: **approved** by polar (remote; recorded by codex); [report](docs/team/ALIGN-02-review.md); based on `08703d8216a9ba29b7d0e04d3c956a53768c8793`; report SHA-256 `7c785efe50af4a6859f3fcda31853d22501accbc6862c77bf38c4f4bd21cd4ea`.
 
 History: [archive](docs/archive/2026-10-08/README.md). Historical prompts, old NEXT labels, and old CI results never assign current work.

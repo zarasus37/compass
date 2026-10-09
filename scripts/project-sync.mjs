@@ -204,12 +204,15 @@ try {
   } else if (command === "handoff") {
     const [who, id, path] = args; actor(who); requireClaim(who, id); branch(s); const t = task(s, id);
     if (t.owner !== who || !["in_progress", "changes_requested"].includes(t.status)) fail("Only the task owner may hand off implementation.");
-    t.handoff = { path: reportPath(path, { id, actor: who }), actor: who, head: git("rev-parse", "HEAD"), contentDigest: fingerprint(), at: new Date().toISOString() }; t.review = null; t.status = "in_review";
+    const report = reportPath(path, { id, actor: who });
+    const sha256 = createHash("sha256").update(readFileSync(join(ROOT, report))).digest("hex");
+    t.handoff = { path: report, sha256, actor: who, head: git("rev-parse", "HEAD"), contentDigest: fingerprint(), at: new Date().toISOString() }; t.review = null; t.status = "in_review";
     save(s); rmSync(LOCK, { recursive: true }); console.log(`Handed ${id} to ${t.reviewer}. Review must cover the working diff as well as HEAD.`);
   } else if (command === "review") {
     const [who, id, verdict, path, ...extra] = args; actor(who); const claim = requireClaim(who, id); branch(s); const t = task(s, id); const mode = proxyOptions(who, extra);
     if (t.reviewer !== who || t.status !== "in_review") fail("Only the assigned reviewer may review this handoff.");
     if (!["approved", "changes_requested"].includes(verdict)) fail("Verdict must be approved or changes_requested.");
+    if (t.handoff.sha256 && createHash("sha256").update(readFileSync(join(ROOT, t.handoff.path))).digest("hex") !== t.handoff.sha256) fail("Implementation handoff bytes changed; require a fresh owner handoff before review.");
     if (verdict === "approved" && t.handoff.contentDigest !== fingerprint()) fail("Implementation changed since handoff. Request changes and require a fresh handoff before approval.");
     const report = reportPath(path, { id, actor: who, verdict, handoff: t.handoff.path });
     const sha256 = createHash("sha256").update(readFileSync(join(ROOT, report))).digest("hex");

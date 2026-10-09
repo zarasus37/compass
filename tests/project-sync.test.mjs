@@ -263,3 +263,21 @@ test("encoding scanner examines nested design and patch folders while preserving
     const result = run(); assert.equal(result.status, 1); assert.match(result.stdout, /src\/ui\/design/); assert.match(result.stdout, /src\/ui\/patch/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test("handoff bytes are pinned and tampering fails before and after approval", () => {
+  const f = fixture();
+  try {
+    f.run("claim", "codex", "ALIGN-01"); const report = f.report("implementation"); const original = readFileSync(join(f.root, report));
+    assert.equal(f.run("handoff", "codex", "ALIGN-01", report).code, 0);
+    const s = JSON.parse(readFileSync(join(f.root, "docs/project-state.json"), "utf8"));
+    assert.equal(s.tasks[0].handoff.sha256, createHash("sha256").update(original).digest("hex"));
+    f.run("claim", "polar", "ALIGN-01");
+    writeFileSync(join(f.root, report), Buffer.concat([original, Buffer.from("\nAltered evidence\n")]));
+    assert.equal(f.run("check").code, 1);
+    assert.equal(f.run("review", "polar", "ALIGN-01", "approved", f.report("review")).code, 1);
+    writeFileSync(join(f.root, report), original);
+    assert.equal(f.run("review", "polar", "ALIGN-01", "approved", f.report("review")).code, 0);
+    writeFileSync(join(f.root, report), Buffer.concat([original, Buffer.from("\nAltered after approval\n")]));
+    assert.match(f.run("check").output, /evidence hash changed/);
+  } finally { f.cleanup(); }
+});
