@@ -44,8 +44,9 @@ import {
   liveBillsFromDb,
   liveTransactionsFromDb,
 } from "../mock";
-import { readDebts, runAllocation } from "../store";
+import { runAllocation } from "../store";
 import type { AllocationRunResult } from "../store";
+import { getDebts, type DebtDTO } from "@/lib/state/financial-state";
 import { isSeededIdMatch } from "../seed-ids";
 import { prisma } from "@/server/db";
 
@@ -236,7 +237,25 @@ function groupTransactions(
 // ──────────────────────────────────────────────────────────────────────
 
 async function queryEnvelopesHandler(userId: string): Promise<AdvisorToolResult> {
-  const rows = await liveEnvelopesFromDb(userId);
+  // B1 (Polar): `liveEnvelopesFromDb` throws on a read failure, and
+  // that throw must become a tool-level `ok:false` — never
+  // `ok:true, count:0`. The handler contract says empty means "you have
+  // no envelopes", so during a database outage the advisor would tell mom
+  // her accounts are empty. Catch it here and report a fixed message
+  // consistent with every other error string in this file.
+  let rows;
+  try {
+    rows = await liveEnvelopesFromDb(userId);
+  } catch {
+    return {
+      publicView: {
+        ok: false,
+        tool: "queryEnvelopes",
+        error:
+          "Envelopes are temporarily unavailable. Retry shortly rather than treating this as an empty account.",
+      },
+    };
+  }
   const shaped = rows.map((e) => ({
     id: e.id,
     name: e.name,
@@ -346,11 +365,32 @@ function startOfDay(d: Date): Date {
 // 4. queryDebts
 // ──────────────────────────────────────────────────────────────────────
 
-function queryDebtsHandler(
+async function queryDebtsHandler(
   userId: string,
   a: Record<string, unknown>,
-): AdvisorToolResult {
-  const all = readDebts(userId);
+): Promise<AdvisorToolResult> {
+  // FIN-01 — canonical, durable, tenant-scoped read.
+  // Previously `readDebts(userId)` from `@/lib/store` (process-local).
+  // `sortDebts` and the field mapping below are untouched; only the
+  // source of the rows changes. A read failure is reported as a tool
+  // error rather than being papered over with an empty list.
+  const debtRead = await getDebts(userId);
+  if (!debtRead.ok) {
+    // B2 (Polar): `debtRead.error` is already a sanitized DAL code
+    // ("read-failed" / "invalid-tenant-id"), never raw Prisma text. It
+    // is deliberately NOT interpolated into the message: the DAL's
+    // stable vocabulary is for programmatic branching, and this string
+    // is read by the LLM and relayed to the user.
+    return {
+      publicView: {
+        ok: false,
+        tool: "queryDebts",
+        error:
+          "Debts are temporarily unavailable. Retry shortly rather than treating this as no debt.",
+      },
+    };
+  }
+  const all = debtRead.data as DebtDTO[];
   const orderBy = pickDebtOrderBy(a.orderBy);
   const sorted = orderBy
     ? sortDebts(all, orderBy)
@@ -385,7 +425,7 @@ function pickDebtOrderBy(v: unknown): "apr" | "balance" | "minPayment" | null {
 }
 
 function sortDebts(
-  rows: ReturnType<typeof readDebts>,
+  rows: DebtDTO[],
   by: "apr" | "balance" | "minPayment",
 ) {
   const arr = rows.slice();

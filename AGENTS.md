@@ -16,7 +16,7 @@ Read [COORDINATION.md](COORDINATION.md), [team protocol](docs/team/PROTOCOL.md),
 
 ## Shared execution contract
 
-The user requested cleanup/alignment before the functional backlog. Codex coordinates; MiniMax implements by default; Polar independently reviews by default. Roles are assigned per task in `docs/project-state.json`. MiniMax directly accesses this repository; Polar currently reviews remotely. Codex is authorized to message both desktop conversations. Follow the remote proxy review workflow in the team protocol; never describe a proxy command as local execution by Polar.
+The user requested cleanup/alignment before the functional backlog. Codex implements, coordinates, verifies and integrates; Polar independently reviews. MiniMax is unassigned in Compass and available for separate user-directed work. Roles are assigned per task in `docs/project-state.json`. MiniMax directly accesses this repository; Polar currently reviews remotely. Codex is authorized to message both desktop conversations. Follow the remote proxy review workflow in the team protocol; never describe a proxy command as local execution by Polar.
 
 Run `node scripts/project-sync.mjs status` and `node scripts/project-sync.mjs check`. Only the assigned task owner or its assigned reviewer may claim the active task. Claim before edits, including documentation. One active task, one writer, shared main checkout. Do not create/switch branches or worktrees, choose new features, or override another app's claim. Read-only research may overlap.
 
@@ -43,3 +43,8 @@ Current status lives only in `docs/project-state.json`; `COORDINATION.md` is gen
 Record evidence, changed paths, risks, exact base commit and next owner in docs/team using the template. Handoff releases the writer claim to the independent reviewer. No task is done without recorded approval. A new edit invalidates prior approval. Propose a fresh-session handoff at natural breakpoints; all apps resume from shared state.
 
 Do not ask permission for routine authorized work. Clarify missing essentials and obtain authorization for sensitive unapproved actions. Do not begin the functional backlog until ALIGN-01 is accepted.
+
+The user has standing authorization for Codex to commit and push completed changes,
+and deploy intended releases. Preserve independent review and required checks before
+integration. Use the authorized PR workflow; report CI and deployment outcomes from
+observed evidence. This authorization does not make incomplete work release-ready.

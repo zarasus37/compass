@@ -47,6 +47,7 @@ import {
 } from "./mock-seed";
 import { prisma } from "@/server/db";
 import { addCalendarDaysKeepingTime } from "@/lib/dates";
+import { getEnvelopes, getGoals } from "@/lib/state/financial-state";
 
 // ---------------------------------------------------------------------------
 // Re-export date constants
@@ -467,16 +468,27 @@ export async function liveEnvelopesFromDb(userId: string) {
   //
   // Creating rows is explicit: the setup wizard step for envelopes, and
   // `POST /api/reset-seed` / `scripts/clear-demo-data` for tooling.
-  const rows = await prisma.envelope.findMany({
-    where: { userId, isArchived: false },
-    orderBy: { sortOrder: "asc" },
-  });
-  return rows.map((e) => ({
+  // FIN-01 — delegates to the canonical Data Access Layer.
+  // Shape below is unchanged, so no page depends on this.
+  //
+  // B1 (Polar): these adapters used to THROW on a database error — a
+  // bare `prisma.findMany` propagated whatever Prisma said. Returning
+  // `[]` made a database outage look like an account with no vessels.
+  // So a failure is re-thrown here as a SANITIZED error: still a throw,
+  // so existing callers (and the defensive-read / section-error smokes
+  // written for the throwing behaviour) still see a failure, but the
+  // message carries no host, port, user name or Prisma invocation text.
+  const res = await getEnvelopes(userId);
+  if (!res.ok) {
+    console.error("[liveEnvelopesFromDb] canonical read failed:", res.error);
+    throw new Error(`liveEnvelopesFromDb: ${res.error}`);
+  }
+  return res.data.map((e) => ({
     id: e.id,
     name: e.name,
     planet: e.planet as PlanetId,
-    current: e.currentBalance,
-    target: e.targetBalance,
+    current: e.currentCents,
+    target: e.targetCents,
   }));
 }
 export function liveGoals(userId: string) {
@@ -498,17 +510,21 @@ export function liveGoals(userId: string) {
  */
 export async function liveGoalsFromDb(userId: string) {
   // No auto-seed — see `liveEnvelopesFromDb` for the reasoning.
-  const rows = await prisma.goal.findMany({
-    where: { userId, isArchived: false },
-    orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
-  });
-  return rows.map((g) => ({
+  // FIN-01 — delegates to the canonical Data Access Layer. Shape
+  // unchanged, including `perPaycheckCents: 0` (the Goal model has no
+  // such column).
+  const res = await getGoals(userId);
+  if (!res.ok) {
+    console.error("[liveGoalsFromDb] canonical read failed:", res.error);
+    throw new Error(`liveGoalsFromDb: ${res.error}`);
+  }
+  return res.data.map((g) => ({
     id: g.id,
     name: g.name,
-    description: g.description ?? "",
+    description: g.description,
     planet: g.planet as PlanetId | null,
-    targetCents: g.targetAmount,
-    currentCents: g.currentAmount,
+    targetCents: g.targetCents,
+    currentCents: g.currentCents,
     targetDate: g.targetDate,
     envelopeId: g.envelopeId,
     perPaycheckCents: 0, // Not in the Goal model — derived from the linked envelope's allocation rule

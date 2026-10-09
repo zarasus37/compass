@@ -29,7 +29,7 @@
  * Cluster 3.2.5
  */
 
-import { readEnvelopes } from "./store";
+import { getEnvelopes, isPlanetId } from "@/lib/state/financial-state";
 import { detectSubscriptions, type DetectedSubscription } from "./detect-subscriptions";
 import type { PlanetId } from "@/components/alchemy/VesselGlyph";
 
@@ -66,7 +66,35 @@ export async function topOpportunities(
   const limit = opts.limit ?? DEFAULT_LIMIT;
   const out: Opportunity[] = [];
 
-  const envelopes = readEnvelopes(userId);
+  // FIN-01 — canonical, durable, tenant-scoped read.
+  //
+  // This used to be `readEnvelopes(userId)` from `@/lib/store`, a
+  // process-local `globalThis` read. That is not just stale-prone: this
+  // engine produces user-facing recommendations, so a stale in-memory
+  // snapshot could recommend moving money that no longer exists.
+  //
+  // The DTO field names (planet / targetCents / currentCents) are
+  // unchanged, so every financial predicate below is untouched.
+  //
+  // B1 (Polar): on a read failure this THROWS rather than continuing
+  // with an empty list. Returning `[]` would tell the user they have no
+  // opportunities during a database outage — a confident, wrong
+  // financial statement. Throwing surfaces the failure.
+  //
+  // Throwing (rather than changing the return type) is what keeps this
+  // task inside its file scope: `src/app/page.tsx` and
+  // `src/app/(app)/learn/your-numbers/page.tsx` both call this, and
+  // widening the signature would mean editing two out-of-scope pages.
+  const envelopeRead = await getEnvelopes(userId);
+  if (!envelopeRead.ok) {
+    console.error(
+      "[opportunities] canonical envelope read failed; no opportunities " +
+        "are reported for this call:",
+      envelopeRead.error,
+    );
+    throw new Error(`topOpportunities: ${envelopeRead.error}`);
+  }
+  const envelopes = envelopeRead.data;
   const buffer = envelopes.find((e) => e.planet === "mars");
   if (buffer && buffer.targetCents > 0 && buffer.currentCents > buffer.targetCents) {
     const surplus = buffer.currentCents - buffer.targetCents;
@@ -118,7 +146,10 @@ export async function topOpportunities(
         detail: `currently ${Math.round((e.currentCents / e.targetCents) * 100)}% of target`,
         deltaCents: excess,
         href: `/envelopes/${e.id}`,
-        planetHint: e.planet,
+        // The store's Envelope typed `planet` as a non-null PlanetId;
+        // the DB column is nullable. Narrow honestly rather than casting:
+        // an unassigned vessel simply has no hint.
+        planetHint: isPlanetId(e.planet) ? e.planet : undefined,
       });
     }
   }

@@ -12,8 +12,8 @@ Codex and MiniMax Desktop access the same repository directly. Polar currently r
 
 ## Default roles
 
-- Codex: coordinator, repository alignment, integration, final verification and task assignment.
-- MiniMax Desktop: default implementation owner. Prior records include mvs session handoffs and implementation clusters.
+- Codex: implementation owner, coordinator, repository alignment, integration, verification and task assignment.
+- MiniMax Desktop: unassigned in Compass; available for separate user-directed work. It must not resume an old task without a new explicit assignment.
 - Polar Desktop: default independent reviewer. Historical Polar prompts ask for source-grounded specification corrections and review.
 - The user owns product priorities. Roles can change per task; the task record is authoritative. MiniMax Desktop is a collaborating app, not Compass's Mavis runtime AI provider.
 
@@ -62,7 +62,7 @@ Current state and documentation checks are mandatory. Run `pnpm project:env-chec
 Write a report using docs/team/HANDOFF-TEMPLATE.md. Include task ID, author, exact base commit, changed paths, decisions, validation commands/results/skips, risks and next owner. Record current uncommitted changes explicitly; a base commit alone does not identify a dirty tree.
 
 ```bash
-node scripts/project-sync.mjs handoff minimax FIN-01 docs/team/FIN-01-implementation.md
+node scripts/project-sync.mjs handoff codex FIN-01 docs/team/FIN-01-implementation.md
 ```
 
 This moves the task to `in_review` and releases the claim. Owner stops editing. The assigned reviewer claims the task, acknowledges the protocol if needed, reviews the actual diff and acceptance criteria, and writes a report with the same evidence fields. The reviewer does not silently change the implementation; requested fixes go back to the owner.
@@ -82,7 +82,7 @@ Approval closes the task, but does not commit, push, deploy or claim live produc
 After the active task is done and the claim is released, Codex assigns concrete scope/acceptance atomically through the command (do not edit an unclaimed state file):
 
 ```bash
-node scripts/project-sync.mjs assign codex FIN-01 minimax polar "src/lib/financial-state.ts,tests/smoke-financial-state.mjs,docs/project-state.json" "Authoritative state uses tenant DB data|All cents reconcile|Relevant failure tests pass"
+node scripts/project-sync.mjs assign codex FIN-01 codex polar "src/lib/state/financial-state.ts,tests/smoke-financial-state.mjs,docs/project-state.json" "Authoritative state uses tenant DB data|All cents reconcile|Relevant failure tests pass"
 ```
 
 The next owner claims it; no one independently chooses a different feature. A shared-file change becomes visible locally immediately, but the next app still needs an explicit turn or user notification to read it. Use docs/team/MINIMAX.md and docs/team/POLAR.md as the desktop-app startup prompts.
@@ -90,6 +90,12 @@ The next owner claims it; no one independently chooses a different feature. A sh
 ## Git and local files
 
 Do not commit/push solely to claim a task. Do not merge unrelated existing edits into your work. Stage explicit paths after reviewing changes. Remote sync/publish requires the task's authorization and checks; a push to main may deploy both Vercel projects.
+
+The user gave Codex standing authorization to commit and push completed changes and
+deploy intended releases. No repeat permission request is needed for those steps.
+Independent approval and required checks still precede integration. Continue the
+authorized PR workflow, preserve the canonical local main checkout, and verify
+actual CI/deployment status instead of inferring success from a push.
 
 UTF-8, LF, no BOM for maintained text. Use an editor or explicit encoding; do not rewrite UTF-8 through PowerShell's default encoding. Generated Prisma code is not manually edited. Local scratch, videos, screenshots, env files and signer keys are excluded from Git and retained locally. Cleanup never deletes database rows, deploy targets or user assets.
 

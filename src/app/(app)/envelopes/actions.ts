@@ -24,8 +24,10 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { rebalanceEnvelopes, readEnvelopes } from "@/lib/store";
+import { rebalanceEnvelopes } from "@/lib/store";
 import { requireUser } from "@/server/auth/user";
+import { getEnvelopes, isPlanetId } from "@/lib/state/financial-state";
+import type { PlanetId } from "@/components/alchemy/VesselGlyph";
 
 export interface RebalanceActionState {
   ok: boolean;
@@ -103,18 +105,64 @@ export async function rebalanceAction(
 }
 
 /**
+ * Option shape returned by `listEnvelopesForAction`.
+ *
+ * `planet` is nullable because the `Envelope.planet` column is. N2
+ * (Polar): substituting a planet to satisfy a non-null type changes the
+ * meaning of the data, so the type widens instead.
+ */
+export interface EnvelopeOption {
+  id: string;
+  name: string;
+  planet: PlanetId | null;
+  currentCents: number;
+  targetCents: number;
+}
+
+/**
  * Server-readable list of envelope options for the dropdowns.
- * (The client component could call `readEnvelopes` directly, but
+ * (The client component could call the canonical reader directly, but
  * keeping the action as the single server-side surface keeps the
  * form and the action aligned.)
  */
-export async function listEnvelopesForAction() {
+export async function listEnvelopesForAction(): Promise<
+  | { ok: true; envelopes: EnvelopeOption[] }
+  | { ok: false; error: "read-failed" | "invalid-tenant-id" }
+> {
   const user = await requireUser();
-  return readEnvelopes(user.id).map((e) => ({
-    id: e.id,
-    name: e.name,
-    planet: e.planet,
-    currentCents: e.currentCents,
-    targetCents: e.targetCents,
-  }));
+  // FIN-01 — canonical, durable, tenant-scoped read.
+  //
+  // This used to be `readEnvelopes(user.id)` from `@/lib/store`, a
+  // process-local `globalThis` read. It sat on a server action feeding
+  // a client dropdown, so a restart or a second server instance would
+  // silently offer the wrong vessels. Only `getEnvelopes` is called —
+  // an envelope-only consumer never loads transactions, goals or debts.
+  //
+  // B1 (Polar): a read failure returns a typed error, never an empty
+  // list. `[]` during an outage means "you have no vessels", which is
+  // a confident and wrong statement about someone's money.
+  //
+  // N2 (Polar): `planet` is `PlanetId | null`. This previously
+  // substituted "jupiter" (Growth) for an unassigned vessel, which
+  // preserved the type while changing the meaning — presenting an
+  // unassigned vessel as Growth. `NewTransactionForm` already types
+  // `planet: PlanetId | null`, so nullability is already an accepted
+  // shape in this codebase. No caller of this action exists in `src`
+  // today, so widening the contract needs no scope extension and no
+  // invented planet.
+  const res = await getEnvelopes(user.id);
+  if (!res.ok) {
+    console.error("[listEnvelopesForAction] canonical read failed:", res.error);
+    return { ok: false, error: res.error };
+  }
+  return {
+    ok: true,
+    envelopes: res.data.map((e) => ({
+      id: e.id,
+      name: e.name,
+      planet: isPlanetId(e.planet) ? (e.planet as PlanetId) : null,
+      currentCents: e.currentCents,
+      targetCents: e.targetCents,
+    })),
+  };
 }
