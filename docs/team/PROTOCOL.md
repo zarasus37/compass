@@ -67,6 +67,8 @@ node scripts/project-sync.mjs handoff minimax FIN-01 docs/team/FIN-01-implementa
 
 This moves the task to `in_review` and releases the claim. Owner stops editing. The assigned reviewer claims the task, acknowledges the protocol if needed, reviews the actual diff and acceptance criteria, and writes a report with the same evidence fields. The reviewer does not silently change the implementation; requested fixes go back to the owner.
 
+New handoffs pin the exact report bytes with SHA-256; submit UTF-8, LF reports (CRLF is refused before recording). Do not edit a pinned report after handoff. If it changes or disappears, approval is refused. The reviewer may record `changes_requested` with a separate report explaining the damage; state records `handoffIntact: false`, preserves the old pin, and returns the task to its owner. Project check remains failed until the owner restores the evidence and submits a fresh handoff. Never rewrite a pin or delete another app's lock to recover.
+
 ```bash
 node scripts/project-sync.mjs claim polar FIN-01
 node scripts/project-sync.mjs review polar FIN-01 changes_requested docs/team/FIN-01-review.md

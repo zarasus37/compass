@@ -8,7 +8,7 @@
     "url": "https://github.com/zarasus37/compass.git",
     "baselineCommit": "36cf4ec",
     "policy": "single shared checkout; one writer; no unassigned branches",
-    "contentDigest": "76ae2038dcc207d38611e4ca9ca354d920402129974baf79c17df8f36ae67cb7",
+    "contentDigest": "676e8f92dab88d9789d674d0780290deef2d175a10d0c32205bd45d6287ca962",
     "canonicalWindowsPath": "C:\\dev\\compass",
     "canonicalWslPath": "/mnt/c/dev/compass",
     "retiredWorkspace": "OneDrive Budget planner app checkout — retained historical copy, not a second development repo",
@@ -17,7 +17,12 @@
   "team": {
     "codex": {
       "role": "coordination, repository alignment, integration and verification",
-      "status": "protocol acknowledged"
+      "status": "protocol acknowledged",
+      "acknowledgement": {
+        "mode": "local",
+        "recordedBy": "codex",
+        "at": "2026-10-09T05:39:49.325Z"
+      }
     },
     "minimax": {
       "role": "default implementation owner; reassigned explicitly per task",
@@ -30,8 +35,8 @@
       "acknowledgement": {
         "mode": "remote-proxy",
         "recordedBy": "codex",
-        "sha256": "cbacbf766df18bf003473371a954a28d79f3ef53104fdc030a561be794e7de68",
-        "at": "2026-10-09T05:17:29.352Z"
+        "sha256": "b3c0ac94e60cce136646d8999e5a5dac058475fecfcf0d402aa0d1f4853c04c2",
+        "at": "2026-10-09T05:50:45.821Z"
       }
     }
   },
@@ -96,6 +101,86 @@
         "head": "36cf4ec5420549132d0349f2f8ce3771aba7bb14",
         "contentDigest": "76ae2038dcc207d38611e4ca9ca354d920402129974baf79c17df8f36ae67cb7",
         "at": "2026-10-09T05:17:33.214Z"
+      }
+    },
+    {
+      "id": "ALIGN-02",
+      "title": "Pin implementation handoff evidence and reconcile CI wording",
+      "status": "done",
+      "owner": "codex",
+      "reviewer": "polar",
+      "scope": [
+        "scripts/project-sync.mjs",
+        "tests/project-sync.test.mjs",
+        "docs/team/ALIGN-01-implementation.md",
+        "docs/team/ALIGN-02-implementation.md",
+        "docs/project-state.json"
+      ],
+      "acceptance": [
+        "New handoffs store SHA-256 of exact report bytes",
+        "Changing a handoff before or after approval fails check",
+        "CI wording describes main-only triggers",
+        "Coordination regression tests and consistency pass"
+      ],
+      "handoff": {
+        "path": "docs/team/ALIGN-02-implementation.md",
+        "sha256": "993d82201d67e43e2204175cc171be71eb28866c7739d800fa8e4daa7d3b85ea",
+        "actor": "codex",
+        "head": "08703d8216a9ba29b7d0e04d3c956a53768c8793",
+        "contentDigest": "c45a8615ed9e75f9af36a4966eb14c9a96acaccd2b9102c8e2c4e2a2fd93b8b4",
+        "at": "2026-10-09T05:31:02.477Z"
+      },
+      "review": {
+        "path": "docs/team/ALIGN-02-review.md",
+        "actor": "polar",
+        "verdict": "approved",
+        "mode": "remote-proxy",
+        "recordedBy": "codex",
+        "sha256": "7c785efe50af4a6859f3fcda31853d22501accbc6862c77bf38c4f4bd21cd4ea",
+        "head": "08703d8216a9ba29b7d0e04d3c956a53768c8793",
+        "contentDigest": "c45a8615ed9e75f9af36a4966eb14c9a96acaccd2b9102c8e2c4e2a2fd93b8b4",
+        "at": "2026-10-09T05:38:54.622Z"
+      }
+    },
+    {
+      "id": "ALIGN-03",
+      "title": "Reject non-LF evidence and recover damaged handoffs",
+      "status": "done",
+      "owner": "codex",
+      "reviewer": "polar",
+      "scope": [
+        "scripts/project-sync.mjs",
+        "tests/project-sync.test.mjs",
+        "docs/team/PROTOCOL.md",
+        "docs/team/HANDOFF-TEMPLATE.md",
+        "docs/team/ALIGN-03-implementation.md",
+        "docs/project-state.json"
+      ],
+      "acceptance": [
+        "Reject CRLF evidence before recording hashes",
+        "Damaged handoff cannot approve but independent changes_requested enables fresh owner handoff",
+        "Exact report hashes remain unchanged",
+        "Document pin and recovery workflow; regression tests pass"
+      ],
+      "handoff": {
+        "path": "docs/team/ALIGN-03-implementation.md",
+        "sha256": "72c50072327f02cc32b447753d7ec869a64d973ef211f725d2f62df7c2b64122",
+        "actor": "codex",
+        "head": "c563a8d233f904d86f797a51cecfd155cc8bc125",
+        "contentDigest": "676e8f92dab88d9789d674d0780290deef2d175a10d0c32205bd45d6287ca962",
+        "at": "2026-10-09T05:42:37.965Z"
+      },
+      "review": {
+        "path": "docs/team/ALIGN-03-review.md",
+        "actor": "polar",
+        "verdict": "approved",
+        "mode": "remote-proxy",
+        "recordedBy": "codex",
+        "sha256": "b3c0ac94e60cce136646d8999e5a5dac058475fecfcf0d402aa0d1f4853c04c2",
+        "handoffIntact": true,
+        "head": "c563a8d233f904d86f797a51cecfd155cc8bc125",
+        "contentDigest": "676e8f92dab88d9789d674d0780290deef2d175a10d0c32205bd45d6287ca962",
+        "at": "2026-10-09T05:50:49.229Z"
       }
     },
     {
@@ -412,6 +497,24 @@
       "result": "PASS locally on Windows",
       "evidence": "docs/team/ALIGN-01-clean-check.txt",
       "note": "Fresh Git index reconstructed only from staged exported files passes consistency; ignored scratch absent. No remote CI claim."
+    },
+    {
+      "check": "ALIGN-01 PR integration",
+      "result": "See PR 11 and associated GitHub checks",
+      "evidence": "https://github.com/zarasus37/compass/pull/11",
+      "note": "Coordination checks, full CI and preview deployments are distinct evidence. Production health is not inferred."
+    },
+    {
+      "check": "ALIGN-02 coordination follow-up",
+      "result": "16 local tests passed; no failures/skips",
+      "evidence": "docs/team/ALIGN-02-implementation.md",
+      "note": "New handoffs hash-pinned; original historical handoffs remain compatible. Independent remote review pending."
+    },
+    {
+      "check": "ALIGN-01 remote CI",
+      "result": "PASS: full CI and security workflows; PR 11 merged",
+      "evidence": "https://github.com/zarasus37/compass/actions/runs/37888335589",
+      "note": "Full CI 14m39s. Preview deployment checks passed separately. Production health remains unverified."
     }
   ],
   "deployments": {
@@ -449,6 +552,16 @@
       "id": "DR-ALIGN-06",
       "date": "2026-10-09",
       "text": "Polar reviews remotely; Codex records confirmed report bytes through explicit remote-proxy claim/ack/review with report hash and attribution. MiniMax has local access and waits unassigned. Actor strings are cooperative, not authentication. User authorized ongoing desktop coordination messages. Initial changes_requested report was recorded by Codex through the legacy CLI, not executed by Polar."
+    },
+    {
+      "id": "DR-ALIGN-07",
+      "date": "2026-10-09",
+      "text": "User authorized PR-first integration, an isolated coordination follow-up and subsequent FIN-01 assignment. Remote integration branch is an explicit exception; canonical local checkout stays main with one writer. Main-only CI is intentional. ALIGN-02 addresses handoff evidence hashes and stale CI wording separately from approved ALIGN-01."
+    },
+    {
+      "id": "DR-ALIGN-08",
+      "date": "2026-10-09",
+      "text": "Address ALIGN-02 non-blocking evidence portability and recovery findings before FIN-01. Preserve exact-byte report hashes by refusing CRLF evidence at submission. Only an independent changes_requested verdict may return damaged handoffs to the owner; approval stays fail-closed. PR 11 passed full CI and merged; follow-ups integrate through a separate reviewed PR."
     }
   ],
   "timeZone": "America/Chicago"
