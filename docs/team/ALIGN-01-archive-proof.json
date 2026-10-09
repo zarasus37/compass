@@ -1,0 +1,77 @@
+{
+  "note": "Original working bytes compared to pre-cleanup inventory; HEAD comparison separately disclosed. README is new explanatory metadata, not an original snapshot.",
+  "files": [
+    {
+      "source": "00-DESIGN.md",
+      "archive": "docs/archive/2026-10-08/00-DESIGN.md",
+      "headSha256": "08c7b5710291b0f83ddac22ce5fd6a0e6f9720a80c86a5270165350491ee33bf",
+      "archiveSha256": "280bcbb181fa3c4c8f42137397c5297226963f5b1941f3dc72bb89e5849fe2c0",
+      "precleanupSha256": "280bcbb181fa3c4c8f42137397c5297226963f5b1941f3dc72bb89e5849fe2c0",
+      "headMatches": false,
+      "precleanupMatches": true
+    },
+    {
+      "source": "00-MOM-LAUNCH-RUNBOOK.md",
+      "archive": "docs/archive/2026-10-08/00-MOM-LAUNCH-RUNBOOK.md",
+      "headSha256": "86cf9098299f53bb1beca77fee08f6cbaa0209d05a9ca4041779e2f1323e479c",
+      "archiveSha256": "82da58caed54e69b7b797eca55db15c928f34b14783e97806aac1491d6f9fd3a",
+      "precleanupSha256": "82da58caed54e69b7b797eca55db15c928f34b14783e97806aac1491d6f9fd3a",
+      "headMatches": false,
+      "precleanupMatches": true
+    },
+    {
+      "source": "AGENTS.md",
+      "archive": "docs/archive/2026-10-08/AGENTS.md",
+      "headSha256": "b8d59c74454428df33fd28cc70879f77a979b5506fda8d85dc97237ec56f0bfe",
+      "archiveSha256": "1fdb805e5a5e7bda26e10a8289ec70886b2145f4f5c52d89fb777530e41fedba",
+      "precleanupSha256": "1fdb805e5a5e7bda26e10a8289ec70886b2145f4f5c52d89fb777530e41fedba",
+      "headMatches": false,
+      "precleanupMatches": true
+    },
+    {
+      "source": "COORDINATION.md",
+      "archive": "docs/archive/2026-10-08/COORDINATION.md",
+      "headSha256": "d2539be1c9daae4197b45dda724d109df95a2c2c5f96e05c495a327c1a7a39ba",
+      "archiveSha256": "d2539be1c9daae4197b45dda724d109df95a2c2c5f96e05c495a327c1a7a39ba",
+      "precleanupSha256": "d2539be1c9daae4197b45dda724d109df95a2c2c5f96e05c495a327c1a7a39ba",
+      "headMatches": true,
+      "precleanupMatches": true
+    },
+    {
+      "source": "docs/compass-vision-summary.md",
+      "archive": "docs/archive/2026-10-08/docs--compass-vision-summary.md",
+      "headSha256": "3d35a9690447ff6bcdb0fec7e52dbc34089cc329ec5b775319664e411272eca5",
+      "archiveSha256": "8a194250c78273294c2bf08850dfa43f75462d7c1819e310ab7882e42b8d5aea",
+      "precleanupSha256": "8a194250c78273294c2bf08850dfa43f75462d7c1819e310ab7882e42b8d5aea",
+      "headMatches": false,
+      "precleanupMatches": true
+    },
+    {
+      "source": "docs/compass-vision.md",
+      "archive": "docs/archive/2026-10-08/docs--compass-vision.md",
+      "headSha256": "00d620818f032f2c63262f925adeeec40b7140056ab0a775455b07cd9cfd7b0f",
+      "archiveSha256": "259d9795b39e42519cf4544737d7de5f2b5e9e152c865130239ace4c0ac4b82c",
+      "precleanupSha256": "259d9795b39e42519cf4544737d7de5f2b5e9e152c865130239ace4c0ac4b82c",
+      "headMatches": false,
+      "precleanupMatches": true
+    },
+    {
+      "source": "HANDOVER-TEST-INTEGRITY.md",
+      "archive": "docs/archive/2026-10-08/HANDOVER-TEST-INTEGRITY.md",
+      "headSha256": "4b1b650a3fe91833dc69fc9c437b73df0573dcdab31997e7e67bc5ad09c9cfa4",
+      "archiveSha256": "3a864ae3ff91f81b8e31c8ecf3d0f0d623ac60653341334aca3fdcefdcbb11eb",
+      "precleanupSha256": "3a864ae3ff91f81b8e31c8ecf3d0f0d623ac60653341334aca3fdcefdcbb11eb",
+      "headMatches": false,
+      "precleanupMatches": true
+    },
+    {
+      "source": "VERCEL-DEPLOYMENTS.md",
+      "archive": "docs/archive/2026-10-08/VERCEL-DEPLOYMENTS.md",
+      "headSha256": "20c0438d6c6ef7fb21b1d640e66969888acfe0e8b923afb7edd26fca37718997",
+      "archiveSha256": "1fa81192186003a6136612c92a10720c2145e9c613bea79953cd9aa448b52bd4",
+      "precleanupSha256": "1fa81192186003a6136612c92a10720c2145e9c613bea79953cd9aa448b52bd4",
+      "headMatches": false,
+      "precleanupMatches": true
+    }
+  ]
+}

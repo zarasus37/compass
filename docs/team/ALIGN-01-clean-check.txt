@@ -1,0 +1,7 @@
+Clean index export: C:\Users\crisc\AppData\Local\Temp\compass-clean-index-5qZhZr
+project alignment: clean
+
+Membership: fresh Git index built only from staged exported files, no ignored local scratch copied.
+Runtime source: 360/360 pre-cleanup byte hashes unchanged.
+Windows status: 595 additions in fresh uncommitted index; no working modifications expected.
+Remote CI was not run. This is a local clean export check, not production validation.

@@ -31,7 +31,14 @@
     "spawn:test-account": "node scripts/spawn-test-account.mjs",
     "db:verify": "node scripts/verify-migrations.mjs",
     "db:preflight": "node scripts/preflight-schema.mjs",
-    "db:verify:tenant": "node scripts/verify-tenant-migration.mjs"
+    "db:verify:tenant": "node scripts/verify-tenant-migration.mjs",
+    "project:status": "node scripts/project-sync.mjs status",
+    "project:sync": "node scripts/project-sync.mjs generate",
+    "project:check": "node scripts/project-sync.mjs check && node scripts/scan-encoding.mjs",
+    "project:test": "node --test tests/project-sync.test.mjs",
+    "project:install-hooks": "node scripts/project-sync.mjs install-hooks",
+    "project:check-index": "node scripts/project-sync.mjs check-index",
+    "project:env-check": "node scripts/project-sync.mjs env-check"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

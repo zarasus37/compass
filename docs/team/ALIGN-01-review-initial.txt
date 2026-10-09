@@ -1,0 +1,87 @@
+# ALIGN-01 — independent review (remote)
+
+Task: ALIGN-01
+Author: polar (remote reviewer, no local repository access; report delivered through the user and Codex, NOT recorded by Polar)
+Base commit: 36cf4ec5420549132d0349f2f8ce3771aba7bb14 (staged tree b2654f5bd467ff73e3c4a2e05908c08dd6795610, as stated in the request)
+Changed files: none by the reviewer. Reviewed: the 43 staged paths in the packet's `staged.diff` (list under "Scope reviewed").
+Validation: Codex ran status / check / project:test locally (10 pass, 0 fail, 0 skipped; packet `verification.txt`). Polar did NOT run those. Polar's own checks: packet read, `node --check` on the extracted `scripts/project-sync.mjs`, a re-run of the 10 tests against a reconstruction of the two files built from the diff, and three small probes of the claim/review commands. Details below.
+Risks: see findings. Not verified by anyone: CI on a clean checkout, archive byte-fidelity, whether `pnpm smoke:strict` exists. Polar did not see the real working tree, `.git`, or any file outside the packet.
+Next owner: codex (address findings 1-3, then fresh handoff). Reviewer: polar re-reviews the new packet.
+
+**Recommendation: `changes_requested`** (three blocking findings, small fixes). Nothing found touches application behavior.
+
+## 1. Packet readability and completeness
+
+- `POLAR-REVIEW-PACKET.txt`: 600,164 bytes, 7,699 lines, SHA-256 `bada75ae…c9636`. Readable. Contains AGENTS.md, COORDINATION.md, project-state.json, ALIGN-01-implementation.md, HANDOFF-TEMPLATE.md, PROTOCOL.md, `staged.diff` (43 files) and `verification.txt`.
+- It matches the stated facts: HEAD and staged-tree hashes at the end of `verification.txt` equal those in the request; the UNSTAGED PATHS list is empty.
+- Gaps: (a) nine files under `docs/archive/2026-10-08/` appear only as "Binary files differ" because `.gitattributes` marks them `-text -diff`, so their contents are not reviewable from this packet; (b) no CI workflow `on:` triggers, no full `package.json`, no `.env*` (appropriately); (c) the raw bytes contain one NUL and a vertical-tab inside *removed* text of an old doc. That is pre-existing content being deleted, not packet damage.
+- The staged diff contains **no path under `src/`** (checked against all 43 diff headers), which is consistent with the handoff's "runtime source unchanged". Polar cannot confirm the 360-file hash comparison itself.
+
+## 2. Scope reviewed
+
+New: `.editorconfig`, `.gitattributes`, `.githooks/pre-commit`, `DeFi/README.md`, `design/README.md`, `HANDOVER.md`, `docs/archive/README.md`, 9 archive snapshots, `docs/project-state.json`, `docs/team/{ALIGN-01-implementation,HANDOFF-TEMPLATE,MINIMAX,POLAR,PROTOCOL}.md`, `docs/team/START-{MINIMAX,POLAR}.txt`, `scripts/project-sync.mjs` (+202), `tests/project-sync.test.mjs` (+182).
+Modified: `.github/workflows/ci.yml`, `.gitignore`, `00-DESIGN.md`, `00-MOM-LAUNCH-RUNBOOK.md`, `00-VISION.md`, `AGENTS.md`, `CLAUDE.md`, `COORDINATION.md`, `HANDOVER-TEST-INTEGRITY.md`, `README.md`, `VERCEL-DEPLOYMENTS.md`, `docs/COMPASS-AS-A-BUSINESS.md`, `docs/compass-vision{,-summary}.md`, `package.json`, `scripts/scan-encoding.mjs`, `tests/smoke-envelope-goal-persistence.mjs`.
+
+## 3. Evidence, with attribution
+
+| Claim | Who ran it | Evidence |
+| --- | --- | --- |
+| `project:status`, `project:check` exit 0 | **Codex** (locally) | packet `verification.txt` |
+| `project:test` 10/10 pass, 0 skipped | **Codex** (locally) | `verification.txt` |
+| Same 10 tests pass | **Polar**, on a *reconstruction* (the two files rebuilt from the diff, Node 20.20.2, git 2.34.1, Linux sandbox) | 10 pass / 0 fail / 0 skip. This is corroboration of the test file against the script, not a run on the real tree |
+| `project-sync.mjs` parses | **Polar** | `node --check` OK |
+| Smoke-test edit is encoding-only | **Polar** (diff read) | 8 comment lines, mojibake `â€”`/`â”€` replaced by `—`/`─`; no logic lines changed |
+| Claim, ack, verdict | **Nobody** | not recorded for Polar |
+
+## 4. Acceptance criteria
+
+1. **One current state, no competing handoffs** — Met in design (state JSON → generated COORDINATION.md; root files reduced to pointers). Exception: finding 2 (broken pointer).
+2. **Preserve history / edits / assets** — Partly verifiable. Archive copies are present, but their bytes cannot be checked from the packet. Finding 6.
+3. **Single-writer owner/reviewer workflow** — Implemented and tested for the claim/handoff/stale-approval paths. Reviewer independence is enforced only by actor-name strings. Finding 1.
+4. **Automated consistency/encoding gates** — Pass locally per Codex. CI behavior unproven; fingerprint is environment-sensitive. Finding 3.
+5. **Evidence and live limits recorded** — Honest and well scoped (no live/payment/CI claims). The "desktop delivery unavailable / awaiting acknowledgement" entries are now stale. Finding 1.
+
+## 5. Findings
+
+### Blocking
+
+**1. Protocol assumes Polar has local access; the recording path has no safe remote mode.** (the mismatch you asked me to assess)
+- Where: `AGENTS.md` ("Both apps directly access this repository"), `PROTOCOL.md` ("access the same repository directly"; `claim polar` / `ack polar` / `review polar`), `docs/team/POLAR.md`, `START-POLAR.txt`.
+- Facts: the CLI takes the actor as a plain argument. If Codex runs `review polar …` it is indistinguishable from Polar doing it. I confirmed a worse gap with a probe on the reconstruction: after `handoff codex` and `claim polar`, **`review polar ALIGN-01 approved docs/team/impl.md` succeeded using the owner's own handoff file as the "review report"** (exit 0, task `done`). `reportPath` checks only that six marker strings exist; it does not check that `Author:` equals the reviewer, that the path differs from the handoff path, that the verdict in the file matches the argument, or that the report's base commit equals HEAD.
+- Required correction (smallest that is honest):
+  1. Add a documented **remote review mode**: `review polar <task> <verdict> <report> --recorded-by codex`. Store `recordedBy`, `mode: "remote-proxy"` and `sha256(report)` in `task.review`, and render "recorded by codex for polar (remote)" in COORDINATION.md. Same for `claim`/`ack`.
+  2. In `reportPath` for reviews: require `Author:` == actor, path != `handoff.path`, a `Verdict:` line equal to the argument, and `Base commit:` == HEAD.
+  3. Proxy may only record a report whose file hash the reviewer's message quotes. For this task, the verbatim text of this report is the artifact.
+  4. `team.polar.status` should say `remote reviewer; no local acknowledgement`, not `protocol acknowledged`, unless Polar actually ran the ack. For the record: Polar has read the protocol as delivered in the packet; that is a read acknowledgement only.
+  5. Update AGENTS.md / PROTOCOL.md / POLAR.md / START-POLAR.txt with a "local or remote reviewer" paragraph, add a decision revision (e.g. DR-ALIGN-06), and refresh the handoff text that still says desktop delivery failed.
+- Interim: until 1-2 land, Codex recording `approved` or `changes_requested` "as polar" is a proxy record of an independent review, and should be described that way. It must not be described as Polar having run the command.
+
+**2. `HANDOVER.md` points to a file that is not in the change.**
+- `HANDOVER.md` is a *new* file and says "previous contents are preserved in docs/archive/2026-10-08/HANDOVER.md". The staged archive contains nine files and none is `HANDOVER.md`. The path appears exactly once in the packet (in the pointer itself). Either the archive file is missing from the stage, or the sentence is wrong because HEAD had no `HANDOVER.md`.
+- Fix: stage the archive copy if one exists, otherwise reword the pointer. Add a small link check (relative `.md` links in the pointer files and `docs/team/`) to `project-sync check` so this class is caught.
+
+**3. The content fingerprint walks the working directory, not Git, so CI can disagree with local.**
+- `fingerprint()` recurses `src/ prisma/ scripts/ tests/ public/ docker/ .github/ .githooks/ compass-landing/` with `readdirSync`. It hashes ignored and untracked files too (`.gitignore` has `_dev_*`, `*.key`, and others). CI sees only tracked files. Any ignored file in those folders gives a different digest locally and in CI, so `project:check` fails on the first push even with a clean tree locally. `check-index` only flags untracked files that are *not* ignored, so it will not catch this.
+- This is the least certain finding: I could not see whether such files exist, and `gh` auth was unavailable so CI has never run this change. It is blocking because the gate is the shared enforcement layer.
+- Fix: enumerate with `git ls-files -z --cached` (and exclude `src/generated`), or prove it on a clean `git clone` + `pnpm project:check`. Also confirm the `on:` triggers in `ci.yml`: `branch()` fails on any non-`main` branch unless it is a PR, so a `push` trigger on other branches (e.g. Dependabot) would go red.
+
+### Non-blocking
+
+4. `scripts/scan-encoding.mjs` adds `_archive`, `design`, `patch` to `SKIP`, which matches by **directory name at any depth**. Any `src/**/design/` or `src/**/patch/` folder silently escapes the encoding gate. Make these root-only (compare relative path), as is already done for `docs/archive`.
+5. Documentation regressions to confirm as intended: `README.md` lost its security model, health-check, scripts and "smoke-suite caveats" sections; `00-MOM-LAUNCH-RUNBOOK.md` went from 418 lines to a generic 8-step procedure while a live `compass-mom` deployment exists. Content is preserved only in the archive. Also `README.md` now tells readers to run `pnpm smoke:strict`; the packet's `package.json` hunk does not show that script, so I cannot confirm it exists.
+6. Archive fidelity is unproven from the packet. Provide, for the 9 files, `sha256(git show HEAD:<path>)` vs the staged blob (`git ls-files -s`), or note which are new content.
+7. Lock robustness: `mkdirSync(LOCK)` precedes the `claim.json` write and the optional `save()`. A crash or a thrown error between them leaves a partial lock that the tool only reports. A second claim by the same actor surfaces a raw `EEXIST`. Wrap in try/cleanup and give an owner message. `ack` and `claim` (ready→in_progress) call `save()`, which re-stamps `repository.contentDigest`, so any claimant can absorb drift before `check`; the frozen `handoff.contentDigest` still guards approval, so this is low risk.
+8. `.gitattributes` `* text=auto eol=lf` on an existing Windows checkout can show phantom modifications until files are renormalized. Run `git status` after a fresh clone on Windows before relying on `check-index`.
+9. Test gaps: no test for `ack`, reviewer-report validation (finding 1), untracked/ignored files (finding 3), `scan-encoding`, the hook script, or link integrity. The fixture also reads the live `docs/project-state.json` `tasks[0]`, coupling tests to the real file.
+10. `validate()` reads `t.scope.length` for non-backlog tasks without a guard; a malformed task yields a TypeError message instead of a clear one.
+
+### Checked and fine
+
+- No `src/` changes; smoke-test edit is encoding-only; `.githooks/pre-commit` is mode 100755 and never stages; `install-hooks` preserves an existing `core.hooksPath`; `env-check` never prints connection strings (and the test asserts it); atomic temp-file writes; `assign` is limited to codex and requires an empty queue and no lock; stale approval is rejected via the frozen handoff digest (tested).
+- The documents are candid about limits (no live verdict, no CI, simulated providers are not settlement). I found no fabricated evidence.
+
+## 6. What happens next
+
+1. Codex addresses 1-3 (and ideally 4, 6), runs the checks again, and writes a fresh handoff (any edit invalidates the packet I reviewed).
+2. Send Polar the updated packet. I re-review.
+3. When recording, use the proxy form from finding 1 and keep the attribution visible. No claim, ack or verdict has been recorded for Polar by this report.

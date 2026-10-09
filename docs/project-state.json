@@ -1,0 +1,455 @@
+{
+  "schemaVersion": 1,
+  "project": "Compass",
+  "updatedOn": "2026-10-09",
+  "repository": {
+    "branch": "main",
+    "remote": "origin",
+    "url": "https://github.com/zarasus37/compass.git",
+    "baselineCommit": "36cf4ec",
+    "policy": "single shared checkout; one writer; no unassigned branches",
+    "contentDigest": "76ae2038dcc207d38611e4ca9ca354d920402129974baf79c17df8f36ae67cb7",
+    "canonicalWindowsPath": "C:\\dev\\compass",
+    "canonicalWslPath": "/mnt/c/dev/compass",
+    "retiredWorkspace": "OneDrive Budget planner app checkout — retained historical copy, not a second development repo",
+    "remoteBranchNote": "Existing Dependabot proposal branches were observed; they are not newly created agent branches and were not merged or deleted."
+  },
+  "team": {
+    "codex": {
+      "role": "coordination, repository alignment, integration and verification",
+      "status": "protocol acknowledged"
+    },
+    "minimax": {
+      "role": "default implementation owner; reassigned explicitly per task",
+      "status": "protocol read acknowledged in desktop conversation; unassigned; local CLI acknowledgement pending first assignment"
+    },
+    "polar": {
+      "role": "independent remote reviewer; current conversation has no local repository access",
+      "status": "remote reviewer; protocol read acknowledgement supplied remotely; no local acknowledgement",
+      "accessMode": "remote",
+      "acknowledgement": {
+        "mode": "remote-proxy",
+        "recordedBy": "codex",
+        "sha256": "cbacbf766df18bf003473371a954a28d79f3ef53104fdc030a561be794e7de68",
+        "at": "2026-10-09T05:17:29.352Z"
+      }
+    }
+  },
+  "activeTask": null,
+  "tasks": [
+    {
+      "id": "ALIGN-01",
+      "title": "Repository cleanup and three-app coordination",
+      "status": "done",
+      "owner": "codex",
+      "reviewer": "polar",
+      "scope": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "README.md",
+        "COORDINATION.md",
+        "00-DESIGN.md",
+        "00-VISION.md",
+        "HANDOVER.md",
+        "HANDOVER-TEST-INTEGRITY.md",
+        "00-MOM-LAUNCH-RUNBOOK.md",
+        "VERCEL-DEPLOYMENTS.md",
+        "docs/",
+        "scripts/project-sync.mjs",
+        "scripts/scan-encoding.mjs",
+        "tests/project-sync.test.mjs",
+        ".github/workflows/ci.yml",
+        ".gitignore",
+        ".gitattributes",
+        ".editorconfig",
+        "package.json",
+        "design/README.md",
+        "DeFi/README.md",
+        "docs/COMPASS-AS-A-BUSINESS.md (authority label only)",
+        "tests/smoke-envelope-goal-persistence.mjs (encoding only)",
+        "docs/archive/README.md",
+        ".githooks/pre-commit",
+        "scripts/project-sync.mjs (local hook installation and staged snapshot guard)",
+        ".env (private local CLI DATABASE_URL alignment only; never staged)"
+      ],
+      "acceptance": [
+        "One authoritative current state and no competing handoff instructions",
+        "Preserve original history, existing edits, and local assets",
+        "Single-writer task claim and owner/reviewer handoffs",
+        "Automated consistency and encoding gates pass",
+        "Explicit evidence and remaining live verification recorded"
+      ],
+      "handoff": {
+        "path": "docs/team/ALIGN-01-implementation.md",
+        "actor": "codex",
+        "head": "36cf4ec5420549132d0349f2f8ce3771aba7bb14",
+        "contentDigest": "76ae2038dcc207d38611e4ca9ca354d920402129974baf79c17df8f36ae67cb7",
+        "at": "2026-10-09T05:04:07.743Z"
+      },
+      "review": {
+        "path": "docs/team/ALIGN-01-review.md",
+        "actor": "polar",
+        "verdict": "approved",
+        "mode": "remote-proxy",
+        "recordedBy": "codex",
+        "sha256": "cbacbf766df18bf003473371a954a28d79f3ef53104fdc030a561be794e7de68",
+        "head": "36cf4ec5420549132d0349f2f8ce3771aba7bb14",
+        "contentDigest": "76ae2038dcc207d38611e4ca9ca354d920402129974baf79c17df8f36ae67cb7",
+        "at": "2026-10-09T05:17:33.214Z"
+      }
+    },
+    {
+      "id": "FIN-01",
+      "title": "Canonical financial state",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    },
+    {
+      "id": "FIN-02",
+      "title": "Account/envelope ledger reconciliation",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    },
+    {
+      "id": "FIN-03",
+      "title": "Overspending and shortfall representation",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    },
+    {
+      "id": "FIN-04",
+      "title": "Transaction corrections and transfers",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    },
+    {
+      "id": "FIN-05",
+      "title": "Expected versus received paycheck events",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    },
+    {
+      "id": "FIN-06",
+      "title": "Event identity, idempotency, and concurrency",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    },
+    {
+      "id": "FIN-07",
+      "title": "State-aware allocation rules",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    },
+    {
+      "id": "FIN-08",
+      "title": "Rule conflicts and shortage priorities",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    },
+    {
+      "id": "FIN-09",
+      "title": "Audited period closing, history and rollover (tenant scoping implemented)",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    },
+    {
+      "id": "FIN-10",
+      "title": "Request clock and monthly/semi-monthly semantics (DST helpers implemented)",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    },
+    {
+      "id": "FIN-11",
+      "title": "Remove advisor/rebalance demo-state dependencies",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    },
+    {
+      "id": "AI-01",
+      "title": "Provider operation and per-user AI tiers",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    },
+    {
+      "id": "IMP-01",
+      "title": "CSV import and recurring detection",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    },
+    {
+      "id": "BANK-01",
+      "title": "Real bank linking and synchronization",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    },
+    {
+      "id": "TOOLS-01",
+      "title": "Categorization, receipt saving, household placeholders",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    },
+    {
+      "id": "LAYOUT-01",
+      "title": "Widget registry and database-backed views",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    },
+    {
+      "id": "REPORT-01",
+      "title": "Reconciled reports and decision explanations",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    },
+    {
+      "id": "VAULT-01",
+      "title": "Real off-ramp execution and settlement",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    },
+    {
+      "id": "VAULT-02",
+      "title": "Vault policy enforcement and live lifecycle proof",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    },
+    {
+      "id": "OPS-01",
+      "title": "Live deployment/backup/PWA verification and auth recovery (security foundation implemented)",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    },
+    {
+      "id": "QA-01",
+      "title": "Full financial lifecycle acceptance",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    }
+  ],
+  "implementation": {
+    "durable": "Accounts, envelopes, bills, goals, debts, transactions and paycheck allocation have database-backed implementations. Persistence does not prove complete financial correctness.",
+    "automaticPaychecks": "Scheduled cron implementation exists; it creates expected income on the pay date and is not bank-deposit confirmation.",
+    "architectureGaps": "Import and widget registries are empty; dashboard layouts are browser-local; advisor debt/simulation paths still use legacy memory state.",
+    "payments": "Safe/Aave implementations exist. Spritz and Monto payment settlement remain simulated. Never interpret their success as a paid real bill.",
+    "dataIsolation": "PayPeriod and engine preferences are now tenant-scoped (fef2873, 0f8effa). Envelope/goal mutations are durable and tenant-scoped (36cf4ec). Period-close snapshots/history remain incomplete.",
+    "auth": "Public multi-user registration with database-backed login/signup throttling is implemented (54a7b83, 17cc7c6). Household collaboration remains separate/incomplete.",
+    "hardening": "Upstream contains fail-closed cron auth, Safe transaction allowlist, vault spending-cap/signer corrections, client-error throttling, readiness/liveness health and migration verification/preflight. Preserve these; live deployment verification is separate.",
+    "dates": "DST-safe calendar-day helpers and regression smoke are implemented. Monthly/semi-monthly schedule semantics and process-scoped TODAY still require follow-up."
+  },
+  "verification": [
+    {
+      "check": "Previous full CI / restart durability",
+      "result": "historical evidence only",
+      "evidence": "docs/archive/2026-10-08/HANDOVER-TEST-INTEGRITY.md",
+      "note": "Not a current-tree or live deployment verdict."
+    },
+    {
+      "check": "Canonical branch versus remote",
+      "result": "main at 36cf4ec; origin/main at 36cf4ec on local inspection",
+      "evidence": "git log / branch; verify remote freshness before integration",
+      "note": "GitHub fetch discovered 29 newer commits relative to the retired OneDrive copy. No branches created; no app source copied from that old checkout."
+    },
+    {
+      "check": "Canonical remote refresh",
+      "result": "PASS: HEAD and freshly fetched origin/main both 36cf4ec, ahead 0 / behind 0",
+      "evidence": "git fetch origin; git rev-list --left-right --count HEAD...origin/main",
+      "note": "GitHub CLI CI lookup is unavailable because gh is not authenticated; no live CI verdict claimed."
+    },
+    {
+      "check": "Desktop delivery attempt",
+      "result": "PASS: both start messages delivered and replies verified through Computer Use",
+      "evidence": "Computer Use @oai/sky via node_repl initialization failed before app enumeration",
+      "note": "MiniMax confirmed read-only startup checks; Polar confirmed packet receipt and supplied changes_requested remote review. Original failed attempt is historical. No local Polar execution claimed."
+    },
+    {
+      "check": "Shared state and encoding",
+      "result": "PASS",
+      "evidence": "node scripts/project-sync.mjs check; node scripts/scan-encoding.mjs",
+      "note": "Original historical archives are intentionally excluded from maintained-file encoding enforcement."
+    },
+    {
+      "check": "Coordination regression suite",
+      "result": "15 passed / 0 failed / 0 skipped",
+      "evidence": "node --test tests/project-sync.test.mjs",
+      "note": "Adds report identity/base/verdict/path rejection, proxy hashes/attribution, ignored file membership, broken links, malformed scope and nested encoding coverage."
+    },
+    {
+      "check": "Runtime source preservation",
+      "result": "360 tracked src files unchanged byte for byte",
+      "evidence": "pre-cleanup tracked-inventory.json hashes compared to current files",
+      "note": "The existing persistence smoke change is eight comment lines with repaired encoding; executable test logic unchanged."
+    },
+    {
+      "check": "Local environment target alignment",
+      "result": "PASS: CLI and runtime DATABASE_URL file values match",
+      "evidence": "node scripts/project-sync.mjs env-check",
+      "note": "Both original targets were confirmed loopback PostgreSQL. Only private CLI URL changed; no credentials displayed/staged, no database operations."
+    },
+    {
+      "check": "JavaScript syntax / whitespace",
+      "result": "PASS",
+      "evidence": "node --check on both scripts and both tests; git diff --check",
+      "note": "No full runtime smoke, type/build or live-deployment verdict claimed for this documentation/tooling cleanup."
+    },
+    {
+      "check": "Targeted script ESLint",
+      "result": "PASS: zero errors",
+      "evidence": "eslint scripts/project-sync.mjs scripts/scan-encoding.mjs",
+      "note": "Existing lint config excludes test files; tests were checked by node --test and node --check."
+    },
+    {
+      "check": "Archive fidelity",
+      "result": "8/8 original working-byte hashes match",
+      "evidence": "docs/team/ALIGN-01-archive-proof.json",
+      "note": "Separate HEAD comparison disclosed; archive README is new metadata. No original bytes rewritten."
+    },
+    {
+      "check": "Clean staged index export",
+      "result": "PASS locally on Windows",
+      "evidence": "docs/team/ALIGN-01-clean-check.txt",
+      "note": "Fresh Git index reconstructed only from staged exported files passes consistency; ignored scratch absent. No remote CI claim."
+    }
+  ],
+  "deployments": {
+    "status": "not verified live in this cleanup",
+    "reference": "docs/archive/2026-10-08/VERCEL-DEPLOYMENTS.md",
+    "note": "Prior snapshot describes two deliberately separate Vercel environments. Do not consolidate or delete based on a historical snapshot."
+  },
+  "decisions": [
+    {
+      "date": "2026-10-08",
+      "id": "DR-ALIGN-01",
+      "text": "User requested cleanup and alignment before functional backlog. Codex coordinates MiniMax Desktop and Polar Desktop, both direct repository users. Default roles inferred from prior records; task ownership is explicit, not inferred from model name."
+    },
+    {
+      "date": "2026-10-08",
+      "id": "DR-ALIGN-02",
+      "text": "Current state lives only in docs/project-state.json; COORDINATION.md is generated. Product vision/spec are normative; archive is historical. PostgreSQL is the current backend, not SQLite. No live deployment, payment, database cleanup, or branch creation is part of ALIGN-01."
+    },
+    {
+      "date": "2026-10-08",
+      "id": "DR-ALIGN-03",
+      "text": "Canonical working checkout is C:\\dev\\compass at 36cf4ec, already matching origin/main. The attached OneDrive checkout was 29 commits behind; never use its state or restore its source over the canonical repo. Earlier backlog statements about global periods, signup throttling, migration verification and DST are superseded by upstream evidence."
+    },
+    {
+      "date": "2026-10-08",
+      "id": "DR-ALIGN-04",
+      "text": "Canonical upstream history already archived cluster/Polar documents; reuse docs/archive/clusters and docs/archive/handovers rather than duplicate them. Preserve upstream security/migration verification and existing deployment separation. A new 140-run encoding issue in the latest persistence smoke was found by the guard and repaired without changing its intended logic."
+    },
+    {
+      "date": "2026-10-08",
+      "id": "DR-ALIGN-05",
+      "text": "Both local database URLs were confirmed loopback PostgreSQL. CLI .env now targets the existing app .env.local database; app configuration and all other variables were preserved. Private original is in the Git-excluded recovery snapshot. No database writes, migrations or runtime fixture tests were executed."
+    },
+    {
+      "id": "DR-ALIGN-06",
+      "date": "2026-10-09",
+      "text": "Polar reviews remotely; Codex records confirmed report bytes through explicit remote-proxy claim/ack/review with report hash and attribution. MiniMax has local access and waits unassigned. Actor strings are cooperative, not authentication. User authorized ongoing desktop coordination messages. Initial changes_requested report was recorded by Codex through the legacy CLI, not executed by Polar."
+    }
+  ],
+  "timeZone": "America/Chicago"
+}

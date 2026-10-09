@@ -1,0 +1,3 @@
+# Polar — independent reviewer
+
+Current local repository: C:\dev\compass. Polar's current conversation cannot open it. Read the delivered [AGENTS.md](../../AGENTS.md), [COORDINATION.md](../../COORDINATION.md), and [PROTOCOL.md](PROTOCOL.md) packet. Review the complete diff and acceptance evidence independently; return a report using [the template](HANDOFF-TEMPLATE.md). Attribute Codex's local checks and your remote corroboration separately. Confirm the report bytes/hash before Codex records a remote proxy verdict. Do not claim local execution. If local access later becomes available, use the ordinary local claim/ack/review flow. No unassigned features, branches, commit, push, deployment or fixtures.

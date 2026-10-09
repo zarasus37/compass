@@ -1,7 +1,7 @@
 # Compass — Vision & Roadmap (source of truth)
 
 **Date**: 2026-09-25
-**Source**: `/workspace/attachments/de8639c4b248b548/vision.docx` (xkryptic, 2026-09-24)
+**Source**: User-authored vision (xKryptic, 2026-09-24), transcribed 2026-09-25. Original attachment paths are historical.
 **Audience**: Every agent working on Compass. Read this before scoping any cluster. It overrides narrow interpretations of feature requests.
 
 ---
@@ -35,14 +35,16 @@ Budgeting → Planning → Automation → Financial Policy → Financial Operati
 
 ---
 
-## 2. What Compass already has (foundation to preserve)
+## 2. Foundation and intended architecture
+
+Implementation status belongs exclusively to docs/project-state.json and generated COORDINATION.md. Roadmap phases are intended capabilities, not completion evidence.
 
 ### Product architecture
 - Next.js / React / TypeScript / Prisma
-- SQLite (legacy) with PostgreSQL-ready architecture (now Neon in prod)
+- PostgreSQL everywhere via PrismaPg; deployment configuration requires live verification
 - TanStack Query / Zustand
 - Plugin architecture / API layer / AI provider abstraction
-- Modular widget system / drag-and-drop layouts / saved views
+- Dashboard drag-and-drop exists with browser-local persistence; plugin registration and database-backed saved views remain incomplete
 
 ### Financial concepts (already in schema)
 - Accounts / Envelopes / Transactions / Pay periods / Allocation rules
