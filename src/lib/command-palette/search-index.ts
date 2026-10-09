@@ -19,6 +19,7 @@
  */
 
 import { prisma } from "@/server/db";
+import { getDebts } from "@/lib/state/financial-state";
 import { STATIC_ROUTES } from "./routes";
 import type { PaletteItem, SearchIndex } from "./types";
 
@@ -31,6 +32,16 @@ const formatCents = (cents: number): string => {
 };
 
 export async function getSearchIndex(userId: string): Promise<SearchIndex> {
+  try {
+    return await loadSearchIndex(userId);
+  } catch {
+    // Every dynamic branch can fail, including the existing direct DB reads.
+    // Preserve rejection without exposing query text or connection details.
+    throw new Error("Search is temporarily unavailable. Please retry shortly.");
+  }
+}
+
+async function loadSearchIndex(userId: string): Promise<SearchIndex> {
   // Read all five dynamic lists in parallel. The prisma
   // queries are indexed by userId; the result sets are short.
   const [envelopes, goals, accounts, bills, debts] = await Promise.all([
@@ -74,22 +85,28 @@ export async function getSearchIndex(userId: string): Promise<SearchIndex> {
         amountCents: true,
       },
     }),
-    // The Debt model is still in the in-memory store (no Prisma
-    // table yet). Read it via the existing store via a dynamic
-    // import. Safe inside a server component.
+    // FIN-01 — canonical, durable, tenant-scoped read.
+    // Replaces `mod.readDebts(userId)` from `@/lib/store`, which read
+    // process-local memory. The field list below is unchanged.
+    //
+    // B1 (Polar): a read failure must NOT become an empty result set.
+    // These branches are combined with Promise.all, so a rejected branch
+    // propagates and the caller sees a failed search rather than a
+    // search that confidently reports "no debts".
+    // N5: the stale "still in the in-memory store (no Prisma" comment
+    // that sat above this block is gone — it was no longer true.
     (async () => {
-      try {
-        const mod = await import("@/lib/store");
-        const list = mod.readDebts(userId);
-        return list.map((d) => ({
-          id: d.id,
-          name: d.name,
-          balanceCents: d.balanceCents,
-          aprBps: d.aprBps,
-        }));
-      } catch {
-        return [];
+      const res = await getDebts(userId);
+      if (!res.ok) {
+        // Sanitized code only; the DAL logs only a bounded diagnostic code.
+        throw new Error(`command-palette: ${res.error}`);
       }
+      return res.data.map((d) => ({
+        id: d.id,
+        name: d.name,
+        balanceCents: d.balanceCents,
+        aprBps: d.aprBps,
+      }));
     })(),
   ]);
 

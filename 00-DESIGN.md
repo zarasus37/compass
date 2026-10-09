@@ -453,6 +453,68 @@ A plugin registry loads from a config file. Switching providers = swap the confi
 
 ## 6. Data Model (high level)
 
+### 6a. Canonical financial-state reads (FIN-01)
+
+Server components read tenant financial state through ONE server-only
+Data Access Layer (`src/lib/state/financial-state.ts`), which queries
+Prisma directly. Process-local caches are not a valid source for
+financial reads.
+
+**Rationale.** The read surface was split: some callers read Prisma
+while others read a `globalThis` store via `src/lib/store.ts` `read*()`.
+Two of those sat on decision and mutation paths — `topOpportunities()`
+(user-facing recommendations) and `listEnvelopesForAction()` (a server
+action feeding a client dropdown) — so a stale process-local snapshot
+could drive a real decision or offer the wrong vessels. On serverless a
+cold start makes that the normal case, not an edge.
+
+**Rules that follow from this:**
+
+- Reads are **tenant-scoped and fail closed**. A blank, non-string or
+  implausible tenant id is rejected *before* Prisma is called, because
+  Prisma treats `undefined` in a `where` clause as "no filter" — the
+  difference between returning nothing and returning every tenant's
+  rows.
+- Reads **never write**. No seeding, no plan creation, no materializing
+  a pay period. A tenant with no rows reads empty; it is never handed
+  demo-persona data.
+- A read **failure is explicit and distinct from empty**. Readers return
+  a tagged result. They never fall back to process memory or to demo
+  constants on error — that silent fallback is the defect being removed.
+- That distinction continues through callers: existing DB adapters throw
+  sanitized errors, advisor tools report failure, the envelope option action
+  returns a typed error, and opportunities/search reject failed reads.
+  Stable error codes cross the DAL boundary. Server diagnostics retain only
+  bounded Prisma codes; query values, credentials and tenant data are omitted.
+- Row DTOs and the aggregate object are shallow-frozen. Arrays and Date
+  instances remain mutable; this is not a deep-immutability guarantee.
+- Selective per-entity readers exist so an envelope-only consumer does
+  not load transactions, goals or debts. The composed aggregate exists
+  for consumers that genuinely need everything, and reads inside ONE
+  `RepeatableRead` transaction so all entities share a single coherent
+  snapshot. Postgres defaults to READ COMMITTED, under which each
+  statement may observe a different commit, so the isolation level is
+  explicit rather than inherited.
+- Legacy `PayPeriod` rows with a NULL owner (from before tenant
+  scoping) are excluded: the filter is `userId`, so an unowned row is
+  simply not the caller's.
+
+**Settlement is unknown.** `Transaction.source` is *creation
+provenance* — which writer produced the row — and is returned verbatim.
+`Transaction.cleared` is stored but never written and defaults to
+`true`. Neither is evidence that money arrived. Income therefore
+carries `confirmation: "unknown"`, which asserts neither settlement nor
+failure. No reader may infer received/settled/available cash from
+`source`, `isPrimaMateria` or `cleared`. FIN-05 owns explicit writer
+semantics plus the migration and backfill.
+
+**Still deferred.** The remaining process-local readers (display pages
+`/transactions` and `/calendar`, and `vault/mock-data.ts`), the memory
+seeders, and the three mutually inconsistent definitions of "expense" /
+"auto-written" (`mock.ts`, `store.ts`, `forecast/spending-trends.ts`).
+Unifying those predicates is a financial-convention change and is not
+part of this read refactor.
+
 ```
 User
   - id, name, email, password_hash (or auth_method)

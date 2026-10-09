@@ -8,7 +8,7 @@
     "url": "https://github.com/zarasus37/compass.git",
     "baselineCommit": "36cf4ec",
     "policy": "single shared checkout; one writer; no unassigned branches",
-    "contentDigest": "676e8f92dab88d9789d674d0780290deef2d175a10d0c32205bd45d6287ca962",
+    "contentDigest": "cd9f983f575452d26b67ea7d32a161defb5f47ef0ade9385cfbf9a0cee7cb822",
     "canonicalWindowsPath": "C:\\dev\\compass",
     "canonicalWslPath": "/mnt/c/dev/compass",
     "retiredWorkspace": "OneDrive Budget planner app checkout — retained historical copy, not a second development repo",
@@ -16,17 +16,22 @@
   },
   "team": {
     "codex": {
-      "role": "coordination, repository alignment, integration and verification",
+      "role": "implementation, coordination, integration and verification",
       "status": "protocol acknowledged",
       "acknowledgement": {
         "mode": "local",
         "recordedBy": "codex",
-        "at": "2026-10-09T05:39:49.325Z"
+        "at": "2026-10-09T17:45:56.032Z"
       }
     },
     "minimax": {
-      "role": "default implementation owner; reassigned explicitly per task",
-      "status": "protocol read acknowledged in desktop conversation; unassigned; local CLI acknowledgement pending first assignment"
+      "role": "unassigned; available for a separate user-directed task",
+      "status": "protocol acknowledged; FIN-01 work transferred to codex by user direction",
+      "acknowledgement": {
+        "mode": "local",
+        "recordedBy": "minimax",
+        "at": "2026-10-09T16:36:38.22Z"
+      }
     },
     "polar": {
       "role": "independent remote reviewer; current conversation has no local repository access",
@@ -35,8 +40,8 @@
       "acknowledgement": {
         "mode": "remote-proxy",
         "recordedBy": "codex",
-        "sha256": "b3c0ac94e60cce136646d8999e5a5dac058475fecfcf0d402aa0d1f4853c04c2",
-        "at": "2026-10-09T05:50:45.821Z"
+        "sha256": "67b59e1b3b858f93837b9573aa56428a02180effd5a8c79fbe1429a7ff2f8a7a",
+        "at": "2026-10-09T17:55:35.620Z"
       }
     }
   },
@@ -186,13 +191,60 @@
     {
       "id": "FIN-01",
       "title": "Canonical financial state",
-      "status": "backlog",
-      "owner": null,
-      "reviewer": null,
-      "scope": [],
-      "acceptance": [],
-      "handoff": null,
-      "review": null
+      "status": "done",
+      "owner": "codex",
+      "reviewer": "polar",
+      "scope": [
+        "src/lib/state/financial-state.ts",
+        "src/lib/mock.ts",
+        "src/lib/opportunities.ts",
+        "src/app/(app)/envelopes/actions.ts",
+        "src/lib/advisor/handlers.ts",
+        "src/lib/command-palette/search-index.ts",
+        "tests/smoke-financial-state.mjs",
+        "package.json",
+        "00-DESIGN.md",
+        "docs/team/FIN-01-implementation.md",
+        "docs/project-state.json",
+        "AGENTS.md",
+        "docs/team/PROTOCOL.md",
+        "docs/team/MINIMAX.md",
+        "docs/team/START-MINIMAX.txt",
+        "docs/team/START-POLAR.txt",
+        "tests/financial-state-boundary.mjs",
+        "docs/team/FIN-01-implementation-v2.md",
+        "docs/team/FIN-01-implementation-v3.md",
+        "docs/team/FIN-01-review-v2.md"
+      ],
+      "acceptance": [
+        "Server-only Prisma canonical readers cover envelopes/goals/transactions/accounts/bills/debts/plan+rules and existing tenant period; no writes, seeding, memory/demo fallback or legacy unowned rows; reject blank/invalid tenant identifiers",
+        "Selective readers avoid aggregate over-fetch; aggregate uses explicit RepeatableRead snapshot with shared query definitions and documents request-cache boundaries",
+        "Selected opportunity/action/advisor/search callers and existing DB adapters use canonical readers; preserve display shapes, ordering, nullable values, integer cents and financial predicates; no schema/writer/allocation changes",
+        "Stored transaction provenance round-trips; confirmation remains unknown; no inferred received/settled/available income or reinterpretation of cleared",
+        "Two identical-looking tenants remain isolated; empty and DB-failure outcomes differ; fresh-process persistence and existing adapter compatibility proven with isolated fixtures cleaned only by owned IDs",
+        "Read installed Next guides; run env-check before isolated local runtime tests, type/lint/build and relevant smokes plus project checks; report exact evidence/skips and remaining deferred memory readers",
+        "Record scope decision/spec clarification and PR12 CI evidence; LF hash-pinned handoff with exact integrated base; no commit/push/deploy during implementation; stop for Polar independent review"
+      ],
+      "handoff": {
+        "path": "docs/team/FIN-01-implementation-v3.md",
+        "sha256": "78dbebd78223c95d05f5be5aadc0b383092efb7c153ffe9f2400aa4345693fdf",
+        "actor": "codex",
+        "head": "1f81cd7eb59b2a43d9d42e4a5b5c604582ec4cad",
+        "contentDigest": "cd9f983f575452d26b67ea7d32a161defb5f47ef0ade9385cfbf9a0cee7cb822",
+        "at": "2026-10-09T17:48:57.186Z"
+      },
+      "review": {
+        "path": "docs/team/FIN-01-review-v3.md",
+        "actor": "polar",
+        "verdict": "approved",
+        "mode": "remote-proxy",
+        "recordedBy": "codex",
+        "sha256": "67b59e1b3b858f93837b9573aa56428a02180effd5a8c79fbe1429a7ff2f8a7a",
+        "handoffIntact": true,
+        "head": "1f81cd7eb59b2a43d9d42e4a5b5c604582ec4cad",
+        "contentDigest": "cd9f983f575452d26b67ea7d32a161defb5f47ef0ade9385cfbf9a0cee7cb822",
+        "at": "2026-10-09T17:55:37.824Z"
+      }
     },
     {
       "id": "FIN-02",
@@ -418,12 +470,18 @@
   "implementation": {
     "durable": "Accounts, envelopes, bills, goals, debts, transactions and paycheck allocation have database-backed implementations. Persistence does not prove complete financial correctness.",
     "automaticPaychecks": "Scheduled cron implementation exists; it creates expected income on the pay date and is not bank-deposit confirmation.",
-    "architectureGaps": "Import and widget registries are empty; dashboard layouts are browser-local; advisor debt/simulation paths still use legacy memory state.",
+    "architectureGaps": "Import and widget registries are empty; dashboard layouts are browser-local; advisor simulation/paycheck paths still use legacy memory state. Advisor envelope/debt queries now use canonical DB-backed reads.",
     "payments": "Safe/Aave implementations exist. Spritz and Monto payment settlement remain simulated. Never interpret their success as a paid real bill.",
     "dataIsolation": "PayPeriod and engine preferences are now tenant-scoped (fef2873, 0f8effa). Envelope/goal mutations are durable and tenant-scoped (36cf4ec). Period-close snapshots/history remain incomplete.",
     "auth": "Public multi-user registration with database-backed login/signup throttling is implemented (54a7b83, 17cc7c6). Household collaboration remains separate/incomplete.",
     "hardening": "Upstream contains fail-closed cron auth, Safe transaction allowlist, vault spending-cap/signer corrections, client-error throttling, readiness/liveness health and migration verification/preflight. Preserve these; live deployment verification is separate.",
-    "dates": "DST-safe calendar-day helpers and regression smoke are implemented. Monthly/semi-monthly schedule semantics and process-scoped TODAY still require follow-up."
+    "dates": "DST-safe calendar-day helpers and regression smoke are implemented. Monthly/semi-monthly schedule semantics and process-scoped TODAY still require follow-up.",
+    "canonicalReads": "Server-only tenant-scoped DAL for envelopes, goals, transactions, accounts, bills, debts, allocation plan/rules and stored period. Per-entity readers are request-cached and the aggregate uses an explicit RepeatableRead transaction. Invalid tenant identifiers fail before querying; legacy NULL-owner periods remain excluded. Reads never write, seed, or fall back to memory. Failures remain distinguishable through adapters/actions/advisor/opportunities/search. Caller-visible errors are stable codes or fixed messages, and server diagnostics omit raw query and connection values. Row DTOs/aggregate are shallow-frozen; arrays and Dates are mutable. Independent re-review pending; persistence is not deposit confirmation or full financial correctness.",
+    "deferredReaders": "Still process-local after FIN-01: the /transactions and /calendar display pages, vault/mock-data.ts, and the memory seeders in store.ts. Three mutually inconsistent expense/auto predicates also remain (mock.ts isAuto, store.ts isAuto, forecast/spending-trends.ts SQL rule); unifying them is a convention change, not a read refactor. Transaction.cleared remains an unwritten dead column; wiring it is FIN-05. Advisor simulate/paycheck paths still use legacy memory state.",
+    "settlementSemantics": "Income confirmation is unknown. apply-paycheck writes source \"recurring\" for a cron-created paycheck and \"manual\" for a user-clicked one; log-transaction writes \"manual\" for a user-logged entry. All are creation provenance. No stored field records settlement, so nothing may infer received/settled/available cash.",
+    "readFailureSemantics": "A failed financial read is distinguishable at every layer. The DAL returns a stable code (read-failed / invalid-tenant-id) and never err.message; liveEnvelopesFromDb and liveGoalsFromDb rethrow sanitized errors as they did before FIN-01; listEnvelopesForAction returns a typed error result; advisor tools return ok:false with fixed strings; topOpportunities throws; the command-palette branch rejects. Proven by induced-failure tests in tests/smoke-financial-state.mjs (78 checks).",
+    "evidenceClassification": "Codex local smoke: 138 checks passed. Real Postgres fixtures cover isolation for every aggregate entity, populated-goal adapter compatibility, empty results, provenance, fresh-process reads, and owned fixture cleanup. Instrumented real queries prove each selective reader limits its query set and the aggregate uses its transaction client. A separate Postgres connection commits between envelope and late account reads; the aggregate retains the original snapshot. Induced query-method failures exercise every reader and changed caller; action bundles stub only session/Prisma boundaries. These failure probes are not a real network outage. Polar remote review remains independent.",
+    "financialStateEvidence": "Codex corrected standalone smoke 148/148. Prior v2 advisor assertions were vacuous (wrong dispatcher signature) and are superseded: actual handler name and exact retry messages now required under query failure; healthy empty controls return ok:true count:0. All other v2 runtime evidence remains applicable; production files unchanged."
   },
   "verification": [
     {
@@ -515,6 +573,24 @@
       "result": "PASS: full CI and security workflows; PR 11 merged",
       "evidence": "https://github.com/zarasus37/compass/actions/runs/37888335589",
       "note": "Full CI 14m39s. Preview deployment checks passed separately. Production health remains unverified."
+    },
+    {
+      "check": "FIN-01 ownership transfer",
+      "result": "Codex owner; Polar reviewer; MiniMax stopped and unassigned",
+      "evidence": "Desktop acknowledgements and project-sync claim records, 2026-10-09",
+      "note": "MiniMax reports all commands finished or cancelled, no outstanding fixture cleanup and no port 3000 listener. Its full smoke suite was interrupted during the user-directed transfer and is incomplete, not a pass. Partial revision remains unreviewed. Codex verified unchanged staged tree, preserved report hashes, clean consistency/encoding/whitespace after authority guidance changes."
+    },
+    {
+      "check": "FIN-01 Codex local verification",
+      "result": "Standalone smoke 138/138; project tests 18/18; type/build exit 0; lint 0 errors, 459 warnings; full smoke:all:server exit 0, integration 368/0 including M5",
+      "evidence": "Codex local logs and FIN-01 v2 handoff; full data/UI/integration/deploy-environment suite passed on an owned disposable loopback database, which was removed after completion",
+      "note": "Fresh remote base comparison 0/0. Baseline export validation unavailable: dependency junction rejected by Turbopack and webpack fallback page-export type checks failed. M5 cause remains unresolved; no pre-existing-causality claim."
+    },
+    {
+      "check": "FIN-01 advisor test correction",
+      "result": "Standalone smoke 148/148 exit 0; no Unknown advisor tool output",
+      "evidence": "Codex FIN-01 v3 smoke log, exact production hash comparison to v2 packet",
+      "note": "Full suite green on v2 production bytes; not repeated for this test-only delta. No CI or production health verification yet."
     }
   ],
   "deployments": {
@@ -562,6 +638,36 @@
       "id": "DR-ALIGN-08",
       "date": "2026-10-09",
       "text": "Address ALIGN-02 non-blocking evidence portability and recovery findings before FIN-01. Preserve exact-byte report hashes by refusing CRLF evidence at submission. Only an independent changes_requested verdict may return damaged handoffs to the owner; approval stays fail-closed. PR 11 passed full CI and merged; follow-ups integrate through a separate reviewed PR."
+    },
+    {
+      "id": "DR-FIN-01",
+      "date": "2026-10-09",
+      "text": "Canonical financial-state reads move to a server-only Data Access Layer (src/lib/state/financial-state.ts) querying Prisma, following the installed Next data-security guide. Three consequences are normative, not incidental. (1) The aggregate reads inside ONE explicit RepeatableRead transaction: Postgres defaults to READ COMMITTED, under which each statement may observe a different commit, so wrapping reads in prisma.$transaction alone would NOT give a coherent snapshot. This is a read-consistency decision only; no writer, allocation rule or ledger behaviour changes. (2) Settlement is UNKNOWN: Transaction.source is creation provenance and Transaction.cleared is stored but never written, so neither evidences a deposit. Income carries confirmation:\"unknown\" and no reader may infer received/settled/available from source, isPrimaMateria or cleared. FIN-05 owns writer semantics plus migration and backfill. (3) The three inconsistent definitions of expense/auto-written (mock.ts, store.ts, forecast/spending-trends.ts) are deliberately NOT unified here; that is a financial-convention change with its own revision."
+    },
+    {
+      "id": "DR-FIN-02",
+      "date": "2026-10-09",
+      "text": "FIN-01 revision 2, after Polar's changes_requested review. A read failure must remain DISTINGUISHABLE at every changed caller, not only inside the DAL. The first revision tagged the DAL result and then had three callers convert it to an empty list, so a database outage looked like an empty account and the advisor's handler contract ('empty means you have no envelopes') would have told the user their money was gone. Now: the mock.ts adapters rethrow a sanitized error exactly as they did before FIN-01; listEnvelopesForAction returns a typed error result; the advisor returns ok:false with a fixed message; topOpportunities throws; the command-palette branch rejects through its existing Promise.all. Separately, raw database errors must never leave the server: the DAL returns one of two stable codes (read-failed / invalid-tenant-id) and logs the underlying error server-side only, because Prisma connection text carries host, port, user name and invocation text and the advisor serialises its error into the LLM's tool result, which reaches the user. Throwing rather than widening topOpportunities' return type is what keeps this inside its file scope, since src/app/page.tsx and learn/your-numbers call it. For N2 the action's contract is widened to PlanetId | null instead of substituting a planet: no caller of listEnvelopesForAction exists in src, and NewTransactionForm already types planet as nullable, so no scope extension was required."
+    },
+    {
+      "id": "DR-FIN-03",
+      "date": "2026-10-09",
+      "text": "User-directed role change, superseding the default role assignment. Compass will use Codex for implementation, coordination, integration and verification, and Polar for independent review. MiniMax Desktop becomes unassigned and available for a separate user-directed task. FIN-01 ownership transfers to codex as PARTIAL work: Polar's review verdict remains changes_requested with its pinned hash intact, and the scope, acceptance, handoff and review evidence are carried over unchanged. MiniMax had already completed revision 2 of B1-B3 in the shared checkout (stable DAL error codes, failure propagation at every changed caller, and a 78-check smoke with induced failures) but did NOT submit a new handoff, so that revision is uncommitted, unreviewed work on top of the pinned 9df38019 handoff. Codex must reconcile the authority docs, decide what of that revision to keep, and finish B1-B3."
+    },
+    {
+      "id": "DR-FIN-04",
+      "date": "2026-10-09",
+      "text": "Codex completion after ownership transfer: preserve failure through all changed callers, sanitize all search branches, and retain only bounded Prisma diagnostic codes in server logs. B3 is exercised at the actual query/caller boundary, across every selective reader and aggregate entity, plus a concurrent owned-fixture snapshot on Postgres. The action probe stubs session/Prisma boundaries; it does not claim end-to-end auth coverage. No schema/writer/allocation/display migrations. Original pinned MiniMax handoff and Polar changes_requested report remain unchanged; submit a separate Codex v2 handoff."
+    },
+    {
+      "id": "DR-OPS-01",
+      "date": "2026-10-09",
+      "text": "User gave standing authorization for Codex to commit and push completed changes and deploy intended releases. Continue independent Polar review and required validation, publish a codex remote PR branch, verify checks, then integrate. Canonical local main stays the shared checkout. Authorization is not evidence of successful CI, deployment or production health."
+    },
+    {
+      "id": "DR-FIN-05",
+      "date": "2026-10-09",
+      "text": "Polar v2 found incorrect advisor dispatcher calls made tests vacuous. Codex corrected both test files, added exact tool/message assertions and healthy-empty success controls, and ran 148/148 on canonical Postgres. No production file bytes changed. Original reports and v2 handoff remain pinned; submit separate v3 delta handoff. M5 cause unresolved; full suite previously passed once, not claimed fixed."
     }
   ],
   "timeZone": "America/Chicago"
