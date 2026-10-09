@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, cpSync, writeFileSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, cpSync, writeFileSync, readFileSync, rmSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -280,4 +280,52 @@ test("handoff bytes are pinned and tampering fails before and after approval", (
     writeFileSync(join(f.root, report), Buffer.concat([original, Buffer.from("\nAltered after approval\n")]));
     assert.match(f.run("check").output, /evidence hash changed/);
   } finally { f.cleanup(); }
+});
+
+test("CRLF evidence is refused without moving the task or releasing the claim", () => {
+  const f = fixture();
+  try {
+    f.run("claim", "codex", "ALIGN-01");
+    const report = f.report("implementation"), full = join(f.root, report), original = readFileSync(full, "utf8");
+    writeFileSync(full, original.replaceAll("\n", "\r\n"));
+    assert.match(f.run("handoff", "codex", "ALIGN-01", report).output, /must use LF/);
+    assert.equal(JSON.parse(readFileSync(join(f.root, "docs/project-state.json"))).tasks[0].handoff, null);
+    assert.equal(f.run("claim", "polar", "ALIGN-01").code, 1);
+    writeFileSync(full, original);
+    assert.equal(f.run("handoff", "codex", "ALIGN-01", report).code, 0);
+    f.run("claim", "polar", "ALIGN-01");
+    const review = f.report("review"), reviewFull = join(f.root, review), reviewBytes = readFileSync(reviewFull, "utf8");
+    writeFileSync(reviewFull, reviewBytes.replaceAll("\n", "\r\n"));
+    assert.match(f.run("review", "polar", "ALIGN-01", "approved", review).output, /must use LF/);
+    writeFileSync(reviewFull, reviewBytes);
+    assert.equal(f.run("review", "polar", "ALIGN-01", "approved", review).code, 0);
+  } finally { f.cleanup(); }
+});
+
+test("independent changes_requested recovers altered or missing handoffs without accepting them", () => {
+  for (const missing of [false, true]) {
+    const f = fixture();
+    try {
+      f.run("claim", "codex", "ALIGN-01");
+      const report = f.report("implementation"), full = join(f.root, report), original = readFileSync(full);
+      f.run("handoff", "codex", "ALIGN-01", report);
+      const statePath = join(f.root, "docs/project-state.json"), pinned = JSON.parse(readFileSync(statePath)).tasks[0].handoff.sha256;
+      if (missing) unlinkSync(full); else writeFileSync(full, "Damaged evidence\n");
+      f.run("claim", "polar", "ALIGN-01");
+      const review = f.report("review"), reviewFull = join(f.root, review);
+      assert.equal(f.run("review", "polar", "ALIGN-01", "approved", review).code, 1);
+      writeFileSync(reviewFull, readFileSync(reviewFull, "utf8").replace("Verdict: approved", "Verdict: changes_requested"));
+      assert.equal(f.run("review", "polar", "ALIGN-01", "changes_requested", review).code, 0);
+      const s = JSON.parse(readFileSync(statePath));
+      assert.equal(s.tasks[0].review.handoffIntact, false);
+      assert.equal(s.tasks[0].handoff.sha256, pinned);
+      assert.equal(f.run("check").code, 1);
+      assert.equal(f.run("claim", "codex", "ALIGN-01").code, 0);
+      writeFileSync(full, original);
+      assert.equal(f.run("handoff", "codex", "ALIGN-01", report).code, 0);
+      assert.equal(f.run("check").code, 0);
+      f.run("claim", "polar", "ALIGN-01");
+      assert.equal(f.run("review", "polar", "ALIGN-01", "approved", f.report("review")).code, 0);
+    } finally { f.cleanup(); }
+  }
 });

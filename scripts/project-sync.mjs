@@ -118,6 +118,7 @@ function reportPath(value, expected) {
   const full = resolve(ROOT, value); const rel = relative(ROOT, full).replaceAll("\\", "/");
   if (!rel.startsWith("docs/team/") || !existsSync(full)) fail("Evidence must be an existing file under docs/team/.");
   const body = readFileSync(full, "utf8");
+  if (body.includes("\r")) fail("Evidence must use LF line endings before submission; save as LF and resubmit. Exact-byte hashes are not normalized.");
   for (const marker of ["Task:", "Author:", "Base commit:", "Changed files:", "Validation:", "Risks:", "Next owner:"]) if (!body.includes(marker)) fail(`Evidence missing ${marker}`);
   if (expected) {
     const field = (name) => body.match(new RegExp(`^${name}:\\s*(.+)$`, "m"))?.[1].trim();
@@ -212,12 +213,13 @@ try {
     const [who, id, verdict, path, ...extra] = args; actor(who); const claim = requireClaim(who, id); branch(s); const t = task(s, id); const mode = proxyOptions(who, extra);
     if (t.reviewer !== who || t.status !== "in_review") fail("Only the assigned reviewer may review this handoff.");
     if (!["approved", "changes_requested"].includes(verdict)) fail("Verdict must be approved or changes_requested.");
-    if (t.handoff.sha256 && createHash("sha256").update(readFileSync(join(ROOT, t.handoff.path))).digest("hex") !== t.handoff.sha256) fail("Implementation handoff bytes changed; require a fresh owner handoff before review.");
+    const handoffIntact = existsSync(join(ROOT, t.handoff.path)) && (!t.handoff.sha256 || createHash("sha256").update(readFileSync(join(ROOT, t.handoff.path))).digest("hex") === t.handoff.sha256);
+    if (verdict === "approved" && !handoffIntact) fail("Implementation handoff bytes changed or missing; request changes and require a fresh owner handoff before approval.");
     if (verdict === "approved" && t.handoff.contentDigest !== fingerprint()) fail("Implementation changed since handoff. Request changes and require a fresh handoff before approval.");
     const report = reportPath(path, { id, actor: who, verdict, handoff: t.handoff.path });
     const sha256 = createHash("sha256").update(readFileSync(join(ROOT, report))).digest("hex");
     if (mode.mode !== (claim.mode ?? "local") || (mode.mode === "remote-proxy" && (sha256 !== mode.sha256 || sha256 !== claim.sha256))) fail("Remote report bytes and reviewer-confirmed hash must match the proxy claim and verdict.");
-    t.review = { path: report, actor: who, verdict, ...mode, sha256, head: git("rev-parse", "HEAD"), contentDigest: fingerprint(), at: new Date().toISOString() };
+    t.review = { path: report, actor: who, verdict, ...mode, sha256, handoffIntact, head: git("rev-parse", "HEAD"), contentDigest: fingerprint(), at: new Date().toISOString() };
     t.status = verdict === "approved" ? "done" : "changes_requested";
     if (t.status === "done") s.activeTask = null;
     save(s); rmSync(LOCK, { recursive: true }); console.log(`${id}: ${verdict}. Review completion is not a commit, push or deployment.`);

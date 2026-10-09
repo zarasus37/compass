@@ -1,5 +1,7 @@
 # TASK-ID — implementation handoff / independent review
 
+Save as UTF-8 with LF before submission; CRLF is refused. New handoffs pin exact bytes with SHA-256: stop editing after handoff. If evidence changes or disappears, the reviewer records a separate changes_requested report; the owner restores evidence and submits a fresh handoff. Approval cannot bypass the pin.
+
 Task: TASK-ID
 Author: codex
 Base commit: exact full Git SHA
