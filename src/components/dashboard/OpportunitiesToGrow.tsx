@@ -23,10 +23,27 @@ import { PLANET_COLORS } from "@/components/alchemy/VesselGlyph";
 import type { Opportunity } from "@/lib/opportunities";
 
 export interface OpportunitiesToGrowProps {
-  opportunities: Opportunity[];
+  opportunities: Opportunity[] | null;
 }
 
 export function OpportunitiesToGrow({ opportunities }: OpportunitiesToGrowProps) {
+  if (opportunities === null) {
+    return (
+      <section
+        aria-label="Ways to grow safe-to-spend"
+        style={{
+          background: "var(--vessel-surface)",
+          border: "1px solid var(--vessel-border)",
+          borderRadius: 4,
+          padding: "18px 22px 16px",
+        }}
+      >
+        <p role="status" style={{ margin: 0, color: "var(--ink-2)" }}>
+          Recommendations are temporarily unavailable. Refresh the page to try again.
+        </p>
+      </section>
+    );
+  }
   const hasAny = opportunities.length > 0;
 
   return (

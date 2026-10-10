@@ -59,8 +59,8 @@ export interface SafeToSpendHeroData {
   day: number;
   totalDays: number;
   breakdown: PaycheckBreakdown;
-  /** Top opportunities to grow the safe-to-spend (from topOpportunities). */
-  opportunities: Opportunity[];
+  /** Top opportunities; null means the recommendations read failed. */
+  opportunities: Opportunity[] | null;
 }
 
 export function SafeToSpendHero({

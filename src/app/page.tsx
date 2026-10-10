@@ -127,8 +127,12 @@ export default async function Dashboard() {
   );
   const safeCents = safeToSpend(breakdown);
   // Top 3 ways to grow the safe-to-spend number (Cluster 3.2.5).
-  // Pure engine in src/lib/opportunities.ts; no I/O here.
-  const topGrowOpportunities = await topOpportunities(user.id, { limit: 3 });
+  // Recommendations are optional. Keep a failed read distinct from a healthy
+  // empty result so this section cannot reject an otherwise healthy dashboard.
+  const topGrowOpportunities = await topOpportunities(user.id, { limit: 3 }).catch(() => {
+    console.error("[dashboard] Recommendations unavailable");
+    return null;
+  });
   // 7-day window: oldest first, today last.
   // Used by the Weekly Health sparkline (Daily Tracking card).
   const last7Days: Date[] = [];
