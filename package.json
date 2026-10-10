@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "tsc": "tsc --noEmit",
+    "test:dashboard": "node --test tests/dashboard-opportunities.test.mjs",
     "db:up": "docker compose -f docker-compose.dev.yml up -d",
     "db:down": "docker compose -f docker-compose.dev.yml down",
     "db:reset": "docker compose -f docker-compose.dev.yml down -v && pnpm db:up && pnpm db:migrate",
@@ -35,7 +36,7 @@
     "project:status": "node scripts/project-sync.mjs status",
     "project:sync": "node scripts/project-sync.mjs generate",
     "project:check": "node scripts/project-sync.mjs check && node scripts/scan-encoding.mjs",
-    "project:test": "node --test tests/project-sync.test.mjs",
+    "project:test": "node --test tests/project-sync.test.mjs && pnpm test:dashboard",
     "project:install-hooks": "node scripts/project-sync.mjs install-hooks",
     "project:check-index": "node scripts/project-sync.mjs check-index",
     "project:env-check": "node scripts/project-sync.mjs env-check"

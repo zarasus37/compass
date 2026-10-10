@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "project": "Compass",
-  "updatedOn": "2026-10-09",
+  "updatedOn": "2026-10-10",
   "repository": {
     "branch": "main",
     "remote": "origin",
     "url": "https://github.com/zarasus37/compass.git",
     "baselineCommit": "36cf4ec",
     "policy": "single shared checkout; one writer; no unassigned branches",
-    "contentDigest": "cd9f983f575452d26b67ea7d32a161defb5f47ef0ade9385cfbf9a0cee7cb822",
+    "contentDigest": "32ce44ab822608d5066d006bd67e9a1b5104608dc5865b528b884385e41ede60",
     "canonicalWindowsPath": "C:\\dev\\compass",
     "canonicalWslPath": "/mnt/c/dev/compass",
     "retiredWorkspace": "OneDrive Budget planner app checkout — retained historical copy, not a second development repo",
@@ -21,7 +21,7 @@
       "acknowledgement": {
         "mode": "local",
         "recordedBy": "codex",
-        "at": "2026-10-09T17:45:56.032Z"
+        "at": "2026-10-10T13:33:36.357Z"
       }
     },
     "minimax": {
@@ -40,8 +40,8 @@
       "acknowledgement": {
         "mode": "remote-proxy",
         "recordedBy": "codex",
-        "sha256": "67b59e1b3b858f93837b9573aa56428a02180effd5a8c79fbe1429a7ff2f8a7a",
-        "at": "2026-10-09T17:55:35.620Z"
+        "sha256": "bfb6a8de6ab5e8e37d152b58daeceb863070ae680651eefb83b19053aa60be80",
+        "at": "2026-10-10T14:56:54.327Z"
       }
     }
   },
@@ -465,9 +465,54 @@
       "acceptance": [],
       "handoff": null,
       "review": null
+    },
+    {
+      "id": "FIN-01-N2",
+      "title": "Isolate dashboard recommendation read failures",
+      "status": "done",
+      "owner": "codex",
+      "reviewer": "polar",
+      "scope": [
+        "src/app/page.tsx",
+        "src/components/dashboard/cards/safe-to-spend-hero.tsx",
+        "src/components/dashboard/OpportunitiesToGrow.tsx",
+        "tests/dashboard-opportunities.test.mjs",
+        "package.json",
+        "docs/project-state.json",
+        "COORDINATION.md",
+        "docs/team/FIN-01-N2-implementation.md",
+        "docs/team/FIN-01-N2-review.md"
+      ],
+      "acceptance": [
+        "A rejected recommendations read does not reject the otherwise healthy root dashboard",
+        "Unavailable recommendations show a fixed retry message, distinct from a healthy empty result",
+        "Healthy recommendation content and tenant/limit arguments are preserved",
+        "Induced failure test executes the real dashboard component and UI; required type lint build and coordination checks pass"
+      ],
+      "handoff": {
+        "path": "docs/team/FIN-01-N2-implementation.md",
+        "sha256": "7e0a365418ba78a74c18f7c42ee62de445c2485ebb452b38448422c0dcf9a67b",
+        "actor": "codex",
+        "head": "0d8c5ef38840ffc3267e8e8911804fdab0f78284",
+        "contentDigest": "32ce44ab822608d5066d006bd67e9a1b5104608dc5865b528b884385e41ede60",
+        "at": "2026-10-10T13:40:15.421Z"
+      },
+      "review": {
+        "path": "docs/team/FIN-01-N2-review.md",
+        "actor": "polar",
+        "verdict": "approved",
+        "mode": "remote-proxy",
+        "recordedBy": "codex",
+        "sha256": "bfb6a8de6ab5e8e37d152b58daeceb863070ae680651eefb83b19053aa60be80",
+        "handoffIntact": true,
+        "head": "0d8c5ef38840ffc3267e8e8911804fdab0f78284",
+        "contentDigest": "32ce44ab822608d5066d006bd67e9a1b5104608dc5865b528b884385e41ede60",
+        "at": "2026-10-10T14:56:56.483Z"
+      }
     }
   ],
   "implementation": {
+    "dashboardRecommendations": "FIN-01-N2 candidate: root dashboard catches only topOpportunities rejection and passes null to its recommendation UI. A fixed unavailable/retry message replaces financial empty-state claims on failure. Authentication and required financial reads still propagate failures. Independent Polar review pending.",
     "durable": "Accounts, envelopes, bills, goals, debts, transactions and paycheck allocation have database-backed implementations. Persistence does not prove complete financial correctness.",
     "automaticPaychecks": "Scheduled cron implementation exists; it creates expected income on the pay date and is not bank-deposit confirmation.",
     "architectureGaps": "Import and widget registries are empty; dashboard layouts are browser-local; advisor simulation/paycheck paths still use legacy memory state. Advisor envelope/debt queries now use canonical DB-backed reads.",
@@ -484,6 +529,12 @@
     "financialStateEvidence": "Codex corrected standalone smoke 148/148. Prior v2 advisor assertions were vacuous (wrong dispatcher signature) and are superseded: actual handler name and exact retry messages now required under query failure; healthy empty controls return ok:true count:0. All other v2 runtime evidence remains applicable; production files unchanged."
   },
   "verification": [
+    {
+      "check": "FIN-01-N2 local verification",
+      "result": "PASS: dashboard regression 4/4, coordination 18/18, type/build exit 0, lint 0 errors and 459 existing warnings, alignment/encoding clean",
+      "evidence": "docs/team/FIN-01-N2-implementation.md; logs in C:/Users/crisc/.codex/compass-deliverables/FIN-01-N2-*.log",
+      "note": "Codex local runs only. Baseline page reproduces exactly one failing regression case with three controls passing. No full DB smoke, remote CI or deployment run for this candidate. Polar desktop delivery failed with unavailable input geometry and capture timeout; no acknowledgement claimed."
+    },
     {
       "check": "Previous full CI / restart durability",
       "result": "historical evidence only",
@@ -668,6 +719,11 @@
       "id": "DR-FIN-05",
       "date": "2026-10-09",
       "text": "Polar v2 found incorrect advisor dispatcher calls made tests vacuous. Codex corrected both test files, added exact tool/message assertions and healthy-empty success controls, and ran 148/148 on canonical Postgres. No production file bytes changed. Original reports and v2 handoff remain pinned; submit separate v3 delta handoff. M5 cause unresolved; full suite previously passed once, not claimed fixed."
+    },
+    {
+      "id": "DR-FIN-06",
+      "date": "2026-10-10",
+      "text": "User authorized the recommended completion sequence. First isolate FIN-01 N2 recommendation failures on the root dashboard, then proceed to FIN-02 ledger reconciliation after independent review and integration. A recommendation failure is explicitly unavailable, never a successful empty result. Codex bootstrapped this new queue entry under an exclusive writer claim because assign only accepts existing task IDs."
     }
   ],
   "timeZone": "America/Chicago"
