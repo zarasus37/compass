@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "project": "Compass",
-  "updatedOn": "2026-10-10",
+  "updatedOn": "2026-10-13",
   "repository": {
     "branch": "main",
     "remote": "origin",
     "url": "https://github.com/zarasus37/compass.git",
     "baselineCommit": "36cf4ec",
     "policy": "single shared checkout; one writer; no unassigned branches",
-    "contentDigest": "32ce44ab822608d5066d006bd67e9a1b5104608dc5865b528b884385e41ede60",
+    "contentDigest": "9e26865d082a1b840ecfd9aa4a45e8e86ff35fa770ac5f9403ccb170b18de884",
     "canonicalWindowsPath": "C:\\dev\\compass",
     "canonicalWslPath": "/mnt/c/dev/compass",
     "retiredWorkspace": "OneDrive Budget planner app checkout — retained historical copy, not a second development repo",
@@ -21,7 +21,7 @@
       "acknowledgement": {
         "mode": "local",
         "recordedBy": "codex",
-        "at": "2026-10-10T13:33:36.357Z"
+        "at": "2026-10-10T15:13:00.688Z"
       }
     },
     "minimax": {
@@ -40,8 +40,8 @@
       "acknowledgement": {
         "mode": "remote-proxy",
         "recordedBy": "codex",
-        "sha256": "bfb6a8de6ab5e8e37d152b58daeceb863070ae680651eefb83b19053aa60be80",
-        "at": "2026-10-10T14:56:54.327Z"
+        "sha256": "82647df13e0dd80dbfa74e92802edcca2e106eee38d4fd09cfefdb2ab3fc32f2",
+        "at": "2026-10-13T12:03:55.029Z"
       }
     }
   },
@@ -509,6 +509,49 @@
         "contentDigest": "32ce44ab822608d5066d006bd67e9a1b5104608dc5865b528b884385e41ede60",
         "at": "2026-10-10T14:56:56.483Z"
       }
+    },
+    {
+      "id": "FIN-02-SEC",
+      "title": "Reject foreign or missing paycheck accounts before allocation",
+      "status": "done",
+      "owner": "codex",
+      "reviewer": "polar",
+      "scope": [
+        "src/lib/apply-paycheck.ts",
+        "tests/smoke-paycheck-account-isolation.mjs",
+        "package.json",
+        "docs/project-state.json",
+        "COORDINATION.md",
+        "docs/team/FIN-02-SEC-implementation.md",
+        "docs/team/FIN-02-SEC-review.md"
+      ],
+      "acceptance": [
+        "A foreign, missing, or blank explicit account receives the same safe failure and creates no financial writes for either tenant",
+        "Omitted account selection uses only the caller account; an owned explicit account still succeeds",
+        "Ownership is checked in the allocation transaction before any financial mutation",
+        "Real PostgreSQL tests use two UUID-owned tenants and verify balances, transaction/account IDs, run rows, goals and audit effects; healthy and idempotent controls pass",
+        "No schema, balance convention, settlement semantics or allocation math changes; required type lint build and coordination checks pass"
+      ],
+      "handoff": {
+        "path": "docs/team/FIN-02-SEC-implementation.md",
+        "sha256": "93f9f54e48ae027f161249d06550e3b8bcd2d6ad2162eb9b64fb0c80ccccf42f",
+        "actor": "codex",
+        "head": "bd1b26e3a15aeab678a6c50e140e717643203824",
+        "contentDigest": "9e26865d082a1b840ecfd9aa4a45e8e86ff35fa770ac5f9403ccb170b18de884",
+        "at": "2026-10-10T15:18:56.174Z"
+      },
+      "review": {
+        "path": "docs/team/FIN-02-SEC-review.md",
+        "actor": "polar",
+        "verdict": "approved",
+        "mode": "remote-proxy",
+        "recordedBy": "codex",
+        "sha256": "82647df13e0dd80dbfa74e92802edcca2e106eee38d4fd09cfefdb2ab3fc32f2",
+        "handoffIntact": true,
+        "head": "bd1b26e3a15aeab678a6c50e140e717643203824",
+        "contentDigest": "9e26865d082a1b840ecfd9aa4a45e8e86ff35fa770ac5f9403ccb170b18de884",
+        "at": "2026-10-13T12:03:57.238Z"
+      }
     }
   ],
   "implementation": {
@@ -529,6 +572,18 @@
     "financialStateEvidence": "Codex corrected standalone smoke 148/148. Prior v2 advisor assertions were vacuous (wrong dispatcher signature) and are superseded: actual handler name and exact retry messages now required under query failure; healthy empty controls return ok:true count:0. All other v2 runtime evidence remains applicable; production files unchanged."
   },
   "verification": [
+    {
+      "check": "FIN-02-SEC Codex local verification",
+      "result": "PASS: PostgreSQL account isolation43/43; baseline foreign-account case fails; type/build exit0; lint0 errors459 baseline warnings; coordination18/18 and dashboard4/4; alignment/encoding clean",
+      "evidence": "docs/team/FIN-02-SEC-implementation.md; C:/Users/crisc/.codex/compass-deliverables/FIN-02-SEC-*.log",
+      "note": "New smoke calls actual applyPaycheck and PostgreSQL on UUID-owned fixtures only. No browser action, full smoke chain, remote CI, independent review or deployment evidence for this delta yet. FIN-02 reconciliation still incomplete."
+    },
+    {
+      "check": "FIN-01-N2 reviewed PR integration and production readiness",
+      "result": "PASS: PR14 merged as bd1b26e; reviewed and merged tree identical; all PR checks passed; both production deployments READY for merge SHA; both health endpoints HTTP200 ok/live/ready",
+      "evidence": "https://github.com/zarasus37/compass/pull/14; https://github.com/zarasus37/compass/actions/runs/38061661180; C:/Users/crisc/.codex/compass-deliverables/FIN-01-N2-release.md",
+      "note": "Linux coordination18/18, dashboard4/4, FIN01 smoke148/148, integration368/0 and full chains. Codex observed integration/deployment/health; Polar independently approved code. No authenticated production walkthrough. M5 mechanism remains unresolved."
+    },
     {
       "check": "FIN-01-N2 local verification",
       "result": "PASS: dashboard regression 4/4, coordination 18/18, type/build exit 0, lint 0 errors and 459 existing warnings, alignment/encoding clean",
@@ -724,6 +779,11 @@
       "id": "DR-FIN-06",
       "date": "2026-10-10",
       "text": "User authorized the recommended completion sequence. First isolate FIN-01 N2 recommendation failures on the root dashboard, then proceed to FIN-02 ledger reconciliation after independent review and integration. A recommendation failure is explicitly unavailable, never a successful empty result. Codex bootstrapped this new queue entry under an exclusive writer claim because assign only accepts existing task IDs."
+    },
+    {
+      "id": "DR-FIN-07",
+      "date": "2026-10-10",
+      "text": "FIN-02 discovery exposed unchecked explicit account ownership in applyPaycheck. Isolate this prerequisite security fix as FIN-02-SEC before ledger schema/writer conversion and reconciliation. Codex implements; Polar independently reviews. FIN-02 remains incomplete. This task changes account authorization only, with no account balance, settlement, allocation or schema convention change. New queue entry bootstrapped under an exclusive claim because assign supports only existing IDs."
     }
   ],
   "timeZone": "America/Chicago"

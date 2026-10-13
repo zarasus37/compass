@@ -76,6 +76,27 @@ export async function applyPaycheck(
     return { ok: false, reason: "Enter a paycheck amount greater than $0." };
   }
 
+  if (typeof userId !== "string" || userId.trim().length === 0) {
+    return { ok: false, reason: "Could not apply the paycheck. Nothing was changed." };
+  }
+  const accountFailure = {
+    ok: false,
+    reason: "Account not found. Add or select an account before applying a paycheck.",
+  };
+  // An explicit ID must never bypass tenant scoping or silently fall back.
+  if (opts.accountId !== undefined &&
+      (typeof opts.accountId !== "string" || opts.accountId.trim().length === 0)) {
+    return accountFailure;
+  }
+  const account = await prisma.account.findFirst({
+    where: { userId, ...(opts.accountId !== undefined ? { id: opts.accountId } : {}) },
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+  // Refuse before period materialisation or any allocation write. Foreign
+  // and absent IDs have the same response, so ownership is not disclosed.
+  if (!account) return accountFailure;
+
   const plan = await livePlanFromDb(userId);
   if (!plan.isArmed || plan.rules.length === 0) {
     return {
@@ -114,21 +135,15 @@ export async function applyPaycheck(
 
   const run = computeAllocation(plan, engineEnvelopes, paycheckCents, source, now);
 
-  // Which account the paycheck row hangs off. The engine itself does not
-  // care; the ledger does, so fall back to any account the user has.
-  const accountId =
-    opts.accountId ??
-    (
-      await prisma.account.findFirst({
-        where: { userId },
-        orderBy: { createdAt: "asc" },
-        select: { id: true },
-      })
-    )?.id ??
-    null;
-
   try {
     const applied = await prisma.$transaction(async (tx) => {
+      // Recheck at the mutation boundary; the preliminary selection alone
+      // cannot authorize a transaction after the account changes ownership.
+      const ownedAccount = await tx.account.findFirst({
+        where: { id: account.id, userId },
+        select: { id: true },
+      });
+      if (!ownedAccount) throw new Error("ACCOUNT_NOT_FOUND");
       // The guard. Insert first: if this paycheck is a duplicate the
       // unique constraint throws here and NOTHING else in the
       // transaction commits, so there is no window where balances moved
@@ -160,7 +175,7 @@ export async function applyPaycheck(
       const paycheckTx = await tx.transaction.create({
         data: {
           userId,
-          accountId: accountId ?? "",
+          accountId: ownedAccount.id,
           envelopeId: null,
           amount: paycheckCents,
           date: now,
@@ -182,7 +197,7 @@ export async function applyPaycheck(
         await tx.transaction.create({
           data: {
             userId,
-            accountId: accountId ?? "",
+            accountId: ownedAccount.id,
             envelopeId: t.envelopeId,
             amount: t.allocatedCents,
             date: now,
@@ -259,6 +274,9 @@ export async function applyPaycheck(
       paycheckRunId: applied.paycheckRun.id,
     };
   } catch (err) {
+    if (err instanceof Error && err.message === "ACCOUNT_NOT_FOUND") {
+      return accountFailure;
+    }
     // Postgres unique violation on [userId, periodKey, paycheckCents].
     // The transaction rolled back, so no balance moved.
     const code = (err as { code?: string })?.code;
