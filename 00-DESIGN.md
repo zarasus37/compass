@@ -515,6 +515,149 @@ seeders, and the three mutually inconsistent definitions of "expense" /
 Unifying those predicates is a financial-convention change and is not
 part of this read refactor.
 
+### Balance journal and reconciliation — DR-FIN-08
+
+FIN-02 is split into A (capture/read foundation), B (writer intent/atomicity),
+and C (reset/projection semantics and understandable diagnostics). Acceptance of
+A does not complete FIN-02. A adds no user-facing page or automation consumer.
+
+**Meaning and authority.** A bookkeeping balance is an unverified opening plus
+signed journal movements. Account.currentBalance and Envelope.currentBalance
+remain the materialised values used by existing readers. The journal records
+actual changes to those values, not bank receipts or a guarantee that a writer's
+intended arithmetic was correct. Reconciliation verifies the cache/journal
+equation per entity. It never sums legacy Transaction activity to derive an
+account balance, and never asserts that envelope totals equal account totals.
+Envelopes can legitimately differ from accounts. Allocation and rebalance have
+zero account delta today; FIN-05 can add an explicit receipt posting later.
+Source, isPrimaMateria and cleared remain provenance/unknown confirmation.
+
+**Opening and cutover.** The additive SQL migration runs in one explicit
+transaction. It locks User, Account and Envelope in SHARE ROW EXCLUSIVE mode,
+draining erasure/balance writers, copies current balances unchanged into
+LedgerPosition and sequence-zero opening LedgerEntry rows, then installs capture
+and integrity triggers before commit. The legacy activity count is captured from
+committed activity visible at that opening snapshot, not from a transaction's
+business date. In-flight old writes after cutover are captured as unexplained
+movements. Reapplying does not create new openings or repair missing journal
+history. Ten-second lock timeout makes contention fail rather than hang release.
+
+**Coverage versus intent.** PostgreSQL capture covers row INSERT, balance UPDATE,
+DELETE and administrative owner reassignment, including bulk operations, raw SQL
+and older app versions. No-op/metadata updates make no entry. Deltas are bigint,
+including an int32-positive-to-negative transition. A per-position cursor advances
+under row lock, with a unique position/sequence constraint. Account/envelope IDs
+are immutable; fixed seed IDs can be deleted then recreated with closing/reopening
+movements on the same history. Ownership reassignment closes the previous owner's
+tracking position and opens/reopens the new owner's; it does not prove a payment.
+
+LedgerEvent carries owner, kind, reason, actor and optional source type/ID.
+LedgerEntry references both its event and position with composite owner FKs.
+Future writer correlation uses transaction-local compass.event_id. A supplied
+context must exist and match the entity owner or the entire mutation fails.
+Without context the event is uncorrelated; A leaves existing writers that way.
+The nullable unique (userId, sourceType, sourceId) identifies a known source row,
+not identical user submissions. Two identical coffees are valid; request nonce
+deduplication remains FIN-06. Transaction-local context is a cooperative server
+assertion, not evidence of bank settlement or cryptographic actor authentication.
+
+**Integrity and erasure.** Openings, events and entries are append-only through
+ordinary application SQL. Only capture may create entries or advance position
+metadata. Direct UPDATE/DELETE/TRUNCATE of history is blocked; source table
+TRUNCATE is blocked too. Whole-user row deletion is the explicit exception:
+the source trigger skips after the parent user is gone, and cascading erasure
+removes that user's journal. Tests exercise it with and without event context.
+Entity removal while the owner exists appends a closing movement and tombstone;
+existing activity/account FKs still apply, so deleting a linked account remains
+refused. No history is destroyed to bypass that FK. C owns user-facing archival.
+
+These are operational integrity guards, not protection against a privileged DB
+owner who can replace/disable triggers. The availability gate checks trigger
+identity, event masks, columns, arguments/conditions, enabled state, reviewed
+function-body fingerprints, search path, role privileges and replication mode.
+Disabled/replaced infrastructure fails the report as a whole. Capture alone does
+not fix lost absolute-value updates; B must lock or use atomic increments, prove
+conservation with concurrent connections, and supply intent for supported writers.
+The availability query does not fingerprint unique constraints or composite FKs;
+schema preflight/drift verification checks those separately. A corrupt or missing
+position can also refuse financial writes, including paycheck and transaction
+writes. This availability coupling is intentional and needs operational response.
+B must set event context only transaction-locally (set_config with is_local true)
+and prove that previous context cannot leak to another pooled request.
+
+**Reconciliation.** The server-only operator DAL takes a trusted server-selected
+tenant ID; no client endpoint is introduced. It rejects invalid IDs, uses bound
+SQL and one RepeatableRead snapshot for infrastructure and all entities, performs
+exact SQL integer sums, and returns decimal strings to avoid JS precision loss.
+It reads only and never seeds, repairs or changes a balance. Its outcomes are:
+
+- mismatch: cached balance differs from the complete journal, or journal structure
+  is invalid. A removed entity must have expected tracking balance zero.
+- unverified_opening: informational on every A opening, including newly inserted
+  rows. A has no user-verification workflow and never silently clears it.
+- missing_history: committed legacy activity existed at the opening snapshot; it
+  is not reconstructed or counted a second time.
+- journal_gap: sequence/opening/tombstone structure is incomplete or inconsistent.
+- missing_opening: a live entity has no journal position.
+- removed_entity: the owned journal position has no live source row.
+- uncorrelated: capture has no application intent context.
+- journal-unavailable/read-failed: whole-report failures with stable codes, no
+  partial successful report and no raw database messages crossing the DAL.
+
+cacheConsistent is solely the cache/journal equation, not “money is correct” or
+“cash is available.” Unverified/uncorrelated flags remain visible even when true.
+Projected identity accounts and reset/seed paths are captured rather than silently
+excluded using a name heuristic. Their provenance is not proof of bookkeeping or
+cash authority. B/C must give projection/reset explicit intent and classification.
+
+**Verification and production delivery.** Tests run DDL only on UUID-named owned
+loopback databases, never the shared app DB or a remote production target. They
+exercise current writer functions on the new schema, cutover waiting on
+a real writer, exact values, no-op/bulk/raw changes, negative/extreme cents,
+rollback, context isolation, erasure, disabled infrastructure and coherent reads.
+Prisma schema-only db push does not install functions/triggers. Fresh/existing
+migration tests and db:journal-check are mandatory; CI's smoke chain runs both
+the current-target journal gate and an isolated cutover suite.
+The automated smoke neither executes an old deployed binary nor depends on Git
+history. An actual old deployed-version compatibility run against an isolated
+migrated clone is a manual pre-release gate and has not been performed for A.
+Do not substitute unchanged source hashes or a newly generated Prisma client for
+that evidence. Existing reset/delete/reassignment smoke chains must also pass
+with capture enabled before delivery; legacy missing_history remains informational.
+
+Codex performs schema delivery after independent review and green exact-commit
+PR CI, before merging the new app release. Both compass and compass-mom production
+targets are handled separately: obtain private target configuration without
+printing/staging credentials; inspect _prisma_migrations and compare the full
+pre-change schema with an isolated reference. Never guess migration history.
+An unreadable history, failed migration or incompatible pre-change schema blocks
+release. A db-pushed-only database requires a separately verified baseline before
+migrate deploy; do not mark missing/failed migrations applied merely to get green.
+
+Take a recoverable same-project database snapshot/backup immediately before DDL.
+Run scripts/preflight-schema.mjs with the production target read-only and an
+explicit separate loopback reference URL. Run prisma migrate deploy against each
+explicit private target environment using a direct unpooled Neon connection,
+then scripts/check-ledger-journal.mjs in a
+server-enforced read-only transaction. Verify openings equal pre-cutover stored
+balances and journal infrastructure matches. Only then merge the reviewed app
+commit, verify both exact-SHA deployments and health, and retain backup/evidence.
+Record an operator reconciliation run for each production target after delivery.
+The ten-second lock timeout should normally be quiet on this small database;
+contention still aborts delivery and must be investigated rather than bypassed.
+No production migration has been performed merely by writing this specification.
+
+Rollback is a documented maintenance operation: revert the app first; if capture
+must be removed, drop the newly named source/integrity triggers under a controlled
+transaction while retaining journal tables/history and original balances. Older
+writers still work without them. Reconciliation must then report unavailable.
+Dropping source capture is the emergency escape from journal-blocked writes.
+Re-enabling after any bypass requires a new independently reviewed migration or
+procedure that accounts for the missed interval; never re-run the original cutover
+to create or overwrite anchors over retained journal history.
+Never delete journal history as rollback, and never infer successful delivery from
+a Vercel health check alone. Scope B/C and settlement work remain explicit backlog.
+
 ```
 User
   - id, name, email, password_hash (or auth_method)

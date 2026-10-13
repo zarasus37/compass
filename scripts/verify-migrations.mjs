@@ -59,6 +59,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import pg from "pg";
+import { JOURNAL_HEALTH_SQL } from "../src/lib/ledger/contract.mjs";
 
 const BASE_URL = process.env.DATABASE_URL;
 if (!BASE_URL) {
@@ -161,7 +162,7 @@ function driftFor(databaseUrl) {
 /** Structure fingerprint: names AND definitions, not just names. */
 async function structureOf(client) {
   const out = {};
-  for (const t of ["Debt", "PaycheckRun", "ClientError"]) {
+  for (const t of ["Debt", "PaycheckRun", "ClientError", "LedgerEvent", "LedgerPosition", "LedgerEntry"]) {
     const cols = await client.query(
       `SELECT column_name, data_type, is_nullable, column_default
          FROM information_schema.columns
@@ -375,6 +376,7 @@ async function main() {
         check(`fresh: table ${t} created by migrations`, tables.includes(t));
       }
       freshStruct = await structureOf(c);
+      check("fresh: journal capture and append-only functions match", (await c.query(JOURNAL_HEALTH_SQL)).rows[0].available === true);
 
       check(
         "fresh: PaycheckRun has the unique idempotency index",
@@ -404,7 +406,7 @@ async function main() {
         const pks = s.constraints.filter((x) => x.startsWith("p:"));
         const fks = s.constraints.filter((x) => x.startsWith("f:"));
         check(`fresh: ${t} has a primary key`, pks.length === 1, `got ${pks.length}`);
-        const wantFk = t === "ClientError" ? 0 : 1;
+        const wantFk = t === "ClientError" ? 0 : t === "LedgerEntry" ? 3 : 1;
         check(`fresh: ${t} has ${wantFk} foreign key(s)`, fks.length === wantFk, `got ${fks.length}`);
       }
       await c.end();
@@ -466,6 +468,7 @@ async function main() {
       await c.connect();
       const tables = await tableNames(c);
       check("existing: Debt present before the new migration runs", tables.includes("Debt"));
+      check("existing: schema-only push is not journal-ready", (await c.query(JOURNAL_HEALTH_SQL)).rows[0].available === false);
 
       await seedSample(c);
       before = await readSample(c);
@@ -492,6 +495,7 @@ async function main() {
       const c = new pg.Client({ connectionString: existingUrl });
       await c.connect();
       existingStruct = await structureOf(c);
+      check("existing: db-push tables acquire real journal capture on migration", (await c.query(JOURNAL_HEALTH_SQL)).rows[0].available === true);
 
       const after = await readSample(c);
       check(

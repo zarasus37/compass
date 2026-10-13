@@ -93,6 +93,9 @@ model User {
   bills           Bill[]
   debts           Debt[]
   auditLog        AuditLog[]
+  ledgerEvents    LedgerEvent[]
+  ledgerPositions LedgerPosition[]
+  ledgerEntries   LedgerEntry[]
   auditLogRollup  AuditLogDailyRollup[]
   envelopeSinks   EnvelopeSink[]
   identity        FinancialIdentity?
@@ -111,6 +114,63 @@ model User {
   payPeriods       PayPeriod[]
 
   @@index([email])
+}
+
+/// FIN-02-A bookkeeping journal. Source rows are activity references, not
+/// settlement evidence. Null source identity denotes an unexplained DB write.
+model LedgerEvent {
+  id         String   @id @default(cuid())
+  userId     String
+  kind       String
+  sourceType String?
+  sourceId   String?
+  reason     String
+  actor      String
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries    LedgerEntry[]
+
+  @@unique([id, userId])
+  @@unique([userId, sourceType, sourceId])
+  @@index([userId, createdAt])
+}
+
+/// An immutable opening plus a cursor/tombstone. No entity FK: deletion and
+/// recreation must retain history. Only the DB capture trigger mutates this.
+model LedgerPosition {
+  id                  String   @id @default(cuid())
+  userId              String
+  entityKind          String
+  entityId            String
+  openingCents        BigInt
+  legacyActivityCount BigInt   @default(0)
+  lastSequence        BigInt   @default(0)
+  openedAt            DateTime @default(now())
+  removedAt           DateTime?
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries             LedgerEntry[]
+
+  @@unique([id, userId])
+  @@unique([userId, entityKind, entityId])
+}
+
+/// Signed integer cents, including sequence-zero opening. Composite references
+/// prevent an entry from joining another tenant's event or position.
+model LedgerEntry {
+  id         String   @id @default(cuid())
+  userId     String
+  positionId String
+  eventId    String
+  sequence   BigInt
+  kind       String
+  deltaCents BigInt
+  createdAt  DateTime @default(now())
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  position   LedgerPosition @relation(fields: [positionId, userId], references: [id, userId], onDelete: Cascade)
+  event      LedgerEvent    @relation(fields: [eventId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([positionId, sequence])
+  @@index([userId, eventId])
 }
 
 /// Server-side session row. Cookie holds the session id; we look this up

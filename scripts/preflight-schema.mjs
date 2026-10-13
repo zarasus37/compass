@@ -55,6 +55,7 @@
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import pg from "pg";
+import { JOURNAL_HEALTH_SQL } from "../src/lib/ledger/contract.mjs";
 
 const TARGET_URL = process.env.PREFLIGHT_DATABASE_URL || process.env.DATABASE_URL;
 /**
@@ -97,7 +98,7 @@ if (REFERENCE_URL && new URL(REFERENCE_URL).host === new URL(TARGET_URL).host) {
   process.exit(1);
 }
 
-const TABLES = ["Debt", "PaycheckRun", "ClientError"];
+const TABLES = ["Debt", "PaycheckRun", "ClientError", "LedgerEvent", "LedgerPosition", "LedgerEntry"];
 const PRISMA_CLI = join(process.cwd(), "node_modules", "prisma", "build", "index.js");
 const RUN_ID = `${process.pid}_${Date.now().toString(36)}`;
 const REF_DB = `compass_preflight_ref_${RUN_ID}`;
@@ -273,6 +274,7 @@ async function main() {
     // and how much data the repair would be applied over.
     console.log("\nrow counts (read-only):");
     for (const t of TABLES) {
+      if (!got[t].present) { console.log(`  ${t.padEnd(14)} absent`); continue; }
       const c = await target.query(`SELECT count(*)::int AS n FROM "${t}"`);
       console.log(`  ${t.padEnd(14)} ${c.rows[0].n}`);
     }
@@ -295,6 +297,16 @@ async function main() {
         incompatible = true;
       }
     }
+
+    const hasCapture = (await target.query("SELECT EXISTS(SELECT 1 FROM pg_trigger WHERE tgname='compass_account_ledger_insert' AND tgrelid=to_regclass('public.\"Account\"')) AS installed")).rows[0].installed;
+    const ledgerRecorded = applied.some(m => m.migration_name === "20261013140000_balance_journal" && m.ok);
+    if (hasCapture || ledgerRecorded) {
+      const health = await target.query(JOURNAL_HEALTH_SQL);
+      if (health.rows[0]?.available !== true) {
+        console.error("  [INCOMPATIBLE] installed journal capture/guards/functions differ");
+        incompatible = true;
+      } else console.log("  [OK] installed journal capture/guards/functions match");
+    } else console.log("  [PENDING] journal not installed; post-migration db:journal-check is required before release");
 
     if (incompatible) {
       console.error(
