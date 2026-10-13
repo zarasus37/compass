@@ -8,7 +8,7 @@
     "url": "https://github.com/zarasus37/compass.git",
     "baselineCommit": "36cf4ec",
     "policy": "single shared checkout; one writer; no unassigned branches",
-    "contentDigest": "9e26865d082a1b840ecfd9aa4a45e8e86ff35fa770ac5f9403ccb170b18de884",
+    "contentDigest": "db0fd49e86ac20de7a7d393e26d12456f4e6c855df2cb6d34370a1f44dafc755",
     "canonicalWindowsPath": "C:\\dev\\compass",
     "canonicalWslPath": "/mnt/c/dev/compass",
     "retiredWorkspace": "OneDrive Budget planner app checkout — retained historical copy, not a second development repo",
@@ -21,7 +21,7 @@
       "acknowledgement": {
         "mode": "local",
         "recordedBy": "codex",
-        "at": "2026-10-10T15:13:00.688Z"
+        "at": "2026-10-13T19:51:54.367Z"
       }
     },
     "minimax": {
@@ -40,8 +40,8 @@
       "acknowledgement": {
         "mode": "remote-proxy",
         "recordedBy": "codex",
-        "sha256": "82647df13e0dd80dbfa74e92802edcca2e106eee38d4fd09cfefdb2ab3fc32f2",
-        "at": "2026-10-13T12:03:55.029Z"
+        "sha256": "7c3c17eac2a9ae14b1f9c8dff7d49d17103e98d36cd402eadd08b1e176d9d6aa",
+        "at": "2026-10-13T21:31:47.254Z"
       }
     }
   },
@@ -252,8 +252,43 @@
       "status": "backlog",
       "owner": null,
       "reviewer": null,
-      "scope": [],
-      "acceptance": [],
+      "scope": [
+        "prisma/schema.prisma",
+        "prisma/migrations",
+        "src/lib/ledger",
+        "src/lib/log-transaction.ts",
+        "src/lib/apply-paycheck.ts",
+        "src/lib/store.ts",
+        "src/lib/seed-accounts.ts",
+        "src/lib/onboarding/projection.ts",
+        "src/lib/envelope-db.ts",
+        "src/lib/state/financial-state.ts",
+        "src/app/setup/actions.ts",
+        "src/app/actions/transactions.ts",
+        "src/app/(app)/accounts/page.tsx",
+        "tests/smoke-ledger-reconciliation.mjs",
+        "tests/ledger-boundary.mjs",
+        "tests/smoke-transactions-persist.mjs",
+        "tests/smoke-paycheck-account-isolation.mjs",
+        "scripts/verify-migrations.mjs",
+        "scripts/preflight-schema.mjs",
+        "scripts/clear-demo-data.mjs",
+        "package.json",
+        "00-DESIGN.md",
+        "docs/project-state.json",
+        "COORDINATION.md",
+        "docs/team/FIN-02-implementation.md",
+        "docs/team/FIN-02-review.md"
+      ],
+      "acceptance": [
+        "Design explicitly states bookkeeping authority, account/envelope invariant, complete writer inventory, movement identity, and safe production migration/cutover before implementation",
+        "Preserve existing balances as unverified openings without invented transaction or settlement history; additive migrations pass fresh and existing PostgreSQL checks",
+        "Every balance change has an atomic tenant-scoped journal explanation; duplicate known movements and partial writes cannot change money twice or leave journal/cache disagreement",
+        "Separate budget allocations and internal transfers from account postings; preserve raw provenance and unknown settlement, with no double-counting routing rows as cash income",
+        "Read-only reconciliation uses a coherent snapshot and typed mismatch/unverified-opening/missing-history/read-failure outcomes; no silent repair, seeding, or raw error exposure",
+        "Real PostgreSQL tests cover exact values, every supported writer, two-tenant isolation, concurrency, injected rollback failures, healthy/empty/legacy controls, and owned fixture cleanup",
+        "Required type/lint/build/coordination and full PR CI pass; Polar independently approves the exact packet; explicit schema-first production plan and post-deploy evidence required"
+      ],
       "handoff": null,
       "review": null
     },
@@ -552,6 +587,81 @@
         "contentDigest": "9e26865d082a1b840ecfd9aa4a45e8e86ff35fa770ac5f9403ccb170b18de884",
         "at": "2026-10-13T12:03:57.238Z"
       }
+    },
+    {
+      "id": "FIN-02-A",
+      "title": "Balance journal cutover and operator reconciliation foundation",
+      "status": "done",
+      "owner": "codex",
+      "reviewer": "polar",
+      "scope": [
+        "prisma/schema.prisma",
+        "prisma/migrations",
+        "src/lib/ledger",
+        "scripts/check-ledger-journal.mjs",
+        "scripts/preflight-schema.mjs",
+        "scripts/verify-migrations.mjs",
+        "tests/smoke-ledger-reconciliation.mjs",
+        "tests/ledger-boundary.mjs",
+        "package.json",
+        "00-DESIGN.md",
+        "docs/project-state.json",
+        "COORDINATION.md",
+        "docs/team/FIN-02-A-implementation.md",
+        "docs/team/FIN-02-A-review.md",
+        "scripts/generate-ledger-contract.mjs"
+      ],
+      "acceptance": [
+        "Additive migration atomically locks balance tables, preserves existing balances as unverified openings and installs complete INSERT/UPDATE/DELETE journal coverage",
+        "Journal headers/entries and immutable openings are tenant-owned and append-only; same-owner context is validated; whole-user erasure remains safe; removal/recreation preserves journal history",
+        "Operator-only read-only RepeatableRead reconciliation reports exact bigint sums, mismatch, unverified opening, legacy missing history, removal and uncorrelated changes, or a whole-report stable failure; absent/disabled triggers fail closed",
+        "Real PostgreSQL tests cover legacy/current writers, raw/bulk/no-op changes, negative balances, deletion/recreation, tenant isolation, erasure, injected rollback, concurrent cutover and snapshot, and safe rollback; no fixture sweeps",
+        "No production balance writer, settlement, allocation or user-facing UI changes; unexplained existing writers stay uncorrelated and broader FIN-02 remains incomplete",
+        "Schema-only Prisma push is insufficient; verify migration/trigger preflight and explicit schema-first production plan before any release",
+        "Required type/lint/build/coordination and appropriate DB tests pass; independent Polar review and full PR CI required before integration"
+      ],
+      "handoff": {
+        "path": "docs/team/FIN-02-A-implementation.md",
+        "sha256": "6810652036afe8c6ba3e0d5a7abc30020dd10e0a5b5e7cc01386a194b1676ec5",
+        "actor": "codex",
+        "head": "43889ac67b74452cd720950a731a68646c4c0105",
+        "contentDigest": "db0fd49e86ac20de7a7d393e26d12456f4e6c855df2cb6d34370a1f44dafc755",
+        "at": "2026-10-13T21:18:09.147Z"
+      },
+      "review": {
+        "path": "docs/team/FIN-02-A-review-v2.md",
+        "actor": "polar",
+        "verdict": "approved",
+        "mode": "remote-proxy",
+        "recordedBy": "codex",
+        "sha256": "7c3c17eac2a9ae14b1f9c8dff7d49d17103e98d36cd402eadd08b1e176d9d6aa",
+        "handoffIntact": true,
+        "head": "43889ac67b74452cd720950a731a68646c4c0105",
+        "contentDigest": "db0fd49e86ac20de7a7d393e26d12456f4e6c855df2cb6d34370a1f44dafc755",
+        "at": "2026-10-13T21:31:49.763Z"
+      }
+    },
+    {
+      "id": "FIN-02-B",
+      "title": "Ledger writer intent, atomicity and per-source identity",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
+    },
+    {
+      "id": "FIN-02-C",
+      "title": "Ledger reset/projection semantics and understandable diagnostics",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [],
+      "handoff": null,
+      "review": null
     }
   ],
   "implementation": {
@@ -569,9 +679,22 @@
     "settlementSemantics": "Income confirmation is unknown. apply-paycheck writes source \"recurring\" for a cron-created paycheck and \"manual\" for a user-clicked one; log-transaction writes \"manual\" for a user-logged entry. All are creation provenance. No stored field records settlement, so nothing may infer received/settled/available cash.",
     "readFailureSemantics": "A failed financial read is distinguishable at every layer. The DAL returns a stable code (read-failed / invalid-tenant-id) and never err.message; liveEnvelopesFromDb and liveGoalsFromDb rethrow sanitized errors as they did before FIN-01; listEnvelopesForAction returns a typed error result; advisor tools return ok:false with fixed strings; topOpportunities throws; the command-palette branch rejects. Proven by induced-failure tests in tests/smoke-financial-state.mjs (78 checks).",
     "evidenceClassification": "Codex local smoke: 138 checks passed. Real Postgres fixtures cover isolation for every aggregate entity, populated-goal adapter compatibility, empty results, provenance, fresh-process reads, and owned fixture cleanup. Instrumented real queries prove each selective reader limits its query set and the aggregate uses its transaction client. A separate Postgres connection commits between envelope and late account reads; the aggregate retains the original snapshot. Induced query-method failures exercise every reader and changed caller; action bundles stub only session/Prisma boundaries. These failure probes are not a real network outage. Polar remote review remains independent.",
-    "financialStateEvidence": "Codex corrected standalone smoke 148/148. Prior v2 advisor assertions were vacuous (wrong dispatcher signature) and are superseded: actual handler name and exact retry messages now required under query failure; healthy empty controls return ok:true count:0. All other v2 runtime evidence remains applicable; production files unchanged."
+    "financialStateEvidence": "Codex corrected standalone smoke 148/148. Prior v2 advisor assertions were vacuous (wrong dispatcher signature) and are superseded: actual handler name and exact retry messages now required under query failure; healthy empty controls return ok:true count:0. All other v2 runtime evidence remains applicable; production files unchanged.",
+    "balanceJournal": "FIN-02-A candidate: additive PostgreSQL triggers capture actual account/envelope INSERT/UPDATE/DELETE deltas under a locked cutover. Existing balances remain unverified openings. Tenant-owned immutable journal supports whole-user erasure and entity removal/recreation. Operator-only RepeatableRead reconciliation reports exact decimal-string cents, missing history/openings, journal gaps, removed entities, uncorrelated changes and mismatches; missing/disabled/altered capture returns a whole-report unavailable result. Existing writers are unchanged and remain uncorrelated. No settlement inference, money-correctness proof, UI or repair. FIN-02-B/C and parent FIN-02 remain incomplete; Polar first review found a test-only history dependency; corrected candidate re-review and production migration pending."
   },
   "verification": [
+    {
+      "check": "FIN-02-A v2 review correction",
+      "result": "PASS: journal128/128 both canonical and actual depth-1 checkout; historical43889ac object absent; all12 production/schema/package hashes unchanged from first packet",
+      "evidence": "docs/team/FIN-02-A-implementation.md; C:/Users/crisc/.codex/compass-deliverables/FIN-02-A-v2-*.log and *-proof.json",
+      "note": "B1 Git/history dependency removed. N1 owner reassignment reconciled at each step; N2 markers replaced with observed values. Current-writer runtime tests retained; actual old deployed-binary compatibility remains an unperformed manual pre-release gate. Type/lint/build/migration evidence from v1 applies to identical production bytes; full CI and production gates pending."
+    },
+    {
+      "check": "FIN-02-A Codex local candidate verification",
+      "result": "PASS: real PostgreSQL journal112/112; existing paycheck isolation43/43 on journal-enabled DB; fresh/existing migration37/37; journal preflight; tsc/build exit0; lint0 errors459 existing warnings; coordination18/18 and dashboard4/4",
+      "evidence": "docs/team/FIN-02-A-implementation.md; C:/Users/crisc/.codex/compass-deliverables/FIN-02-A-*.log",
+      "note": "Codex runs on disposable owned loopback databases only. No production migration, full smoke chain, remote CI, browser flow or independent code approval yet. Trigger coverage does not fix existing writer lost updates or explain financial intent."
+    },
     {
       "check": "FIN-02-SEC Codex local verification",
       "result": "PASS: PostgreSQL account isolation43/43; baseline foreign-account case fails; type/build exit0; lint0 errors459 baseline warnings; coordination18/18 and dashboard4/4; alignment/encoding clean",
@@ -784,6 +907,16 @@
       "id": "DR-FIN-07",
       "date": "2026-10-10",
       "text": "FIN-02 discovery exposed unchecked explicit account ownership in applyPaycheck. Isolate this prerequisite security fix as FIN-02-SEC before ledger schema/writer conversion and reconciliation. Codex implements; Polar independently reviews. FIN-02 remains incomplete. This task changes account authorization only, with no account balance, settlement, allocation or schema convention change. New queue entry bootstrapped under an exclusive claim because assign supports only existing IDs."
+    },
+    {
+      "id": "DR-FIN-08",
+      "date": "2026-10-13",
+      "text": "Adopt Polar planning consultation split within user-authorized FIN-02. A adds additive DB journal coverage and operator-only reconciliation; B converts writers to correlated, atomic movements with per-source identity; C resolves projection/reset semantics and user copy. FIN-02 parent remains incomplete. A preserves existing writer behavior; uncorrelated history is explicit, not proof of correct money or settlement. Account/envelope sums need not match. Implement erasure and tombstones in A because triggers cannot safely ship without them."
+    },
+    {
+      "id": "DR-FIN-09",
+      "date": "2026-10-13",
+      "text": "Polar FIN-02-A B1 correction: journal runtime tests must work without Git history and must not freeze production writers. Keep current writer runtime assertions; actual old deployed-version compatibility on an isolated migrated clone is an explicit manual pre-release gate, not proven by unchanged source hashes or a newly generated Prisma client. Clarify fail-closed write availability, separately verified constraint drift, and reviewed re-enabling after capture rollback. No production bytes or financial convention changed."
     }
   ],
   "timeZone": "America/Chicago"
