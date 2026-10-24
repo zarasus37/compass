@@ -69,11 +69,11 @@ jobs:
       - name: Check shared project alignment and encoding
         run: pnpm project:check
 
-      - name: Verify coordination claims and handoffs
-        run: pnpm project:test
-
       - name: Generate Prisma client
         run: pnpm db:generate
+
+      - name: Verify coordination claims and handoffs
+        run: pnpm project:test
 
       # Provision with MIGRATIONS, not `prisma db push`.
       #

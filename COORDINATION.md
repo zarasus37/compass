@@ -53,6 +53,7 @@ Active task: **none**. Functional backlog stays queued until alignment review is
 | FIN-02-C | Ledger reset/projection semantics and understandable diagnostics | backlog | unassigned | unassigned |
 | OPS-01-DB | Preview database isolation and explicit schema release gates | done | codex | polar |
 | OPS-01-DB-REPAIR | Resolve snapshot capacity and review missing EnvelopeSink schema repair | backlog | unassigned | unassigned |
+| OPS-01-DB-CI | Generate Prisma before release guard tests in clean CI | done | codex | polar |
 
 ## Implementation facts
 
@@ -128,6 +129,7 @@ not verified live in this cleanup. Prior snapshot describes two deliberately sep
 - **DR-FIN-08 (2026-10-13)**: Adopt Polar planning consultation split within user-authorized FIN-02. A adds additive DB journal coverage and operator-only reconciliation; B converts writers to correlated, atomic movements with per-source identity; C resolves projection/reset semantics and user copy. FIN-02 parent remains incomplete. A preserves existing writer behavior; uncorrelated history is explicit, not proof of correct money or settlement. Account/envelope sums need not match. Implement erasure and tombstones in A because triggers cannot safely ship without them.
 - **DR-FIN-09 (2026-10-13)**: Polar FIN-02-A B1 correction: journal runtime tests must work without Git history and must not freeze production writers. Keep current writer runtime assertions; actual old deployed-version compatibility on an isolated migrated clone is an explicit manual pre-release gate, not proven by unchanged source hashes or a newly generated Prisma client. Clarify fail-closed write availability, separately verified constraint drift, and reviewed re-enabling after capture rollback. No production bytes or financial convention changed.
 - **DR-OPS-DB-01 (2026-10-13)**: After FIN-02-A preview auto-migrated live DB, isolate preview roles/database and scope production credentials explicitly. Remove migrations/admin seeding from all build commands; schema releases are explicit snapshot-record -> server-readonly full-schema preflight -> migrate with stop-on-failure. Builds reject pending/mismatched history, and previews reject production target/production-style release. Keep external ignore guard and deployment protection through rollout/rollback. OPS-01-DB precedes FIN-02-B; broader OPS-01 remains backlog.
+- **DR-OPS-DB-CI-01 (2026-10-24)**: User-authorized release completion: PR19 run40069059632 fails because project:test invokes seed-admin before Prisma generation. Bootstrap this narrowly scoped CI follow-up under an exclusive Codex writer claim, since assign accepts only existing backlog IDs. Preserve OPS-01-DB approval and original evidence; move generation earlier with no application or release behavior changes.
 
 ## Handoffs and reviews
 
@@ -147,5 +149,7 @@ not verified live in this cleanup. Prior snapshot describes two deliberately sep
 - FIN-02-A review: **approved** by polar (remote; recorded by codex); [report](docs/team/FIN-02-A-review-v2.md); based on `43889ac67b74452cd720950a731a68646c4c0105`; report SHA-256 `7c3c17eac2a9ae14b1f9c8dff7d49d17103e98d36cd402eadd08b1e176d9d6aa`.
 - OPS-01-DB handoff: [docs/team/OPS-01-DB-implementation-v2.md](docs/team/OPS-01-DB-implementation-v2.md); based on `f3d9aff01a674bb3b2d296353ae1f422ef7c0134`.
 - OPS-01-DB review: **approved** by polar (remote; recorded by codex); [report](docs/team/OPS-01-DB-review-v2.md); based on `f3d9aff01a674bb3b2d296353ae1f422ef7c0134`; report SHA-256 `8e56645b96810d305d477439a35878eae2aacb1cd98980d38024b351be88ca33`.
+- OPS-01-DB-CI handoff: [docs/team/OPS-01-DB-CI-implementation.md](docs/team/OPS-01-DB-CI-implementation.md); based on `9a60a7721de6775bc395169e48cdcff8dcd0035e`.
+- OPS-01-DB-CI review: **approved** by polar (remote; recorded by codex); [report](docs/team/OPS-01-DB-CI-review.md); based on `9a60a7721de6775bc395169e48cdcff8dcd0035e`; report SHA-256 `1b7853792aa9d86cdcdc74fd04f8f1fd3a7a548dd0f67ec470c468f259fb095c`.
 
 History: [archive](docs/archive/2026-10-08/README.md). Historical prompts, old NEXT labels, and old CI results never assign current work.

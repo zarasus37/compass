@@ -8,7 +8,7 @@
     "url": "https://github.com/zarasus37/compass.git",
     "baselineCommit": "36cf4ec",
     "policy": "single shared checkout; one writer; no unassigned branches",
-    "contentDigest": "279e02aac306ad24f02790382e7e5124e4f551e0954d738021784ac98389c42c",
+    "contentDigest": "b788e7fcebb170511307e62e8bee113935724379ffe83a04d40e2bb4f46ff0d0",
     "canonicalWindowsPath": "C:\\dev\\compass",
     "canonicalWslPath": "/mnt/c/dev/compass",
     "retiredWorkspace": "OneDrive Budget planner app checkout — retained historical copy, not a second development repo",
@@ -21,7 +21,7 @@
       "acknowledgement": {
         "mode": "local",
         "recordedBy": "codex",
-        "at": "2026-10-21T06:11:59.710Z"
+        "at": "2026-10-24T06:11:02.423Z"
       }
     },
     "minimax": {
@@ -40,8 +40,8 @@
       "acknowledgement": {
         "mode": "remote-proxy",
         "recordedBy": "codex",
-        "sha256": "8e56645b96810d305d477439a35878eae2aacb1cd98980d38024b351be88ca33",
-        "at": "2026-10-24T06:08:43.911Z"
+        "sha256": "1b7853792aa9d86cdcdc74fd04f8f1fd3a7a548dd0f67ec470c468f259fb095c",
+        "at": "2026-10-24T06:15:58.221Z"
       }
     }
   },
@@ -722,6 +722,44 @@
       ],
       "handoff": null,
       "review": null
+    },
+    {
+      "id": "OPS-01-DB-CI",
+      "title": "Generate Prisma before release guard tests in clean CI",
+      "status": "done",
+      "owner": "codex",
+      "reviewer": "polar",
+      "scope": [
+        ".github/workflows/ci.yml",
+        "docs/project-state.json",
+        "COORDINATION.md",
+        "docs/team"
+      ],
+      "acceptance": [
+        "Generate Prisma before project:test in CI so seed-admin loads its generated client",
+        "Preserve all guard-specific assertions and application/release script bytes",
+        "Record original CI failure and independent review before updating PR19; full CI must pass before merge"
+      ],
+      "handoff": {
+        "path": "docs/team/OPS-01-DB-CI-implementation.md",
+        "sha256": "471f7ee37b6b493f4fd001b0b5e3dddbe37926c5fa28f22c82c13254d7604361",
+        "actor": "codex",
+        "head": "9a60a7721de6775bc395169e48cdcff8dcd0035e",
+        "contentDigest": "b788e7fcebb170511307e62e8bee113935724379ffe83a04d40e2bb4f46ff0d0",
+        "at": "2026-10-24T06:12:59.637Z"
+      },
+      "review": {
+        "path": "docs/team/OPS-01-DB-CI-review.md",
+        "actor": "polar",
+        "verdict": "approved",
+        "mode": "remote-proxy",
+        "recordedBy": "codex",
+        "sha256": "1b7853792aa9d86cdcdc74fd04f8f1fd3a7a548dd0f67ec470c468f259fb095c",
+        "handoffIntact": true,
+        "head": "9a60a7721de6775bc395169e48cdcff8dcd0035e",
+        "contentDigest": "b788e7fcebb170511307e62e8bee113935724379ffe83a04d40e2bb4f46ff0d0",
+        "at": "2026-10-24T06:16:00.859Z"
+      }
     }
   ],
   "implementation": {
@@ -992,6 +1030,11 @@
       "id": "DR-OPS-DB-01",
       "date": "2026-10-13",
       "text": "After FIN-02-A preview auto-migrated live DB, isolate preview roles/database and scope production credentials explicitly. Remove migrations/admin seeding from all build commands; schema releases are explicit snapshot-record -> server-readonly full-schema preflight -> migrate with stop-on-failure. Builds reject pending/mismatched history, and previews reject production target/production-style release. Keep external ignore guard and deployment protection through rollout/rollback. OPS-01-DB precedes FIN-02-B; broader OPS-01 remains backlog."
+    },
+    {
+      "id": "DR-OPS-DB-CI-01",
+      "date": "2026-10-24",
+      "text": "User-authorized release completion: PR19 run40069059632 fails because project:test invokes seed-admin before Prisma generation. Bootstrap this narrowly scoped CI follow-up under an exclusive Codex writer claim, since assign accepts only existing backlog IDs. Preserve OPS-01-DB approval and original evidence; move generation earlier with no application or release behavior changes."
     }
   ],
   "timeZone": "America/Chicago"
