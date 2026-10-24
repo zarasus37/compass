@@ -13,7 +13,7 @@
     "db:down": "docker compose -f docker-compose.dev.yml down",
     "db:reset": "docker compose -f docker-compose.dev.yml down -v && pnpm db:up && pnpm db:migrate",
     "db:migrate": "prisma migrate dev",
-    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:deploy": "node scripts/migrate-deploy.mjs",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
@@ -36,13 +36,16 @@
     "project:status": "node scripts/project-sync.mjs status",
     "project:sync": "node scripts/project-sync.mjs generate",
     "project:check": "node scripts/project-sync.mjs check && node scripts/scan-encoding.mjs",
-    "project:test": "node --test tests/project-sync.test.mjs && pnpm test:dashboard",
+    "project:test": "node --test tests/project-sync.test.mjs && pnpm test:dashboard && pnpm test:release",
     "project:install-hooks": "node scripts/project-sync.mjs install-hooks",
     "project:check-index": "node scripts/project-sync.mjs check-index",
     "project:env-check": "node scripts/project-sync.mjs env-check",
     "smoke:paycheck-account-isolation": "tsx --conditions=react-server tests/smoke-paycheck-account-isolation.mjs",
     "smoke:ledger": "node tests/ledger-boundary.mjs",
-    "db:journal-check": "node scripts/check-ledger-journal.mjs"
+    "db:journal-check": "node scripts/check-ledger-journal.mjs",
+    "db:release": "node scripts/release-db.mjs",
+    "db:preview:init": "node scripts/init-preview-db.mjs",
+    "test:release": "node --test tests/db-release.test.mjs tests/db-release-postgres.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

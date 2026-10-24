@@ -61,6 +61,7 @@ function fail(msg, code = 1) {
 }
 
 async function main() {
+  if (process.env.VERCEL_ENV) fail('Admin seeding is forbidden in Vercel builds; use an explicit operator workflow.');
   const {
     DATABASE_URL,
     ADMIN_EMAIL,

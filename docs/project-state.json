@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "project": "Compass",
-  "updatedOn": "2026-10-13",
+  "updatedOn": "2026-10-24",
   "repository": {
     "branch": "main",
     "remote": "origin",
     "url": "https://github.com/zarasus37/compass.git",
     "baselineCommit": "36cf4ec",
     "policy": "single shared checkout; one writer; no unassigned branches",
-    "contentDigest": "db0fd49e86ac20de7a7d393e26d12456f4e6c855df2cb6d34370a1f44dafc755",
+    "contentDigest": "279e02aac306ad24f02790382e7e5124e4f551e0954d738021784ac98389c42c",
     "canonicalWindowsPath": "C:\\dev\\compass",
     "canonicalWslPath": "/mnt/c/dev/compass",
     "retiredWorkspace": "OneDrive Budget planner app checkout — retained historical copy, not a second development repo",
@@ -21,7 +21,7 @@
       "acknowledgement": {
         "mode": "local",
         "recordedBy": "codex",
-        "at": "2026-10-13T19:51:54.367Z"
+        "at": "2026-10-21T06:11:59.710Z"
       }
     },
     "minimax": {
@@ -40,8 +40,8 @@
       "acknowledgement": {
         "mode": "remote-proxy",
         "recordedBy": "codex",
-        "sha256": "7c3c17eac2a9ae14b1f9c8dff7d49d17103e98d36cd402eadd08b1e176d9d6aa",
-        "at": "2026-10-13T21:31:47.254Z"
+        "sha256": "8e56645b96810d305d477439a35878eae2aacb1cd98980d38024b351be88ca33",
+        "at": "2026-10-24T06:08:43.911Z"
       }
     }
   },
@@ -662,6 +662,66 @@
       "acceptance": [],
       "handoff": null,
       "review": null
+    },
+    {
+      "id": "OPS-01-DB",
+      "title": "Preview database isolation and explicit schema release gates",
+      "status": "done",
+      "owner": "codex",
+      "reviewer": "polar",
+      "scope": [
+        "scripts",
+        "tests",
+        "package.json",
+        "vercel.json",
+        "00-DESIGN.md",
+        "docs/project-state.json",
+        "COORDINATION.md",
+        "docs/team"
+      ],
+      "acceptance": [
+        "Explicit production/preview credential scopes and distinct preview roles",
+        "No migration or admin seed in build commands; second-layer preview guard retained",
+        "Production release records snapshot then readonly preflight then migration and stops on failure",
+        "Preview production-style migration fails loudly",
+        "Rollback preserves independent build protection"
+      ],
+      "handoff": {
+        "path": "docs/team/OPS-01-DB-implementation-v2.md",
+        "sha256": "49c415f2edcc66cb5d70378b532cc7497a8524f2b439ab8cb4b9384e26a9e072",
+        "actor": "codex",
+        "head": "f3d9aff01a674bb3b2d296353ae1f422ef7c0134",
+        "contentDigest": "279e02aac306ad24f02790382e7e5124e4f551e0954d738021784ac98389c42c",
+        "at": "2026-10-21T06:13:51.220Z"
+      },
+      "review": {
+        "path": "docs/team/OPS-01-DB-review-v2.md",
+        "actor": "polar",
+        "verdict": "approved",
+        "mode": "remote-proxy",
+        "recordedBy": "codex",
+        "sha256": "8e56645b96810d305d477439a35878eae2aacb1cd98980d38024b351be88ca33",
+        "handoffIntact": true,
+        "head": "f3d9aff01a674bb3b2d296353ae1f422ef7c0134",
+        "contentDigest": "279e02aac306ad24f02790382e7e5124e4f551e0954d738021784ac98389c42c",
+        "at": "2026-10-24T06:08:45.994Z"
+      }
+    },
+    {
+      "id": "OPS-01-DB-REPAIR",
+      "title": "Resolve snapshot capacity and review missing EnvelopeSink schema repair",
+      "status": "backlog",
+      "owner": null,
+      "reviewer": null,
+      "scope": [],
+      "acceptance": [
+        "Preserve the FIN-02-A recovery snapshot until a reviewed retention/capacity plan exists",
+        "Audit affected EnvelopeSink callers and recovery evidence; do not invent historical rows",
+        "Separately review any additive repair migration with a recorded snapshot first",
+        "Complete full readonly schema preflight before FIN-02-B schema release"
+      ],
+      "handoff": null,
+      "review": null
     }
   ],
   "implementation": {
@@ -683,6 +743,12 @@
     "balanceJournal": "FIN-02-A candidate: additive PostgreSQL triggers capture actual account/envelope INSERT/UPDATE/DELETE deltas under a locked cutover. Existing balances remain unverified openings. Tenant-owned immutable journal supports whole-user erasure and entity removal/recreation. Operator-only RepeatableRead reconciliation reports exact decimal-string cents, missing history/openings, journal gaps, removed entities, uncorrelated changes and mismatches; missing/disabled/altered capture returns a whole-report unavailable result. Existing writers are unchanged and remain uncorrelated. No settlement inference, money-correctness proof, UI or repair. FIN-02-B/C and parent FIN-02 remain incomplete; Polar first review found a test-only history dependency; corrected candidate re-review and production migration pending."
   },
   "verification": [
+    {
+      "check": "FIN-02-A release closure",
+      "result": "PASS: PR17 merged f3d9aff; exact CI-tested tree8a798dd2; both production deployments READY exact SHA; health200; read-only operator10/10; all37 original tables and credential hashes unchanged",
+      "evidence": "https://github.com/zarasus37/compass/pull/17; C:/Users/crisc/.codex/compass-deliverables/FIN-02-A-release.md",
+      "note": "Preview unexpectedly applied migration before planned preflight; recovered historical openings match10/10. Automatic previews paused; all old previews protected. Permanent isolation/gates now OPS-01-DB, before FIN-02-B."
+    },
     {
       "check": "FIN-02-A v2 review correction",
       "result": "PASS: journal128/128 both canonical and actual depth-1 checkout; historical43889ac object absent; all12 production/schema/package hashes unchanged from first packet",
@@ -820,6 +886,10 @@
       "result": "Standalone smoke 148/148 exit 0; no Unknown advisor tool output",
       "evidence": "Codex FIN-01 v3 smoke log, exact production hash comparison to v2 packet",
       "note": "Full suite green on v2 production bytes; not repeated for this test-only delta. No CI or production health verification yet."
+    },
+    {
+      "check": "OPS-01-DB local and live operational evidence",
+      "result": "Guard tests20/20; coordination18/18 and dashboard4/4; isolated preview build exit0. Dedicated preview databases have7 migrations/0 users; roles absent in production and production authentication with both preview credentials fails. Vercel scope metadata readback confirms separate prod/preview DATABASE_URL entries and unchanged production ciphertext; current build commands pnpm build, preview ignore/protection retained. Production health200/live/ready both. Snapshot gate safely refuses provider snapshot limit before preflight/migration. Separate server-readonly diagnostic refuses missing EnvelopeSink; original tenant checksum identified as fef2873. No successful production schema release run, no history rewrite, no production repair. Linux CI, platform wrapper attestation and rollout remain pending independent review."
     }
   ],
   "deployments": {
@@ -917,6 +987,11 @@
       "id": "DR-FIN-09",
       "date": "2026-10-13",
       "text": "Polar FIN-02-A B1 correction: journal runtime tests must work without Git history and must not freeze production writers. Keep current writer runtime assertions; actual old deployed-version compatibility on an isolated migrated clone is an explicit manual pre-release gate, not proven by unchanged source hashes or a newly generated Prisma client. Clarify fail-closed write availability, separately verified constraint drift, and reviewed re-enabling after capture rollback. No production bytes or financial convention changed."
+    },
+    {
+      "id": "DR-OPS-DB-01",
+      "date": "2026-10-13",
+      "text": "After FIN-02-A preview auto-migrated live DB, isolate preview roles/database and scope production credentials explicitly. Remove migrations/admin seeding from all build commands; schema releases are explicit snapshot-record -> server-readonly full-schema preflight -> migrate with stop-on-failure. Builds reject pending/mismatched history, and previews reject production target/production-style release. Keep external ignore guard and deployment protection through rollout/rollback. OPS-01-DB precedes FIN-02-B; broader OPS-01 remains backlog."
     }
   ],
   "timeZone": "America/Chicago"
