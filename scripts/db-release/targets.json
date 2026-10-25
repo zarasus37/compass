@@ -1,0 +1,31 @@
+{
+  "production": {
+    "historyExceptions": [
+      {
+        "name": "20261008130000_tenant_scope_payperiod_and_engine",
+        "currentChecksum": "5f67ef3272d8d2a52368d6e02c96514cc0c8e8ce06900898dabfbb25ccf3ae62",
+        "appliedChecksum": "6b957fab1a689f0a91bbb297d4f3896d0bb017bba953f643c1165fec7330e511",
+        "originalCommit": "fef2873",
+        "reason": "Production applied original backfill before 0f8effa corrected it. DDL is unchanged; require full existing-schema verification. Never rewrite history or re-run the backfill."
+      }
+    ],
+    "identitySha256": "b062bcd457c8df2027f712d1474b256873f75759826a7f4d0de8a5bca9ef976d",
+    "projectId": "misty-wind-26244749",
+    "orgId": "org-autumn-violet-75868170",
+    "branchId": "br-fragrant-glade-ayu0wvbh"
+  },
+  "projects": {
+    "compass": {
+      "projectId": "prj_lrZPPgVulyfLzEQ0PTdmyQGrfh7Q",
+      "preview": {
+        "identitySha256": "83ef3eef2d8173c2e19072fffa616f6459d34d4d5ef97f06792651164936e0fc"
+      }
+    },
+    "compass-mom": {
+      "projectId": "prj_FDWTzM8N0tB7TcGI20D5WAKEztxI",
+      "preview": {
+        "identitySha256": "2c577d5306404efd75c52948985520559c1616ffa02297b1ce11b3cc2d63dd2c"
+      }
+    }
+  }
+}
